@@ -187,6 +187,27 @@ async function ensureWalletReady(reason) {
   return st;
 }
 
+async function getTipHeight() {
+  const { stdout } = await run(MFN_CLI, ["--rpc", MFND_RPC, "tip"], 15_000);
+  const m = stdout.match(/tip_height=(\d+)/);
+  return m ? Number(m[1]) : 0;
+}
+
+/** Wait for at least one new block so the faucet wallet can rescan spent inputs. */
+async function waitTipAdvance(fromHeight, timeoutMs = 90_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const h = await getTipHeight();
+    if (h > fromHeight) {
+      return h;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error(
+    `tip did not advance from ${fromHeight} within ${timeoutMs}ms`,
+  );
+}
+
 function validAddress(addr) {
   if (typeof addr !== "string") return false;
   const a = addr.trim();
@@ -218,8 +239,19 @@ async function fundAddress(address, amount) {
     await ensureWalletReady("claim");
 
     const txIds = [];
+    const tipBefore = await getTipHeight();
     // Two sends so recipient meets the F7 two-input floor for later transfers.
+    // Rescan + wait for a block between sends — back-to-back spends reuse stale
+    // UTXOs and mempool rejects with "key image already spent on chain".
     for (let i = 0; i < 2; i++) {
+      if (i > 0) {
+        try {
+          await waitTipAdvance(tipBefore);
+        } catch (e) {
+          console.warn("faucet between-send tip wait:", e.message);
+        }
+        await syncWallet("between-fund-sends");
+      }
       const { stdout } = await run(MFN_CLI, [
         "--rpc",
         MFND_RPC,
@@ -242,9 +274,6 @@ async function fundAddress(address, amount) {
       }
       const parsed = JSON.parse(stdout.slice(start, end + 1));
       txIds.push(parsed.tx_id || parsed.txId || null);
-      if (i === 0) {
-        await new Promise((r) => setTimeout(r, 400));
-      }
     }
 
     return {

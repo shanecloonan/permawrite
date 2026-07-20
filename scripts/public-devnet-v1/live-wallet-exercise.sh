@@ -126,32 +126,34 @@ log "dave_address=$DAVE_ADDR"
 # Privacy: address is not a transparent account key reuse across wallets
 [[ ${#CAROL_VIEW} -eq 64 && ${#DAVE_VIEW} -eq 64 ]] && ok "view pubs are 32-byte hex" || fail "view pub length"
 
-# --- fund carol with 2× (F7 floor) from faucet ---
-log "--- funding carol (2 faucet sends) ---"
-FAUCET_BAL_OUT="$(cli --wallet "$FAUCET_WALLET" wallet balance 2>&1)"
-FAUCET_BAL="$(parse_kv balance "$FAUCET_BAL_OUT")"
-log "faucet_balance=$FAUCET_BAL"
-[[ -n "$FAUCET_BAL" && "$FAUCET_BAL" -gt $((AMOUNT_FUND * 2 + FEE * 2)) ]] && ok "faucet funded" || fail "faucet balance too low ($FAUCET_BAL)"
-
+# --- fund carol (F7 two-UTXO floor via fund-wallet; waits between sends) ---
+log "--- funding carol via fund-wallet (F7 floor) ---"
+FUND_SCRIPT="$ROOT/scripts/public-devnet-v1/fund-wallet.sh"
+[[ -x "$FUND_SCRIPT" || -f "$FUND_SCRIPT" ]] || { fail "missing fund-wallet.sh"; exit 2; }
+FUND_OUT="$(
+  bash "$FUND_SCRIPT" \
+    --rpc "$RPC" \
+    --faucet-wallet "$FAUCET_WALLET" \
+    --recipient-wallet "$CAROL" \
+    --amount "$AMOUNT_FUND" \
+    --fee "$FEE" \
+    --ring-size "$RING" \
+    --wait-mined-seconds "$WAIT_SLOT_SEC" \
+    --min-owned-count 2 \
+    --no-build 2>&1
+)" || {
+  fail "fund-wallet failed: $FUND_OUT"
+  FUND_OUT=""
+}
+if [[ -n "$FUND_OUT" ]]; then
+  log "$FUND_OUT"
+  TX="$(printf '%s\n' "$FUND_OUT" | sed -n 's/^fund-wallet: PASS tx_id=\([0-9a-f]*\).*/\1/p' | tail -1)"
+  [[ -n "$TX" ]] && ok "fund-wallet PASS tx_id=$TX" || fail "fund-wallet missing PASS tx_id"
+fi
 FUND_TXS=()
-for i in 1 2; do
-  SEND_OUT="$(wallet_send "$FAUCET_WALLET" "$CAROL_ADDR" "$AMOUNT_FUND" 2>&1)" || {
-    fail "faucet send #$i failed: $SEND_OUT"
-    continue
-  }
-  TX="$(json_field tx_id "$SEND_OUT")"
-  OUTCOME="$(json_field outcome "$SEND_OUT")"
-  RING_GOT="$(json_num ring_size "$SEND_OUT")"
-  log "faucet_send_$i tx_id=$TX outcome=$OUTCOME ring_size=$RING_GOT"
+if [[ -n "$TX" ]]; then
   FUND_TXS+=("$TX")
-  [[ "$RING_GOT" == "$RING" ]] && ok "fund send #$i ring_size=$RING" || fail "fund send #$i ring_size=$RING_GOT want $RING"
-  [[ -n "$TX" && ${#TX} -eq 64 ]] && ok "fund send #$i has tx_id" || fail "fund send #$i missing tx_id"
-  [[ "$OUTCOME" == "Fresh" || "$OUTCOME" == "Duplicate" || "$OUTCOME" == "AlreadyKnown" ]] && ok "fund send #$i admitted ($OUTCOME)" || fail "fund send #$i outcome=$OUTCOME"
-  sleep 1
-done
-
-log "waiting ${WAIT_SLOT_SEC}s for produce..."
-sleep "$WAIT_SLOT_SEC"
+fi
 
 wallet_scan "$CAROL" >/dev/null || warn "carol scan returned non-zero"
 CAROL_BAL_OUT="$(wallet_balance "$CAROL" 2>&1)"
