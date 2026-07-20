@@ -315,9 +315,24 @@ fn unique_data_dir(test: &str) -> PathBuf {
     ))
 }
 
+/// Free loopback port in the B-71 persistable band (`< MIN_EPHEMERAL_PEER_PORT`).
+///
+/// OS `bind(…:0)` yields ports ≥32768, which `is_persistable_peer_addr` rejects — so
+/// reconnect / `peers.json` tests must pin listen addrs here (matches public seed posture).
 fn reserve_loopback_addr() -> SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("reserve loopback addr");
-    listener.local_addr().expect("reserved local addr")
+    const LO: u16 = 19_000;
+    let hi = mfn_store::MIN_EPHEMERAL_PEER_PORT;
+    let span = hi - LO;
+    let start = LO + (std::process::id() as u16 % span);
+    for i in 0..span {
+        let port = LO + ((start - LO + i) % span);
+        if let Ok(listener) = TcpListener::bind(("127.0.0.1", port)) {
+            let addr = listener.local_addr().expect("local addr");
+            drop(listener);
+            return addr;
+        }
+    }
+    panic!("no free persistable loopback port in {LO}..{hi}");
 }
 
 fn step_solo_blocks_with_store(data_dir: &Path, spec: &Path, blocks: u32, store: Option<&str>) {
@@ -1351,7 +1366,35 @@ fn mfnd_p2p_reconnects_saved_peers_on_restart() {
     let dir_a = unique_data_dir("p2p_reconnect_a");
     let dir_b = unique_data_dir("p2p_reconnect_b");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
-    let (mut child_a, mut out_a, _err_a, _rpc_a, p2p_a) = spawn_mfnd_serve_with_p2p(&dir_a, &spec);
+    // B-71: dial targets must be persistable (<32768) or peers.json is never written.
+    let p2p_a = reserve_loopback_addr();
+    let mut child_a = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_a)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-listen")
+        .arg(p2p_a.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn peer A on persistable p2p port");
+    let stdout_a = child_a.stdout.take().expect("stdout a");
+    let mut out_a = BufReader::new(stdout_a);
+    let startup_a = read_stdout_lines_with_prefixes_any_order(
+        &mut out_a,
+        &["mfnd_serve_listening=", "mfnd_p2p_listening="],
+        serve_listen_timeout(),
+    );
+    assert!(
+        startup_a[1].contains(&p2p_a.to_string()),
+        "peer A should bind persistable P2P addr, got {:?}",
+        startup_a[1]
+    );
     thread::spawn(move || {
         let mut line = String::new();
         while let Ok(n) = out_a.read_line(&mut line) {

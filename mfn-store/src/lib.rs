@@ -55,7 +55,7 @@ pub use mempool_persist::{
 pub use peers_persist::{
     is_persistable_peer_addr, load_peers, load_peers_with_report, peers_path, remove_peers_file,
     save_peers, PeersFileV1, PeersLoadReport, DEFAULT_MAX_OUTBOUND_PEERS, MAX_OUTBOUND_PEERS_LIMIT,
-    PEERS_FILE,
+    MIN_EPHEMERAL_PEER_PORT, PEERS_FILE,
 };
 pub use proof_pool_persist::{
     load_proof_pool, proof_pool_path, remove_proof_pool_file, save_proof_pool, ProofPoolSaveMeta,
