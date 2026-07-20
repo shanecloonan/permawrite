@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = `7ab86ad` (**B-60**). **CI `#29718880625` in_progress**. Live tip ~4192 (wave15 soak). Lane 4 **B-63** (early B-24a) tests ready; land after matrix (do not cancel). **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29718880625` GREEN** on `7ab86ad` (**B-60**). **Nightly `#29720083660` in_progress** (B-29 close criterion). Tip docs ahead with skip-ci. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-60** (`7ab86ad`) | **Watch CI `#29718880625`** (claim base: `7ab86ad`) | On GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
+| **1** RC core | **CI `#29718880625` GREEN** (`7ab86ad`) | **Watch Nightly `#29720083660`** (claim base: `7ab86ad`) | Close **B-29** on GREEN; else fix-forward fund-wallet | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave16** (F81/F82; eve last_proven=4206) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-51** (`e69e603`); **B-48**/`B-45` | **B-63** partial-set settle + coinbase compose (claim base: `7ab86ad`; local PASS) | Land after `#29718880625`; then lane 7 roll → live **B-32** → **B-44**/**B-24** | Lane 1 CI |
@@ -209,7 +209,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9; [work package](docs/ROADMAP.md#b-27-work-package--fresh-soakparticipant-on-invite-head) |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
-| B-29 | Nightly `fund-wallet.sh` WS tip mismatch fix | 1+3 | **Code** `5dc3aa8`; **close** = Nightly GREEN (≠ JOIN) |
+| B-29 | Nightly `fund-wallet.sh` WS tip mismatch fix | 1+3 | **Code** `5dc3aa8`+B-60 CI GREEN; **close** = Nightly `#29720083660` GREEN |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
 | B-31 | Live RPC/faucet threat posture verify | 2+7 | **P2P+RPC PASS** after B-41/B-46; close after **B-26** R-4 deploy confirm |
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling landed**; live pack day-of L4 |
@@ -250,6 +250,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-20 — lane 1 — CI `#29718880625` GREEN + Nightly `#29720083660`**: B-60 matrix green on `7ab86ad`; dispatched Nightly for **B-29** close (prior `#29720070774` cancelled by concurrency). Docs-only `[skip ci]`.
 
 1. **2026-07-20 — lane 3 — B-15 wave16** (this commit): F81 list_recent_uploads object params; F75 cascade dave; heidi→frank unlock; eve upload adfaba2… last_proven=**4206** (slow F82). Evidence wave16.md. [skip ci].
 1. **2026-07-20 — lane 3 — B-15 wave15** (this commit): tip soak PASS; F45 hard FAIL lag22 / soft PASS; retrieve frank/grace/eve; **heidi** pin→faucet→upload last_proven=**4200**; frank→heidi 25k @4201; F80 post-pin balance lag. Evidence `live-testnet-probe-20260720-wave15.md`. `[skip ci]`. *Observed:* probe temps, `user-wallet/`, `live-testnet-data*`.
