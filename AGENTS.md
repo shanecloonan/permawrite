@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** CI `#29715111633` **FAILED** on B-48 (`69df8fa`) - lane 4/1. This land = **B-58/F68b** Windows bootstrap temp `.py` `[skip ci]`. Tip live **4161+**; ckpt max **4159**. Hold mfnd roll.
+**CI gate (2026-07-20):** Rust head = this commit (**B-51** ephemeral fanout + produce-smoke CI budget). Prior `#29715111633` RED (`public_devnet_hub` 20s timeout all OSes). Tip live **4159+**. Lane 7: `vps-roll-mfnd.sh --apply` after this CI GREEN (B-45+B-48+B-51). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | `#29715111633` RED (produce-smoke timeout) | **Watch CI on B-51 head** (claim base: this head) | On GREEN: Nightly -> B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | B-15 wave12 eve upload+prove+send PASS (this commit) | **B-15** JOIN archive (claim base: this head) | SUMMARY when F45/F68b cleared | L4 checklist |
-| **4** Protocol | **B-51** ephemeral fanout + smoke budget; **B-48** (`69df8fa`); **B-45** | *Idle* | After CI GREEN: lane 7 `vps-roll-mfnd`; live **B-32** → **B-44** → **B-24** | Lane 1 CI |
+| **4** Protocol | **B-51** ephemeral fanout + smoke budget; **B-48** (`69df8fa`); **B-45** | *Idle* | After CI GREEN: lane 7 `vps-roll-mfnd`; live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-58/F68b** temp-py Windows bootstrap; B-22 tip-4159 | *Idle* | Hold `vps-roll-mfnd` until CI GREEN + **B-51**; **B-42** after B-15 PASS; TLS/443 follow-up | `launch-go-no-go` |

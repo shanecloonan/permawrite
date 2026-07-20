@@ -360,10 +360,22 @@ impl P2pPeerSet {
         }
     }
 
+    fn is_durable_peer(&self, peer_addr: &str) -> bool {
+        self.durable_peers
+            .lock()
+            .map(|g| g.contains(peer_addr))
+            .unwrap_or(false)
+    }
+
     /// Penalize a failed peer interaction; repeated failures temporarily quarantine the address.
     pub fn note_peer_failure(&self, peer_addr: &str, reason: &str) {
         if should_ignore_failure_for_quarantine(reason) {
             eprintln!("mfnd_p2p_peer_failure_soft peer={peer_addr} reason={reason}");
+            return;
+        }
+        // B-51: inbound session keys are ephemeral source ports — never quarantine them.
+        if !self.is_durable_peer(peer_addr) {
+            eprintln!("mfnd_p2p_peer_failure_ephemeral peer={peer_addr} reason={reason}");
             return;
         }
         if should_drop_persistent_peer_on_failure(reason) {
@@ -756,7 +768,8 @@ impl P2pPeerSet {
     /// Push `block_wire` to every registered peer except `except_peer` (**M2.3.23**).
     pub fn fanout_block(self: &Arc<Self>, block_wire: &[u8], except_peer: Option<&str>) {
         let session_peers = self.snapshot_session_peers();
-        let dial_peers = self.snapshot_peers_except(except_peer);
+        // B-51: only dial durable listen addrs — never redial ephemeral inbound source ports.
+        let dial_peers = self.snapshot_production_fanout_peers_except(except_peer);
         if session_peers.is_empty() && dial_peers.is_empty() {
             return;
         }
@@ -822,7 +835,8 @@ impl P2pPeerSet {
             return;
         };
         let session_peers = peer_set.snapshot_session_peers();
-        let dial_peers = peer_set.snapshot_peers_except(except_peer);
+        // B-51: durable dial targets only (same as block fan-out).
+        let dial_peers = peer_set.snapshot_production_fanout_peers_except(except_peer);
         if session_peers.is_empty() && dial_peers.is_empty() {
             return;
         }
@@ -1617,6 +1631,38 @@ mod tests {
         assert!(loaded.contains(&stale_seed));
         assert!(loaded.contains(&healthy_second));
         assert_eq!(max_outbound, 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn ephemeral_dial_failures_do_not_quarantine() {
+        let dir = temp_dir("ephemeral_no_quarantine");
+        let durable = "203.0.113.30:19001".to_string();
+        let ephemeral = "127.0.0.1:51234".to_string();
+        let mut peers = BTreeSet::new();
+        peers.insert(durable.clone());
+        save_peers(&dir, &peers, 2).expect("save peers");
+
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
+        );
+
+        let refused = "handshake: Connection refused (os error 111)";
+        for _ in 0..5 {
+            peer_set.note_peer_failure(&ephemeral, refused);
+        }
+        // Durable peer must remain available (ephemeral failures must not poison scoring).
+        assert_eq!(peer_set.snapshot_available_peers(), vec![durable.clone()]);
+        assert!(!peer_set
+            .snapshot_production_fanout_peers_except(None)
+            .contains(&ephemeral));
         std::fs::remove_dir_all(&dir).ok();
     }
 
