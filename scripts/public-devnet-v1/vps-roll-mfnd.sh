@@ -97,7 +97,8 @@ if [[ "${MFN_ROLL_ALLOW_RED_CI:-0}" != "1" ]]; then
     fi
     echo "vps-roll-mfnd: CI #$run_id GREEN OK"
   else
-    echo "vps-roll-mfnd: WARN gh not installed — cannot verify CI; set MFN_ROLL_ALLOW_RED_CI=1 only if you verified GREEN" >&2
+    echo "vps-roll-mfnd: gh not installed — refuse roll (fail closed). Install gh or set MFN_ROLL_ALLOW_RED_CI=1 after verifying CI GREEN" >&2
+    exit 4
   fi
 else
   echo "vps-roll-mfnd: WARN MFN_ROLL_ALLOW_RED_CI=1 — skipping CI gate"
