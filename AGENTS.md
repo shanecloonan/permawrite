@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `02c8df8` (+ B-16 `49d28f9`); planning `7a642af`+. **CI `#29711044516` queued** (~10m+, watch for stall). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **Nightly `#29701967243` RED** — **B-29**. Strategic path: L4 → **B-13a** (armed day-of) → **B-25**.
+**CI gate (2026-07-19):** code head = `02c8df8` (+ B-16 `49d28f9`); planning `9150353`. **CI `#29711044516` queued** (~12m+, stall risk — lane 1 watch). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **Nightly `#29701967243` RED** — **B-29**. Strategic path: L4 → **B-13a** (armed day-of) → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -202,18 +202,18 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — planning — Phase 1 handoffs B-32/33/35/36/38 + B-13a package** (this commit): B3 multi-op assert rigor; B-13b sign-off checklist; lane 6 armed day-of L4; F7 pad + F10 lint + Repair/soak IDs. Docs-only `[skip ci]`. *Observed local work (not staged):* `mfn-cli` light_wallet/wallet_store (likely B-29); `user-wallet/`, `ci-docs-*.txt`.
+1. **2026-07-19 — planning — Phase 1 handoffs B-32/33/35/36/38 + B-13a package** (`9150353`): B3 multi-op assert rigor; B-13b sign-off checklist; lane 6 armed day-of L4; F7 pad + F10 lint + Repair/soak IDs. Docs-only `[skip ci]`. *Observed local work (not staged):* `mfn-cli` light_wallet/wallet_store (likely B-29); `user-wallet/`, `ci-docs-*.txt`.
 2. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (`583bf11`): Nightly = `fund-wallet.sh`; JOIN does not close B-29. Docs-only `[skip ci]`.
 3. **2026-07-19 — planning — L4 invite gates B-26…B-31** (`8254c51`): Nightly RED → B-29; R-4/B-27/B-30. Docs-only `[skip ci]`.
-3. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs. Docs-only `[skip ci]`.
-4. **2026-07-19 — planning — Phase 1 permanence playbook** (`55c4abc`): B-13b same-chain lean; **B-25** before Tier 2/Path B. Docs-only `[skip ci]`.
-5. **2026-07-19 — lane 3 — B-15 checkpoint light-scan** (`02c8df8` / `73abf77`): JOIN/`fund-wallet-http` tall-tip path; **CI `#29711044516` queued**.
-6. **2026-07-19 — lane 2 — R-1–R-4 faucet fix-forward** (`2b655d2`…`dc05c40`): dual-send tip wait, loopback cooldown, peer-IP rate limit.
-7. **2026-07-19 — lanes 2+3 — B-15 tooling + Board v2** (`774320f`…`b93e216`): JOIN rehearsal; single live board; **CI `#29698203148` GREEN**.
-8. **2026-07-19 — docs — VIBECODING + economics** (`b4a3fa7`): **CI `#29700946945` GREEN**.
-9. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`): F7 floor + observer catch-up. **CI `#29660101057` GREEN**.
-10. **2026-07-17 — lane 7 — public testnet live**: observer proxy, faucet API, front-end, light-scan.
-11. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md))*
+4. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs. Docs-only `[skip ci]`.
+5. **2026-07-19 — planning — Phase 1 permanence playbook** (`55c4abc`): B-13b same-chain lean; **B-25** before Tier 2/Path B. Docs-only `[skip ci]`.
+6. **2026-07-19 — lane 3 — B-15 checkpoint light-scan** (`02c8df8` / `73abf77`): JOIN/`fund-wallet-http` tall-tip path; **CI `#29711044516` queued**.
+7. **2026-07-19 — lane 2 — R-1–R-4 faucet fix-forward** (`2b655d2`…`dc05c40`): dual-send tip wait, loopback cooldown, peer-IP rate limit.
+8. **2026-07-19 — lanes 2+3 — B-15 tooling + Board v2** (`774320f`…`b93e216`): JOIN rehearsal; single live board; **CI `#29698203148` GREEN**.
+9. **2026-07-19 — docs — VIBECODING + economics** (`b4a3fa7`): **CI `#29700946945` GREEN**.
+10. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`): F7 floor + observer catch-up. **CI `#29660101057` GREEN**.
+11. **2026-07-17 — lane 7 — public testnet live**: observer proxy, faucet API, front-end, light-scan.
+12. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md))*
 
 ---
 

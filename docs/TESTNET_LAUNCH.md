@@ -38,7 +38,7 @@ Complete each phase before starting the next. A phase may have multiple commits;
 | **5** | TL-6 | Participant rehearsal on VPS (fund → upload → restore → prove → bundle) | Lane 7 | TL-5 |
 | **6** | TL-7 | Genesis/key decision — [`TESTNET_GENESIS_CEREMONY.md`](./TESTNET_GENESIS_CEREMONY.md) | Lane 7 + human | TL-6 |
 | **7** | TL-8 | Publish `seed_nodes` + [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) invite packet | Lane 7 | TL-7 |
-| **8** | TL-9 | Launch go/no-go — `launch-go-no-go.sh` + named sign-offs + **B-15** JOIN evidence asserted + **B-16** privacy docs | Lane 7 + human | TL-8 + B-15 assert + B-16 ([`ROADMAP.md` L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification)) |
+| **8** | TL-9 | Launch go/no-go — `launch-go-no-go.sh` + named sign-offs + **B-15** JOIN evidence + **B-16** ✓ + **B-29** Nightly GREEN + **B-26/27/30** invite gates | Lane 7 + human | TL-8 + full [L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification) |
 
 Phase 0 is **documentation and status tooling only**. Phases 4–8 require a reachable host (minimum: one Linux VPS).
 

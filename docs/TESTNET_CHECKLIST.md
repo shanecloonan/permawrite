@@ -417,6 +417,19 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 - [ ] **L1 refresh** — Green CI + `release-evidence` **go** on B-15/R-4 head (`02c8df8` stack).
 - [ ] **TL-9** — Named watchers + human sign-offs on `launch-go-no-go` + invite circulation ([`TESTNET_INVITE.md`](./TESTNET_INVITE.md)).
 
+## L5 / Phase 1 permanence depth (after L4 — do not start early)
+
+Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permanence-playbook-acceptance-criteria). **Hard rule:** permanence (**B-13** / **B3** / **B-25**) before Tier 2 privacy or Path B value.
+
+- [ ] **B-13a** — Emission/treasury sims at `subsidy_to_treasury_bps=1000` in default CI (lane 6 — claim day-of L4).
+- [ ] **B-32** — B3 multi-op evidence pack + assert (unblocks honest **B-24**).
+- [ ] **B-33** — B-13b human sign-off checklist (before **B-13c** enable).
+- [ ] **B-13c** — Same-chain enable + operator announcement (after B-33).
+- [ ] **B-24** — Multi-op consensus settlement audit + M5 proptests (after B-32).
+- [ ] **B-38** — Repair/soak evidence + assert.
+- [ ] **B-28** — Treasury watch + numeric OPERATORS alert thresholds (after B-13c).
+- [ ] **B-25** — Phase 1 permanence go/no-go (30d soak + treasury bounds) — gate before Tier 2 / Path B.
+
 ## Cross-Agent Notes
 
 - Do not claim **L4** (hardened public testnet) readiness until **all** open items above are ticked. L3 (experimental public testnet) is already live.
