@@ -1,0 +1,11 @@
+# B-32 B3 multi-op SPoRA evidence
+# Fixture only — not a live internet transcript.
+SUMMARY: PASS
+operator_count=2
+distinct_hosts=true
+distinct_payouts=true
+spora_proofs_from_both=true
+commitment_hash=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+tip_height=100
+operator_a_host=203.0.113.10
+operator_b_host=203.0.113.20

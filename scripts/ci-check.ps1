@@ -202,6 +202,21 @@ if ($joinTestnetEvidencePlan -notmatch "join-testnet-rehearsal-evidence-rehearsa
     $joinTestnetEvidencePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$repairVpsP2pPlan = (bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only) -join "`n"
+if ($repairVpsP2pPlan -notmatch "repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only") {
+    $repairVpsP2pPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$bootstrapCkptPlan = (bash scripts/public-devnet-v1/bootstrap-path-a-checkpoint-signer.sh --plan-only) -join "`n"
+if ($bootstrapCkptPlan -notmatch "bootstrap-path-a-checkpoint-signer: PASS plan-only") {
+    $bootstrapCkptPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$inviteLoadPlan = (bash scripts/public-devnet-v1/invite-load-smoke-rehearsal.sh --plan-only) -join "`n"
+if ($inviteLoadPlan -notmatch "invite-load-smoke-rehearsal: PASS plan-only") {
+    $inviteLoadPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $vpsPreflightPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($vpsPreflightPlan -notmatch "vps-preflight-rehearsal-smoke: PASS plan-only" -or $vpsPreflightPlan -notmatch "vps-internet-soak.sh") {
     $vpsPreflightPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

@@ -481,7 +481,11 @@ first-write-wins could block honest bytes until repair.
 
 ---
 
-## Part B — Remaining work (specific plans)
+## Part B
+
+**B-32 tooling:** `assert-b3-multi-op-evidence` + `b3-multi-op-*.txt` evidence pack (ci-check plan gate); live multi-op capture arms day-of L4.
+
+ — Remaining work (specific plans)
 
 Ordered roughly by permanence impact per unit risk. Items marked
 **consensus** need a version gate and M5-style proptests. Backlog IDs from
