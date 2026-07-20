@@ -1,6 +1,6 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT - not yet archive-assert PASS. Cite live evidence waves 6-20 under scripts/public-devnet-v1/evidence/live-testnet-probe-20260720-wave*.md.
+**Status:** DRAFT — live evidence waves 6–30 under `scripts/public-devnet-v1/evidence/live-testnet-probe-*.md`.
 **Lane:** 3
 **Network:** public-devnet-v1 / genesis 454fa5d4...a005
 **Public endpoints:** seeds 5.161.201.73:19001-19003; RPC proxy http://5.161.201.73:8787/rpc; faucet http://5.161.201.73:8788; FE http://5.161.201.73:3000 (+ /testnet)
@@ -37,8 +37,9 @@
 | sam | peer (+faucet done) | n/a | yes | **4430** (wave27; proxy verified) |
 | tina | faucet | n/a | yes | **4452** (wave28; proxy verified) |
 | uma | faucet | n/a | yes | **4466** (wave29; proxy verified) |
+| vera | faucet | n/a | yes | **4479** (wave30; proxy verified) |
 
-Thirteen wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/**uma**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Fourteen wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/**vera**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -63,6 +64,8 @@ Thirteen wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/p
 20. **F98** - peer dual-send #2 may fail input-count floor even when owned=2 after change settles.
 21. **F45 update (wave28)** - hard checkpoint-log **PASS** when Path A attestation exists at exact live tip; failure mode is attestation lag, not broken soft JOIN.
 22. **F99** - after faucet, low pins may timeout; near-tip/ckpt-max pin can still show owned=2 (wave29: 4173/4262 timeout, 4400 funded).
+23. **F100** — `last_proven` / status=matched can appear while tip_id still mismatches by ±1 (wave30); wait for tip_id match before treating public settle as final.
+
 18. **F45** - tip-4400 ckpt landed but hard scan still FAIL at tip 4404 (lag~4); pin@max insufficient.
 
 ## Still open before formal archive PASS
