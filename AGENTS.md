@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Landing **B-78** docs-equivalent CI roll gate. **B-77** roll+tip-4400 on `b1ce264`. Prior GREEN `#29739903305` on `62a9c02`. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Landing **B-76** (full CI). Prior **CI `#29739903305` GREEN** on B-74 (`62a9c02`). **B-77** tip-4400; **B-78** roll gate. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-75** production_dial + persistable local P2P (this commit) | *Idle* — watch CI then sole Nightly | Nightly GREEN → close **B-29** | CI/Nightly run IDs |
+| **1** RC core | **B-75** production_dial + persistable local P2P (this commit) | *Idle* — watch full CI then sole Nightly | Nightly GREEN → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave25** (quinn last_proven=4390; F95 429+peer-fund) | **B-15** formal JOIN archive assert (claim base: 03ec40c) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-74** (`62a9c02`); **B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — wait B-15 PASS (mfnd B-71 rolled B-77) | Live multi-op pack → **B-44** → full **B-24** | Lane 1 CI |
+| **3** Onboarding | **B-15 wave26** (rose last_proven=4412; tip-4400 ckpt; F96) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **4** Protocol | **B-74** (`62a9c02`, CI `#29739903305` GREEN); **B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-76** dual-op empty-audit slash (early B-24d; this commit) | Live **B-32** (B-77 mfnd rolled) after B-15 → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-78** docs-equivalent CI roll gate (this commit); **B-77** tip-4400 | *Idle* | **B-42** after B-15 PASS; keep near-tip ckpts | `launch-go-no-go` |
@@ -157,7 +157,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Open** |
 | 4 | 7 | **B-45+B-48+B-51+B-64:** rolled on Hetzner after **CI `#29725270815` GREEN**; **B-68** peers scrub restored tip | **Done** (VPS roll) |
 | 7 | 4 | **B-68 follow-up:** filter ephemeral/0.0.0.0 on `peers.json` load so polluted durable sets cannot recur (ops scrub is not enough) | **Done** (B-71 + B-73 smoke) |
-| 4 | 7 | **B-32:** mfnd re-roll with B-71/B-73 binary; then help arm ≥2 distinct-host operators for live multi-op pack (after B-15 JOIN window) | **Open** |
+| 4 | 7 | **B-32:** mfnd re-roll with B-71/B-73 binary; then help arm ≥2 distinct-host operators for live multi-op pack (after B-15 JOIN window) | **Ack** — **B-77** rolled B-71 + tip-4400; still need ≥2 distinct-host operators |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
@@ -259,7 +259,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
 | B-67 | Multi-op slash while peer settles + treasury identity (early B-24c) | 4 | **Landed** on `f6273cb` (commit subject mislabeled B-70/B-71); not full B-24 |
-| B-74 | B-32 multi-op evidence plan gate in ci-check | 4 | **Landed** (this commit) — plan smoke + fixture + negative reject |
+| B-74 | B-32 multi-op evidence plan gate in ci-check | 4 | **Landed** (`62a9c02`); **CI `#29739903305` GREEN** |
+| B-76 | Dual-operator empty-audit slash treasury identity (early B-24d) | 4 | **Landed** (this commit) — both ops cross miss cap same empty block; not full B-24 |
 
 ---
 
@@ -267,13 +268,14 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 7 — B-78 docs-equivalent CI roll gate** (this commit): `lib-ci-roll-gate.sh` accepts ancestor GREEN when HEAD diff has no `mfn-*/src`/Cargo/workflows. Wired into assert-vps-roll-ready + vps-roll-mfnd; VPS READY while CI in_progress. Evidence `b78-docs-equivalent-ci-roll-gate-20260720.md`. *Observed (not staged):* lane-1 B-75 WIP (`p2p_fanout.rs`, produce-smokes, `start-all.*`), JOIN temps, `user-wallet/`.
-1. **2026-07-20 - lane 3 - B-15 wave25** (`03ec40c`): faucet **F95** HTTP 429; patricia->quinn 2x150k tip-wait PASS; upload bound **last_proven=4390** proxy+claims; claims recent=6; F45 still FAIL; F92 PASS. Evidence wave25.md. *Observed (not staged):* user-wallet/, live-testnet-data*, other-lane p2p/smoke dirty files.
-1. **2026-07-20 — lane 7 — B-77 B-71 mfnd roll + tip-4400 ckpt** (this commit): Roll after manual verify of **CI `#29739903305` GREEN** on `62a9c02` (HEAD docs-only via `03ec40c`); `MFN_ROLL_ALLOW_RED_CI=1`; tip 4398->4401+; peers-clean OK; Path A tip-**4400** (entries=13). Evidence `b77-b71-roll-tip4400-20260720.md`. Next **B-78** docs-equivalent CI gate. *Observed (not staged):* lane-3 JOIN temps, `user-wallet/`, `live-testnet-data*`.
-1. **2026-07-20 — lane 1 — B-75 production_dial + persistable local P2P** (this commit): B-71 refused GHA `:0` advertise (≥32768) so sealed-block fanout missed voters (observer tip@1; all-produce diverge). Fix: in-memory `production_dial_peers` union for seal/proposal dials; persistable bind in `start-all.sh`/`.ps1` + produce smokes; unit test `advertised_non_persistable_listen_stays_in_production_dial`. Full CI (no skip). After GREEN: sole Nightly → close **B-29**. *Observed (not staged):* lane-3 evidence temps, `user-wallet/`, `live-testnet-data*`, `_nightly-*`.
-2. **2026-07-20 — lane 3 — B-15 wave25** (`03ec40c`): quinn last_proven=4390; F95 faucet 429. Evidence wave25.md (board SYNC note — AGENTS not in that commit).
-3. **2026-07-20 — lane 1 — Nightly `#29738744950` RED (participant GREEN)**: B-29 seed-isolation+B-72 proven on participant job. Observer tip-stall → **B-75**. Docs-only `[skip ci]`.
-4. **2026-07-20 — lane 4 — B-74 B-32 ci-check plan gate** (`62a9c02`): B-32 plan gate in ci-check. Full CI. **CI `#29739903305` GREEN**.
+1. **2026-07-20 — lane 4 — B-76 dual-op empty-audit slash** (this commit): early B-24d `b76_b5_dual_operator_slash_*`; local release test PASS. Full CI. *Observed (not staged):* lane-1 dirty `p2p_fanout`/produce-smokes if present, JOIN/`user-wallet`/`live-testnet-data*`.
+2. **2026-07-20 - lane 3 - B-15 wave26** (this commit): tip-4400 ckpt verify PASS (entries=13); F45 hard FAIL tip 4404 (pin@4400 insufficient); quinn retrieve OK; rose faucet ~114s; **F96** pin@4173 zero then @4262 funded; upload bound **last_proven=4412** proxy+claims; claims recent=7; F92 headers PASS. Evidence wave26.md. *Observed (not staged):* user-wallet/, live-testnet-data*, other-lane dirty files.
+1. **2026-07-20 — lane 1 — B-75 production_dial + persistable local P2P** (this commit): B-71 refused GHA `:0` advertise (≥32768) so sealed-block fanout missed voters (observer tip@1; all-produce diverge). Fix: in-memory `production_dial_peers` for seal/proposal dials; `persistable-listen-lib.sh` + `start-all.sh`/`.ps1` + produce-smoke persistable binds; unit test PASS. Full CI (no skip). After GREEN: sole Nightly → close **B-29**. *Observed (not staged):* lane-3/4 temps, `user-wallet/`, `live-testnet-data*`, `_nightly-*`.
+2. **2026-07-20 — lane 7 — B-78 docs-equivalent CI roll gate** (`faa8683`): `lib-ci-roll-gate.sh`; observed lane-1 B-75 WIP (now landed).
+3. **2026-07-20 - lane 3 - B-15 wave25** (`03ec40c` / `214454b` board): quinn last_proven=4390; F95. Evidence wave25.md.
+4. **2026-07-20 — lane 7 — B-77 B-71 mfnd roll + tip-4400 ckpt** (`b1ce264`): tip-**4400**; Evidence `b77-b71-roll-tip4400-20260720.md`.
+5. **2026-07-20 — lane 1 — Nightly `#29738744950` RED (participant GREEN)**: observer tip-stall → **B-75**. Docs-only `[skip ci]`.
+6. **2026-07-20 — lane 4 — B-74 B-32 ci-check plan gate** (`62a9c02`): **CI `#29739903305` GREEN**.
 2. **2026-07-20 — lane 4 — CI `#29736528564` GREEN + B-32 claim** (`7beb4d4`): stack B-67/B-71/B-73 green; arm **B-32** after B-15 + lane-7 mfnd re-roll. §6 request to lane 7. Docs-only `[skip ci]`.
 2. **2026-07-20 - lane 3 - B-15 wave24** (this commit): soak tip **4364** match; F45 hard FAIL (pin@4323 still needs tip attestation); **F92** headers {from_height,to_height} PASS; oscar retrieve OK; patricia faucet ~99s; pin-retry 4323/4262/4173 -> funded; upload bound **last_proven=4362** proxy+claims; claims recent=5; **F93** early challenge unknown commitment; oscar->patricia 50k Fresh; F90 post-upload change. Evidence wave24.md + wave25-open (F94 headers/tip-ahead). *Observed (not staged):* user-wallet/, live-testnet-data*, probe temps.
 1. **2026-07-20 - lane 3 - B-15 wave23** (`e3cb07c`): ckpt max **4323** (entries=12); F45 hard FAIL lag~2; nina retrieve OK; nina->oscar peer#1 PASS / peer#2 **F91** RBF; oscar faucet+upload **last_proven=4337**; claims recent=4; **F92** get_block_headers {from_height,to_height}. Evidence wave23.md. *Observed (not staged):* user-wallet/, live-testnet-data*, probe temps.

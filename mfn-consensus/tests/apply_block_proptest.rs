@@ -4466,6 +4466,57 @@ fn b67_b5_multi_op_slash_while_peer_settles_treasury_identity() {
     }
 }
 
+/// B-76 (early B-24d): both bonded operators cross the audit-miss cap on the
+/// same empty block → dual slash credits treasury, resets both miss streaks,
+/// and keeps both operators registered with reduced bonds.
+#[test]
+fn b76_b5_dual_operator_slash_on_empty_audit_treasury_identity() {
+    let gen = genesis_with_b5_two_operators();
+    let mut st = gen.state;
+    let cap = st.endowment_params.operator_audit_missed_cap;
+    let slash_bps = st.endowment_params.operator_slash_bps;
+    let mut slot = 10_000u32;
+    let mut bond0 = PROP_B5_OPERATOR_BOND;
+    let mut bond1 = PROP_B5_OPERATOR_BOND.saturating_mul(2);
+
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(st.treasury, 0, "pre-slash empty {i}");
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1
+        );
+        assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+        assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+        slot = slot.saturating_add(1);
+    }
+
+    let mut model = st.treasury;
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(st.treasury, model, "dual slash must credit both forfeitures");
+    assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+    assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits, 0,
+        "slash resets op0 miss streak"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits, 0,
+        "slash resets op1 miss streak"
+    );
+    assert!(
+        st.storage_operators.contains_key(&gen.id0) && st.storage_operators.contains_key(&gen.id1),
+        "partial dual slash must keep both operators registered"
+    );
+}
+
 /// B-64: settlements soft-skip unknown commit; apply hard-rejects.
 #[test]
 fn b64_unknown_commit_settlements_skip_apply_rejects() {

@@ -239,6 +239,10 @@ Symmetric op1-only twin of B-63 plus a short alternating mask chain (op0 / op1 /
 
 Drive two bonded operators to `operator_audit_missed_cap - 1` on empty audit blocks, then settle one prover while the absentee crosses the slash cap in the same `apply_block`. Pins slash→treasury credit then storage drain, per-operator bond/miss deltas, and coinbase compose. Does **not** close full **B-24** (still needs live **B-32**).
 
+#### B-76 — dual-operator empty-audit slash (lane 4; early B-24d)
+
+Same miss-cap drive as B-67, but the cap-crossing block has **no** proofs. Both operators slash in one `apply_block`: treasury = sum of both forfeitures, both miss streaks reset, both remain registered with reduced bonds. Complements B-67 (slash+settle) with the empty-audit dual-slash permanence path. Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
