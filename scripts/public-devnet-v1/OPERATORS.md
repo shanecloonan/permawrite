@@ -236,7 +236,7 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 
 ### B-41 — public P2P seed reachability (socat forwards)
 
-**Do not** bind `mfnd` itself on `0.0.0.0:1900x` on the current Hetzner image — startup hung before RPC bind (2026-07-20). Working posture: loopback `mfnd` + `socat` public forwards (`repair-vps-p2p-binds.sh --apply`). Hub internal P2P is `:19101`; public `:19001` forwards to it. RPC stays `127.0.0.1`.
+**Do not** bind `mfnd` itself on `0.0.0.0:1900x` on the current Hetzner image — startup hung before RPC bind (2026-07-20). Working posture: loopback `mfnd` on `:19101-19104` + `socat` public forwards `0.0.0.0:1900x -> 127.0.0.1:1910x` (`repair-vps-p2p-binds.sh --apply`). Do not socat the same port mfnd holds on loopback. RPC stays `127.0.0.1`.
 
 ### B-22 — Path A checkpoint republish
 
