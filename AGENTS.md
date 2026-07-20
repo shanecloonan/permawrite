@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Rust head pending **B-51** atop `69df8fa` (**B-48**). CI `#29715111633` in progress — hold other Rust pushes. Tip live **4096+** (wave9 SPoRA prove). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Rust CI `#29715111633` in progress on **B-48** (`69df8fa`); lane 4 **B-51** WIP — hold other Rust. This land = **B-22 tip-4133** checkpoint `[skip ci]`. Tip live **4133+**. Faucet busy (B-15) — untouched.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | Dispatched `#29713542820` after Actions recovery | **Watch CI `#29713542820`** (claim base: `4d07b7d`) | On GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
+| **1** RC core | Prior `#29713542820` cancelled | **Watch CI `#29715111633`** (B-48 push; claim base: `69df8fa`) | On GREEN: Nightly -> close B-29; then lane 7 roll after B-51 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | B-15 wave9 (`d3213a5`) | **B-15** wave10 battery tip 4131 (claim base: `d3213a5`) | dave fund+receive; JOIN when ckpt near tip | L4 checklist |
 | **4** Protocol | **B-48** (`69df8fa`); **B-45**/`711d98b` | **B-51** ephemeral fanout quarantine (claim base: `69df8fa`) | Land B-51 after CI settles → lane 7 `vps-roll-mfnd` (B-45+B-48+B-51); live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-50** checkpoint bootstrap honesty + tip-4057 log + **B-49**/B-22 | *Idle* | After CI GREEN + **B-48 on main**: `vps-roll-mfnd.sh --apply`; **B-42** after B-15 PASS | `launch-go-no-go` |
+| **7** Testnet launch | **B-22** tip-4133 checkpoint + **B-50**/B-49 | *Idle* | After CI GREEN + **B-51** land: `vps-roll-mfnd.sh --apply` (B-45+B-48+B-51); **B-42** after B-15 PASS | `launch-go-no-go` |
 
 ---
 
@@ -167,10 +167,10 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | planning | 3+7 | **B-42:** invite-load plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) | **Ack** (plan) |
 | planning | 2+7 | **B-31:** use ROADMAP work package before TL-9 (RPC/faucet/TLS verify) | **Done** (probe landed; P2P FAIL → B-41) |
 | 7 | 2+3+human | **B-41:** public seed reachability | **Done** (socat forwards; do **not** bind mfnd on 0.0.0.0 — hangs) |
-| 7 | human | **B-22:** near-tip checkpoint | **Done** (Path A tip **4050** + public seed anchors; seed offline on VPS only) |
+| 7 | human | **B-22:** near-tip checkpoint | **Done** (Path A tip **4133** + public seed anchors; seed offline on VPS only) |
 | planning | 1+7 | **B-27:** use ROADMAP work package — TL-5/6 archives insufficient | **Open** |
 | planning | 6 | **Arm B-40 + B-13a** the day TL-9/L4 closes — work packages in ROADMAP; do not stay idle | **Open** (fires on L4) |
-| 3 | 5+7 | **JOIN tall-tip UX:** F44/F45 confirmed wave8 (carol B-50 pin OK; light-scan --checkpoint-log fail tip 4089 vs log 4057). Proxy snapshot TIMEOUT (F54). Need near-tip ckpt + JOIN docs / ps1 bootstrap. Evidence wave8 | **Open** |
+| 3 | 5+7 | **JOIN tall-tip UX:** Near-tip ckpt **4133** published (B-22). Lane 3: re-run B-50 bootstrap. Proxy snapshot TIMEOUT (F54) + Rust auto-bootstrap still lane 5. Evidence wave8/wave10 | **Ack** (ckpt); **Open** (F54/Rust) |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
@@ -193,7 +193,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy; after L4 + B-25 unless waived |
 | B-20 | F6: producer↔treasury runway fee-shift policy | 6 | Phase 1 permanence; after B-13a |
 | B-21 | B7 Dandelion++ internet soak evidence | 1 | Unblocks P16; after L4 |
-| B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** — tip **4057** Path A + public seed anchors; seed offline on VPS only |
+| B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** — tip **4133** Path A + public seed anchors; seed offline on VPS only |
 | B-23 | F18: privacy/permanence regression gate in ci-check | 2 | Phase 1; after L4 |
 | B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | Phase 1; after B3 multi-op internet evidence |
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
@@ -230,23 +230,20 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 - lane 3 - B-15 wave10 open**: tip **4131**; ckpt still max **4057** (delta~74). Evidence `live-testnet-probe-20260720-wave10.md`. Docs-only `[skip ci]`.
-1. **2026-07-20 — lane 4 — B-51 claim** (this commit): Live tip **4096** sealing; hub still quarantines ephemeral inbound ports on block fan-out redial (`os error 111`). B-48 on main (`69df8fa`); VPS binary still pre-B-48. Docs-only `[skip ci]` while CI `#29715111633` runs. *Observed:* `faucet-http` inactive; leave lane-3 wave evidence unstaged.
-1. **2026-07-20 — lane 4 — B-48 soft EAGAIN peer quarantine** (this commit): `note_peer_failure` ignores transient `os error 11` / WouldBlock (not `os error 111`); unit tests. Complements B-46 tip recovery; distinct from **B-47** faucet retries. *Observed local work (not staged):* lane-3 wave evidence temps, `ci-docs-*.txt`, `user-wallet/`. Local: `cargo test -p mfn-node --lib transient_eagain`. Pushed after windows RED on `#29713542820` (run could not go green).
-1. **2026-07-20 — lane 7 — B-50 checkpoint-log bootstrap honesty** (this commit): `--checkpoint-log` is cross-check only (does not skip tip); helper `bootstrap-wallet-from-checkpoint-log.sh`; JOIN docs fixed; tip-4057 Path A entry; live EAGAIN quarantine recurred → **urgent B-48**. Evidence `b50-checkpoint-log-bootstrap-honesty-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, alice scan logs, `ci-docs-*.txt`.
-2. **2026-07-20 — lane 7 — B-49 vps-roll-mfnd tooling** (`284e803`).
-3. **2026-07-20 — lane 7 — B-22 tip-4050 checkpoint** (`0def2c1`); refreshed to tip **4057** in this land.
-4. **2026-07-20 — lane 7 — B-47 faucet EAGAIN** (`fe56ca8`).
-5. **2026-07-20 — lane 3 — B-15 wave7** (`2abbf5e`): light-scan in flight (blocked by B-50 finding).
-6. **2026-07-20 — lane 3 — B-15 wave6** (`e5d57de`).
-7. **2026-07-20 — lane 1 — B-34 CI `#29713542820`**.
-8. **2026-07-20 — lane 7 — B-46 tip-4031 recovery** (`4d07b7d`).
-9. **2026-07-20 — lane 4 — B-45** (`f1459bf`); B-48 WIP local.
-10. **2026-07-20 — lane 7 — B-41 voter remap** (`0efb23f`).
-11. **2026-07-20 — lane 4 — B-32 assert tooling** (`711d98b`).
-12. **2026-07-20 — lane 4 — B-36 f64 lint** (`7420aa6`).
-13. **2026-07-20 — lane 7 — B-41 hub socat** (`54d22d7`).
-14. **2026-07-20 — lane 3 — B-15 wave1** (`afca106`).
+1. **2026-07-20 — lane 7 — B-22 tip-4133 checkpoint** (this commit): Path A signer appended tip **4133** (closes wave10 ckpt lag ~74); public seed anchors. Faucet busy — untouched. Evidence `b22-checkpoint-tip4133-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, `_write_w10_open.py`.
+2. **2026-07-20 — lane 3 — B-15 wave10 open** (`a550ad4`): tip 4131, ckpt lag 74.
+3. **2026-07-20 — lane 4 — B-51 claim** (`e236e6a`): ephemeral fanout quarantine.
+4. **2026-07-20 — lane 3 — B-15 wave9** (`d3213a5`): SPoRA prove Fresh + pool.
+5. **2026-07-20 — lane 3 — B-15 wave8** (`387b6ae`/`334af3d`/`01b390a`).
+6. **2026-07-20 — lane 4 — B-48 soft EAGAIN quarantine** (`69df8fa`); CI `#29715111633` in progress.
+7. **2026-07-20 — lane 3 — B-15 wave7** (`27d4c20`/`21ab99c`): receive verify + permanence.
+8. **2026-07-20 — lane 7 — B-50 checkpoint bootstrap honesty** (`030315e`).
+9. **2026-07-20 — lane 7 — B-49 vps-roll-mfnd** (`284e803`).
+10. **2026-07-20 — lane 7 — B-22 tip-4050/4057** (`0def2c1`).
+11. **2026-07-20 — lane 7 — B-47 faucet EAGAIN** (`fe56ca8`).
+12. **2026-07-20 — lane 7 — B-46 tip-4031 recovery** (`4d07b7d`).
+13. **2026-07-20 — lane 4 — B-45 salted multi-op** (`f1459bf`).
+14. **2026-07-20 — lane 7 — B-41 P2P remap** (`0efb23f`).
 15. **2026-07-19 — planning — B-40/B-42/B-43/B-44**.
 16. **2026-07-19 — lane 1 — B-29 parse**.
 17. **2026-07-19 — lane 7 — B-31 threat posture**.
