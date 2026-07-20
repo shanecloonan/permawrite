@@ -6,25 +6,183 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-The workspace is **14 crates** as of **M7**, all on the same green CI gate (fmt + clippy `-D warnings` + tests on Linux/macOS/Windows).
+**As of 2026-07-19** (head `dc05c40`, experimental public testnet live on Hetzner `5.161.201.73`).
+
+The workspace is **15 crates** on the same green CI gate (fmt + clippy `-D warnings` + release tests on Linux/macOS/Windows + wasm + cargo-audit + script/board guards).
 
 | Layer | Crate | Status |
 |---|---|---|
 | ed25519 primitives + ZK (+ **M2.0.15 `UtxoTreeState` codec**) | `mfn-crypto` | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | ✓ live |
-| Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**, **M2.0.10 storage-commitment codec**) | `mfn-storage` | ✓ live |
-| Chain state machine — full M0/M1 + every M2.0.x root commitment + light-verification primitives + canonical codecs + **M2.2.0–M2.2.11 authorship claim layer** (MFCL v2, storage binding via `commit_hash`, keyed claims index, checkpoint v3) + **M2.3.17 internal decomposition** (`block/`, `header_verify/`, `transaction/`, `chain_checkpoint/`, `validator_evolution/` submodules) | `mfn-consensus` | ✓ live |
-| In-process chain runtime — `Chain` driver, `Mempool`, producer helpers, `ChainConfig`. Extracted from `mfn-node` at **M2.3.17** | `mfn-runtime` | ✓ live |
-| Persistence — `ChainPersistence` trait, `ChainStore` filesystem backend (**M2.1.0**), `RedbChainStore` embedded-db backend, append-only `chain.blocks` log with validated replay (**M2.1.9**). Extracted from `mfn-node` at **M2.3.17** | `mfn-store` | ✓ live |
-| JSON-RPC dispatch — `parse_and_dispatch_serve` for every `mfnd serve` method (M2.1.6–M2.1.18, M2.2.8, M2.2.10) over an in-memory `ChainPersistence`. Extracted from `mfn-node` at **M2.3.17** | `mfn-rpc` | ✓ live |
-| P2P stack — length-prefixed frame codec, HelloV1/PingV1/PongV1/ChainTipV1/GoodbyeV1 handshakes (**M2.3.1–M2.3.15**), TxV1/BlockV1/GossipEndV1 post-goodbye gossip (**M2.3.16**), `serve` accept/dial threads with `hid`-correlated stdout/stderr. Extracted from `mfn-node` at **M2.3.17** | `mfn-net` | ✓ live |
-| Reference daemon — `mfnd` binary (**M2.1.1**), JSON genesis (**M2.1.2**), `step` family (**M2.1.3–M2.1.5**), `serve` TCP control plane (**M2.1.6** + every `M2.1.x` / `M2.2.8` / `M2.2.10` method on the wire), `--p2p-listen` (**M2.3.3**) / `--p2p-dial` (**M2.3.6**), `--store fs\|redb` (default `redb` at **M2.3.17**), shared-mutex `Chain` / `Mempool` for concurrent RPC + P2P | `mfn-node` | ✓ live |
-| Light-client follower — **M2.0.6** header-chain follower, **M2.0.7** body-root verification, **M2.0.8** validator-set evolution, **M2.0.9** checkpoint serialization, **M2.0.10** raw-block-byte sync, **M2.0.16** shared `checkpoint_codec`, **M2.2.5** light agreement on `claims_root` | `mfn-light` | ✓ live |
-| Confidential wallet — **M2.0.11** stealth scan + transfer building, **M2.0.14** storage-upload construction, **M2.2.6** `ClaimingIdentity` + standalone claim tx, **M2.2.7** uploads with `authorship_claims` in `extra` | `mfn-wallet` | ✓ live (library; **M3.0** chain RPC + **M3.1** `mfn-cli wallet` scan/balance) |
-| Storage-operator daemon — **M6** `mfn-storage-operator run` SPoRA loop over wallet artifacts | `mfn-storage-operator` | ✓ live |
+| Permanent-storage primitives (+ shape gate **M5.49**, **ChunkV2** Merkle gossip **B2**, operator-salted SPoRA **B3**, operator slashing **B5**) | `mfn-storage` | ✓ live |
+| Chain state machine — M0/M1 + every M2.0.x root + authorship (**M2.2.x**) + storage-operator registry + endowment range proofs (**B-11**) + F7 shape floors | `mfn-consensus` | ✓ live |
+| In-process chain runtime — `Chain`, `Mempool`, producer helpers, proof pool | `mfn-runtime` | ✓ live |
+| Persistence — `ChainStore` / `RedbChainStore`, block log, chunk inbox, durable mempool + peers | `mfn-store` | ✓ live |
+| JSON-RPC dispatch — full `mfnd serve` surface + fraud/validity proof RPCs | `mfn-rpc` | ✓ live |
+| P2P stack — handshakes, gossip, block/light-follow sync, **ChunkV2**, Dandelion++ stem relay (**B7**), Tor dials (**B8**) | `mfn-net` | ✓ live |
+| Reference daemon — `mfnd serve` multi-validator production, repair sweep, archive export | `mfn-node` | ✓ live |
+| Light-client follower + weak-subjectivity summaries | `mfn-light` | ✓ live |
+| Schnorr-signed checkpoint log (shared with CLI/WASM) | `mfn-checkpoint-log` | ✓ live |
+| Confidential wallet — scan/send/upload/claim + F7 two-in/two-out floors + view tags (**B9**) | `mfn-wallet` | ✓ live |
+| Wallet/operator CLI + participant rehearsal tooling | `mfn-cli` | ✓ live (M3 **M3.0–M3.47** shipped) |
+| Storage-operator daemon — prove loop, HTTP/P2P chunk serve, push | `mfn-storage-operator` | ✓ live (M6 **M6.0–M6.7** shipped) |
+| Browser wallet/demo — full scan/send/upload/light-sync path | `mfn-wasm` | ✓ live (M4 **M4.0–M4.24** shipped) |
+| Chunk P2P replication + auto fan-out + repair | M7 **M7.0–M7.9** | ✓ live (in `mfn-node` / operator crates) |
 | Canonical wire codec | (currently in `mfn-crypto::codec`) | ✓ live; extraction to `mfn-wire` still planned |
 
-**Posture.** The single-node story is end-to-end: a `mfnd` process boots from JSON genesis, persists either to a flat filesystem snapshot or an embedded `redb` database, drains its in-memory mempool into solo-produced blocks, serves a JSON-RPC 2.0 line protocol with ~20 read/write methods covering tip, blocks, headers, mempool, checkpoint, method discovery, and authorship-claim discovery, and accepts inbound P2P peers that complete a length-prefixed Hello→Ping→Tip→Goodbye handshake and then exchange tx/block gossip frames. M5 hardening is closing mixed privacy+storage treasury identities across legacy and validator block flows, including two-block ledger checks, legacy/validator mixed rollback after prior valid history, validator-evolution duplicate-slash / bond-op admission / entry-exit epoch-churn boundary cases, and random-schedule combined-inflow treasury ledgers. The **multi-node** story is the next strategic block of work (durable mempool, request/response block-sync, peer-set persistence, multi-validator scheduling) — that's everything between M2.3.16 and a public testnet (M2.4). The wallet CLI (M3) and WASM bindings (M4) follow.
+**Posture.** The reference stack is **end-to-end on the public internet**: outsiders sync from published boot peers, run light-scan wallets, fund via the HTTP faucet, upload with permanence artifacts, and operators replicate/prove over P2P. Local developer mesh, VPS soak/participant evidence, release-evidence + RC audit dry-run, and Nightly ignored P2P smokes are live in CI. **M2 (node) through M4 (WASM) and M6/M7 (permanence ops) are shipped.** **M5 production hardening** is largely complete on treasury/emission sims and `apply_block` proptests; remaining work is validity-proof recursion (**F5 4b.2**), external audit, and the phased items in [Strategic phases](#strategic-phases-what-comes-next-202607) below. Software is **pre-audit experimental** — not incentivized, not production custody.
+
+**Live coordination.** Implementation agents claim units on [`AGENTS.md`](../AGENTS.md) (lanes 1–7). This roadmap is the **strategic ordering** surface; the board is the **execution** surface. When they disagree, finish the board's in-flight unit first, then re-sequence against the phase map below.
+
+---
+
+## Network maturity ladder
+
+Ordered levels — do not skip gates when inviting outside users or moving value.
+
+| Level | Name | When true | Current (2026-07-19) |
+|---|---|---|---|
+| **L0** | Local developer mesh | `start-all.*` + health-check PASS on loopback | ✓ live |
+| **L1** | Software-ready RC | Green CI + Nightly + `release-evidence` **go** on exact head | ✓ (`b4a3fa7` stack; refresh on `dc05c40` pending) |
+| **L2** | Internet network exists | VPS soak + participant rehearsal archived | ✓ TL-5/TL-6 on `5.161.201.73` |
+| **L3** | Experimental public testnet | Non-empty `seed_nodes`, faucet/observer/front-end, JOIN guide | ✓ **live** (TL-7 Path A toy keys, TL-8 seeds published) |
+| **L4** | Hardened public testnet | TL-9 go/no-go + named watchers + B-15 outside-in evidence + privacy docs match shipped UX | **In progress** (TL-9 open; B-15 evidence run; B-16 doc sync) |
+| **L5** | Incentivized / adversarial testnet | Path B genesis, role-separated VPS topology live, F5 validity path mature, sustained multi-operator permanence | Not ready |
+| **L6** | Audited mainnet candidate | Independent crypto audit, second client or formal spec sign-off, PM13 constitution frozen | Not ready |
+| **L7** | Production mainnet | Named human genesis ceremony, non-toy keys, economic value with stated risk | Not ready |
+
+See [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) (TL phases), [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md) (release gates), [`PUBLIC_DEVNET_THREAT_MODEL.md`](./PUBLIC_DEVNET_THREAT_MODEL.md) (residual risk).
+
+---
+
+## Priority doctrine (sequencing)
+
+When two units compete for the same lane, order by:
+
+1. **Permanence** — endowment enforcement, SPoRA verification, replication accounting, operator bonds/slashing, treasury backstop, archive/recovery. Never weaken to ship faster.
+2. **Privacy** — ring policy, shape floors (F7), decoy/canonical wallet bytes, network-origin protections (Dandelion/Tor), doc accuracy vs shipped behavior.
+3. **Functionality** — onboarding, faucet/wallet UX, observer/index catch-up, testnet front-end, JOIN flows, operator runbooks.
+4. **Security** — RPC hardening, fraud/validity proofs, external audit, formal verification research. Security **supports** the first three; it does not trade them away.
+
+Cross-cutting **CI/Nightly/evidence** (lane 1–2) runs on every protocol touch; **consensus/economics test coverage** (lanes 4–6) is mandatory for any `mfn-consensus` / emission / treasury change.
+
+---
+
+## Strategic phases — what comes next (2026–07)
+
+Each phase has a **gate** (evidence or checklist) before the next phase starts inviting broader trust or value. Phases may overlap across lanes; gates are sequential.
+
+### Phase 0 — Close the experimental public testnet (L3 → L4)
+
+**Goal:** Honest "you can join" posture with evidence, not just published seeds.
+
+| Id | Deliverable | Lane | Status / notes |
+|---|---|---|---|
+| **TL-9** | Named watchers + `launch-go-no-go` human sign-offs + circulate [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) | 7 | Open — last TL phase |
+| **B-15** | Outside-in JOIN_TESTNET rehearsal on VPS + `assert-join-testnet-rehearsal-evidence` | 3 | Evidence run in progress |
+| **B-16** | Privacy-doc sync: light-scan checkpoints, faucet flow, live wallet UX | 5 | Backlog — docs drifted during launch sprint |
+| **R-*** | Faucet/observer ops fix-forward (rate limits, F7 dual-send, UTF-8 scripts) | 2 | R-1–R-4 landed; VPS deploy + evidence refresh |
+| **Ops** | Role-separated VPS templates exercised on internet (`REFERENCE_TOPOLOGY.md`) | 7 | Templates + PM23 hard-fail shipped; live rehearsal remains human |
+
+**Gate:** `launch-go-no-go` **go** with Schnorr checkpoint log verified, participant + soak evidence fresh on head, invite packet shared with named watchers.
+
+### Phase 1 — Permanence depth on the live chain (permanence first)
+
+**Goal:** The treasury and operator layer match the permanence story under real fee volume — not just sims.
+
+| Id | Deliverable | Lane | Depends on |
+|---|---|---|---|
+| **B-13** | Parameter fork: `subsidy_to_treasury_bps = 1000` (10% tail → treasury, [`FEES.md` §5.4](./FEES.md)) | 6 | Green CI + emission sims on fork; consensus-versioned |
+| **B3 live** | Enable `operator_salted_challenges` + `require_registered_operators` on public devnet genesis (flags exist; genesis off) | 4+6 | B-13 economics review; M5 multi-operator proptests |
+| **PM3** | Windowed SPoRA lottery vs first-past-the-post (anti-colocation) | 6 | B3 live; proof-pool + `apply_block` Phase 5 |
+| **PM2** | Enforce protocol-min replication at anchor + pay per distinct operator | 4+6 | B3 registry live |
+| **Treasury watch** | Sustained `treasury-telemetry-watch` on VPS + alert thresholds in OPERATORS | 2+7 | F6 telemetry shipped |
+| **Repair/soak** | Long-horizon internet soak with staleness → repair fan-out evidence | 1+7 | B4 repair sweep shipped |
+
+**Gate:** 30+ day VPS soak with stable height, matched uploads/proofs, treasury telemetry within modeled bounds, no silent permanence regressions in [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md).
+
+### Phase 2 — Validity and fraud proofs (security in service of light clients)
+
+**Goal:** Light clients and observers can treat contested blocks as soft until validity/fraud paths resolve.
+
+| Id | Deliverable | Lane | Notes |
+|---|---|---|---|
+| **F5 4b.2** | Recursive STARK aggregation over batch-binding circuits | 4 | Follows 4b.1 Winterfell (`6377812`); B-12 on board |
+| **F5 1c+** | Fraud-proof producer slash hooks wired to bond registry | 4 | Interactive fraud phases 0–3b shipped; slash deferred |
+| **F5 4c** | Prover service / block-producer validity witness generation | 4 | After 4b.2 digest chain complete |
+| **Observer** | Persisted tx index + explore parity under load (fix-forward as needed) | 7 | Partially shipped; monitor on public VPS |
+
+**Gate:** `launch-status` fraud + validity blocks green; Nightly green on stack; documented light-client path in [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) matches shipped behavior.
+
+### Phase 3 — Privacy tier 2 and metadata closure (privacy second)
+
+**Goal:** Monero-plus privacy without breaking permanence economics.
+
+| Id | Deliverable | Lane | Notes |
+|---|---|---|---|
+| **Tier 2** | Ring 32–64 + Bulletproof+ transcripts | 4+5 | Consensus version gate; wallet/CLI/WASM defaults |
+| **B6 / P6** | Hidden fees inside balance equation | 4 | Last plaintext amount; touches coinbase settlement |
+| **B4 decoy** | Gamma calibration / age-band refinements if ring stays at 16 longer | 5 | Partially shipped; re-evaluate after Tier 2 |
+| **Doc parity** | B-16 + wallet README ring/shape examples | 5 | Required before wider invites |
+
+**Gate:** Tier-2 fork on devnet or staged test flag; conformance suite + M5 proptests; privacy docs match [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md).
+
+### Phase 4 — Incentivized testnet (L5)
+
+**Goal:** Real operator incentives and adversarial rehearsal without mainnet claims.
+
+| Id | Deliverable | Lane | Notes |
+|---|---|---|---|
+| **TL Path B** | Non-toy genesis ceremony per [`TESTNET_GENESIS_CEREMONY.md`](./TESTNET_GENESIS_CEREMONY.md) | 7 + human | Required before meaningful stake |
+| **Multi-VPS** | Validator / operator / observer on separate hosts (P32 live topology) | 7 | `REFERENCE_TOPOLOGY.md` |
+| **PM1 bonds** | Storage-operator bonds with slash-to-treasury (research → wire) | 6 | [`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md) phases shipped on devnet; extend for incentivized scale |
+| **Adversarial** | Soak with Byzantine peers, eclipse drills, faucet abuse limits | 1+4 | Build on P31 diversity + quarantine |
+| **Economics** | Fee-drought scenarios with B-13 tail subsidy enabled | 6 | [`ECONOMICS.md`](./ECONOMICS.md) §5 |
+
+**Gate:** [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md) incentivized section ticked; threat model updated; no Path A toy keys.
+
+### Phase 5 — Audit and multi-implementation confidence (L6)
+
+**Goal:** Independent review of the guarantees the chain advertises.
+
+| Id | Deliverable | Lane | Notes |
+|---|---|---|---|
+| **Audit** | Third-party review: `mfn-crypto`, `mfn-bls`, `mfn-storage`, `apply_block` | external | Listed in M5; blocks mainnet |
+| **PM14** | Second independent client (or spec conformance suite) | research | [`F5.md`](./F5.md) PM14 |
+| **PM15** | Formally verified consensus core (research track) | research | Long horizon |
+| **RFC** | MFBN-1 spec finalization for cross-implementation tests | 4 | M5 spec item |
+| **PQ plan** | Execute [`PQ_MIGRATION.md`](./PQ_MIGRATION.md) phases as research matures | 4+6 | Permanence chain needs retroactive privacy |
+
+**Gate:** Published audit report + fix-forward on `main`; RC audit **go** on audit-closed head.
+
+### Phase 6 — Mainnet candidate (L7)
+
+**Goal:** Production permanence network with stated, signed risk — not a surprise launch.
+
+| Id | Deliverable | Owner |
+|---|---|---|
+| **Genesis** | Path B (or successor) ceremony with named signers | human |
+| **PM13** | Constitutional invariants ossified (tail emission, ring floor, endowment math) | 4+6 |
+| **PM10/PM16** | Archive mirrors + broadcast checkpoint redundancy | 7 + ops |
+| **UX** | Normie path toward 7/10 per [`UX_ACCESSIBILITY.md`](./UX_ACCESSIBILITY.md) | 3+5 |
+| **Tier 3+** | OoM / FCMP++ (optional hard fork after mainnet stabilizes) | 4 | [`PRIVACY.md`](./PRIVACY.md) tiers |
+
+**Gate:** Human sign-off manifest per [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md); empty `seed_nodes` never on mainnet docs; economic disclaimer explicit.
+
+---
+
+## Agent backlog crosswalk (live board → roadmap)
+
+Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
+
+| Backlog | Roadmap phase | Primary lane |
+|---|---|---|
+| **B-12** F5 4b.2 recursive STARK aggregation | Phase 2 | 4 |
+| **B-13** `subsidy_to_treasury_bps = 1000` | Phase 1 | 6 |
+| **B-14** TL-9 named watchers + invites | Phase 0 | 7 |
+| **B-16** Privacy-doc sync for live wallet UX | Phase 0 / 3 | 5 |
+
+Lane **Next** cells on the board should name a phase-0 or phase-1 unit until L4 gate clears, then shift toward phase 1–2 unless a fix-forward (R-*) is blocking ops.
 
 ---
 
@@ -2122,7 +2280,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 - **M2.1 — Single-node demo.** ✓ Shipped (M2.1.0–M2.1.18). `mfnd` boots from JSON genesis, produces solo blocks via `step` (mempool-aware, with `--blocks N` / `--checkpoint-each`), persists checkpoints + an append-only `chain.blocks` log, and exposes a JSON-RPC 2.0 TCP line protocol covering tip, blocks, headers, mempool inspection/eviction, checkpoint inspection/persistence, method discovery, and authorship-claim discovery.
 - **M2.2 — Authorship claim layer.** ✓ Shipped (M2.2.0–M2.2.11). Optional Schnorr-signed claims over `data_root` with optional storage binding via `commit_hash`; consensus-validated, header-rooted via `claims_root`, indexed in `ChainState`, exposed via `serve` discovery RPCs, and surfaced through both standalone-claim and storage-upload wallet APIs.
 - **M2.3 — Multi-node testnet.** ✓ Shipped (M2.3.0–M2.3.24). Peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange gossip, answer `GetBlocksByHeightV1`, automatically pull missing blocks when the remote tip is ahead, fan out freshly admitted txs to known peers, persist the mempool and peer set across `mfnd serve` restarts, reconnect to saved peers on boot, run a slot-driven multi-validator producer (`--produce` + `ProposalV1` / `VoteV1`), and pass a three-process loopback harness (hub `--produce`, two `--committee-vote` followers, shared tip at height 1 via `tests/three_validator_produce_smoke.rs`).
-- **M2.4 — Public testnet.** ✓ Shipped (**M2.4.1–M2.4.4**): runbook, genesis/manifest, reconnect sync with block pull, bootstrap scripts, chain identity banner, repeatable `--p2p-dial` + manifest `seed_nodes` merge. Operators still publish live seed IPs in `public_devnet_v1.manifest.json` when deploying validators to the internet.
+- **M2.4 — Public testnet.** ✓ Shipped (**M2.4.1–M2.4.90** + live internet stack): runbook, genesis/manifest, multi-validator mesh, bootstrap scripts, published boot peers (`5.161.201.73:19001–19003`), HTTP faucet + observer proxy + testnet front-end, JOIN/participant tooling, release-evidence + Nightly automation. **L3 experimental testnet is live**; **L4** (TL-9 + outside-in evidence) is the active close-out — see [Strategic phases § Phase 0](#phase-0--close-the-experimental-public-testnet-l3--l4).
 
 ### Not in M2.x
 
@@ -2289,6 +2447,21 @@ See [`M4_WASM.md`](./M4_WASM.md) for build commands and JS API.
 
 ## Milestone M5 — Production hardening
 
+**Status (2026-07-19):** Treasury/emission deep sims, `apply_block` proptests, validator-evolution tests, SPoRA binding tests, uniform ring-16 policy, F7 shape floors, permanence shape gate (M5.49), chunk gossip auth (M7.12), operator slashing (B5), and endowment range proofs (B-11) are **shipped in default CI**. Remaining M5 items are **external audit**, **performance benchmarks**, **spec RFC**, and the **forward tracks** below that graduate from [`F5.md`](./F5.md), [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md), and [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md).
+
+### Forward tracks (not yet closed)
+
+| Track | Next unit | Phase | Lane | Permanence / privacy note |
+|---|---|---|---|---|
+| **F5 validity** | 4b.2 recursive STARK aggregation | 2 | 4 | Light-client validity; does not weaken SPoRA |
+| **F6 economics** | B-13 tail subsidy fork (`subsidy_to_treasury_bps = 1000`) | 1 | 6 | Permanence treasury inflow — approved in FEES §5.4 |
+| **B3 replication** | Enable salted challenges + operator registry on public devnet | 1 | 4+6 | Makes `replication` field economically real |
+| **PM3 lottery** | Windowed SPoRA acceptance | 1 | 6 | Anti-colocation permanence |
+| **Tier 2** | Ring 32–64 + Bulletproof+ | 3 | 4+5 | Privacy upgrade; version-gated hard fork |
+| **B6 / P6** | Hidden fees | 3 | 4 | Privacy; touches coinbase |
+| **Audit** | Third-party crypto review | 5 | external | Security gate before L6 |
+| **Wire extract** | `mfn-wire` crate split from `mfn-crypto::codec` | — | 4 | Functionality / portability |
+
 These are work items that are individually small but cross-cutting:
 
 - **Long-running emission/treasury simulation.** Drive `apply_block` for 10⁶ blocks with realistic tx mix; verify treasury never goes negative, emission rates match the curve. **M5.0 (partial ✓):** `tests/emission_simulation.rs` — 100k-height curve check + 10k empty `apply_block` in CI; **1M curve in CI (M5.47)**; 100k empty `apply_block` + 2048-block CLSAG fee mix nightly-only (**M5.48** tier closure); 512-block treasury ledger vs storage-proof drain. **M5.0+ (partial ✓):** 16-block validator-mode CLSAG fee chain (BLS finality, coinbase subsidy + producer fee share, treasury credit); **96-block in CI (M5.35)**. **M5.0++ (partial ✓):** 12-block validator mixed CLSAG fee + SPoRA proof (full coinbase including storage reward); **64-block in CI (M5.34 / B-03)**. **M5.3 (partial ✓):** producer decrypts coinbase in validator CLSAG-fee and mixed fee+proof emission sims (amount = subsidy + producer fee share + storage rewards). **M5.1 (partial ✓):** 128-block chained CLSAG self-transfers (varying fees → treasury) in CI; 2048-block fee mix `#[ignore]`. **M5.1+ (partial ✓):** 48-block mixed CLSAG fee + SPoRA proof per block (credit then drain); **384-block in CI (M5.39)**. **M5.7 (partial ✓):** liveness-slash + fee + proof default ledger sim, combined bond/slash/fee/proof default ledger sim, **64-block combined-inflow in CI (M5.40)**; **256-block combined-inflow in CI (M5.42)**; **512-block combined-inflow in CI (M5.44)** (`ffe93d5`, `5a8fb83`, `40bfb57`). **M5.16/M5.17/M5.19 (partial ✓):** 32-block and 64-block equivocation combined-inflow ledger sims, prefunded treasury backstop coverage in CI, **128-block equivocation combined-inflow in CI (M5.41)**, **256-block equivocation combined-inflow in CI (M5.47)**, **512-block equivocation combined-inflow in CI (M5.45)**; deep `#[ignore]` sims (`e9d1c44`, `cf06280`, `dd6a74e`). **M5.28–M5.30 (partial ✓):** no-equivocation bond/liveness/fee/PPB-proof combined-inflow ledger sims with 16-block and prefunded 32-block CI coverage plus **64-block in CI (M5.40)** and **128-block PPB combined-inflow in CI (M5.41)** and **256-block PPB combined-inflow in CI (M5.43)** and **256-block equivocation PPB combined-inflow in CI (M5.47)** and **512-block PPB combined-inflow in CI (M5.45)**; deep `#[ignore]` sims (`b32ea75`, `7d49175`, `5644d47`).
@@ -2297,9 +2470,9 @@ These are work items that are individually small but cross-cutting:
 - **Validator finality evolution tests.** **M5 consensus (partial ✓):** `tests/validator_finality_evolution.rs` — pre-block `validator_root` quorum, liveness evolution atomicity, reject preserves state, bond/slashing/**tx**/**storage_proof**/**claims**/**storage**/**utxo** root mismatch rejects, invalid/duplicate slash evidence reject without state change, validator-root movement on slash, equivocation during unbond delay, unbond delay + settlement root semantics, exit-churn cap deferral/reset, entry-churn cap reject/accept/reset semantics, bond rejection preserving treasury, and bond-op admission rejects without state change (duplicate VRF, duplicate unbond, duplicate unbond after pending exit, below-minimum stake, same-block register-then-unbond, forged/unknown/zombie unbond, same-block duplicate VRF; `a97242a`, `267658d`, `4715544`, `b50662f`, `7452127`, `ce851f8`, `e10b249`, `ebfa7b0`, `9556053`). **M5.5/M5.6 integration (partial ✓):** `tests/integration.rs` — legacy mixed CLSAG fee + SPoRA forward-apply plus two-block treasury ledger identity, legacy mixed tampered-CLSAG / tampered-`storage_proof_root` / duplicate-SPoRA-proof rollback after prior valid history, validator mixed CLSAG fee + SPoRA forward-apply, validator two-block treasury ledger identity, validator-mixed tampered-CLSAG rollback, validator-mixed tampered-`storage_proof_root` rollback, validator-mixed invalid-coinbase rollback, validator-mixed sub-quorum finality rollback, and validator-mixed duplicate-SPoRA-proof rollback after prior valid history (`ba04799`, `6422d1a`, `d99d424`, `71350e4`, `925561a`, `30b35c0`, `2063202`, `56a53f3`, `302f3b7`, `e07d526`, `a09b48c`).
 - **SPoRA binding + payout invariants.** **M5 storage (partial ✓):** `tests/block_apply.rs` + `tests/integration.rs` — emit-order root, tampered root before payout, provenance/treasury on accept, unknown commit / wrong chunk / duplicate rejects (`4e8ac41`); dual distinct proofs update both entries, body tamper rejects without state change (`9e5c129`); positive-yield dual-proof accrual and `proof_reward_window` cap (`8d436c9`, `e310435`).
 - **Producer treasury settlement tests.** **M5 economics (partial ✓):** `tests/producer_treasury_settlement.rs` — fee split, coinbase composition (+ PPB bonus), treasury drain vs backstop, reject-without-mutation on bad coinbase, bond burn + fee closed loop (`f117ce6`); slash + fee + proof with PPB carry-over (`13616bc`); liveness/bond/combined-inflow treasury closed loops (`ffe93d5`, `cbecb3b`, `5a8fb83`, `40bfb57`); five-path equivocation + bond + liveness + fee + proof composition (`dde886e`); bond + liveness + fee + PPB-augmented storage proof composition (`1279cee`); six-path equivocation + bond + liveness + fee + PPB proof-drain composition (`c880d27`).
-- **Independent cryptographic review.** External third-party audit of `mfn-crypto`, `mfn-bls`, `mfn-storage`, and `apply_block`.
-- **Performance benchmarking.** Block throughput, tx verification rate, storage-proof verification rate. Compare against Monero / Arweave baselines.
-- **Spec finalization.** Write a formal MFBN-1 RFC document for cross-implementation conformance testing.
+- **Independent cryptographic review.** External third-party audit of `mfn-crypto`, `mfn-bls`, `mfn-storage`, and `apply_block`. **Blocks L6/L7** — schedule after Phase 2 validity path stabilizes so auditors review near-final surface.
+- **Performance benchmarking.** Block throughput, tx verification rate, storage-proof verification rate. Compare against Monero / Arweave baselines. Inform Tier 2 transcript choices and prover budgets for F5 4b.x.
+- **Spec finalization.** Write a formal MFBN-1 RFC document for cross-implementation conformance testing. Pair with PM14 second client.
 
 ---
 
@@ -2364,6 +2537,11 @@ These are scope-discipline choices, not philosophical hostility. Each one is con
 
 ## See also
 
+- [`AGENTS.md`](../AGENTS.md) — live execution board (lanes, backlog, session log)
+- [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) — TL phase tracker (lane 7)
+- [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md), [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) — shipped hardening + file-level plans
+- [`F5.md`](./F5.md) — full privacy/permanence frontier menu (120 items)
+- [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) — interactive fraud + validity proof phases
 - [`OVERVIEW.md`](./OVERVIEW.md) — the project's vision
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — current technical state
 - [`PRIVACY.md`](./PRIVACY.md), [`STORAGE.md`](./STORAGE.md), [`CONSENSUS.md`](./CONSENSUS.md), [`ECONOMICS.md`](./ECONOMICS.md) — subsystem deep dives

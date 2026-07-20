@@ -6,20 +6,20 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 
 **Posture:** pre-audit experimental software; test-only value; public P2P + private RPC per [`PUBLIC_DEVNET_THREAT_MODEL.md`](./PUBLIC_DEVNET_THREAT_MODEL.md).
 
-### Software-ready pin (2026-07-14)
+### Software-ready pin (2026-07-19)
 
 | Field | Value |
 | --- | --- |
-| Release commit | `ba2ec08` (TL-5/TL-6 VPS evidence on `e385390` stack) |
-| CI | `#29298069061` GREEN on `e385390` |
-| Nightly | `#29299418927` GREEN |
-| RC audit | `release-evidence-e385390` **go** |
-| VPS | Hetzner `5.161.201.73` — mesh running for TL-8 |
+| Release commit | `dc05c40` (R-4 faucet peer-IP rate limit); live stack through `23fb359` (observer/faucet/wallet hardening) |
+| CI | `#29700946945` GREEN on `b4a3fa7`; `#29710779068` queued on `dc05c40` |
+| RC audit | `release-evidence-b4a3fa7` **go** (refresh after R-4 CI GREEN) |
+| VPS | Hetzner `5.161.201.73` — mesh + faucet + observer proxy + testnet front-end |
 | `seed_nodes` | `5.161.201.73:19001`, `:19002`, `:19003` |
-| Checkpoint log | `public_devnet_v1.checkpoints.jsonl` (1 entry, tip_height=3) |
+| Checkpoint log | `public_devnet_v1.checkpoints.jsonl` |
 | TL-7 | Path A toy keys — [`tl7-genesis-signoff-path-a-20260714.txt`](../scripts/public-devnet-v1/evidence/tl7-genesis-signoff-path-a-20260714.txt) |
-| Automatable go/no-go | PASS (`launch-go-no-go-20260714.json`) |
-| **Invite** | Share [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) — TL-9 named watchers still manual |
+| **L3 status** | **Experimental public testnet live** — [`JOIN_TESTNET.md`](./JOIN_TESTNET.md), [`pfpchain.com`](https://pfpchain.com) |
+| **Open TL** | **TL-9** named watchers + invite circulation; **B-15** outside-in JOIN evidence |
+| Strategic ordering | [`ROADMAP.md` § Strategic phases](./ROADMAP.md#strategic-phases--what-comes-next-202607) |
 
 ---
 

@@ -624,12 +624,10 @@ become self-verifying for free once B2 lands.
 |---|---|
 | Shipped | **A1** shape consensus gate, **A2** gossip authentication, **A3** fan-out root verification, **A4** doc honesty, **A5** CI harness fix, **B4** repair sweep, **B5** operator slashing, **B7** inbox quota |
 | Cheap wins | **B4** proactive repair, **B7** inbox quota |
-| High impact, moderate effort | **B1(1)** endowment opening reveal, **B2** Merkle-path gossip, **B6** size buckets (**B13 shipped**) |
-| High impact, high effort | **B1(2)** range-proof binding, **B3** replication accounting (shipped), **B5** bonding + slashing ([design](./B5_OPERATOR_SLASHING.md)) |
+| High impact, moderate effort | **B-13** tail subsidy fork; **B3** devnet enable for operator-salted replication |
+| High impact, high effort | **PM3** windowed SPoRA lottery; **PM1** bonds at incentivized scale |
 
-Natural next step: **B1 design 1** (close the decorative-endowment gap with
-a revealed opening behind a version gate), with **B2** as the parallel
-node-layer track since it has no consensus risk.
+Natural next step: **B-13** parameter fork (lane 6, Phase 1) after L4 testnet gate; then **B3 live** on public devnet genesis flags with M5 multi-operator proptests.
 
 ## See also
 
