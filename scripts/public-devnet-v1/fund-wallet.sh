@@ -245,6 +245,42 @@ tip_height_text() {
   query_tip_height "$rpc_addr" "$REPO_ROOT"
 }
 
+# Track tip across faucet sends so F7 top-ups wait for a block + rescan (same
+# failure mode as faucet-http: back-to-back spends reuse stale UTXOs).
+TIP_AFTER_FAUCET_SEND=""
+
+wait_tip_advance() {
+  local mfn_cli="$1" rpc_addr="$2" from_height="$3" timeout_seconds="${4:-90}"
+  local deadline=$(( $(date +%s) + timeout_seconds ))
+  while (( $(date +%s) < deadline )); do
+    local h
+    h="$(tip_height_text "$mfn_cli" "$rpc_addr")"
+    if [[ "$h" =~ ^[0-9]+$ ]] && (( h > from_height )); then
+      echo "fund-wallet: tip_advanced from=$from_height to=$h"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "fund-wallet: WARN tip did not advance from $from_height within ${timeout_seconds}s" >&2
+  return 1
+}
+
+refresh_faucet_wallet() {
+  local mfn_cli="$1" rpc_addr="$2"
+  run_checked "faucet wallet scan" "$mfn_cli" --rpc "$rpc_addr" --wallet "$FAUCET_WALLET" wallet scan >/dev/null
+}
+
+prepare_before_faucet_send() {
+  if [[ -n "$TIP_AFTER_FAUCET_SEND" ]]; then
+    wait_tip_advance "$MFN_CLI" "$RPC_ADDR" "$TIP_AFTER_FAUCET_SEND" 90 || true
+    refresh_faucet_wallet "$MFN_CLI" "$RPC_ADDR"
+  fi
+}
+
+record_after_faucet_send() {
+  TIP_AFTER_FAUCET_SEND="$(tip_height_text "$MFN_CLI" "$RPC_ADDR")"
+}
+
 RECIPIENT="${RECIPIENT_WALLET:-$DEFAULT_RECIPIENT_WALLET}"
 
 if (( PLAN_ONLY )); then
@@ -298,6 +334,7 @@ SPEND_HEX="$(parse_field "$ADDR_OUT" spend_pub_hex)"
 send_fund_transfer() {
   local balance_before="$1"
   local balance_target="$2"
+  prepare_before_faucet_send
   FAUCET_BALANCE="$(get_wallet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" faucet)"
   if (( FAUCET_BALANCE < AMOUNT + FEE )); then
     echo "fund-wallet: faucet balance $FAUCET_BALANCE is below required $(( AMOUNT + FEE )); mine/scan the faucet wallet or choose a funded faucet" >&2
@@ -311,6 +348,7 @@ send_fund_transfer() {
   echo "fund-wallet: submitted tx_id=$tx_id mempool_len=$mempool_len outcome=$outcome recipient_wallet=$RECIPIENT"
   echo "fund-wallet: wait_for_mining=$WAIT_MINED_SECONDS"
   wait_recipient_balance "$MFN_CLI" "$RPC_ADDR" "$RECIPIENT" "$balance_before" "$balance_target" "$WAIT_MINED_SECONDS"
+  record_after_faucet_send
   printf '%s\n' "$tx_id"
 }
 
