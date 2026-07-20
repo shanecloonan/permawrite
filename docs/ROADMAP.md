@@ -6,7 +6,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-**As of 2026-07-19** (planning head `7a642af`; code head `02c8df8`; **B-16** docs `49d28f9`; experimental public testnet live on Hetzner `5.161.201.73`).
+**As of 2026-07-19** (planning head pending; code head `5dc3aa8` B-29; **B-16** `49d28f9`; **B-30** `2f1b4e2`; experimental public testnet live on Hetzner `5.161.201.73`).
 
 The workspace is **15 crates** on the same green CI gate (fmt + clippy `-D warnings` + release tests on Linux/macOS/Windows + wasm + cargo-audit + script/board guards).
 
@@ -43,10 +43,10 @@ Ordered levels — do not skip gates when inviting outside users or moving value
 | Level | Name | When true | Current (2026-07-19) |
 |---|---|---|---|
 | **L0** | Local developer mesh | `start-all.*` + health-check PASS on loopback | ✓ live |
-| **L1** | Software-ready RC | Green CI + Nightly + `release-evidence` **go** on exact head | ✓ baseline (`b4a3fa7`); CI `#29711044516` **queued ~10m+** on `02c8df8` (watch stall); **Nightly RED** `#29701967243` (**B-29**) |
+| **L1** | Software-ready RC | Green CI + Nightly + `release-evidence` **go** on exact head | ✓ baseline (`b4a3fa7`); B-34 lineage `#29711500087` on `76d4f04` → current `#29711605173` on `e10a8b3` (B-29 inclusive); **Nightly RED** `#29701967243` (**B-29**) |
 | **L2** | Internet network exists | VPS soak + participant rehearsal archived | ✓ TL-5/TL-6 on `5.161.201.73` |
 | **L3** | Experimental public testnet | Non-empty `seed_nodes`, faucet/observer/front-end, JOIN guide | ✓ **live** (TL-7 Path A toy keys, TL-8 seeds published) |
-| **L4** | Hardened public testnet | TL-9 go/no-go + named watchers + B-15 outside-in evidence + privacy docs match shipped UX | **In progress** (B-16 ✓; B-15 evidence; **Nightly RED** B-29; TL-9 open) |
+| **L4** | Hardened public testnet | TL-9 go/no-go + named watchers + B-15 outside-in evidence + privacy docs match shipped UX | **In progress** (B-16 ✓; B-30 ✓; B-15 / B-29 / B-26 / B-27 / B-31 open) |
 | **L5** | Incentivized / adversarial testnet | Path B genesis, role-separated VPS topology live, F5 validity path mature, sustained multi-operator permanence | Not ready |
 | **L6** | Audited mainnet candidate | Independent crypto audit, second client or formal spec sign-off, PM13 constitution frozen | Not ready |
 | **L7** | Production mainnet | Named human genesis ceremony, non-toy keys, economic value with stated risk | Not ready |
@@ -98,8 +98,9 @@ Each phase has a **gate** (evidence or checklist) before the next phase starts i
 | **B-15 assert** | `assert-join-testnet-rehearsal-evidence.*` PASS on `join-testnet-rehearsal-linux-*.txt` | 3 | Fixture + plan gate in ci-check; live assert after VPS run |
 | **B-16** | Privacy-doc sync: light-scan checkpoints, faucet flow, live wallet UX | 5 | ✓ **Shipped** — JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match F7 dual-send + light-scan + checkpoint-log |
 | **R-1–R-4** | Faucet/observer ops fix-forward (F7 dual-send, rate limits, UTF-8, job reclaim) | 2 | Landed on `main`; **VPS deploy** via `vps-update-faucet.sh` still ops |
-| **L1 refresh** | Green CI + Nightly + `release-evidence` on B-15 / B-29 head | 1+2 | **CI `#29711375639` queued** on `5dc3aa8` (stalled `#29711044516` on `02c8df8` cancelled) |
+| **L1 refresh** | Green CI + Nightly + `release-evidence` on B-15 / B-29 head | 1+2 | B-34: `#29711500087` on `76d4f04` → current **`#29711605173` queued** on `e10a8b3` (B-29 inclusive) |
 | **B-34** | CI queue/stall watch — cancel/re-dispatch if `queued` with no jobs ~15m+ | 1 | Prevents silent L4 blockers; see protocol below |
+| **B-41** | Repair public P2P binds (`0.0.0.0:1900x`) on Hetzner | 7+2 | Unblocks outside-in JOIN; B-31 P2P FAIL; renumbered from provisional B-40 |
 | **Ops** | Role-separated VPS templates exercised on internet ([`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md)) | 7 | PM23 hard-fail templates shipped; multi-host rehearsal human |
 | **B-22** | Verify TL-8 checkpoint log publish (`publish-checkpoint-log.sh --apply` on VPS) matches repo + JOIN cross-check | 7 | Repo log exists; [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) lists VPS publish as remaining TL-8 ops |
 | **B-26** | Deploy R-4 faucet to Hetzner (`vps-update-faucet.sh`) — checklist invite gate | 2+7 | After B-15 evidence window closes (no faucet restart during capture) |
@@ -116,7 +117,7 @@ Run in order; parallel work is allowed only where noted. **Do not restart `fauce
 
 | Step | Command / artifact | Owner | Pass when |
 |---|---|---|---|
-| **L1 CI** | GitHub CI on `5dc3aa8` (`#29711375639` or successor) | 1 | Matrix **GREEN** (use **B-34** if queued stalls) |
+| **L1 CI** | GitHub CI on B-29-inclusive head (`#29711500087` → `#29711605173` on `e10a8b3`) | 1 | Matrix **GREEN** (use **B-34** if queued stalls) |
 | **B-29 Nightly** | Re-dispatch Nightly on CI-green `5dc3aa8` (code already landed) | 1+3 | Nightly participant + observer jobs **GREEN**; closes B-29 |
 | **L1 evidence** | `release-evidence-refresh-for-head` + RC audit dry-run | 2 | `decision=go` on exact head |
 | **B-15 capture** | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` (operator VPS) | 3 | `join-testnet-rehearsal-linux-*.txt` with `SUMMARY: PASS` |
@@ -127,6 +128,8 @@ Run in order; parallel work is allowed only where noted. **Do not restart `fauce
 | **B-22** | `publish-checkpoint-log.sh --apply` if log drifted | 7 | `checkpoint-log verify` PASS |
 | **B-30** | Residual-risk owners + halt authority in OPERATORS | 7 | ✓ **Done** (docs); human cells at TL-9 |
 | **B-31** | Live threat-posture verify (see work package) | 2+7 | Checklist PASS archived; parallel with B-27/B-22 |
+| **B-41** | Public P2P bind repair on Hetzner | 7+2 | Outside dial to seeds PASS; after B-15 lock |
+| **B-42** | Invite-load smoke (see work package) | 3+7 | Evidence archived; after B-15/B-41; before TL-9 |
 | **TL-9** | `launch-go-no-go.sh` + named sign-offs + circulate invite | 7 + human | Go/no-go JSON **go** |
 
 **B-16 documentation inventory** (privacy accuracy — lane 5; **closed 2026-07-19**):
@@ -159,7 +162,7 @@ Nightly job `participant-rehearsal-smoke` (`.github/workflows/nightly.yml`) runs
 
 **Remaining (closes B-29):**
 
-1. CI `#29711375639` (or successor) **GREEN** on `5dc3aa8`.
+1. CI `#29711500087` (or successor, currently `#29711605173`) **GREEN** on B-29-inclusive head (`76d4f04` / `e10a8b3` / `5dc3aa8`+). If CI **RED** on `validate-rc-helper-scripts`, fix `fund-wallet.ps1` (parse / `Out-Null` / `>=` quoting in double-quoted strings) and re-push — do not re-dispatch Nightly on a red head.
 2. Lane 1 re-dispatches Nightly; participant + observer jobs **GREEN**.
 3. Do **not** mark B-29 Done on code land alone; do **not** substitute JOIN evidence.
 
@@ -176,6 +179,7 @@ GitHub Actions can leave a `main` CI run `queued` with jobs that never get runne
 | **Do not** | Cancel a healthy `in_progress` matrix that has running steps |
 | **Rust rule** | Still: do not push Rust while a healthy matrix is running |
 | **Record** | Cancelled + successor run IDs in §8 |
+| **Escalate** | If two successive restarts stay runner-starved (all jobs queued, empty steps), check [GitHub Status](https://www.githubstatus.com/) before a third cancel/re-dispatch |
 
 #### B-27 work package — fresh soak/participant on invite head
 
@@ -296,14 +300,81 @@ Before **B-13c** enable on Path A:
 | Window | Must finish | Owner | Blocked by |
 |---|---|---|---|
 | **Now** | **B-15** Hetzner evidence + assert (no faucet restart) | 3 | §6 lock |
-| **Now** | **B-34** restart CI `#29711375639` (all jobs queued, no runners) | 1 / planning | — |
+| **Now** | **B-34** watch CI `#29711605173` on `e10a8b3` (lineage `#29711500087` on `76d4f04`; escalate if runner-starved twice) | 1 / planning | — |
 | **After CI GREEN** | Re-dispatch Nightly → **close B-29** | 1 | CI GREEN on `5dc3aa8`+ |
-| **After B-15 window** | **B-26** R-4 VPS faucet deploy | 2+7 | B-15 capture done |
-| **Before TL-9** | **B-27** (work package); **B-22**; **B-31** (work package); L1 evidence **go** | 1+2+7 | CI + Nightly GREEN; B-30 docs ✓ |
+| **After B-15 window** | **B-41** P2P bind repair; then **B-26** R-4 VPS faucet deploy | 7+2 / 2+7 | B-15 capture done |
+| **Before TL-9** | **B-27** (work package); **B-22**; **B-31** (work package); **B-42** invite-load smoke; L1 evidence **go** | 1+2+3+7 | CI + Nightly GREEN; B-30 docs ✓; B-41 |
 | **TL-9** | Named watchers + `launch-go-no-go` (= **L4**) | 7+human | Above rows |
-| **Day of L4 close** | Lane 6 **B-13a**; lane 4+7 **B-32** (work package) | 6 / 4+7 | TL-9 **go** |
-| **Week after L4** | **B-13a** ∥ **B-32** ∥ **B-36** ∥ **B-23** (never block B-13a) | 6 / 4+7 / 4 / 2 | L4 gate |
+| **Day of L4 close** | Lane 6 **B-40** + **B-13a**; lane 4+7 **B-32** (work package) | 6 / 4+7 | TL-9 **go** |
+| **Week after L4** | **B-40** ∥ **B-13a** ∥ **B-32** → **B-44** ∥ **B-36** ∥ **B-23** (never block B-13a) | 6 / 4+7 / 4 / 2 | L4 gate |
 | **~30d after L4** | **B-38** repair soak + treasury watch prep → **B-25** go/no-go | 1+7+human | B-13c + B-24 path advancing |
+| **Before L5 / Path B** | **B-43** Path B genesis freeze inventory | 7+human | After B-25 (or explicit waiver) |
+
+#### B-40 — First permanence week (lane 6 — arm day-of L4)
+
+Calendar week zero after TL-9 / L4 closes. **Permanence first** — do not start Tier 2 privacy or Path B economic value.
+
+| Day | Must finish | Owner | Pass when |
+|---|---|---|---|
+| **D0 (L4 close)** | Claim **B-13a**; archive pre-enable treasury telemetry snapshot (`treasury_base_units`, backstop rate, tip height, SHA) | 6 | §5 Doing = B-13a; snapshot path in §8 |
+| **D0–D2** | Kick **B-32** multi-op evidence (lane 4+7) without blocking B-13a | 4+7 | Operators identified; evidence pack started |
+| **D1–D5** | Land **B-13a** sims in default CI (256–512 blocks @ `subsidy_to_treasury_bps=1000`) | 6 | CI GREEN; identity + fee-drought cases pass |
+| **D3–D7** | Confirm no Tier-2 / hidden-fee / Path-B value PRs opened; permanence regressions stay in **B-23** / **B-36** lanes only | all | Board Next cells stay Phase-1 units |
+| **Week close** | Written week-1 note: sims status, multi-op evidence status, treasury baseline vs live tip | 6+7 | Note archived under `scripts/public-devnet-v1/evidence/` or OPERATORS |
+
+**Hard rules:** do not enable `subsidy_to_treasury_bps` on Path A until **B-33**; do not claim **B-25** from a single week of data; do not restart `faucet-http` if B-15 capture is somehow still open.
+
+**Pass:** B-13a claimed and progressing (or GREEN); B-32 armed; telemetry baseline archived; no Tier-2/Path-B drift in §5/§8.
+
+#### B-42 — Invite-load smoke (lanes 3+7 — before TL-9)
+
+Prove the outsider invite path survives concurrent light load **before** circulating [`TESTNET_INVITE.md`](./TESTNET_INVITE.md). Complements **B-15** (single JOIN transcript) and **B-27** (fresh soak/participant) — does **not** replace either.
+
+| Check | Pass when |
+|---|---|
+| **Concurrent JOIN** | ≥2 parallel `join-testnet-rehearsal` / JOIN paths against live faucet+observer (stagger if faucet lock requires) — both reach `SUMMARY: PASS` or documented serialize-with-reason |
+| **Faucet under load** | R-4 peer-IP rate limit behaves; no unbounded in-memory job growth; cooldown honored |
+| **Observer proxy** | Read-only proxy stays healthy; light-scan + checkpoint-log path succeeds under parallel clients |
+| **Front / invite URLs** | Documented invite URLs respond; no auth/RPC leakage beyond threat model |
+| **Conflict** | Respect §6 faucet lock during **B-15** capture — run B-42 **after** B-15/B-41 window or on non-conflicting schedule |
+| **Evidence** | `invite-load-smoke-<date>.txt` (or agreed pattern) archived; cite SHA + CI head in §8 |
+
+**Pass:** Evidence archived; no P0 invite-path failures; residual limits noted in OPERATORS before TL-9.
+
+#### B-43 — Path B genesis freeze inventory (lane 7 — before L5)
+
+Freeze **what must be locked** before any Path B / incentivized genesis ceremony. Inventory only — does **not** run the ceremony. See [`TESTNET_GENESIS_CEREMONY.md`](./TESTNET_GENESIS_CEREMONY.md) Path B.
+
+| Freeze item | Owner | Locked when |
+|---|---|---|
+| **Constitution / ring / endowment floors** | 4+6 | Written list of invariants that Path B must preserve (no silent weakening) |
+| **Header v2 / `utxo_root` in BLS bytes** | 4 | Decision: enable `header_version: 2` on new chain only (yes/no + rationale) |
+| **Validator / BLS PoP material** | 7+human | Ceremony roles named; offline seed handling procedure; never paste keys in chat |
+| **`require_validator_bls_pop` + genesis JSON shape** | 4+6 | Spec fields + verify command pinned (`genesis-validator-bls-pop.sh --verify`) |
+| **Economics levers** | 6 | Which of B-13c / PM1 bonds / fee params land on Path B vs stay Path A |
+| **Topology** | 7 | Role-separated VPS inventory (validator / operator / observer hosts) per [`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md) |
+| **Wipe + re-soak plan** | 7 | Data-dir wipe, TL-5/TL-6 re-run checklist, invite/docs republication |
+| **Sign-off cells** | human | Named approvers for Path B decision template |
+
+**Hard rules:** Path A toy keys stay non-value; do not start Path B until **B-25** (or explicit human waiver); inventory is a gate doc, not a fake L5 claim.
+
+**Pass:** Freeze inventory committed (ROADMAP pointer + OPERATORS / ceremony checklist); human cells named or explicitly TBD with owner.
+
+#### B-44 — PM3 work package (lane 4+6 — after B-32)
+
+Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race), [`F5.md`](./F5.md) PM3, [`DECENTRALIZATION.md`](./DECENTRALIZATION.md)). **Permanence first** — colocation-favored races are a permanence risk. Arm only after **B-32** multi-op evidence proves ≥2 real operators exist.
+
+| Step | Detail |
+|---|---|
+| **Depends** | **B-32** GREEN (distinct-host multi-op SPoRA evidence) |
+| **Design** | Per-window VRF lottery among valid proofs in-window; out-of-window proofs deterministically rejected; equal-latency operators can both win across windows |
+| **Touch points** | `mfn-runtime` proof pool; `apply_block` Phase 5 / SPoRA acceptance; wallet/operator UX only if payout semantics change |
+| **Tests** | Deterministic `apply_block` cases: in-window accept; out-of-window reject; ≥2 operators win under equal latency across windows; no fee/endowment silent change |
+| **Sims** | Emission/treasury identity still holds under lottery (lane 6 co-owns) |
+| **Docs** | PROBLEMS §6 / PERMANENCE_HARDENING / OPERATORS payout notes updated to match shipped behavior |
+| **Does not include** | PM2 replication accounting (follows); PM1 bond scale-up (Phase 4); Tier 2 privacy |
+
+**Pass:** Consensus tests GREEN; multi-op lottery behavior documented; unblocks honest sequencing into **B-24** settlement audit + **PM2**; note run IDs in §8.
 
 ### Phase 2 — Validity and fraud proofs (security in service of light clients)
 
@@ -419,6 +490,11 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-37** B6/P6 hidden fees | Phase 3 | 4 |
 | **B-38** Repair/soak evidence + assert | Phase 1 | 1+7 |
 | **B-39** Phase 2 light-client / FRAUD_PROOFS honesty gate | Phase 2 | 4+7 |
+| **B-40** First permanence week (arm day-of L4) | Phase 1 | 6 |
+| **B-41** Repair public P2P binds on Hetzner | Phase 0 | 7+2 |
+| **B-42** Invite-load smoke before TL-9 | Phase 0 | 3+7 |
+| **B-43** Path B genesis freeze inventory | Phase 4 | 7+human |
+| **B-44** PM3 windowed SPoRA lottery work package | Phase 1 | 4+6 |
 
 Lane **Next** cells on the board should name a phase-0 or phase-1 unit until L4 gate clears, then shift toward phase 1–2 unless a fix-forward (R-*) is blocking ops.
 
@@ -438,15 +514,15 @@ Use this when sequencing cross-lane work. Arrows are hard gates; items on the sa
 ```text
 [L1 CI GREEN on 5dc3aa8] ──→ [B-29 Nightly GREEN] ──→ [L1 release-evidence go]
         ↑ B-34 if CI queue stalls
-[B-15 VPS evidence + assert] ──→ [B-26 R-4 faucet deploy]
+[B-15 VPS evidence + assert] ──→ [B-41 P2P bind repair] ──→ [B-26 R-4 faucet deploy]
         ↓ (B-16 ✓ shipped)
-[B-27 fresh soak] [B-22 checkpoint] [B-30 risk owners] [B-31 threat posture]
+[B-27 fresh soak] [B-22 checkpoint] [B-30 risk owners] [B-31 threat posture] [B-42 invite-load smoke]
         ↓
 [TL-9 go/no-go + invites]  (= L4)
         ↓
-[B-13a] ──→ [B-33] ──→ [B-13c] ──→ [B-28 Treasury watch]
+[B-40 first permanence week] ∥ [B-13a] ──→ [B-33] ──→ [B-13c] ──→ [B-28 Treasury watch]
         ↓ parallel (day-of L4; do not block B-13a)
-[B-32 multi-op assert] → [B-24] → [PM3 + PM2] → [B-38] → [B-25 permanence go/no-go]
+[B-32 multi-op assert] → [B-44 PM3] → [B-24] → [PM2] → [B-38] → [B-25 permanence go/no-go]
 [B-36 F10 lint]  [B-23 F18 ci-check gate]  [B-21 Dandelion soak]
         ↓
 [F5 4b.1 ✓ → B-12/4b.2] ──→ [4c + B-18] ──→ [B-39 light-client gate]  (= Phase 2)
@@ -454,7 +530,7 @@ Use this when sequencing cross-lane work. Arrows are hard gates; items on the sa
         ↓ (only after B-25 or human waiver)
 [Tier 2 + B-35 + B-37 hidden fees + B-19]
         ↓
-[TL Path B + Header v2 + multi-VPS] ──→ [B-17 + adversarial]  (= L5)
+[B-43 Path B genesis freeze] ──→ [TL Path B + Header v2 + multi-VPS] ──→ [B-17 + adversarial]  (= L5)
         ↓
 [external audit] ──→ [RFC + PM14]  (= L6) ──→ [mainnet + PM13]  (= L7)
 ```

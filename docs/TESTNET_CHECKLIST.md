@@ -414,26 +414,30 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 - [ ] **B-27** — Fresh participant + soak evidence on invite head (not only TL-5/TL-6 archives).
 - [ ] **B-29** — Nightly GREEN on `5dc3aa8` (code landed; close ≠ code land). Path = Nightly `fund-wallet.sh` — **not** JOIN. Last RED `#29701967243`.
 - [x] **B-30** — Residual-risk owner matrix + halt/rollback authority in OPERATORS + threat-model matrix (docs landed; fill human name cells at TL-9 sign-off).
-- [ ] **B-31** — Live RPC/faucet threat posture verify — probe in [`b31-threat-posture-20260720.md`](../scripts/public-devnet-v1/evidence/b31-threat-posture-20260720.md) (RPC PASS; P2P FAIL → **B-40**; close after bind repair + B-26).
-- [ ] **L1 refresh** — Green CI + `release-evidence` **go** on `5dc3aa8` (B-29) stack.
+- [ ] **B-31** — Live RPC/faucet threat posture verify — probe in [`b31-threat-posture-20260720.md`](../scripts/public-devnet-v1/evidence/b31-threat-posture-20260720.md) (RPC PASS; P2P FAIL → **B-41**; close after bind repair + B-26).
+- [ ] **B-41** — Repair public P2P binds (`0.0.0.0:1900x`) on Hetzner (unblocks outside-in JOIN / B-15).
+- [ ] **B-42** — Invite-load smoke before TL-9 ([work package](./ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9)).
+- [ ] **L1 refresh** — Green CI + `release-evidence` **go** on B-29 stack (B-34 lineage: `#29711500087` on `76d4f04`; current watch `#29711605173` on `e10a8b3`).
 - [ ] **TL-9** — Named watchers + human sign-offs on `launch-go-no-go` + invite circulation ([`TESTNET_INVITE.md`](./TESTNET_INVITE.md)).
 
-## L5 / Phase 1 permanence depth (after L4 — do not start early)
+## Phase 1 permanence depth (after L4 — do not start early)
 
 Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permanence-playbook-acceptance-criteria). **Hard rule:** permanence (**B-13** / **B3** / **B-25**) before Tier 2 privacy or Path B value.
 
+- [ ] **B-40** — First permanence week (arm day-of L4; with **B-13a**).
 - [ ] **B-13a** — Emission/treasury sims at `subsidy_to_treasury_bps=1000` in default CI (lane 6 — claim day-of L4).
 - [ ] **B-32** — B3 multi-op evidence pack + assert (unblocks honest **B-24**).
+- [ ] **B-44** — PM3 windowed SPoRA lottery work package (after B-32).
 - [ ] **B-33** — B-13b human sign-off checklist (before **B-13c** enable).
 - [ ] **B-13c** — Same-chain enable + operator announcement (after B-33).
-- [ ] **B-24** — Multi-op consensus settlement audit + M5 proptests (after B-32).
+- [ ] **B-24** — Multi-op consensus settlement audit + M5 proptests (after B-32 / B-44 path).
 - [ ] **B-38** — Repair/soak evidence + assert.
 - [ ] **B-28** — Treasury watch + numeric OPERATORS alert thresholds (after B-13c).
 - [ ] **B-25** — Phase 1 permanence go/no-go (30d soak + treasury bounds) — gate before Tier 2 / Path B.
 - [ ] **B-23** — F18 privacy/permanence regression gate in `ci-check` (parallel after L4; does not block B-13a).
 - [ ] **B-36** — F10 `f64` CI lint on consensus path (parallel after L4).
 
-## L6 / Phase 3 privacy tier 2 (after B-25 — do not start early)
+## Phase 3 privacy tier 2 (after B-25 — do not start early; not maturity L6)
 
 Strategic ordering: [`ROADMAP.md` Phase 3](./ROADMAP.md#phase-3--privacy-tier-2-and-metadata-closure-privacy-second). **Hard rule:** no Tier 2 / hidden fees until **B-25** or human waiver.
 
@@ -441,6 +445,12 @@ Strategic ordering: [`ROADMAP.md` Phase 3](./ROADMAP.md#phase-3--privacy-tier-2-
 - [ ] **B-37** — B6/P6 hidden fees inside balance equation.
 - [ ] **B-19** — F9 decoy-RNG entropy contract + tests.
 - [ ] **Tier 2** — Ring 32–64 + Bulletproof+ transcripts + wallet/WASM defaults + doc parity.
+
+## Maturity L5 / Phase 4 Path B (after B-25 — do not start early)
+
+Strategic ordering: [`ROADMAP.md` Phase 4](./ROADMAP.md#phase-4--incentivized-testnet-l5). Inventory before ceremony — not a fake L5 claim.
+
+- [ ] **B-43** — Path B genesis freeze inventory ([work package](./ROADMAP.md#b-43--path-b-genesis-freeze-inventory-lane-7--before-l5)).
 
 ## Cross-Agent Notes
 

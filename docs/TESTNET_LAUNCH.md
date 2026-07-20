@@ -11,7 +11,7 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 | Field | Value |
 | --- | --- |
 | Release commit | `5dc3aa8` (B-29 WS tip; B-15 `02c8df8`; B-16 `49d28f9`; B-30 docs `2f1b4e2`) |
-| CI | `#29711584157` successor after B-34; prior `#29700946945` GREEN on `b4a3fa7` |
+| CI | B-34 lineage `#29711500087` on `76d4f04`; current watch `#29711605173` on `e10a8b3`; prior `#29700946945` GREEN on `b4a3fa7` |
 | Nightly | `#29701967243` **RED** — re-dispatch after B-29 CI GREEN |
 | RC audit | `release-evidence-b4a3fa7` **go** (refresh after B-15/R-4/B-29 head CI + Nightly GREEN) |
 | VPS | Hetzner `5.161.201.73` — mesh + faucet + observer proxy + testnet front-end |
@@ -19,7 +19,7 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 | Checkpoint log | `public_devnet_v1.checkpoints.jsonl` |
 | TL-7 | Path A toy keys — [`tl7-genesis-signoff-path-a-20260714.txt`](../scripts/public-devnet-v1/evidence/tl7-genesis-signoff-path-a-20260714.txt) |
 | **L3 status** | **Experimental public testnet live** — [`JOIN_TESTNET.md`](./JOIN_TESTNET.md), [`pfpchain.com`](https://pfpchain.com) |
-| **Open TL** | **TL-9**; **B-15** JOIN; **B-29** Nightly; **B-40** P2P bind repair; **B-22** checkpoint; **B-26/27**; **B-31** close after B-40 (**B-16**/B-30 docs ✓) |
+| **Open TL** | **TL-9**; **B-15** JOIN; **B-29** Nightly; **B-41** P2P bind; **B-42** invite-load; **B-22** checkpoint; **B-26/27**; **B-31** close after B-41 (**B-16**/B-30 docs ✓) |
 | Strategic ordering | [`ROADMAP.md` L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification) → [Phase 1 permanence playbook](./ROADMAP.md#phase-1-permanence-playbook-acceptance-criteria) |
 
 ---
