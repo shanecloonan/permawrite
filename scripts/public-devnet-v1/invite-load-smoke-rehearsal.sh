@@ -13,7 +13,7 @@ done
 echo "invite-load-smoke-rehearsal: plan"
 echo "  unit=B-42"
 echo "  flow=staggered join-testnet-rehearsal x2 against live faucet+observer after B-15 lock"
-echo "  checks=SUMMARY PASS or serialize-with-reason; R-4 cooldown; proxy healthy; checkpoint-log light-scan"
+echo "  checks=SUMMARY PASS or serialize-with-reason; R-4 cooldown; proxy healthy; light-scan-checkpoint-soft (F45)"
 echo "  evidence=invite-load-smoke-YYYYMMDD.txt under scripts/public-devnet-v1/evidence/"
 echo "  docs=docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9"
 echo "  conflict=do not run during B-15 faucet lock"

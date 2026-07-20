@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Rust head = `e69e603` (**B-51**). CI `#29717107514` in progress. **B-59** (b3_legacy deterministic reject) ready to land after this run settles. Tip live **4167+**. Lane 7 hold `vps-roll-mfnd` until CI GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29717107514` in_progress** on B-51 (`e69e603`). This land = **B-60** roll preflight + JOIN F45 wire `[skip ci]`. **Do not** `vps-roll-mfnd --apply` until CI GREEN + faucet idle.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | Diagnosed `#29715111633` RED | **Watch CI `#29717107514`** (B-51) (claim base: `e69e603`) | On GREEN: Nightly -> B-29; land B3 slot harden if still needed | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 wave12 eve upload+prove+send PASS (this commit) | **B-15** JOIN archive (claim base: this head) | SUMMARY when F45/F68b cleared | L4 checklist |
+| **3** Onboarding | B-15 wave12+ | **B-15** JOIN archive (claim base: this head) | SUMMARY via soft light-scan (B-60 wire) | L4 checklist |
 | **4** Protocol | **B-51** (`e69e603`); **B-48**/`B-45` | **B-59** b3_legacy CI flake (claim base: `e69e603`) | Land B-59 after `#29717107514`; then lane 7 roll → live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-59/F45 soft** + tip-4166 (`973912d`) | *Idle* | After CI GREEN on B-51: `vps-roll-mfnd.sh --apply`; **B-42** after B-15 PASS | `launch-go-no-go` |
+| **7** Testnet launch | **B-60** roll preflight + JOIN F45 wire; B-59 | *Idle* | On CI GREEN + faucet idle: `vps-roll-mfnd.sh --apply`; **B-42** after B-15 PASS | `launch-go-no-go` |
 
 ---
 
@@ -155,7 +155,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Open** |
-| 4 | 7 | **B-45+B-48+B-51:** all on main (`e69e603`+). After CI GREEN → `vps-roll-mfnd.sh --apply`. Never touch `faucet-http` | **Open** (VPS roll) |
+| 4 | 7 | **B-45+B-48+B-51:** on main. Roll after CI GREEN; **B-60** refuse if CI/faucet not ready. Never touch `faucet-http` | **Open** (VPS roll) |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
@@ -171,7 +171,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 7 | human | **B-22:** near-tip checkpoint | **Done** (Path A tip **4148** + public seed anchors; seed offline on VPS only) |
 | planning | 1+7 | **B-27:** use ROADMAP work package — TL-5/6 archives insufficient | **Open** |
 | planning | 6 | **Arm B-40 + B-13a** the day TL-9/L4 closes — work packages in ROADMAP; do not stay idle | **Open** (fires on L4) |
-| 3 | 5+7 | **JOIN tall-tip UX:** F68 Done. **F45 soft helper** (B-59) for bootstrap; wire into `join-testnet-rehearsal` (lane 3). F71 JOIN note. | **Open** (rehearsal wire) |
+| 3 | 5+7 | **JOIN tall-tip UX:** F68 Done. F45 soft in bootstrap + **rehearsal wired** (B-60). F71 JOIN note. | **Open** (SUMMARY archive) |
 | 3 | 7+4 | **Wave10 F62/F65:** VPS not F62 (chain.blocks 6.3MiB, get_block PASS). F65 last_proven=4071 needs B-45 mfnd roll after CI+B-51. Evidence `b53-…` + wave10 | **Done** (F62 VPS); **Open** (F65→roll) |
 | 7 | 3 | **B-53:** faucet `/health` no longer blocks on keepalive lock; use `assert-vps-block-log-health.sh` for F62 checks | **Open** |
 | 7 | 1+4 | **CI `#29715111633`:** produce-smoke timeout fixed in B-51 (60s); **b3_legacy** flake = **B-59** (1/num_chunks collision) | **Ack** (B-51); **Open** (B-59) |
@@ -179,7 +179,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 7 | 3 | **B-55:** browser UI at `http://5.161.201.73:3000/testnet` (optional; local observer still preferred for JOIN evidence) | **Open** |
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
 | 3 | 7 | **F68/F68b:** Windows bootstrap ps1 - temp `.py` TCP snapshot (B-58). Evidence wave12 + `b58-…` | **Done** (B-58) |
-| 7 | 3 | **B-59:** wire `join-testnet-rehearsal.sh` light-scan through `light-scan-checkpoint-soft.sh` (F45 tip race) | **Open** |
+| 7 | 3 | **B-59:** wire `join-testnet-rehearsal.sh` light-scan through `light-scan-checkpoint-soft.sh` (F45 tip race) | **Done** (B-60) |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
@@ -240,6 +240,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-57 | F68 Windows bootstrap ps1 - python TCP snapshot | 7 | **Done** - superseded by B-58 temp `.py` |
 | B-58 | F68b Windows bootstrap - temp `.py` not `python -c` | 7 | **Done** - tunnel smoke snapshot_ok+pin tip 4159 |
 | B-59 | F45 soft light-scan + tip-4166 ckpt | 7 | **Done** - `light-scan-checkpoint-soft.sh`; Schnorr still hard |
+| B-60 | mfnd roll CI+faucet preflight + JOIN F45 wire | 7 | **Done** — fail-closed gates; rehearsal uses soft scan |
 
 ---
 
@@ -247,28 +248,28 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 4 — B-59 claim** (this commit): CI `#29715111633` ubuntu flake was `b3_legacy_challenge_rejected_when_enabled` accepting when legacy chunk index collides with operator-salted (p≈1/num_chunks). Fix picks a diverging slot; local PASS. Docs-only `[skip ci]` while `#29717107514` runs — do not cancel. *Observed:* leave bootstrap/JOIN/checkpoint WIP unstaged; VPS still pre-B-48 (ephemeral quarantine until roll).
+1. **2026-07-20 - lane 7 - B-60 roll preflight + JOIN F45 wire** (this commit): `vps-roll-mfnd` refuse on red/in-progress CI or busy faucet; `join-testnet-rehearsal` -> `light-scan-checkpoint-soft`. No mfnd apply (CI `#29717107514` in flight; faucet busy). `[skip ci]`. *Observed:* `block_apply.rs` WIP, lane-3 temps, `user-wallet/`, `live-testnet-data*`.
+2. **2026-07-20 — lane 4 — B-59 claim** (this commit): CI `#29715111633` ubuntu flake was `b3_legacy_challenge_rejected_when_enabled` accepting when legacy chunk index collides with operator-salted (p≈1/num_chunks). Fix picks a diverging slot; local PASS. Docs-only `[skip ci]` while `#29717107514` runs — do not cancel. *Observed:* leave bootstrap/JOIN/checkpoint WIP unstaged; VPS still pre-B-48 (ephemeral quarantine until roll).
 1. **2026-07-20 — lane 1 — watch CI `#29717107514` (B-51)**: Prior `#29715111633` RED was `public_devnet_hub_reaches_height_one…` tip diverge (not B3 flake on that head). B-51 landed by lane 4 (`e69e603`). Local B3 non-colliding-slot harden staged for after matrix. Docs-only `[skip ci]`.
 
 1. **2026-07-20 — lane 1 — B-51 + B3 CI fix-forward** (this commit): Recovered ephemeral-peer quarantine harden (`note_peer_failure` skips non-durable; block/fraud fanout dials durable only). Hardened `b3_legacy_challenge_rejected_when_enabled` to pick non-colliding slot. Targets CI `#29715111633` RED (`public_devnet_hub_reaches_height_one…` tip diverge). Local focused tests green.
 
 1. **2026-07-20 - lane 7 - board SYNC** (this commit): B-51 confirmed on main (`e69e603`) after B-59 land; prior SYNC note was stale mid-push. Hold mfnd roll for CI GREEN. `[skip ci]`.
-2. **2026-07-20 - lane 7 - B-59/F45 soft + B-22 tip-4166** (this commit): `light-scan-checkpoint-soft.sh` soft-pass tip race; Path A ckpt tip **4166** (entries=9). SYNC: B-51 not on origin/main (left lane-4 WIP unstaged). `[skip ci]`. *Observed:* lane-4 `p2p_fanout.rs` / smoke / `block_apply.rs`, lane-3 temps, `user-wallet/`, `live-testnet-data*`.
+3. **2026-07-20 - lane 7 - B-59/F45 soft + B-22 tip-4166** (this commit): `light-scan-checkpoint-soft.sh` soft-pass tip race; Path A ckpt tip **4166** (entries=9). SYNC: B-51 not on origin/main (left lane-4 WIP unstaged). `[skip ci]`. *Observed:* lane-4 `p2p_fanout.rs` / smoke / `block_apply.rs`, lane-3 temps, `user-wallet/`, `live-testnet-data*`.
 1. **2026-07-20 - lane 7 - B-58/F68b Windows bootstrap temp `.py`** (this commit): write snapshot/pin helpers to temp files (wave12 F68b). Tunnel smoke: `snapshot_ok` + pin 4159. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs`, lane-3 temps, `user-wallet/`, `live-testnet-data*`.
-4. **2026-07-20 - lane 7 - B-22 tip-4159 Path A checkpoint** (this commit): `publish-checkpoint-log.sh --apply` tip **4159** (entries=8); public seed anchors; faucet untouched. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), lane-3 temps, `user-wallet/`, `live-testnet-data*`.
-5. **2026-07-20 - lane 7 - B-57/F68 Windows bootstrap TCP snapshot** (this commit): `bootstrap-wallet-from-checkpoint-log.ps1` uses python TCP JSON-RPC for `get_light_snapshot` (PS5.1 strips quotes on mfn-cli `--params`). UTF-8 rewrite. VPS TCP+proxy smoke tip=4148. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), lane-3 evidence temps, `user-wallet/`, `live-testnet-data*`.
-6. **2026-07-20 — lane 7 — B-56 tip-first faucet keepalive** (this commit): keepalive polls tip without wallet lock when near tip; full sync only when behind. Cuts EAGAIN vs `get_light_snapshot`. Deploy: restart `faucet-http` when idle. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), lane-3 `bootstrap-wallet-from-checkpoint-log.ps1` / probe temps, `user-wallet/`, `live-testnet-data*`.
-7. **2026-07-20 — lane 7 — B-55 testnet frontend** (this commit): systemd `testnet-frontend` on `:3000` + UFW; `vps-start-testnet-frontend.sh`; JOIN/OPERATORS links. Never restarts mfnd/faucet. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 temps, `live-testnet-data*`.
-8. **2026-07-20 — lane 7 — B-22 tip-4148 checkpoint** (this commit): Path A signer appended tip **4148** (lag was 13+); public seed anchors; faucet untouched. Noted CI `#29715111633` ubuntu FAIL for lane 4/1. Evidence `b22-checkpoint-tip4148-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 temps, `live-testnet-data*`.
-9. **2026-07-20 — lane 7 — B-54 F67 pin-then-fund** (this commit): JOIN Step 5 + `fund-wallet-http` pin before faucet; rehearsal plan strings; evidence `b54-f67-pin-then-fund-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 probe temps, `live-testnet-data*`.
-10. **2026-07-20 — lane 7 — B-53 faucet health + F62 assert** (this commit): `/health` never awaits wallet lock (`wallet_lock_held`); `assert-vps-block-log-health.sh`; VPS tip~4140 `get_block` PASS / `chain.blocks` 6.3MiB (F62 laptop-only). Deploy: restart `faucet-http` when idle. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 probe temps, `live-testnet-data*`.
-11. **2026-07-20 — lane 7 — B-52 F54/F56** (this commit): proxy per-method heavy timeout (180s) for `get_light_snapshot`/`get_block_headers`; Windows `bootstrap-wallet-from-checkpoint-log.ps1`; JOIN note; evidence `b52-proxy-heavy-timeout-ps1-twin-20260720.md`. Deploy: restart `observer-rpc-proxy` only. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 `_write_w10_open.py` / `_wave10-carol-upload.json`, `live-testnet-data/`.
-12. **2026-07-20 — lane 7 — B-22 tip-4133 checkpoint** (`90c9c5c`): Path A tip **4133**; public seed anchors.
-13. **2026-07-20 — lane 3 — B-15 wave10 open** (`a550ad4`): tip 4131, ckpt lag 74.
-14. **2026-07-20 — lane 4 — B-51 claim** (`e236e6a`): ephemeral fanout quarantine.
-15. **2026-07-20 — lane 3 — B-15 wave9** (`d3213a5`): SPoRA prove Fresh + pool.
-16. **2026-07-20 — lane 3 — B-15 wave8** (`387b6ae`/`334af3d`/`01b390a`).
-17. **2026-07-20 — lane 4 — B-48 soft EAGAIN quarantine** (`69df8fa`); CI `#29715111633` in progress.
-18. **2026-07-20 — lane 3 — B-15 wave7** (`27d4c20`/`21ab99c`): receive verify + permanence.
-19. **2026-07-20 — lane 7 — B-50 checkpoint bootstrap honesty** (`030315e`).
-20. **2026-07-20 — lane 7 — B-49 vps-roll-mfnd** (`284e803`).
+5. **2026-07-20 - lane 7 - B-22 tip-4159 Path A checkpoint** (this commit): `publish-checkpoint-log.sh --apply` tip **4159** (entries=8); public seed anchors; faucet untouched. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), lane-3 temps, `user-wallet/`, `live-testnet-data*`.
+6. **2026-07-20 - lane 7 - B-57/F68 Windows bootstrap TCP snapshot** (this commit): `bootstrap-wallet-from-checkpoint-log.ps1` uses python TCP JSON-RPC for `get_light_snapshot` (PS5.1 strips quotes on mfn-cli `--params`). UTF-8 rewrite. VPS TCP+proxy smoke tip=4148. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), lane-3 evidence temps, `user-wallet/`, `live-testnet-data*`.
+7. **2026-07-20 — lane 7 — B-56 tip-first faucet keepalive** (this commit): keepalive polls tip without wallet lock when near tip; full sync only when behind. Cuts EAGAIN vs `get_light_snapshot`. Deploy: restart `faucet-http` when idle. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), lane-3 `bootstrap-wallet-from-checkpoint-log.ps1` / probe temps, `user-wallet/`, `live-testnet-data*`.
+8. **2026-07-20 — lane 7 — B-55 testnet frontend** (this commit): systemd `testnet-frontend` on `:3000` + UFW; `vps-start-testnet-frontend.sh`; JOIN/OPERATORS links. Never restarts mfnd/faucet. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 temps, `live-testnet-data*`.
+9. **2026-07-20 — lane 7 — B-22 tip-4148 checkpoint** (this commit): Path A signer appended tip **4148** (lag was 13+); public seed anchors; faucet untouched. Noted CI `#29715111633` ubuntu FAIL for lane 4/1. Evidence `b22-checkpoint-tip4148-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 temps, `live-testnet-data*`.
+10. **2026-07-20 — lane 7 — B-54 F67 pin-then-fund** (this commit): JOIN Step 5 + `fund-wallet-http` pin before faucet; rehearsal plan strings; evidence `b54-f67-pin-then-fund-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 probe temps, `live-testnet-data*`.
+11. **2026-07-20 — lane 7 — B-53 faucet health + F62 assert** (this commit): `/health` never awaits wallet lock (`wallet_lock_held`); `assert-vps-block-log-health.sh`; VPS tip~4140 `get_block` PASS / `chain.blocks` 6.3MiB (F62 laptop-only). Deploy: restart `faucet-http` when idle. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 probe temps, `live-testnet-data*`.
+12. **2026-07-20 — lane 7 — B-52 F54/F56** (this commit): proxy per-method heavy timeout (180s) for `get_light_snapshot`/`get_block_headers`; Windows `bootstrap-wallet-from-checkpoint-log.ps1`; JOIN note; evidence `b52-proxy-heavy-timeout-ps1-twin-20260720.md`. Deploy: restart `observer-rpc-proxy` only. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_fanout.rs` / `block_apply.rs` (B-51), `user-wallet/`, lane-3 `_write_w10_open.py` / `_wave10-carol-upload.json`, `live-testnet-data/`.
+13. **2026-07-20 — lane 7 — B-22 tip-4133 checkpoint** (`90c9c5c`): Path A tip **4133**; public seed anchors.
+14. **2026-07-20 — lane 3 — B-15 wave10 open** (`a550ad4`): tip 4131, ckpt lag 74.
+15. **2026-07-20 — lane 4 — B-51 claim** (`e236e6a`): ephemeral fanout quarantine.
+16. **2026-07-20 — lane 3 — B-15 wave9** (`d3213a5`): SPoRA prove Fresh + pool.
+17. **2026-07-20 — lane 3 — B-15 wave8** (`387b6ae`/`334af3d`/`01b390a`).
+18. **2026-07-20 — lane 4 — B-48 soft EAGAIN quarantine** (`69df8fa`); CI `#29715111633` in progress.
+19. **2026-07-20 — lane 3 — B-15 wave7** (`27d4c20`/`21ab99c`): receive verify + permanence.
+20. **2026-07-20 — lane 7 — B-50 checkpoint bootstrap honesty** (`030315e`).

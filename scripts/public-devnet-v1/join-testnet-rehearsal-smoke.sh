@@ -125,7 +125,7 @@ if (( PLAN_ONLY )); then
   echo "  rehearsal_dir=$REHEARSAL_DIR"
   echo "  evidence_dir=$EVIDENCE_DIR"
   echo "  no_start=$NO_START"
-  echo "  flow=synced local observer RPC -> fund-wallet-http (F67 pin-then-fund) -> light-scan --checkpoint-log -> observer proxy cross-check -> permanence-demo"
+  echo "  flow=synced local observer RPC -> fund-wallet-http (F67 pin-then-fund) -> light-scan-checkpoint-soft (F45) -> observer proxy cross-check -> permanence-demo"
   echo "  docs=docs/JOIN_TESTNET.md"
   echo "  assert=assert-join-testnet-rehearsal-evidence.sh"
   exit 0

@@ -11,7 +11,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-needles=(vps-roll-mfnd B-49 mfnd faucet-http vps-soften-mfnd-requires MFN_P2P_DIAL_EXTRA voters hub)
+needles=(vps-roll-mfnd B-49 B-60 mfnd faucet-http vps-soften-mfnd-requires MFN_P2P_DIAL_EXTRA voters hub MFN_ROLL_ALLOW_RED_CI)
 for n in "${needles[@]}"; do
   grep -q "$n" "$SCRIPT_DIR/vps-roll-mfnd.sh" || { echo "missing needle $n" >&2; exit 1; }
 done

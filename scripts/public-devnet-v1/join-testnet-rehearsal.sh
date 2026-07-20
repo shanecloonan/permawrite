@@ -88,7 +88,7 @@ if (( PLAN_ONLY )); then
   echo "  rehearsal_dir=$REHEARSAL_DIR"
   echo "  uploader_wallet=$UPLOADER_WALLET"
   echo "  evidence_log=$EVIDENCE_LOG"
-  echo "  flow=verify genesis -> checkpoint-log verify -> wallet new -> fund-wallet-http (F67 pin-then-fund) -> wallet light-scan --checkpoint-log -> observer proxy cross-check -> permanence-demo -> support-bundle"
+  echo "  flow=verify genesis -> checkpoint-log verify -> wallet new -> fund-wallet-http (F67 pin-then-fund) -> light-scan-checkpoint-soft (F45) -> observer proxy cross-check -> permanence-demo -> support-bundle"
   echo "  note=matches docs/JOIN_TESTNET.md outside-user path after local sync"
   exit 0
 fi
@@ -153,8 +153,7 @@ if (( NO_BUILD )); then fund_args+=(--no-build); fi
 bash "$SCRIPT_DIR/fund-wallet-http.sh" "${fund_args[@]}"
 echo "join-testnet-rehearsal: fund_wallet_http=PASS"
 
-"$MFN_CLI" --rpc "$RPC" --wallet "$UPLOADER_WALLET" wallet light-scan \
-  --checkpoint-log "$CHECKPOINT_LOG"
+bash "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" --rpc "$RPC" --wallet "$UPLOADER_WALLET" --log "$CHECKPOINT_LOG"
 echo "join-testnet-rehearsal: light_scan_checkpoint=PASS"
 
 if command -v curl >/dev/null 2>&1; then
