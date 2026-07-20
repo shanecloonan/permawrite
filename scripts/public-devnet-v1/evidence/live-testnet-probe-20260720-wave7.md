@@ -115,4 +115,5 @@ Post-submit wallet: pending_spent_count=2, alance_cached=0 (change not yet scan
 ## Tools note
 
 Board mentions ootstrap-wallet-from-checkpoint-log.sh — prefer that over hand-patched wallet JSON for JOIN archive once verified.
+**On-chain confirm:** uploads list shows commitment 20fcb43… with last_proven_height=4071 (indexed; SPoRA path touched). Tip continued to 4073+ during wait.
 
