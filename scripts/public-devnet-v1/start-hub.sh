@@ -14,6 +14,15 @@ export MFND_VRF_SEED_HEX=0101010101010101010101010101010101010101010101010101010
 export MFND_BLS_SEED_HEX=6565656565656565656565656565656565656565656565656565656565656565
 : "${MFN_RPC_LISTEN:=127.0.0.1:0}"
 : "${MFN_P2P_LISTEN:=127.0.0.1:0}"
+# Optional space-separated local committee dials (VPS: prefer voters over public seed_nodes hairpins).
+DIAL_ARGS=()
+if [[ -n "${MFN_P2P_DIAL_EXTRA:-}" ]]; then
+  # shellcheck disable=SC2206
+  for addr in ${MFN_P2P_DIAL_EXTRA}; do
+    DIAL_ARGS+=(--p2p-dial "$addr")
+  done
+fi
 exec "$MFND" --data-dir "$DATA_DIR" --genesis "$GENESIS" --store fs \
   --rpc-listen "$MFN_RPC_LISTEN" --p2p-listen "$MFN_P2P_LISTEN" \
+  "${DIAL_ARGS[@]}" \
   --slot-duration-ms "$SLOT_MS" serve --produce

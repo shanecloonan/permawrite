@@ -62,3 +62,5 @@ existing deterministic seed (`mfn-cli wallet restore ... --key-derivation
 payout_stealth_v1`) so it kept the same payout address and resumed earning
 block subsidy immediately. This is acceptable for a pre-audit experimental
 testnet with no external validators yet onboarded (see `AGENTS.md` Lane 7).
+
+Use **Wants=mfnd-hub.service** (not Requires=) so systemctl restart mfnd-hub does not tear down voters/observer (tip-4031 stall / B-46).

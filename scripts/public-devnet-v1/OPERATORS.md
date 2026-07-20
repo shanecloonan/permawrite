@@ -238,6 +238,10 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 
 **Do not** bind `mfnd` itself on `0.0.0.0:1900x` on the current Hetzner image — startup hung before RPC bind (2026-07-20). Working posture: loopback `mfnd` on `:19101-19104` + `socat` public forwards `0.0.0.0:1900x -> 127.0.0.1:1910x` (`repair-vps-p2p-binds.sh --apply`). Do not socat the same port mfnd holds on loopback. RPC stays `127.0.0.1`.
 
+### Tip stall after P2P remap (B-46)
+
+If tip freezes after mfnd remaps/restarts: (1) ensure hub has quoted `Environment="MFN_P2P_DIAL_EXTRA=127.0.0.1:19102 127.0.0.1:19103 127.0.0.1:19104"`; (2) `bash scripts/public-devnet-v1/vps-soften-mfnd-requires.sh` (Requires→Wants); (3) start voters, then **restart hub only** so boot dials succeed (avoid 300s quarantine). Do not restart `faucet-http` during B-15.
+
 ### B-22 — Path A checkpoint republish
 
 `bootstrap-path-a-checkpoint-signer.sh --apply` mints `~/.mfn/checkpoint-signer.env` (never commit) and appends a near-tip JSONL entry. Commit `public_devnet_v1.checkpoints.jsonl` only.

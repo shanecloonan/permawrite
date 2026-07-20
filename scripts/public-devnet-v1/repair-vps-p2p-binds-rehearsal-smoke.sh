@@ -10,7 +10,7 @@ while [[ $# -gt 0 ]]; do
     *) echo "repair-vps-p2p-binds-rehearsal-smoke: unknown argument $1" >&2; exit 1 ;;
   esac
 done
-needles=(repair-vps-p2p-binds B-41 socat 19101 19102 19002 faucet)
+needles=(repair-vps-p2p-binds B-41 socat 19101 19102 19002 faucet MFN_P2P_DIAL_EXTRA write_local_peers)
 for n in "${needles[@]}"; do
   grep -q "$n" "$SCRIPT_DIR/repair-vps-p2p-binds.sh" || { echo "missing needle $n" >&2; exit 1; }
 done

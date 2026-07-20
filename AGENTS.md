@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Rust head = `f1459bf` (**B-45**); tip = `e01645a` (B-15 wave4 docs). **No active CI** — `#29712566709` cancelled empty (~11m) during Actions **partial_outage**. **Hold** re-dispatch until [githubstatus](https://www.githubstatus.com/) Actions is operational (B-34 escalate). **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** code head = this commit (**B-46** tip-4031 recovery) on `d18fe7b` stack. Tip live **4034+**. **CI `#29712149048`** still lane-1/Actions. This land `[skip ci]`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | OPERATORS mojibake + board (`f8cb53b`); `#29712566709` cancelled empty | **Wait Actions recovery** then dispatch CI on `f1459bf`+ (claim base: `e01645a`) | On CI GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 wave4 (`e01645a`/`ed296d4`) | **B-15** blocked on tip stall + faucet EAGAIN (claim base: `ed296d4`) | After tip moves + faucet green: finish light-scan receive verify | L4 checklist |
-| **4** Protocol | **B-45** (`f1459bf`); **B-32** `711d98b`; **B-36** | *Idle* | After CI GREEN: lane 7 rolls mfnd; live **B-32** day-of L4; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
+| **3** Onboarding | **B-15** waves (tip stall escalate) | **B-15 full JOIN** (claim base: this head; tip live again — resume archive) | Archive + assert; faucet lock until PASS | L4 checklist |
+| **4** Protocol | **B-46** tip-stall harden; **B-45** (`f1459bf`); **B-32** `711d98b` | *Idle* | After CI GREEN: lane 7 rolls mfnd; live **B-32** day-of L4; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-41** + **B-42** plan (`0efb23f`) | *Idle* | **Urgent:** wave4 P2P `:19001` + observer proxy `ECONNREFUSED :18734`; then B-45 mfnd roll after CI (no faucet) | `launch-go-no-go` |
+| **7** Testnet launch | **B-46** tip-4031 recovery + B-41/B-22/B-31 (this commit) | *Idle* | **B-42** after B-15 PASS; **B-26** with lane 2; TL-9 | `launch-go-no-go` |
 
 ---
 
@@ -154,10 +154,10 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 (faucet lock). **B-41 mfnd P2P bind repair is explicitly allowed**; **B-45 mfnd binary roll** (voters/hub only, no faucet) after CI GREEN is allowed. | **Open** |
+| 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 (faucet lock). **Do not** thrash `mfnd-hub` restarts while tip is sealing or voters mid-bind (B-46). **B-45 mfnd binary roll** (voters/hub only, no faucet) after CI GREEN is allowed. | **Open** |
 | 4 | 7 | **B-45:** after CI GREEN, roll `mfnd` on Hetzner voters/hub so salted SPoRA admit works; do **not** touch `faucet-http` | **Open** |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
-| 3 | 7 | **Tip stall + faucet EAGAIN:** tip stuck **4031** 2+ min (peers=1 sess=0); faucet jobs fail `mfn-cli ... os error 11`; proxy 502 flapping; 19001 flapped. Evidence wave4 `ed296d4`. Restore production + faucet before JOIN PASS | **Open** |
+| 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production (4031→4034+ sealed). Faucet fund jobs still EAGAIN — restore faucet path before JOIN PASS. Evidence wave5 `d18fe7b` + `b46-tip4031-systemd-wants-20260720.md` | **Ack** (tip); **Open** (faucet) |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
 | planning | 1 | **B-34:** `#29712566709` cancelled empty (~11m); **no active CI** — re-dispatch only after Actions operational | **Ack** |
@@ -199,7 +199,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
 | B-29 | Nightly `fund-wallet.sh` WS tip mismatch fix | 1+3 | **Code** `5dc3aa8`; **close** = Nightly GREEN (≠ JOIN) |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
-| B-31 | Live RPC/faucet threat posture verify | 2+7 | **Probed** — evidence `b31-threat-posture-20260720.md`; RPC PASS; P2P FAIL → B-41; close after B-41+B-26 |
+| B-31 | Live RPC/faucet threat posture verify | 2+7 | **P2P+RPC PASS** after B-41/B-46; close after **B-26** R-4 deploy confirm |
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling landed**; live pack day-of L4 |
 | B-33 | B-13b human sign-off checklist | 6+7+human | One-lever + producer budget + telemetry baseline before B-13c |
 | B-34 | CI queue/stall watch + cancel/re-dispatch | 1 | Watch `#29711605173`; protocol in ROADMAP (Escalate → GitHub Status) |
@@ -221,7 +221,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 - lane 3 - B-15 wave5**: tip still 4031 (20+ min stall); carol faucet EAGAIN (3/3 fails); proxy 502; local RPC reads OK; light-scan abandoned. Evidence live-testnet-probe-20260720-wave5.md. Docs-only [skip ci].
+1. **2026-07-20 — lane 7 — B-46 tip-4031 recovery** (this commit): Hub quarantined voters after early dials; quoted `MFN_P2P_DIAL_EXTRA` + restart hub after voters → `producer_sealed height=4032`; tip **4034+**. `start-hub.sh` dials + `vps-soften-mfnd-requires.sh` (Wants=). Faucet untouched. Evidence `b46-tip4031-recovery-20260720.md`. `[skip ci]`. *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`.
+2. **2026-07-20 - lane 3 - B-15 wave5**: tip still 4031 (20+ min stall); carol faucet EAGAIN (3/3 fails); proxy 502; local RPC reads OK; light-scan abandoned. Evidence live-testnet-probe-20260720-wave5.md. Docs-only [skip ci].
 1. **2026-07-20 - lane 3 - B-15 wave4 addendum** (ed296d4): tip STALL 4031; faucet jobs ERROR os error 11 (EAGAIN); checkpoint log tip 4028; light-scan ~0.55s/block no mid-persist; P2P 19001 flapped. Docs-only [skip ci].
 1. **2026-07-20 — lane 1 — B-34 escalate: no active CI**: `#29712566709` cancelled empty (~11m) while Actions still partial_outage; hold re-dispatch until Status operational. Outside-in: observer proxy `ECONNREFUSED :18734`; §6 → lane 7. Docs-only `[skip ci]`.
 2. **2026-07-20 — lane 3 — B-15 wave4 partial** (`e01645a`): tip~4031; re-fund; P2P `:19001` down / light-scan slow. Evidence `live-testnet-probe-20260720-wave4.md`. Faucet lock remains.
