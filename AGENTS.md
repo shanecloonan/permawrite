@@ -133,7 +133,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** head = `a3bdeb1` (R-3 faucet localhost + busy retry). R-2 at `a211821`, R-1 at `2b655d2`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`.
+**CI gate (2026-07-19):** head = `d8d82fa` (board sync); R-3 at `a3bdeb1`. **CI `#29710747007` queued** on `a3bdeb1`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
