@@ -231,6 +231,10 @@ Pre-B-32 consensus slice: two salted proofs → producer + 2 operator coinbase l
 
 `storage_proof_operator_settlements` soft-skips unknown/dup/over-replication while `apply_block` hard-rejects. Raw proof-pool drain could seal over-cap blocks → tip stall. **B-64:** producers seal only settlement-accepted proofs (`runner`/`mfnd_cli`); parity tests pin the asymmetry + settled-prefix accept path.
 
+#### B-66 — which-operator prove miss/settle chain (lane 4; early B-24b)
+
+Symmetric op1-only twin of B-63 plus a short alternating mask chain (op0 / op1 / both). Slots spaced beyond `proof_reward_window` so B5 audit challenge stays active. Pins settle count, coinbase legs, and miss streaks vs `apply_block`. Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
