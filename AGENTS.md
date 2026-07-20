@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | Prior `#29713542820` cancelled | **CI `#29715111633` ubuntu FAILED** (claim base: `69df8fa`) | Fix-forward or re-dispatch after lane 4 B-51/b3 fix; then Nightly/B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 wave11 (`b0121b2`) | **B-15** wave12 frontend+F45 near-tip (claim base: `b0121b2`) | JOIN archive if light-scan ckpt exits 0 | L4 checklist |
+| **3** Onboarding | B-15 wave12 eve upload+prove+send PASS (this commit) | **B-15** JOIN archive (claim base: this head) | SUMMARY when F45/F68b cleared | L4 checklist |
 | **4** Protocol | **B-48** (`69df8fa`); **B-45**/`711d98b` | **B-51** + fix `b3_legacy_challenge_rejected_when_enabled` (CI `#29715111633`) (claim base: `69df8fa`) | Land B-51 + b3 CI fix → lane 7 roll; live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -171,14 +171,14 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 7 | human | **B-22:** near-tip checkpoint | **Done** (Path A tip **4148** + public seed anchors; seed offline on VPS only) |
 | planning | 1+7 | **B-27:** use ROADMAP work package — TL-5/6 archives insufficient | **Open** |
 | planning | 6 | **Arm B-40 + B-13a** the day TL-9/L4 closes — work packages in ROADMAP; do not stay idle | **Open** (fires on L4) |
-| 3 | 5+7 | **JOIN tall-tip UX:** F67b pin-then-fund PASS (eve). F45 remains. B-52 proxy snapshot OK (F69). **F68 Done** (B-57). Evidence wave11/12 | **Open** (F45) |
+| 3 | 5+7 | **JOIN tall-tip UX:** wave12 eve full loop PASS (upload settled last_proven=4156). F45 exact-tip remains. F68b ps1 python -c still broken. Evidence wave12 | **Open** |
 | 3 | 7+4 | **Wave10 F62/F65:** VPS not F62 (chain.blocks 6.3MiB, get_block PASS). F65 last_proven=4071 needs B-45 mfnd roll after CI+B-51. Evidence `b53-…` + wave10 | **Done** (F62 VPS); **Open** (F65→roll) |
 | 7 | 3 | **B-53:** faucet `/health` no longer blocks on keepalive lock; use `assert-vps-block-log-health.sh` for F62 checks | **Open** |
 | 7 | 1+4 | **CI `#29715111633` ubuntu FAILED:** `b3_legacy_challenge_rejected_when_enabled` (attempt1) then `public_devnet_hub_reaches_height_one_within_one_slot_duration` timeout on retry. Hold mfnd roll. | **Open** |
 | 7 | 3 | **B-22 tip-4148:** re-pin with B-54/B-50 bootstrap against new log max | **Open** |
 | 7 | 3 | **B-55:** browser UI at `http://5.161.201.73:3000/testnet` (optional; local observer still preferred for JOIN evidence) | **Open** |
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
-| 3 | 7 | **F68:** fix bootstrap-wallet-from-checkpoint-log.ps1 - PS5.1 strips JSON quotes on mfn-cli --params (Apply unusable). Use python TCP snapshot or pwsh7. Evidence wave11 | **Done** (B-57: python TCP `get_light_snapshot`) |
+| 3 | 7 | **F68b:** B-57 python TCP path still fails Apply (python -c here-string line 3). Use temp .py file. Evidence wave12 | **Open** |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
