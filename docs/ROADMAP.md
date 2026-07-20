@@ -217,6 +217,10 @@ Public genesis has `operator_salted_challenges = 1`, but challenge/prove/pool pr
 
 **Ops:** roll `mfnd` on Hetzner (lane 7) after CI GREEN; do not restart faucet during B-15. Unblocks honest **B-32** live capture.
 
+#### B-48 — soft-ignore EAGAIN for P2P peer quarantine (lane 4)
+
+Post-restart bind storms emit `mfnd_p2p_gossip_abort … os error 11`. Counting those toward peer quarantine (3 failures → 300s) removed voters from proposal vote fan-out and froze the tip (paired with B-46 `Requires→Wants`). **B-48** treats EAGAIN/WouldBlock as soft failures (`mfnd_p2p_peer_failure_soft`) without quarantine; still scores hard failures (`connection refused`, etc.). Distinct from **B-47** (faucet HTTP retries).
+
 #### B-32 work package — multi-op evidence (arm day-of L4)
 
 Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for salted genesis.

@@ -21,8 +21,8 @@ use mfn_store::{load_peers_with_report, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
 
 use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction};
 use crate::p2p_peer_quarantine::{
-    should_drop_persistent_peer_on_failure, PeerQuarantine, PEER_FAILURES_BEFORE_QUARANTINE,
-    PEER_QUARANTINE_DURATION,
+    should_drop_persistent_peer_on_failure, should_ignore_failure_for_quarantine, PeerQuarantine,
+    PEER_FAILURES_BEFORE_QUARANTINE, PEER_QUARANTINE_DURATION,
 };
 use crate::p2p_reconnect_plan::{
     catch_up_peer_events, is_self_peer_addr, reconnect_peer_events, CatchUpPeerEvent,
@@ -362,6 +362,10 @@ impl P2pPeerSet {
 
     /// Penalize a failed peer interaction; repeated failures temporarily quarantine the address.
     pub fn note_peer_failure(&self, peer_addr: &str, reason: &str) {
+        if should_ignore_failure_for_quarantine(reason) {
+            eprintln!("mfnd_p2p_peer_failure_soft peer={peer_addr} reason={reason}");
+            return;
+        }
         if should_drop_persistent_peer_on_failure(reason) {
             self.drop_persistent_peer(peer_addr, reason);
         }
@@ -1435,6 +1439,39 @@ mod tests {
         peer_set.note_peer_success(&flaky);
 
         assert_eq!(peer_set.snapshot_available_peers(), vec![flaky, healthy]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn transient_eagain_does_not_quarantine_available_peers() {
+        let dir = temp_dir("eagain_soft_failure");
+        let flaky = "203.0.113.10:19001".to_string();
+        let healthy = "203.0.113.11:19001".to_string();
+        let mut peers = BTreeSet::new();
+        peers.insert(flaky.clone());
+        peers.insert(healthy.clone());
+        save_peers(&dir, &peers, 4).expect("save peers");
+
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
+        );
+
+        let eagain = "frame: io: Resource temporarily unavailable (os error 11)";
+        for _ in 0..5 {
+            peer_set.note_peer_failure(&flaky, eagain);
+        }
+
+        assert_eq!(
+            peer_set.snapshot_available_peers(),
+            vec![flaky.clone(), healthy.clone()]
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 

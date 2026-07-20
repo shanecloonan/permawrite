@@ -10,6 +10,39 @@ pub(crate) fn should_drop_persistent_peer_on_failure(reason: &str) -> bool {
     reason == "genesis_mismatch" || reason.starts_with("genesis_mismatch ")
 }
 
+/// Transient local I/O pressure must not accumulate toward peer quarantine (**B-48**).
+///
+/// Live tip-4031 stalls showed `mfnd_p2p_gossip_abort … os error 11` (EAGAIN) during
+/// post-restart bind storms. Counting those as peer failures quarantined the whole
+/// committee for [`PEER_QUARANTINE_DURATION`] and blocked proposal vote fan-out.
+pub(crate) fn should_ignore_failure_for_quarantine(reason: &str) -> bool {
+    let r = reason.to_ascii_lowercase();
+    r.contains("resource temporarily unavailable")
+        || r.contains("would block")
+        || r.contains("wouldblock")
+        || r.contains("eagain")
+        || reason_mentions_os_error_11(&r)
+}
+
+/// True for `os error 11` / `(os error 11)` but not `os error 111` (ECONNREFUSED).
+fn reason_mentions_os_error_11(reason_lower: &str) -> bool {
+    let needle = "os error 11";
+    let mut rest = reason_lower;
+    while let Some(idx) = rest.find(needle) {
+        let after = &rest[idx + needle.len()..];
+        if after
+            .chars()
+            .next()
+            .map(|c| !c.is_ascii_digit())
+            .unwrap_or(true)
+        {
+            return true;
+        }
+        rest = &rest[idx + needle.len()..];
+    }
+    false
+}
+
 #[derive(Clone, Debug)]
 struct PeerPenalty {
     failures: u32,
@@ -133,6 +166,19 @@ mod tests {
         ));
         assert!(!should_drop_persistent_peer_on_failure(
             "decode_error genesis_mismatch"
+        ));
+    }
+
+    #[test]
+    fn transient_eagain_is_ignored_for_quarantine() {
+        assert!(should_ignore_failure_for_quarantine(
+            "frame: io: Resource temporarily unavailable (os error 11)"
+        ));
+        assert!(should_ignore_failure_for_quarantine("io: WouldBlock"));
+        assert!(should_ignore_failure_for_quarantine("EAGAIN"));
+        assert!(!should_ignore_failure_for_quarantine("connection refused"));
+        assert!(!should_ignore_failure_for_quarantine(
+            "handshake: Connection refused (os error 111)"
         ));
     }
 }
