@@ -31,3 +31,7 @@ wave35b: faucet retry once `busy=false` (observed ready ~17:12Z).
 ## JOIN scorecard
 
 Still seventeen proxy-proven wallets (zoe latest). Amy pending.
+
+## Follow-up wave35b
+
+Faucet+upload `807b5a5a` Fresh but **F104 recur** (local_only, no proxy). See `live-testnet-probe-20260720-wave35b.md`.

@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-27** (9f5ed4d); **B-75**/**B-29**; CI `#29758805553` GREEN | *Idle* | Participant half post-B-15 if needed; **B-34** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave35** (amy fund FAIL F95+F106) | **B-15 wave35b** amy faucet recovery (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave35b** (amy Fresh F104 recur; zoe@4533 PASS) | **B-15** formal JOIN archive assert + F104 ops note (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-83** (`8cfe137`, CI `#29761692348` GREEN); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -274,7 +274,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 7 — B-84 Path A tip-4554** (this commit): exact-tip **4554** (entries=19) after **CI `#29761692348` GREEN**; OPERATORS F95/F106 cooldown note; faucet idle (no restart). Evidence `b84-path-a-tip4554-20260720.md`. Full CI (no skip). *Observed (not staged):* lane-1 B-34 WIP, JOIN temps, `user-wallet/`, `live-testnet-data*`.
+1. **2026-07-20 — lane 3 — B-15 wave35b**: amy faucet+upload Fresh `807b5a5a` but **F104 recur** (local_only, proxy_has=false, mempool=1); wave34 zoe still the latest proxy-prove PASS. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+2. **2026-07-20 — lane 7 — B-84 Path A tip-4554** (this commit): exact-tip **4554** (entries=19) after **CI `#29761692348` GREEN**; OPERATORS F95/F106 cooldown note; faucet idle (no restart). Evidence `b84-path-a-tip4554-20260720.md`. Full CI (no skip). *Observed (not staged):* lane-1 B-34 WIP, JOIN temps, `user-wallet/`, `live-testnet-data*`.
 1. **2026-07-20 — lane 3 — B-15 wave35**: amy fund **FAIL** — faucet 429 (F95); vera/tina owned=1 only (**F106**); ckpt_max advanced to 4532. Recovery wave35b. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 4 — B-83 dual-settle at cap−1 no slash** (this commit): early B-24f `b83_b5_dual_settle_at_cap_minus_one_*`; local debug test PASS. Full CI. *Observed (not staged):* lane-1 B-34 WIP, JOIN/`user-wallet`/`live-testnet-data*`.
 2. **2026-07-20 — lane 3 — B-15 wave34**: wipe+resync; **zoe** faucet permanence **last_proven=4533** (commit `4ded4c6d`); proxy-prove gate PASS; F105 proxy index lag; claims 13→14; F45 TIMEOUT. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.

@@ -1,6 +1,6 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–35; wave35 fund FAIL (F95+F106); wave35b recovery in flight.
+**Status:** DRAFT — waves 6–35b; zoe@4533 proxy-prove PASS; amy F104 recur post-wipe; seventeen proxy-proven wallets.
 **Lane:** 3
 **Network:** public-devnet-v1 / genesis 454fa5d4...a005
 **Public endpoints:** seeds 5.161.201.73:19001-19003; RPC proxy http://5.161.201.73:8787/rpc; faucet http://5.161.201.73:8788; FE http://5.161.201.73:3000 (+ /testnet)
