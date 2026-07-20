@@ -4363,6 +4363,108 @@ fn b66_which_operator_proves_miss_and_settle_chain() {
     }
 }
 
+/// B-67 (early B-24c): absentee hits B5 slash cap while a peer settles in the
+/// same block — treasury identity is slash credit then storage drain.
+#[test]
+fn b67_b5_multi_op_slash_while_peer_settles_treasury_identity() {
+    let gen = genesis_with_b5_two_operators();
+    let mut st = gen.state;
+    let cap = st.endowment_params.operator_audit_missed_cap;
+    let slash_bps = st.endowment_params.operator_slash_bps;
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let mut slot = 10_000u32;
+    let bond0 = PROP_B5_OPERATOR_BOND;
+    let mut bond1 = PROP_B5_OPERATOR_BOND.saturating_mul(2);
+
+    // Drive both operators to cap-1 via empty audit blocks (challenge active
+    // from genesis last_proven_slot=0 vs window=100).
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(st.treasury, 0, "pre-slash empty {i}");
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1
+        );
+        assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+        assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+        slot = slot.saturating_add(1);
+    }
+
+    // Peer (op0) proves; absentee (op1) crosses cap → slash in the same block.
+    let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+    let proofs =
+        b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b01);
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+    assert_eq!(settlements.len(), 1, "only prover settles");
+    assert_eq!(
+        operator_identity_from_payout(
+            &settlements[0].0.operator_view_pub,
+            &settlements[0].0.operator_spend_pub
+        ),
+        gen.id0
+    );
+    let (pv, ps) = test_operator_payout_keys();
+    let specs = block_coinbase_specs(
+        u64::from(slot),
+        emission,
+        0,
+        PayoutAddress {
+            view_pub: pv,
+            spend_pub: ps,
+        },
+        &settlements,
+    );
+    assert_eq!(specs.len(), 2, "producer + prover coinbase");
+
+    let bonus = settlements[0].1;
+    let storage_drain = u128::from(emission.storage_proof_reward).saturating_add(bonus);
+    let mut model = st.treasury;
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    let expected_treasury = model.saturating_sub(storage_drain.min(model));
+
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert_eq!(state.treasury, expected_treasury, "slash then storage drain");
+            assert_eq!(
+                state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+                0,
+                "prover miss resets"
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                0,
+                "slash resets absentee miss streak"
+            );
+            assert_eq!(state.storage_operators[&gen.id0].bond_amount, bond0);
+            assert_eq!(state.storage_operators[&gen.id1].bond_amount, bond1);
+            assert!(
+                state.storage_operators.contains_key(&gen.id1),
+                "partial slash must keep operator registered"
+            );
+            let ch = storage_commitment_hash(&gen.built.commit);
+            assert_eq!(
+                state.storage.get(&ch).expect("entry").last_proven_slot,
+                u64::from(slot)
+            );
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
 /// B-64: settlements soft-skip unknown commit; apply hard-rejects.
 #[test]
 fn b64_unknown_commit_settlements_skip_apply_rejects() {
