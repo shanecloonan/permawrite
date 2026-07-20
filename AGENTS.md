@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29725270815` in_progress** on B-29/B-64 (`23204cb`). This land = **B-65** cargo PATH for VPS prebuild/roll `[skip ci]`. Hold mfnd restart until CI GREEN; prebuild may run now.
+**CI gate (2026-07-20):** **CI `#29725270815` GREEN** on B-29 seed-isolation (`23204cb`+tip). **Nightly `#29727713979` in_progress** (B-29 close). Lane 7: mfnd roll OK after this CI GREEN (faucet idle). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-29** (`23204cb`) seed-isolation | **Watch CI `#29725270815`** (claim base: `23204cb`) | On GREEN: re-dispatch Nightly → close **B-29** | CI/Nightly run IDs |
+| **1** RC core | **CI `#29725270815` GREEN** (B-29 `23204cb`) | **Watch Nightly `#29727713979`** (claim base: `c36561d`) | Close **B-29** on Nightly GREEN; else fix-forward | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave19** (karl JOIN last_proven=4270; F85/F86) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-64** (`13a4880`); **B-63**/**B-51**/**B-48**/**B-45** | **B-66** which-op prove miss/settle chain (claim base: `938661a`; local PASS) | Land after `#29725270815`; then lane 7 roll → live **B-32** | Lane 1 CI |
@@ -155,11 +155,11 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Open** |
-| 4 | 7 | **B-45+B-48+B-51+B-64:** on main (`13a4880`+`23204cb`). Roll after **CI `#29725270815` GREEN**; faucet idle; **B-61** preflight. Never touch `faucet-http` during B-15 | **Open** (VPS roll) |
+| 4 | 7 | **B-45+B-48+B-51+B-64:** on main (`13a4880`+`23204cb`). **CI `#29725270815` GREEN** — roll when faucet idle; **B-61** preflight. Never touch `faucet-http` during B-15 | **Open** (VPS roll) |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
-| planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
+| planning | 1+3 | **B-29 close:** seed-isolation `23204cb` + CI GREEN; Nightly `#29727713979` — closes only on Nightly GREEN | **Ack** |
 | planning | 1 | **B-34:** `#29713542820` in_progress on `4d07b7d` (post-outage dispatch) | **Ack** |
 | 1 | 7 | Outside-in: observer proxy `ECONNREFUSED 127.0.0.1:18734`; B-15 wave4 reports P2P `:19001` down — repair without faucet restart | **Done** (B-46; tip advancing; proxy OK) |
 | 7 | 3 | **B-50:** `--checkpoint-log` does not skip genesis — use `bootstrap-wallet-from-checkpoint-log.sh --apply` (or `.ps1` on Windows — B-52) for receive verify | **Open** |
@@ -209,7 +209,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9; [work package](docs/ROADMAP.md#b-27-work-package--fresh-soakparticipant-on-invite-head) |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
-| B-29 | Nightly participant rehearsal GREEN | 1+3 | Tip-mismatch `5dc3aa8` + seed-isolation (this commit); **close** = Nightly GREEN only (not code land) |
+| B-29 | Nightly participant rehearsal GREEN | 1+3 | Code `23204cb` + **CI `#29725270815` GREEN**; **close** = Nightly `#29727713979` GREEN only |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
 | B-31 | Live RPC/faucet threat posture verify | 2+7 | **P2P+RPC PASS** after B-41/B-46; close after **B-26** R-4 deploy confirm |
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling landed**; live pack day-of L4 |
@@ -254,8 +254,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 - lane 3 - B-15 wave19** (this commit): F85 restart; grace proven 4234; karl F71+upload --message bound last_proven=4270; F86 claims list empty. Evidence wave19.md. [skip ci].
-1. **2026-07-20 — lane 4 — B-66 claim** (this commit): which-op prove miss/settle chain (op1-only twin + window-spaced mask chain). Local PASS. Docs-only `[skip ci]` while `#29725270815` runs. (Lane 7 already owns B-65 cargo-env.) *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
+1. **2026-07-20 — lane 1 — CI `#29725270815` GREEN + Nightly `#29727713979`**: B-29 seed-isolation matrix green; Nightly watching for B-29 close (cancelled duplicate `#29728021553`). Docs-only `[skip ci]`.
+2. **2026-07-20 - lane 3 - B-15 wave19** (`c36561d`): F85 restart; karl last_proven=4270; F86. Evidence wave19.md. `[skip ci]`.
+3. **2026-07-20 — lane 4 — B-66 claim** (`aca2c14`): which-op prove miss/settle chain. Docs-only while `#29725270815` ran. `[skip ci]`.
 2. **2026-07-20 - lane 7 - B-65 cargo env for VPS non-interactive builds** (`938661a`): `lib-cargo-env.sh` for prebuild/roll. `[skip ci]`.
 2. **2026-07-20 - lane 7 - B-22 tip-4262 Path A checkpoint** (this commit): closed 89-block ckpt lag (4173→4262); entries=11; faucet/mfnd untouched. Hold rebuild-roll for CI `#29725270815`. `[skip ci]`. *Observed:* `apply_block_proptest.rs` WIP, lane-3 evidence temps, `user-wallet/`, `live-testnet-data*`.
 3. **2026-07-20 — lane 4 — board SYNC B-64+B-29 stack** (this commit): B-64 `13a4880` on main; CI `#29725200427` cancelled by B-29 concurrency. Watching `#29725270815` (clippy GREEN). `[skip ci]`.
