@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** prior **CI `#29718880625` GREEN** on `7ab86ad` (**B-60**). Landing **B-63** (early B-24a) on this head — new CI will follow. **Nightly `#29720083660` in_progress** (B-29). Lane 7: mfnd roll unblocked after B-63 CI GREEN (or roll B-60 binary now if prebuild OK). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29720670813` in_progress** on B-63 (`e4369a9`). Prior `#29718880625` GREEN. **Nightly `#29720083660` in_progress** (B-29). Lane 4 **B-64** ready locally — land after B-63 matrix (do not cancel). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **CI `#29718880625` GREEN** (`7ab86ad`) | **Watch Nightly `#29720083660`** (claim base: `7ab86ad`) | Close **B-29** on GREEN; else fix-forward fund-wallet | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave16** (F81/F82; eve last_proven=4206) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-63** early B-24a settle compose (this commit); **B-51**/**B-48**/**B-45** | *Idle* | After mfnd roll: live **B-32**; then **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-63** (`e4369a9`); **B-51**/**B-48**/**B-45** | **B-64** settle soft-skip vs apply hard-reject + producer seal filter (claim base: `e4369a9`; local PASS) | Land after `#29720670813`; then lane 7 roll → live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-62** prebuild+roll-ready; **B-43** freeze draft; B-61 | *Idle* | `assert-vps-roll-ready` + `vps-roll-mfnd --apply` (B-45+B-48+B-51); **B-42** after B-15 PASS | `launch-go-no-go` |
@@ -244,6 +244,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-61 | Roll CI via public API + hub RPC listen wait + tip-4173 | 7 | **Done** |
 | B-62 | VPS mfnd prebuild + assert-vps-roll-ready | 7 | **Done** — no service restart |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
+| B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Doing** — local PASS; land after CI `#29720670813` |
 
 ---
 
@@ -251,7 +252,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 4 — B-63 early B-24a** (this commit): coinbase N+1 compose + 1-of-2 prove miss/treasury identity in `apply_block_proptest`. Local PASS. Prior **CI `#29718880625` GREEN** on B-60. Does not close full B-24. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
+1. **2026-07-20 — lane 4 — B-64 claim** (this commit): producer seal-only settlement-accepted proofs (`runner`/`mfnd_cli`); parity tests for unknown/dup/over-replication soft-skip vs apply hard-reject. Local PASS. Docs-only `[skip ci]` while `#29720670813` runs. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
+2. **2026-07-20 — lane 4 — B-63 early B-24a** (`e4369a9`): coinbase N+1 + 1-of-2 miss identity. Prior **CI `#29718880625` GREEN**.
 2. **2026-07-20 — lane 1 — CI `#29718880625` GREEN + Nightly `#29720083660`**: B-60 matrix green on `7ab86ad`; dispatched Nightly for **B-29** close. Docs-only `[skip ci]`.
 3. **2026-07-20 — lane 3 — B-15 wave16** (`026eaad`): F81/F82; eve last_proven=**4206**. Evidence wave16.md. `[skip ci]`.
 4. **2026-07-20 — lane 3 — B-15 wave15** (`fe96f41`): heidi JOIN; last_proven=**4200**. Evidence wave15.md. `[skip ci]`.

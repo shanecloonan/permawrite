@@ -225,6 +225,10 @@ Public genesis has `operator_salted_challenges = 1`, but challenge/prove/pool pr
 
 Pre-B-32 consensus slice: two salted proofs → producer + 2 operator coinbase legs; 1-of-2 prove → one settlement, prover miss reset, absentee miss++. Tests in `apply_block_proptest.rs`. Does **not** close full **B-24** (needs live **B-32**).
 
+#### B-64 — settle soft-skip vs apply hard-reject + producer seal filter (lane 4)
+
+`storage_proof_operator_settlements` soft-skips unknown/dup/over-replication while `apply_block` hard-rejects. Raw proof-pool drain could seal over-cap blocks → tip stall. **B-64:** producers seal only settlement-accepted proofs (`runner`/`mfnd_cli`); parity tests pin the asymmetry + settled-prefix accept path.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
