@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29777008854` GREEN** on B-34 `c752992` (cancelled B-90 matrix; B-90 code on `89a047b`). Landing **B-91** public-testnet health assert + tip-4662 (full CI re-proves B-90). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI #29777008854 GREEN** on B-34 c752992. B-91 CI in flight on 13cdb01. **B-29 CLOSED**. Nightly #29761294926 GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-34** (`c752992`, CI `#29777008854` GREEN); **B-27**; **B-75**/**B-29** | *Idle* | Participant half post-B-15 if needed; leave JOIN/Hetzner/protocol to 3/7/4 | CI/Nightly run IDs |
+| **1** RC core | **B-34** (c752992, CI #29777008854 GREEN); **B-27** (9f5ed4d); **B-75**/**B-29**; Nightly #29761294926 GREEN | *Idle* | Participant half post-B-15 if needed; leave JOIN/Hetzner/protocol to 3/7/4 | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave45** (kate last_proven=4661; post-wipe faucet) | **B-15** wave46+ + formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-83** (`8cfe137`, CI `#29761692348` GREEN); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -280,6 +280,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 1 — B-34 CI GREEN** (c752992): CI #29777008854 GREEN (closes incomplete B-90 wire). Docs board sync [skip ci] while B-91 CI runs. *Observed (not staged):* JOIN temps, user-wallet/, live-testnet-data*, lane-4 proptest WIP.
 1. **2026-07-20 — lane 7 — B-91 health assert + tip-4662** (this commit): `assert-public-testnet-health` + ci-check gate; tip-**4662** (lag=21, entries=25); re-proves B-90 after CI `#29776397760` cancelled by B-34. Prior **CI `#29777008854` GREEN** on B-34. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proptest.rs`, JOIN temps, `user-wallet/`, `live-testnet-data*`.
 2. **2026-07-20 — lane 3 — B-15 wave45**: **kate** faucet permanence **last_proven=4661** (commit `8b491ece`) on fresh observer after wave44 wipe; claims 21→22. Wipe restores permanence (again). Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 3. **2026-07-20 — lane 3 — B-15 wave44 FAIL**: **jade** Fresh stayed `local_only` (commit `985a944f`); sticky mempool=1; no proxy_has; claims stayed 21. Breaking 7-PASS streak. Quarantine wipe before wave45 (F108). Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
