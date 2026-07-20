@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29764280042` GREEN** on B-84 `e45c9ec`. Landing **B-85** near-tip lag gate + tip-4567 (full CI). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29766146798` GREEN** on B-85 `a1ac45c`. Landing **B-87** Path A tip-4584 (B-85 live fire; full CI). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-83** (`8cfe137`, CI `#29761692348` GREEN); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-85** near-tip lag gate + tip-4567 (this commit); **B-84** (`e45c9ec`); **B-82** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-87** tip-4584 (this commit); **B-85** (`a1ac45c`, CI `#29766146798` GREEN); **B-84** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -259,7 +259,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-80 | Path A near-tip checkpoint tip-4496 (F45 lag close) | 7 | **Landed** (`24c60b6`); entries=16 |
 | B-82 | Path A near-tip checkpoint tip-4532 + B-32 second-host checklist | 7 | **Landed** (`de6a9db`); entries=18 |
 | B-84 | Path A near-tip checkpoint tip-4554 + faucet 429 ops note | 7 | **Landed** (`e45c9ec`); **CI `#29764280042` GREEN**; entries=19 |
-| B-85 | Auto Path A republish when tip lag >= threshold + tip-4567 | 7 | **Landed** (this commit); ci-check plan gate; entries=20 |
+| B-85 | Auto Path A republish when tip lag >= threshold + tip-4567 | 7 | **Landed** (`a1ac45c`); **CI `#29766146798` GREEN**; entries=20 |
+| B-87 | Path A tip-4584 (B-85 live fire on Hetzner lag=17) | 7 | **Landed** (this commit); entries=21 |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
@@ -275,9 +276,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 3 — B-15 wave37**: 3rd wipe; **cora** faucet permanence **last_proven=4585** (commit `e8da3321`); tip_id+mempool=0 gate; **F108** restart≠clear sticky mempool; claims 14→15. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
-2. **2026-07-20 — lane 3 — B-15 wave36**: 2nd wipe OK; **ben** faucet+upload Fresh `d9d6f90e` but **F107** — local mempool stuck=1, proxy_has=false, local_only; claims stayed 14. Next: restart-clear mempool (wave37). Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
-2. **2026-07-20 — lane 7 — B-85 near-tip lag gate + tip-4567** (this commit): `publish-near-tip-checkpoint-if-lag.sh` + ci-check plan gate; exact-tip **4567** (entries=20); VPS apply SKIP at lag=0; OPERATORS B-85/F105 notes. Prior **CI `#29764280042` GREEN** on B-84. Full CI (no skip). *Observed (not staged):* JOIN temps, `user-wallet/`, `live-testnet-data*`, lane-1 temps.
+1. **2026-07-20 — lane 7 — B-87 Path A tip-4584** (this commit): B-85 live fire on Hetzner (`lag=17` → publish tip **4584**, entries=21); faucet/mfnd untouched. Prior **CI `#29766146798` GREEN** on B-85. Full CI (no skip). *Observed (not staged):* lane-1 B-34 WIP, JOIN temps, `user-wallet/`, `live-testnet-data*`, ROADMAP dirty.
+2. **2026-07-20 — lane 3 — B-15 wave37**: 3rd wipe; **cora** faucet permanence **last_proven=4585** (commit `e8da3321`); tip_id+mempool=0 gate; **F108** restart≠clear sticky mempool; claims 14→15. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+3. **2026-07-20 — lane 3 — B-15 wave36**: 2nd wipe OK; **ben** faucet+upload Fresh `d9d6f90e` but **F107** — local mempool stuck=1, proxy_has=false, local_only; claims stayed 14. Next: restart-clear mempool (wave37). Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+4. **2026-07-20 — lane 7 — B-85 near-tip lag gate + tip-4567** (`a1ac45c`): lag-republish tooling + tip-**4567**; **CI `#29766146798` GREEN**. Full CI (no skip).
 2. **2026-07-20 — lane 3 — B-15 wave36 open**: 2nd F104 wipe — quarantined `live-testnet-data-divergent-20260720-124203`; fresh mfnd syncing; proxy-prove gate; ben battery next. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 3. **2026-07-20 — lane 3 — B-15 wave35b**: amy faucet+upload Fresh `807b5a5a` but **F104 recur** (local_only, proxy_has=false, mempool=1); wave34 zoe still the latest proxy-prove PASS. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 4. **2026-07-20 — lane 7 — B-84 Path A tip-4554** (`e45c9ec`): exact-tip **4554** (entries=19); **CI `#29764280042` GREEN**; OPERATORS F95/F106. Full CI (no skip).
