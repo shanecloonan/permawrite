@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `73abf77` (B-15 tall-tip checkpoint log); planning docs through `1e060f5`. **CI `#29710893096` queued** on `73abf77`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. Strategic path: [`docs/ROADMAP.md`](docs/ROADMAP.md) L4 checklist.
+**CI gate (2026-07-19):** code head = `73abf77` (B-15 tall-tip checkpoint log); planning docs through `de5f91e`. **CI `#29710893096` queued** on `73abf77`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. Strategic path: [`docs/ROADMAP.md`](docs/ROADMAP.md) L4 checklist.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -181,7 +181,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — planning — ROADMAP L4 checklist + board sync** (`7239d98`…): strategic phases L0–L7, critical path, B-13a–c decomposition, M7.10 shipped correction, L4 exit checklist + B-16 doc inventory; [`TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) L4 section; AGENTS §5 SYNC. Docs-only `[skip ci]`.
+1. **2026-07-19 — planning — ROADMAP L4 checklist + board sync** (`7239d98`…`de5f91e`): strategic phases L0–L7, critical path, B-13a–c decomposition, M7.10 shipped correction, L4 exit checklist + B-16 doc inventory; [`TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) L4 section; AGENTS §5 SYNC. Docs-only `[skip ci]`.
 2. **2026-07-19 — lane 3 — B-15 tall-tip checkpoint log** (`73abf77`): `fund-wallet-http` uses checkpoint log on tall tips; **CI `#29710893096` queued** on `73abf77`.
 3. **2026-07-19 — lane 2 — R-4 faucet peer-IP rate limit** (`dc05c40`): IP cooldown + loopback bypass use TCP `peerIp` only; R-3 had allowed `X-Forwarded-For: 127.0.0.1` spoof to skip cooldown on `:8788`.
 4. **2026-07-19 — lane 2 — R-3 faucet localhost + busy retry** (`a3bdeb1`): skip IP cooldown for loopback peer in `faucet-http.mjs`; `fund-wallet-http.sh` retry on 503 busy; VPS runner restarts `faucet-http` after `git pull`.
