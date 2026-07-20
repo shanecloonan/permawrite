@@ -132,6 +132,8 @@ fn spawn_producer(
         .env("MFND_VALIDATOR_INDEX", index.to_string())
         .env("MFND_VRF_SEED_HEX", vrf_hex)
         .env("MFND_BLS_SEED_HEX", bls_hex)
+        // B-69 / B-29: isolate CI mesh from published public_devnet seed_nodes.
+        .env("MFN_SKIP_MANIFEST_SEEDS", "1")
         .arg("serve")
         .arg("--produce");
     for dial in p2p_dials {

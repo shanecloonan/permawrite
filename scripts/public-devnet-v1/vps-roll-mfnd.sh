@@ -15,8 +15,9 @@ usage() {
   cat <<'EOF'
 usage: vps-roll-mfnd.sh [--plan-only|--apply] [--skip-pull] [--skip-build] [--rpc HOST:PORT]
 
-Rebuild target/release/mfnd (+ mfn-cli for tip wait), apply B-46 soften, restart
-voters then hub only. Does NOT restart faucet-http or observer-rpc-proxy.
+Rebuild target/release/mfnd (+ mfn-cli for tip wait), apply B-46 soften, B-68
+peers.json scrub, restart voters then hub only. Does NOT restart faucet-http
+or observer-rpc-proxy.
 
 Gates (B-60 --apply preflight; override with env only in emergencies):
   - CI GREEN on origin/main (gh or public Actions API) unless MFN_ROLL_ALLOW_RED_CI=1
@@ -24,6 +25,7 @@ Gates (B-60 --apply preflight; override with env only in emergencies):
   - faucet-http idle (busy=false, pending_jobs=0) unless MFN_ROLL_ALLOW_FAUCET_BUSY=1
   - Do not thrash while tip is mid-seal; wait for tip advance after hub restart
   - Binary must include B-45/B-48/B-51 stack (ephemeral dial skip on main)
+  - B-68 scrub ephemeral ports from peers.json before restart (tip-stall fix)
 EOF
 }
 
@@ -46,8 +48,8 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "vps-roll-mfnd: plan"
-  echo "  unit=B-49/B-60/B-61/B-65"
-  echo "  flow=preflight(CI+faucet) -> git pull -> cargo build mfnd/mfn-cli -> vps-soften-mfnd-requires -> restart voters -> restart hub -> wait tip advance"
+  echo "  unit=B-49/B-60/B-61/B-65/B-68"
+  echo "  flow=preflight(CI+faucet) -> git pull -> cargo build mfnd/mfn-cli -> vps-soften-mfnd-requires -> scrub-vps-peers-json -> restart voters -> restart hub -> wait tip advance"
   echo "  never=faucet-http observer-rpc-proxy"
   echo "  gate=CI GREEN via gh or public API; faucet idle; RPC listen wait after restart"
   echo "  override=MFN_ROLL_ALLOW_RED_CI=1 MFN_ROLL_ALLOW_FAUCET_BUSY=1"
@@ -160,6 +162,9 @@ if [[ ! -x "$MFND" ]]; then
 fi
 
 bash "$SCRIPT_DIR/vps-soften-mfnd-requires.sh" || true
+
+# B-68: drop ephemeral source ports that B-51 still treats as durable once persisted.
+bash "$SCRIPT_DIR/scrub-vps-peers-json.sh" --apply
 
 echo "vps-roll-mfnd: restart voters first (avoid hub early-dial quarantine)"
 systemctl restart mfnd-v1.service mfnd-v2.service
