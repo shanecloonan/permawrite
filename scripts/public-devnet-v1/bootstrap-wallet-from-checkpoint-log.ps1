@@ -1,5 +1,6 @@
-# B-50 / B-52 (F56): Windows twin of bootstrap-wallet-from-checkpoint-log.sh
+# B-50 / B-52 / B-54 / B-57 (F68): Windows twin of bootstrap-wallet-from-checkpoint-log.sh
 # Honesty: wallet light-scan --checkpoint-log only cross-checks after sync.
+# F68: never pass JSON --params through Windows PowerShell 5.1 native argv (quotes stripped).
 param(
   [switch]$PlanOnly,
   [switch]$Apply,
@@ -27,8 +28,9 @@ if (-not $PlanOnly -and -not $Apply) {
 }
 if ($PlanOnly) {
   Write-Output "bootstrap-wallet-from-checkpoint-log: plan"
-  Write-Output "  unit=B-50/B-52/B-54"
+  Write-Output "  unit=B-50/B-52/B-54/B-57"
   Write-Output "  f67=pin BEFORE faucet fund"
+  Write-Output "  f68=snapshot via python TCP JSON-RPC (not mfn-cli --params on PS5.1)"
   Write-Output "  flow=log max tip -> get_light_snapshot(height) -> patch wallet -> light-scan --checkpoint-log"
   Write-Output "  honesty=checkpoint-log alone does not bootstrap; see JOIN_TESTNET.md"
   Write-Output "  twin=Windows PowerShell (F56)"
@@ -36,47 +38,69 @@ if ($PlanOnly) {
   exit 0
 }
 
-if (-not $Wallet) { Write-Error "--Wallet required" }
+if (-not $Wallet) { Write-Error "-Wallet required" }
 if (-not (Test-Path $Mcli)) { Write-Error "mfn-cli missing: $Mcli" }
 if (-not (Test-Path $Log)) { Write-Error "log missing: $Log" }
 if (-not (Test-Path $Wallet)) { Write-Error "wallet missing: $Wallet" }
 
-$py = "import json; from pathlib import Path; tips=[]; p=Path(r'" + ($Log -replace "'","''") + "');" +
-  "[tips.append(int(json.loads(line)['summary']['tip_height'])) for line in p.read_text(encoding='utf-8').splitlines() if line.strip()]; print(max(tips))"
-$maxTip = [int]((python -c $py).Trim())
+$logEsc = $Log -replace "'", "''"
+$pyMax = "import json; from pathlib import Path; tips=[]; p=Path(r'" + $logEsc + "'); [tips.append(int(json.loads(line)['summary']['tip_height'])) for line in p.read_text(encoding='utf-8').splitlines() if line.strip()]; print(max(tips))"
+$maxTip = [int]((python -c $pyMax).Trim())
 Write-Output "bootstrap-wallet-from-checkpoint-log: log_max_tip=$maxTip rpc=$Rpc"
 
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("mfn-ckpt-boot-" + [guid]::NewGuid().ToString("n"))
 New-Item -ItemType Directory -Path $tmp | Out-Null
 try {
   $snapOut = Join-Path $tmp "snap.json"
-  $snapErr = Join-Path $tmp "snap.err"
   $ok = $false
+  $hostPort = $Rpc.Split(":")
+  $rpcHost = $hostPort[0]
+  $rpcPort = [int]$hostPort[1]
   for ($i = 1; $i -le 8; $i++) {
-    $paramsJson = "{`"height`":$maxTip}"
-    $p = Start-Process -FilePath $Mcli -ArgumentList @(
-      "--rpc", $Rpc, "call", "get_light_snapshot", "--params", $paramsJson
-    ) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $snapOut -RedirectStandardError $snapErr
-    if ($p.ExitCode -eq 0) {
-      $ok = $true
-      Write-Output "bootstrap-wallet-from-checkpoint-log: snapshot_ok attempt=$i"
-      break
+    $pySnap = @"
+import json, socket, sys
+host, port, height, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+req = json.dumps({"jsonrpc":"2.0","id":1,"method":"get_light_snapshot","params":{"height":height}}) + "\n"
+s = socket.create_connection((host, port), timeout=180)
+s.sendall(req.encode())
+buf = b""
+while b"\n" not in buf:
+    chunk = s.recv(65536)
+    if not chunk:
+        break
+    buf += chunk
+s.close()
+line = buf.decode("utf-8", errors="replace").strip()
+obj = json.loads(line)
+if "error" in obj and obj["error"]:
+    raise SystemExit(str(obj["error"])[:300])
+Path = __import__("pathlib").Path
+Path(out).write_text(json.dumps(obj, indent=2) + "\n", encoding="utf-8")
+print("snapshot_ok")
+"@
+    $err = ""
+    try {
+      $out = python -c $pySnap $rpcHost $rpcPort $maxTip $snapOut 2>&1
+      if ($LASTEXITCODE -eq 0 -and (Test-Path $snapOut)) {
+        $ok = $true
+        Write-Output "bootstrap-wallet-from-checkpoint-log: snapshot_ok attempt=$i"
+        break
+      }
+      $err = ($out | Out-String) -replace "`r?`n", " "
+    } catch {
+      $err = $_.Exception.Message
     }
-    $errBit = ""
-    if (Test-Path $snapErr) {
-      $rawErr = (Get-Content -Raw $snapErr) -replace "`r?`n", " "
-      if ($rawErr.Length -gt 160) { $errBit = $rawErr.Substring(0, 160) } else { $errBit = $rawErr }
-    }
-    Write-Output "bootstrap-wallet-from-checkpoint-log: snapshot_retry=$i $errBit"
+    if ($err.Length -gt 160) { $err = $err.Substring(0, 160) }
+    Write-Output "bootstrap-wallet-from-checkpoint-log: snapshot_retry=$i $err"
     Start-Sleep -Seconds ($i + 1)
   }
   if (-not $ok) {
     Write-Error "get_light_snapshot failed (hub EAGAIN under load?). Retry when tip is quiet."
   }
 
-  $wEsc = $Wallet -replace "'","''"
-  $sEsc = $snapOut -replace "'","''"
-  $pin = "import json; from pathlib import Path; wallet_path=Path(r'" + $wEsc + "'); snap_path=Path(r'" + $sEsc + "'); expect=" + $maxTip + "; snap=json.loads(snap_path.read_text(encoding='utf-8')); r=snap.get('result', snap); assert isinstance(r, dict) and 'checkpoint_hex' in r; tip=int(r['tip_height']); assert tip==expect; w=json.loads(wallet_path.read_text(encoding='utf-8')); w['scan_height']=tip; w['light_checkpoint_hex']=r['checkpoint_hex'];
+  $wEsc = $Wallet -replace "'", "''"
+  $sEsc = $snapOut -replace "'", "''"
+  $pin = "import json; from pathlib import Path; wallet_path=Path(r'" + $wEsc + "'); snap_path=Path(r'" + $sEsc + "'); expect=" + $maxTip + "; snap=json.loads(snap_path.read_text(encoding='utf-8')); r=snap.get('result', snap); assert isinstance(r, dict) and 'checkpoint_hex' in r, 'unexpected snapshot'; tip=int(r['tip_height']); assert tip==expect, 'snapshot tip %s != log max %s' % (tip, expect); w=json.loads(wallet_path.read_text(encoding='utf-8')); w['scan_height']=tip; w['light_checkpoint_hex']=r['checkpoint_hex'];
 if r.get('summary'): w['trusted_light_summary']=r['summary']; wallet_path.write_text(json.dumps(w, indent=2)+chr(10), encoding='utf-8'); print('bootstrap-wallet-from-checkpoint-log: pinned scan_height='+str(tip))"
   python -c $pin
 

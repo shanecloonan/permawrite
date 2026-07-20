@@ -98,13 +98,15 @@ bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.sh --apply \
   --log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
 ```
 
-Windows (no bash on PATH — F56):
+Windows (no bash on PATH — F56 / B-57 F68):
 
 ```powershell
 powershell -File scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.ps1 -Apply `
   -Wallet .\alice.json -Rpc 127.0.0.1:18734 `
   -Log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
 ```
+
+Requires Python on PATH. The `.ps1` fetches `get_light_snapshot` over TCP JSON-RPC itself — do **not** pass JSON `--params` through Windows PowerShell 5.1 to `mfn-cli` (quotes are stripped; B-57/F68).
 
 **2 — Fund** (after pin):
 
