@@ -160,13 +160,15 @@ Nightly job `participant-rehearsal-smoke` (`.github/workflows/nightly.yml`) runs
 
 **Root cause (landed):** no-op light-sync wiped `scan_height` when UTXO cache empty → bootstrap rebuilt tip-0 checkpoint against pinned trusted tip N (`trusted 4 vs checkpoint 0`).
 
+**Second root cause (Nightly `#29720083660` RED):** local GHA mesh dialed published `seed_nodes` (`5.161.201.73:19001–19003`) from `public_devnet_v1.manifest.json` (same `genesis_id` as live Hetzner). Hub tried syncing public tip ~4200 while producing locally → stale sync aborts + fund-wallet balance timeout. Fix: `MFN_SKIP_MANIFEST_SEEDS=1` in `merge_boot_peer_dials` + default on local `start-all` (not VPS).
+
 **Remaining (closes B-29):**
 
-1. CI `#29711500087` (or successor, currently `#29711605173`) **GREEN** on B-29-inclusive head (`76d4f04` / `e10a8b3` / `5dc3aa8`+). If CI **RED** on `validate-rc-helper-scripts`, fix `fund-wallet.ps1` (parse / `Out-Null` / `>=` quoting in double-quoted strings) and re-push — do not re-dispatch Nightly on a red head.
-2. Lane 1 re-dispatches Nightly; participant + observer jobs **GREEN**.
+1. Land seed-isolation fix on `main`; CI **GREEN** on that head.
+2. Lane 1 re-dispatches Nightly; participant + observer jobs **GREEN** (no `mfnd_p2p_boot_dials=5.161…` in v0.log).
 3. Do **not** mark B-29 Done on code land alone; do **not** substitute JOIN evidence.
 
-**Pass:** Nightly `#…` GREEN; `assert-participant-smoke-evidence.*` PASS; transcript `fund-wallet: PASS` without WS tip mismatch; run ID in `AGENTS.md` §5/§8.
+**Pass:** Nightly `#…` GREEN; `assert-participant-smoke-evidence.*` PASS; transcript `fund-wallet: PASS` without WS tip mismatch / public-seed dial; run ID in `AGENTS.md` §5/§8.
 
 #### B-34 — CI queue/stall protocol (lane 1)
 

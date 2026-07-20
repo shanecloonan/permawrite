@@ -4173,6 +4173,166 @@ fn b63_b5_partial_operator_prove_settlement_and_miss_identity() {
     }
 }
 
+/// B-64: settlements soft-skip unknown commit; apply hard-rejects.
+#[test]
+fn b64_unknown_commit_settlements_skip_apply_rejects() {
+    let gen = genesis_with_b3_storage();
+    let st = &gen.state;
+    let h = 8_000u32;
+    let prev = *st.tip_id().expect("tip");
+    let mut proof = build_test_storage_proof_operator_salted(
+        &gen.built.commit,
+        &prev,
+        h,
+        &gen.payload,
+        &gen.built.tree,
+    );
+    proof.commit_hash = [0xABu8; 32];
+    let proofs = vec![proof];
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, h, &PROP_ENDOWMENT_B3);
+    assert!(settlements.is_empty(), "unknown commit must soft-skip");
+
+    let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, h, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(errors
+                .iter()
+                .any(|e| matches!(e, BlockError::StorageProofUnknownCommit { .. })));
+        }
+        ApplyOutcome::Ok { .. } => panic!("unknown commit must hard-reject"),
+    }
+}
+
+/// B-64: settlements keep one of a dup pair; apply hard-rejects the dup block.
+#[test]
+fn b64_dup_operator_settlements_skip_apply_rejects() {
+    let gen = genesis_with_b3_storage();
+    let st = &gen.state;
+    let h = 8_000u32;
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_test_storage_proof_operator_salted(
+        &gen.built.commit,
+        &prev,
+        h,
+        &gen.payload,
+        &gen.built.tree,
+    );
+    let proofs = vec![proof.clone(), proof];
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, h, &PROP_ENDOWMENT_B3);
+    assert_eq!(
+        settlements.len(),
+        1,
+        "dup operator soft-skips to one settlement"
+    );
+
+    let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, h, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(errors
+                .iter()
+                .any(|e| matches!(e, BlockError::DuplicateStorageProofOperator { .. })));
+        }
+        ApplyOutcome::Ok { .. } => panic!("dup operator block must hard-reject"),
+    }
+}
+
+/// B-64: over-replication drain soft-skips to cap; sealing settled prefix accepts.
+#[test]
+fn b64_replication_cap_settled_prefix_applies() {
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 251) as u8).collect();
+    let built = build_storage_commitment(&payload, 1_000, Some(256), 2, None).expect("commitment");
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: PROP_ENDOWMENT_B3,
+        bonding_params: None,
+        header_version: 1,
+    };
+    let g = build_genesis(&cfg);
+    let st = apply_genesis(&g, &cfg).expect("genesis");
+    let h = next_height(&st);
+    let prev = *st.tip_id().expect("tip");
+    let p0 =
+        build_test_storage_proof_operator_salted(&built.commit, &prev, h, &payload, &built.tree);
+    let (v1, s1) = test_operator_payout_keys_alt();
+    let p1 =
+        build_storage_proof_operator_salted(&built.commit, &prev, h, &payload, &built.tree, v1, s1)
+            .expect("proof");
+    let v2 = generator_g() * Scalar::from(7u64);
+    let s2 = generator_g() * Scalar::from(11u64);
+    let p2 =
+        build_storage_proof_operator_salted(&built.commit, &prev, h, &payload, &built.tree, v2, s2)
+            .expect("proof");
+    let drained = vec![p0, p1, p2];
+    let settlements =
+        storage_proof_operator_settlements(&drained, &st.storage, h, &PROP_ENDOWMENT_B3);
+    assert_eq!(settlements.len(), 2, "replication=2 soft-skips the third");
+
+    // Raw over-cap block must reject (producer bug before B-64 filter).
+    let unsealed_raw = build_unsealed_header(&st, &[], &[], &[], &drained, h, 1_000);
+    let blk_raw = seal_block(
+        unsealed_raw,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        drained,
+    );
+    match apply_block(&st, &blk_raw) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(errors
+                .iter()
+                .any(|e| matches!(e, BlockError::StorageProofReplicationExceeded { .. })));
+        }
+        ApplyOutcome::Ok { .. } => panic!("over-replication raw drain must reject"),
+    }
+
+    // Sealing only settled proofs (producer filter) must accept.
+    let settled: Vec<_> = settlements.iter().map(|(p, _)| p.clone()).collect();
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &settled, h, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        settled,
+    );
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            let ch = storage_commitment_hash(&built.commit);
+            assert_eq!(
+                state.storage.get(&ch).expect("entry").last_proven_slot,
+                u64::from(h)
+            );
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("settled prefix must accept, got {errors:?}"),
+    }
+}
+
 /// Longer empty-block chain (**M5.37**).
 #[test]
 fn deep_empty_block_chain_128() {

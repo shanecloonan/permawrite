@@ -183,14 +183,20 @@ impl ProductionEngine {
             .tip_id()
             .copied()
             .unwrap_or_else(|| *chain.genesis_id());
-        let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, height);
+        // Drain may exceed B3 replication; settlements soft-skips extras that
+        // apply_block hard-rejects — seal only settled proofs (B-64).
+        let drained_proofs = proof_pool.drain_verified(chain.state(), &prev, height);
         let st = chain.state();
         let storage_bonus_pairs = mfn_consensus::storage_proof_operator_settlements(
-            &storage_proofs,
+            &drained_proofs,
             &st.storage,
             height,
             &st.endowment_params,
         );
+        let storage_proofs: Vec<_> = storage_bonus_pairs
+            .iter()
+            .map(|(proof, _)| proof.clone())
+            .collect();
         let payout = self
             .local
             .validator

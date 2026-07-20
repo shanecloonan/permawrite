@@ -252,9 +252,13 @@ fn proof_operator_dedup_key(commit_hash: &[u8; 32], operator_id: &[u8; 32]) -> [
     key
 }
 
-/// Per-operator PPB bonuses mirroring `apply_block` settlement (including B3
-/// frozen-baseline + `replication: 1` payout split when
-/// `operator_salted_challenges` is enabled).
+/// Per-operator PPB bonuses for coinbase compose (B3 frozen-baseline +
+/// `replication: 1` payout split when `operator_salted_challenges` is enabled).
+///
+/// Soft-skips unknown commit / duplicate operator / over-replication /
+/// accrue failure. [`crate::block::apply_block`] hard-rejects those same
+/// cases — producers must seal **only** the returned proofs (see B-64),
+/// not the raw proof-pool drain.
 pub fn storage_proof_operator_settlements(
     proofs: &[StorageProof],
     storage: &HashMap<[u8; 32], StorageEntry>,

@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29720670813` in_progress** on B-63 (`e4369a9`). Prior `#29718880625` GREEN. **Nightly `#29720083660` RED** — local mesh dialed public `seed_nodes` (not fund-wallet tip mismatch). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29720670813` GREEN** on B-63 (`e4369a9`). Landing **B-64** (producer seal filter) — new CI follows. **Nightly RED** (seed isolation) = lane 1 **B-29**. Lane 7: roll mfnd after B-64 CI GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **CI `#29718880625` GREEN** (`7ab86ad`); Nightly `#29720083660` RED diagnosed | **B-29 seed-isolation** — `MFN_SKIP_MANIFEST_SEEDS` + local `start-all` (claim base: `e4369a9`; wait `#29720670813`) | Land after B-63 CI; re-dispatch Nightly → close **B-29** | CI/Nightly run IDs |
+| **1** RC core | **CI `#29720670813` GREEN** (B-63); Nightly seed-isolation diagnosed | **B-29 seed-isolation** — `MFN_SKIP_MANIFEST_SEEDS` + local `start-all` (claim base: `e4369a9`) | Land when CI idle after B-64; re-dispatch Nightly → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave17** (ivan JOIN + F71-after-faucet; uploads 4217/4218) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-63** (`e4369a9`); **B-51**/**B-48**/**B-45** | **B-64** settle soft-skip vs apply hard-reject + producer seal filter (claim base: `e4369a9`; local PASS) | Land after `#29720670813`; then lane 7 roll → live **B-32** | Lane 1 CI |
+| **3** Onboarding | **B-15 wave18** (tip 4219) / wave17 | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
+| **4** Protocol | **B-64** settle/apply seal filter (this commit); **B-63**/**B-51**/**B-48**/**B-45** | *Idle* | After mfnd roll: live **B-32**; then **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-62** prebuild+roll-ready; **B-43** freeze draft; B-61 | *Idle* | `assert-vps-roll-ready` + `vps-roll-mfnd --apply` (B-45+B-48+B-51); **B-42** after B-15 PASS | `launch-go-no-go` |
@@ -155,7 +155,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Open** |
-| 4 | 7 | **B-45+B-48+B-51:** on main; **CI `#29718880625` GREEN**. Roll when faucet idle; **B-61** preflight. Never touch `faucet-http` during B-15 | **Open** (VPS roll) |
+| 4 | 7 | **B-45+B-48+B-51+B-64:** on main; **CI `#29720670813` GREEN** (B-63). Roll after B-64 CI GREEN; faucet idle; **B-61** preflight. Never touch `faucet-http` during B-15 | **Open** (VPS roll) |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
@@ -244,7 +244,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-61 | Roll CI via public API + hub RPC listen wait + tip-4173 | 7 | **Done** |
 | B-62 | VPS mfnd prebuild + assert-vps-roll-ready | 7 | **Done** — no service restart |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
-| B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Doing** — local PASS; land after CI `#29720670813` |
+| B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 
 ---
 
@@ -252,9 +252,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 3 — B-15 wave17** (this commit): tip lag OK; eve fadfaba2 on proxy list; F45 hard FAIL / soft PASS; **ivan** faucet+F71+re-pin+upload last_proven=**4217**; frank upload **4218**; grace→ivan 30k. Evidence wave17.md. [skip ci]. *Observed:* pply_block_proptest.rs, probe temps, user-wallet/, live-testnet-data*.
-1. **2026-07-20 — lane 4 — B-64 claim** (this commit): producer seal-only settlement-accepted proofs (`runner`/`mfnd_cli`); parity tests for unknown/dup/over-replication soft-skip vs apply hard-reject. Local PASS. Docs-only `[skip ci]` while `#29720670813` runs. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
-2. **2026-07-20 — lane 4 — B-63 early B-24a** (`e4369a9`): coinbase N+1 + 1-of-2 miss identity. Prior **CI `#29718880625` GREEN**.
+1. **2026-07-20 — lane 4 — B-64 settle/apply seal filter** (this commit): producers seal only settlement-accepted proofs (`runner`/`mfnd_cli`); `b64_*` parity tests (unknown/dup/over-replication). Local PASS. Prior **CI `#29720670813` GREEN** on B-63. *Observed:* leave lane-1 `p2p_boot`/`start-all` + JOIN/`user-wallet`/`live-testnet-data*` unstaged.
+2. **2026-07-20 — lane 3 — B-15 wave18/17**: tip 4219; ivan JOIN. `[skip ci]`.
+3. **2026-07-20 — lane 4 — B-64 claim** (`d3f47bf`): docs-only while `#29720670813` ran. `[skip ci]`.
+4. **2026-07-20 — lane 4 — B-63 early B-24a** (`e4369a9`): coinbase N+1 + 1-of-2 miss. **CI `#29720670813` GREEN**.
 2. **2026-07-20 — lane 1 — CI `#29718880625` GREEN + Nightly `#29720083660`**: B-60 matrix green on `7ab86ad`; dispatched Nightly for **B-29** close. Docs-only `[skip ci]`.
 3. **2026-07-20 — lane 3 — B-15 wave16** (`026eaad`): F81/F82; eve last_proven=**4206**. Evidence wave16.md. `[skip ci]`.
 4. **2026-07-20 — lane 3 — B-15 wave15** (`fe96f41`): heidi JOIN; last_proven=**4200**. Evidence wave15.md. `[skip ci]`.

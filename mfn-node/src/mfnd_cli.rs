@@ -267,14 +267,20 @@ fn run_solo_step(
             .tip_id()
             .copied()
             .unwrap_or_else(|| *chain.genesis_id());
-        let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, next_height);
+        // Seal settlement-accepted proofs only (B-64): raw drain can exceed
+        // replication and soft-skip cases that apply_block hard-rejects.
+        let drained_proofs = proof_pool.drain_verified(chain.state(), &prev, next_height);
         let st = chain.state();
         let storage_bonus_pairs = mfn_consensus::storage_proof_operator_settlements(
-            &storage_proofs,
+            &drained_proofs,
             &st.storage,
             next_height,
             &st.endowment_params,
         );
+        let storage_proofs: Vec<_> = storage_bonus_pairs
+            .iter()
+            .map(|(proof, _)| proof.clone())
+            .collect();
 
         let cb_payout = PayoutAddress {
             view_pub: payout.view_pub,
@@ -500,6 +506,10 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     .filter(|s| !s.is_empty())
             });
             let mut p2p_dials = parsed.p2p_dials.clone();
+            if crate::p2p_boot::env_skip_manifest_seeds() {
+                println!("mfnd_p2p_skip_manifest_seeds=1");
+                std::io::stdout().flush().ok();
+            }
             let boot_report = crate::p2p_boot::merge_boot_peer_dials(
                 &mut p2p_dials,
                 parsed.genesis_toml.as_deref(),
