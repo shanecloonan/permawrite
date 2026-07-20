@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29779275119` GREEN** on B-91 `13cdb01` (re-proves B-90). Landing **B-92** tip-4679. Prior **CI `#29777008854` GREEN** on B-34. **B-29 CLOSED**. Nightly #29761294926 GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Landing **B-27 soak refresh** (full CI). Prior **CI `#29777008854` GREEN** on B-34 `c752992`; watch B-91 head. **Nightly `#29779143837` GREEN** (all three jobs). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-34** (c752992, CI #29777008854 GREEN); **B-27** (9f5ed4d); **B-75**/**B-29**; Nightly #29761294926 GREEN | *Idle* | Participant half post-B-15 if needed; leave JOIN/Hetzner/protocol to 3/7/4 | CI/Nightly run IDs |
+| **1** RC core | **B-27 soak refresh** (this commit; tip 4663->4665); **B-34** (`c752992`, CI `#29777008854` GREEN); Nightly `#29779143837` GREEN | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3) unless waived; leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave49** (paula last_proven=4694; faucet; donor pool owned=1) | **B-15** wave50+ (wait faucet on 429) + formal JOIN archive assert | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-83** (`8cfe137`, CI `#29761692348` GREEN); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -209,7 +209,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | Phase 1; after B3 multi-op internet evidence |
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
-| B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak tooling+live PASS** (this commit); participant half = Nightly #29755942849 + post-B-15 JOIN if required |
+| B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak refreshed** (this commit; tip 4663->4665; Nightly `#29779143837`); participant JOIN half = lane-3 SUMMARY / post-B-15 |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
 | B-29 | Nightly participant+observer GREEN | 1+3 | **CLOSED** — Nightly #29755942849 GREEN on d248ba2 (B-75 inclusive) |
 | B-75 | Nightly observer mesh tip-stall after h1 (EAGAIN) | 1 | **Landed** (this commit) - production_dial_peers + persistable start-all / produce-smoke ports |
@@ -281,6 +281,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 1 — B-27 soak refresh** (this commit): outside-in invite soak PASS tip 4663->4665; evidence `outside-in-invite-soak-20260720T211608Z.txt` + `b27-outside-in-invite-soak-refresh-20260720.md`; soak auto-pins latest green Nightly/CI via `gh`. Pins Nightly `#29779143837` GREEN (all three) + CI `#29777008854`. B-15-safe. Full CI (no skip). *Observed (not staged):* lane-3 JOIN temps, `user-wallet/`, `live-testnet-data*`, lane-4 proptest WIP.
 1. **2026-07-20 — lane 3 — B-15 wave49**: **paula** faucet permanence **last_proven=4694** (commit `c054d610`); Path A ckpt=4679; claims 23→24. Donor census all owned=1 → faucet-wait policy. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 3 — B-15 wave48 FUND FAIL**: **owen** unfunded (faucet 429; nora single-send→owen owned=1; kate F106 owned=1). Reinforces wait-for-faucet over peer dual-fund from fresh permanence wallets. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 7 — B-92 Path A tip-4679** (this commit): lag=17 fire → tip-**4679** (entries=26); **CI `#29779275119` GREEN** on B-91. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, JOIN temps, `user-wallet/`, `live-testnet-data*`, lane-1 soak WIP.

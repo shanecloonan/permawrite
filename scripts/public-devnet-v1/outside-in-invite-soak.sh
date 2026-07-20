@@ -56,11 +56,19 @@ trap 'rm -f "$tmp"' EXIT
   echo "# proxy=$PROXY_URL"
   echo "# samples=$SAMPLES interval_s=$INTERVAL_S min_delta=$MIN_DELTA"
   echo "# never=faucet-http mfnd restart join-testnet-rehearsal"
-  if [[ -n "${MFN_B27_NIGHTLY_RUN:-}" ]]; then
-    echo "# nightly_run=${MFN_B27_NIGHTLY_RUN}"
+  nightly_run="${MFN_B27_NIGHTLY_RUN:-}"
+  ci_run="${MFN_B27_CI_RUN:-}"
+  if [[ -z "$nightly_run" ]] && command -v gh >/dev/null 2>&1; then
+    nightly_run="$(gh run list --workflow Nightly --limit 3 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>/dev/null | head -n1 || true)"
   fi
-  if [[ -n "${MFN_B27_CI_RUN:-}" ]]; then
-    echo "# ci_run=${MFN_B27_CI_RUN}"
+  if [[ -z "$ci_run" ]] && command -v gh >/dev/null 2>&1; then
+    ci_run="$(gh run list --workflow CI --branch main --limit 8 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>/dev/null | head -n1 || true)"
+  fi
+  if [[ -n "$nightly_run" ]]; then
+    echo "# nightly_run=$nightly_run"
+  fi
+  if [[ -n "$ci_run" ]]; then
+    echo "# ci_run=$ci_run"
   fi
 } >"$tmp"
 

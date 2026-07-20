@@ -38,8 +38,20 @@ $lines.Add("# head_sha=$headSha")
 $lines.Add("# proxy=$ProxyUrl")
 $lines.Add("# samples=$Samples interval_s=$IntervalS min_delta=$MinDelta")
 $lines.Add("# never=faucet-http mfnd restart join-testnet-rehearsal")
-if ($env:MFN_B27_NIGHTLY_RUN) { $lines.Add("# nightly_run=$($env:MFN_B27_NIGHTLY_RUN)") }
-if ($env:MFN_B27_CI_RUN) { $lines.Add("# ci_run=$($env:MFN_B27_CI_RUN)") }
+$nightlyRun = $env:MFN_B27_NIGHTLY_RUN
+$ciRun = $env:MFN_B27_CI_RUN
+if (-not $nightlyRun) {
+  try {
+    $nightlyRun = (gh run list --workflow Nightly --limit 3 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>$null | Select-Object -First 1)
+  } catch { $nightlyRun = $null }
+}
+if (-not $ciRun) {
+  try {
+    $ciRun = (gh run list --workflow CI --branch main --limit 8 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>$null | Select-Object -First 1)
+  } catch { $ciRun = $null }
+}
+if ($nightlyRun) { $lines.Add("# nightly_run=$nightlyRun") }
+if ($ciRun) { $lines.Add("# ci_run=$ciRun") }
 
 function Get-Tip {
     $body = '{"jsonrpc":"2.0","id":1,"method":"get_tip","params":[]}'
