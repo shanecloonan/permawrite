@@ -11,7 +11,7 @@ foreach ($f in $need) {
     if (-not (Test-Path $f)) { throw "outside-in-invite-soak-rehearsal-smoke: missing $f" }
 }
 $soakSrc = Get-Content -Raw (Join-Path $ScriptDir "outside-in-invite-soak.ps1")
-foreach ($n in @("B-27", "outside-in-invite-soak", "never=faucet-http", "assert-outside-in-invite-soak-evidence", "nightly_run=", "ci_run=")) {
+foreach ($n in @("B-27", "outside-in-invite-soak", "never=faucet-http", "assert-outside-in-invite-soak-evidence", "nightly_run=", "ci_run=", "Get-MfnGreenRunId")) {
     if ($soakSrc -notmatch [regex]::Escape($n)) {
         throw "outside-in-invite-soak-rehearsal-smoke: outside-in-invite-soak.ps1 missing $n"
     }

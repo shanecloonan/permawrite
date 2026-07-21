@@ -31,10 +31,10 @@ if ($text -notmatch [regex]::Escape("genesis_id=$ExpectedGenesis")) {
 }
 
 # B-96: permanence evidence must pin green Nightly + CI (auto-emitted by soak).
-if ($text -notmatch '(?m)^# nightly_run=[0-9]+') {
+if ($text -notmatch '(?m)^# nightly_run=[0-9]+\s*$') {
     throw "assert-outside-in-invite-soak-evidence: missing # nightly_run=<id> pin"
 }
-if ($text -notmatch '(?m)^# ci_run=[0-9]+') {
+if ($text -notmatch '(?m)^# ci_run=[0-9]+\s*$') {
     throw "assert-outside-in-invite-soak-evidence: missing # ci_run=<id> pin"
 }
 Write-Host "assert-outside-in-invite-soak-evidence: OK evidence_file=$EvidenceFile"

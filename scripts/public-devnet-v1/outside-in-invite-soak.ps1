@@ -40,16 +40,24 @@ $lines.Add("# samples=$Samples interval_s=$IntervalS min_delta=$MinDelta")
 $lines.Add("# never=faucet-http mfnd restart join-testnet-rehearsal")
 $nightlyRun = $env:MFN_B27_NIGHTLY_RUN
 $ciRun = $env:MFN_B27_CI_RUN
-if (-not $nightlyRun) {
-  try {
-    $nightlyRun = (gh run list --workflow Nightly --limit 3 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>$null | Select-Object -First 1)
-  } catch { $nightlyRun = $null }
+# B-96 follow-up: avoid gh --jq (PowerShell eats quotes) and ExpandProperty (throws on empty under Stop).
+function Get-MfnGreenRunId {
+  param([string]$Workflow, [int]$Limit = 12, [string]$Branch = "")
+  $ghArgs = @("run", "list", "--workflow", $Workflow, "--limit", "$Limit", "--json", "databaseId,conclusion")
+  if ($Branch) { $ghArgs += @("--branch", $Branch) }
+  $raw = (& gh @ghArgs 2>$null | Out-String).Trim()
+  if (-not $raw) { return $null }
+  $parsed = ConvertFrom-Json -InputObject $raw
+  foreach ($r in @($parsed)) {
+    if ([string]$r.conclusion -ne "success") { continue }
+    $id = [string]$r.databaseId
+    # single numeric id only (never space-joined arrays)
+    if ($id -match "^[0-9]+$") { return $id }
+  }
+  return $null
 }
-if (-not $ciRun) {
-  try {
-    $ciRun = (gh run list --workflow CI --branch main --limit 8 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>$null | Select-Object -First 1)
-  } catch { $ciRun = $null }
-}
+if (-not $nightlyRun) { $nightlyRun = Get-MfnGreenRunId -Workflow "Nightly" }
+if (-not $ciRun) { $ciRun = Get-MfnGreenRunId -Workflow "CI" -Branch "main" }
 if ($nightlyRun) { $lines.Add("# nightly_run=$nightlyRun") }
 if ($ciRun) { $lines.Add("# ci_run=$ciRun") }
 # B-96 fail-closed: soak evidence without Nightly+CI pins is not archiveable.

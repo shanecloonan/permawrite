@@ -38,11 +38,11 @@ if ! grep -qF -- "genesis_id=$EXPECTED_GENESIS" "$EVIDENCE_FILE"; then
 fi
 
 # B-96: permanence evidence must pin green Nightly + CI (auto-emitted by soak).
-if ! grep -qE '^# nightly_run=[0-9]+' "$EVIDENCE_FILE"; then
+if ! grep -qE '^# nightly_run=[0-9]+[[:space:]]*$' "$EVIDENCE_FILE"; then
   echo "assert-outside-in-invite-soak-evidence: missing # nightly_run=<id> pin" >&2
   exit 1
 fi
-if ! grep -qE '^# ci_run=[0-9]+' "$EVIDENCE_FILE"; then
+if ! grep -qE '^# ci_run=[0-9]+[[:space:]]*$' "$EVIDENCE_FILE"; then
   echo "assert-outside-in-invite-soak-evidence: missing # ci_run=<id> pin" >&2
   exit 1
 fi
