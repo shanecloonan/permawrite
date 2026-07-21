@@ -1,0 +1,10 @@
+﻿# B-127 outside-in tip-ckpt lag probe (public observer proxy)
+# B-129 auto-archive
+# head_sha=f71faa37ef3fb754e1e8eded239f57c08d44ec7c
+# proxy=http://5.161.201.73:8787/rpc
+# checkpoint_log=C:\Users\shane\Downloads\permawrite-main\mfn-node\testdata\public_devnet_v1.checkpoints.jsonl
+# lag_threshold=16
+# never=faucet-http mfnd restart join-testnet-rehearsal path-a-publish
+assert-outside-in-tip-ckpt-lag: tip=5233 ckpt_max=4851 lag=382 threshold=16 tip_id=4409661f6818f219f89b94b6cc195655ad79c39a820f55032724c04c34e36afa
+assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)
+assert-outside-in-tip-ckpt-lag: SUMMARY status=FAIL tip=5233 ckpt_max=4851 lag=382 reason=tip_lag>=threshold

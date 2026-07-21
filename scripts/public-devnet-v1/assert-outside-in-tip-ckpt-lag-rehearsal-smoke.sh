@@ -18,7 +18,7 @@ do
   [[ -f "$f" ]] || { echo "assert-outside-in-tip-ckpt-lag-rehearsal-smoke: missing $f" >&2; exit 1; }
 done
 
-needles=(B-127 outside-in-tip-ckpt-lag never=faucet-http path-a-publish tip-ckpt-lag MFN_CKPT_LAG_THRESHOLD)
+needles=(B-127 B-129 outside-in-tip-ckpt-lag never=faucet-http path-a-publish tip-ckpt-lag MFN_CKPT_LAG_THRESHOLD EVIDENCE auto-archive)
 for n in "${needles[@]}"; do
   grep -qF -- "$n" "$SCRIPT_DIR/assert-outside-in-tip-ckpt-lag.sh" || {
     echo "assert-outside-in-tip-ckpt-lag-rehearsal-smoke: assert missing $n" >&2
@@ -33,7 +33,7 @@ plan="$(bash "$SCRIPT_DIR/assert-outside-in-tip-ckpt-lag.sh" --plan-only)"
 }
 
 echo "assert-outside-in-tip-ckpt-lag-rehearsal-smoke: plan"
-echo "  unit=B-127"
+echo "  unit=B-127+B-129"
 echo "  assert=assert-outside-in-tip-ckpt-lag.sh"
 echo "assert-outside-in-tip-ckpt-lag-rehearsal-smoke: PASS plan-only"
 exit 0

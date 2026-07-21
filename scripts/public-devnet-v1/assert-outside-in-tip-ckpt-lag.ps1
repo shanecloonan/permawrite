@@ -1,8 +1,9 @@
-# B-127 / lane 1: outside-in tip vs Path A checkpoint lag (Windows twin).
+# B-127 / B-129 / lane 1: outside-in tip vs Path A checkpoint lag (Windows twin).
 # B-15-safe: never restarts faucet/mfnd/proxy; never runs JOIN. Does not publish Path A (lane 7).
 param(
     [switch]$PlanOnly,
-    [switch]$Apply
+    [switch]$Apply,
+    [switch]$NoArchive
 )
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -11,6 +12,7 @@ $LogPath = if ($env:MFN_CHECKPOINT_LOG) { $env:MFN_CHECKPOINT_LOG } else { Join-
 $ProxyUrl = if ($env:MFN_OUTSIDE_IN_PROXY_URL) { $env:MFN_OUTSIDE_IN_PROXY_URL } else { "http://5.161.201.73:8787/rpc" }
 $ExpectedGenesis = if ($env:MFN_EXPECTED_GENESIS_ID) { $env:MFN_EXPECTED_GENESIS_ID } else { "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005" }
 $LagThreshold = if ($env:MFN_CKPT_LAG_THRESHOLD) { [int]$env:MFN_CKPT_LAG_THRESHOLD } else { 16 }
+$EvidenceDir = if ($env:MFN_OUTSIDE_IN_LAG_EVIDENCE_DIR) { $env:MFN_OUTSIDE_IN_LAG_EVIDENCE_DIR } else { Join-Path $ScriptDir "evidence" }
 
 if (-not $PlanOnly -and -not $Apply) {
     throw "assert-outside-in-tip-ckpt-lag: specify -PlanOnly or -Apply"
@@ -18,7 +20,7 @@ if (-not $PlanOnly -and -not $Apply) {
 
 if ($PlanOnly) {
     Write-Host "assert-outside-in-tip-ckpt-lag: plan"
-    Write-Host "  unit=B-127"
+    Write-Host "  unit=B-127+B-129"
     Write-Host "  proxy=$ProxyUrl"
     Write-Host "  checkpoint_log=$LogPath"
     Write-Host "  lag_threshold=$LagThreshold"
@@ -50,8 +52,42 @@ Get-Content -Path $LogPath | ForEach-Object {
 }
 
 $lag = $tipH - $ckptMax
-Write-Host "assert-outside-in-tip-ckpt-lag: tip=$tipH ckpt_max=$ckptMax lag=$lag threshold=$LagThreshold tip_id=$tipId"
+$line = "assert-outside-in-tip-ckpt-lag: tip=$tipH ckpt_max=$ckptMax lag=$lag threshold=$LagThreshold tip_id=$tipId"
+Write-Host $line
+$status = "OK"
+$reason = "ok"
 if ($lag -ge $LagThreshold) {
+    $status = "FAIL"
+    $reason = "tip_lag>=threshold"
+}
+
+if (-not $NoArchive) {
+    New-Item -ItemType Directory -Force -Path $EvidenceDir | Out-Null
+    try { $headSha = (git -C $RepoRoot rev-parse HEAD 2>$null) } catch { $headSha = "unknown" }
+    if (-not $headSha) { $headSha = "unknown" }
+    $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+    $out = Join-Path $EvidenceDir "outside-in-tip-ckpt-lag-$stamp.txt"
+    $failLine = if ($status -eq "FAIL") {
+        "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)"
+    } else {
+        "assert-outside-in-tip-ckpt-lag: OK tip=$tipH ckpt_max=$ckptMax lag=$lag"
+    }
+    @(
+        "# B-127 outside-in tip-ckpt lag probe (public observer proxy)",
+        "# B-129 auto-archive",
+        "# head_sha=$headSha",
+        "# proxy=$ProxyUrl",
+        "# checkpoint_log=$LogPath",
+        "# lag_threshold=$LagThreshold",
+        "# never=faucet-http mfnd restart join-testnet-rehearsal path-a-publish",
+        $line,
+        $failLine,
+        "assert-outside-in-tip-ckpt-lag: SUMMARY status=$status tip=$tipH ckpt_max=$ckptMax lag=$lag reason=$reason"
+    ) | Set-Content -Path $out -Encoding utf8
+    Write-Host "assert-outside-in-tip-ckpt-lag: EVIDENCE archived=$out status=$status"
+}
+
+if ($status -eq "FAIL") {
     throw "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)"
 }
 Write-Host "assert-outside-in-tip-ckpt-lag: OK tip=$tipH ckpt_max=$ckptMax lag=$lag"
