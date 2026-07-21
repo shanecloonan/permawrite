@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** **CI `#29793832972` GREEN** on B-86 rustfmt (`bef823d`). Prior **CI `#29788432236` GREEN** on B-93. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-95** early B-24h (full CI). Prior **CI `#29793832972` GREEN** on B-86 `bef823d`. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
-| **2** RC ops | **B-94** spent-debris prune (this commit); R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
+| **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave57** (yuki last_proven=4808; faucet-F101b; F45 lag=116) | **B-15** wave58+ + formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-86** slash→treasury→dual-settle (this commit); **B-83** (`8cfe137`); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-95** slash→asymmetric settle (this commit); **B-86** (`9fede5b`/`bef823d`, CI `#29793832972` GREEN); **B-83**/**B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-92** tip-4679 (`db5874c`); **B-91** (`13cdb01`); **B-90** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
@@ -277,7 +277,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-76 | Dual-operator empty-audit slash treasury identity (early B-24d) | 4 | **Landed** (`dc50737`/`5492a07`); covered by **CI `#29753244727` GREEN** |
 | B-81 | Full-slash deregister while peer settles (early B-24e) | 4 | **Landed** (`f924a63`); **CI `#29758805553` GREEN** |
 | B-83 | Dual settle at miss=cap−1 with no slash (early B-24f) | 4 | **Landed** (`8cfe137`); **CI `#29761692348` GREEN** |
-| B-86 | Slash-funded treasury then dual-settle drain (early B-24g) | 4 | **Landed** (this commit); local debug test PASS; full CI |
+| B-86 | Slash-funded treasury then dual-settle drain (early B-24g) | 4 | **Landed** (`9fede5b`/`bef823d`); **CI `#29793832972` GREEN** |
+| B-95 | Slash-funded treasury then asymmetric settle (early B-24h) | 4 | **Landed** (this commit); local debug test PASS; full CI |
 
 ---
 
@@ -285,8 +286,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-21 — lane 2 — B-94 spent-debris prune** (this commit): removed 5 tracked spent one-shots (`fix-codebase-improvements-closure.py`, `split/gen-cli-parse.ps1`, `split-validator-finality-tests.ps1`, wave22-open stub); tightened `.gitignore` for `_*.py`, `_lane*-wip/`, `_nightly*/`, `ci-docs-*.txt`, `live-testnet-data*`, evidence `_*`. Left JOIN runners + live-testnet-data on disk. Docs-only ci-check. `[skip ci]`. *Observed (not staged):* lane-3 JOIN evidence temps.
-1. **2026-07-21 — lane 3 — B-15 wave57**: **yuki** faucet-F101b permanence **last_proven=4808** (commit `99b7e801`); F101b rounds=1; F45 lag=116; claims 31→32. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+1. **2026-07-21 — lane 4 — B-95 slash→asymmetric settle** (this commit): early B-24h `b95_b5_slash_funded_treasury_then_asymmetric_settle_*`; local debug + `cargo fmt` PASS. Prior **CI `#29793832972` GREEN** on B-86. Full CI (no skip). *Observed (not staged):* JOIN temps. Still blocked on 2nd host for live **B-32**.
+1. **2026-07-21 — lane 4 — B-95 slash→asymmetric settle** (this commit): early B-24h `b95_b5_slash_funded_treasury_then_asymmetric_settle_*`; local debug + `cargo fmt` PASS. Prior **CI `#29793832972` GREEN** on B-86. Full CI (no skip). *Observed (not staged):* JOIN temps. Still blocked on 2nd host for live **B-32**.
+2. **2026-07-21 — lane 2 — B-94 spent-debris prune** (`598a853`): removed spent one-shots; tightened `.gitignore`. `[skip ci]`. *Observed (not staged):* lane-3 JOIN evidence temps.
+3. **2026-07-21 — lane 3 — B-15 wave57**: **yuki** faucet-F101b permanence **last_proven=4808** (commit `99b7e801`); F101b rounds=1; F45 lag=116; claims 31→32. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-21 — lane 3 — B-15 wave56**: **xavier** faucet permanence **last_proven=4794** (commit `7121030f`); F45 lag=107; claims 30→31. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-21 — lane 3 — B-15 wave55**: **wren** faucet permanence **last_proven=4785** (commit `a88d7bcb`); F45 lag=98 (ckpt 4679 frozen); claims 29→30. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-21 — lane 3 — B-15 wave54**: **viv** faucet-retry permanence **last_proven=4763** (commit `aefcaf80`); shell monitor aborted mid-600s wait but runner completed; claims 28→29; F45 lag open=71. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
