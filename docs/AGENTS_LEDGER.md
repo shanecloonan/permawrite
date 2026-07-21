@@ -323,6 +323,8 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 1 — claim B-125** (this commit): outside-in soak refresh tip~5199 + §6 tip-lag handoff to lane7 (ckpt 4851, lag~348) while **CI `#29842437172`** runs on B-122 (proves B-123). Claim base `a1577f6`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
+1. **2026-07-21 — lane 4 — claim B-126** (this commit): early B-24ah settle-reset→fifth dual-slash while **CI `#29844848474`** runs on B-124. Claim base `73ab34a`. `[skip ci]`.
+
 
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 

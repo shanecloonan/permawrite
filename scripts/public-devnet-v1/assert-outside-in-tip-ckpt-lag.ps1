@@ -1,4 +1,4 @@
-# B-127 / B-129 / lane 1: outside-in tip vs Path A checkpoint lag (Windows twin).
+# B-127 / B-129 / B-134 / lane 1: outside-in tip vs Path A checkpoint lag (Windows twin).
 # B-15-safe: never restarts faucet/mfnd/proxy; never runs JOIN. Does not publish Path A (lane 7).
 param(
     [switch]$PlanOnly,
@@ -20,10 +20,11 @@ if (-not $PlanOnly -and -not $Apply) {
 
 if ($PlanOnly) {
     Write-Host "assert-outside-in-tip-ckpt-lag: plan"
-    Write-Host "  unit=B-127+B-129"
+    Write-Host "  unit=B-127+B-129+B-134"
     Write-Host "  proxy=$ProxyUrl"
     Write-Host "  checkpoint_log=$LogPath"
     Write-Host "  lag_threshold=$LagThreshold"
+    Write-Host "  staleness=ckpt_entries,published_at,tip_block_id"
     Write-Host "  never=faucet-http mfnd restart join-testnet-rehearsal path-a-publish"
     Write-Host "assert-outside-in-tip-ckpt-lag: PASS plan-only"
     exit 0
@@ -43,17 +44,29 @@ if ($genesis -ne $ExpectedGenesis) {
 }
 
 $ckptMax = 0
+$ckptEntries = 0
+$ckptPublishedAt = ""
+$ckptTipBlockId = ""
 Get-Content -Path $LogPath | ForEach-Object {
     if (-not $_.Trim()) { return }
     $o = $_ | ConvertFrom-Json
+    $ckptEntries++
     $h = 0
     if ($o.summary -and $o.summary.tip_height) { $h = [int]$o.summary.tip_height }
-    if ($h -gt $ckptMax) { $ckptMax = $h }
+    if ($h -ge $ckptMax) {
+        $ckptMax = $h
+        $ckptPublishedAt = [string]$o.published_at
+        if ($o.summary -and $o.summary.tip_block_id) {
+            $ckptTipBlockId = [string]$o.summary.tip_block_id
+        }
+    }
 }
 
 $lag = $tipH - $ckptMax
 $line = "assert-outside-in-tip-ckpt-lag: tip=$tipH ckpt_max=$ckptMax lag=$lag threshold=$LagThreshold tip_id=$tipId"
+$staleness = "assert-outside-in-tip-ckpt-lag: STALENESS ckpt_entries=$ckptEntries published_at=$ckptPublishedAt tip_block_id=$ckptTipBlockId"
 Write-Host $line
+Write-Host $staleness
 $status = "OK"
 $reason = "ok"
 if ($lag -ge $LagThreshold) {
@@ -75,14 +88,16 @@ if (-not $NoArchive) {
     @(
         "# B-127 outside-in tip-ckpt lag probe (public observer proxy)",
         "# B-129 auto-archive",
+        "# B-134 Path A staleness",
         "# head_sha=$headSha",
         "# proxy=$ProxyUrl",
         "# checkpoint_log=$LogPath",
         "# lag_threshold=$LagThreshold",
         "# never=faucet-http mfnd restart join-testnet-rehearsal path-a-publish",
         $line,
+        $staleness,
         $failLine,
-        "assert-outside-in-tip-ckpt-lag: SUMMARY status=$status tip=$tipH ckpt_max=$ckptMax lag=$lag reason=$reason"
+        "assert-outside-in-tip-ckpt-lag: SUMMARY status=$status tip=$tipH ckpt_max=$ckptMax lag=$lag ckpt_entries=$ckptEntries published_at=$ckptPublishedAt reason=$reason"
     ) | Set-Content -Path $out -Encoding utf8
     Write-Host "assert-outside-in-tip-ckpt-lag: EVIDENCE archived=$out status=$status"
 }

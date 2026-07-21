@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# B-127 / lane 1: outside-in tip vs Path A checkpoint lag (public proxy + local jsonl).
+# B-127 / B-129 / B-134 / lane 1: outside-in tip vs Path A checkpoint lag (public proxy + local jsonl).
 # B-15-safe: never restarts faucet/mfnd/proxy; never runs JOIN. Does not publish Path A (lane 7).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,6 +21,7 @@ Outside-in permanence lag probe:
   - get_tip via public observer proxy
   - max tip_height from local Path A checkpoint jsonl
   - FAIL if tip - ckpt_max >= MFN_CKPT_LAG_THRESHOLD (default 16)
+  - B-134: report ckpt_entries + last published_at + last tip_block_id (staleness)
 Never publishes checkpoints (lane 7 Path A). Never restarts services.
 B-129: --apply archives evidence under evidence/ (disable with --no-archive).
 EOF
@@ -43,10 +44,11 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "assert-outside-in-tip-ckpt-lag: plan"
-  echo "  unit=B-127+B-129"
+  echo "  unit=B-127+B-129+B-134"
   echo "  proxy=$PROXY_URL"
   echo "  checkpoint_log=$LOG_PATH"
   echo "  lag_threshold=$LAG_THRESHOLD"
+  echo "  staleness=ckpt_entries,published_at,tip_block_id"
   echo "  never=faucet-http mfnd restart join-testnet-rehearsal path-a-publish"
   echo "assert-outside-in-tip-ckpt-lag: PASS plan-only"
   exit 0
@@ -74,25 +76,39 @@ print(f'tip_id={d.get("tip_id","")}')
 PY
 )"
 
-ckpt_max="$(
+eval "$(
   python3 - "$LOG_PATH" <<'PY'
 import json,sys
 from pathlib import Path
 p=Path(sys.argv[1])
 mx=0
+entries=0
+last_pub=""
+last_tip_block=""
 for line in p.read_text(encoding="utf-8").splitlines():
     if not line.strip():
         continue
-    h=int((json.loads(line).get("summary") or {}).get("tip_height") or 0)
-    if h>mx:
+    o=json.loads(line)
+    entries+=1
+    s=o.get("summary") or {}
+    h=int(s.get("tip_height") or 0)
+    if h>=mx:
         mx=h
-print(mx)
+        last_pub=str(o.get("published_at") or "")
+        last_tip_block=str(s.get("tip_block_id") or "")
+# shell-safe (no spaces/quotes expected in these fields)
+print(f"ckpt_max={mx}")
+print(f"ckpt_entries={entries}")
+print(f"ckpt_published_at={last_pub}")
+print(f"ckpt_tip_block_id={last_tip_block}")
 PY
 )"
 
 lag=$((tip_h - ckpt_max))
 line="assert-outside-in-tip-ckpt-lag: tip=$tip_h ckpt_max=$ckpt_max lag=$lag threshold=$LAG_THRESHOLD tip_id=$tip_id"
+staleness="assert-outside-in-tip-ckpt-lag: STALENESS ckpt_entries=$ckpt_entries published_at=$ckpt_published_at tip_block_id=$ckpt_tip_block_id"
 echo "$line"
+echo "$staleness"
 status=OK
 reason=ok
 if (( lag >= LAG_THRESHOLD )); then
@@ -108,18 +124,20 @@ if (( NO_ARCHIVE == 0 )); then
   {
     echo "# B-127 outside-in tip-ckpt lag probe (public observer proxy)"
     echo "# B-129 auto-archive"
+    echo "# B-134 Path A staleness"
     echo "# head_sha=$head_sha"
     echo "# proxy=$PROXY_URL"
     echo "# checkpoint_log=$LOG_PATH"
     echo "# lag_threshold=$LAG_THRESHOLD"
     echo "# never=faucet-http mfnd restart join-testnet-rehearsal path-a-publish"
     echo "$line"
+    echo "$staleness"
     if [[ "$status" == FAIL ]]; then
       echo "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)"
     else
       echo "assert-outside-in-tip-ckpt-lag: OK tip=$tip_h ckpt_max=$ckpt_max lag=$lag"
     fi
-    echo "assert-outside-in-tip-ckpt-lag: SUMMARY status=$status tip=$tip_h ckpt_max=$ckpt_max lag=$lag reason=$reason"
+    echo "assert-outside-in-tip-ckpt-lag: SUMMARY status=$status tip=$tip_h ckpt_max=$ckpt_max lag=$lag ckpt_entries=$ckpt_entries published_at=$ckpt_published_at reason=$reason"
   } >"$out"
   echo "assert-outside-in-tip-ckpt-lag: EVIDENCE archived=$out status=$status"
 fi
