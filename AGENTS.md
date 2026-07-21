@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-145** tall-tip snapshot timeout (this commit); **B-144** (`cc79bfe`); **B-15 wave58** | **B-15** formal JOIN re-run (claim base: `86f04ae`) | Assert SUMMARY PASS; Path A lag~18 (republish if hard F45) | L4 checklist |
+| **3** Onboarding | **B-145** tall-tip snapshot timeout (`9ca1124`); **B-144** (`cc79bfe`); **B-15 wave58** | **B-15** formal JOIN re-run (claim base: `86f04ae`) | Assert SUMMARY PASS; Path A lag~18 (republish if hard F45) | L4 checklist |
 | **4** Protocol | **B-132** (`7b5f3ef` body / tip `d025b37`, watch CI `#29857236769`); **B-131** (`40d0222`, CI `#29854607541` GREEN); **B-130** (`b0fd1b1`); **B-128**/**B-126** stack | **B-142** fifth-offense asymmetric→absentee re-slash (claim base: `d025b37`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -323,7 +323,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-132 | Fifth dual-slash then empty both-miss (early B-24al) | 4 | **Landed** (this commit); closes fifth-offense prove matrix; full CI |
 | B-142 | Fifth-offense asymmetric then absentee re-slash (early B-24am) | 4 | **Claimed** (this commit) — elevates B-122; full CI after `#29857236769` GREEN |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
-| B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (this commit) — default 300s; unblocks F67 pin at tip~5290 |
+| B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-137 | Path A land from VPS tip-5269+ (close tip-lag §6) | 7 | **Landed** (`10eedc1`) — VPS publish tip-5290 + land jsonl; lag assert OK |
 | B-138 | Public-testnet health verify after Path A tip-5290 | 7 | **Landed** (`555d5df`) — VPS health OK lag=0; §6 re-pin Ack tip-5290 |
 | B-139 | VPS peers-clean + TESTNET_CHECKLIST tip-5290 / B-29 mirror | 7 | **Landed** (`002ee6c`) — peers OK; checklist B-22/B-29/B-137/B-138 |
@@ -336,7 +336,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-21 — lane 3 — B-145 tall-tip bootstrap snapshot timeout** (this commit): `bootstrap-wallet-from-checkpoint-log` uses python NDJSON fetch with `MFN_BOOTSTRAP_SNAPSHOT_TIMEOUT_SECS` (default 300) — measured ~145s for tip-5290 vs mfn-cli 30s I/O. Evidence `b145-bootstrap-long-timeout-snapshot-20260721.md`. B-15 JOIN re-run next. `[skip ci]` — B-132 CI `#29857236769` in flight.
+1. **2026-07-21 — lane 3 — B-145 tall-tip bootstrap snapshot timeout** (`9ca1124`): `bootstrap-wallet-from-checkpoint-log` uses python NDJSON fetch with `MFN_BOOTSTRAP_SNAPSHOT_TIMEOUT_SECS` (default 300) — measured ~145s for tip-5290 vs mfn-cli 30s I/O. Evidence `b145-bootstrap-long-timeout-snapshot-20260721.md`. B-15 JOIN re-run next. `[skip ci]` — B-132 CI `#29857236769` in flight.
 
 1. **2026-07-21 — lane 3 — B-144 Windows JOIN python3 resolve** (`cc79bfe`): `lib-python3.sh` (`mfn_require_python3` + `mfn_resolve_release_bin`); wired into bootstrap / light-scan-soft / join-testnet-rehearsal. B-15 blocked on fresh observer sync (corrupt `chain.blocks` quarantine) tip catch-up to ~5306. Evidence `b144-windows-join-python3-resolve-20260721.md`. `[skip ci]` — B-132 CI `#29857236769` in flight.
 
