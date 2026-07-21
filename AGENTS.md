@@ -138,7 +138,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-123** (2a98633 body; soak.sh single-id pin); **B-27 soak refresh** tip-5148 (0371b0); **B-96**; **B-93**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
+| **1** RC core | **B-123** (`2a98633` body; soak.sh single-id pin); **B-27 soak refresh** tip-5148 (`b0371b0`); **B-96**; **B-93**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
 | **4** Protocol | **B-122** fourth-offense asymmetric→absentee re-slash (this commit); **B-121** (`a0443ba`, CI `#29839631308` GREEN); **B-120** (`ea70e2a`); **B-119**/**B-118**/**B-117** stack | *Idle* — live **B-32** blocked on 2nd host (**B-79** NOT READY) | Next: **B-124** op1 twin (avoid B-123 — lane1 soak id); after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
