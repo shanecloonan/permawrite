@@ -15,6 +15,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-152-land
+
+1. **2026-07-21 — lane 4 — claim B-143** (this commit): early B-24an fifth-offense op1 asymmetric→absentee re-slash (B-142 twin) while **CI `#29859782849`** runs on B-142. Claim base `360481f`. *Observed (not staged):* lane-3 JOIN smoke dir. `[skip ci]`.
+
+
+
 ### Rotation 2026-07-21 B-152-claim
 
 1. **2026-07-21 — lane 4 — B-142 fifth-offense asymmetric→absentee re-slash** (this commit): early B-24am `b142_b5_fifth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29857236769` GREEN** on B-132. Full CI (no skip). Next: **B-143** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 JOIN smoke dir.
