@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI plan gate for B-27 outside-in invite-head soak tooling.
+# CI plan gate for B-27 outside-in invite-head soak tooling (+ B-96 pin assert).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLAN_ONLY=0
@@ -19,10 +19,17 @@ do
   [[ -f "$f" ]] || { echo "outside-in-invite-soak-rehearsal-smoke: missing $f" >&2; exit 1; }
 done
 
-needles=(B-27 outside-in-invite-soak never=faucet-http assert-outside-in-invite-soak-evidence)
-for n in "${needles[@]}"; do
+soak_needles=(B-27 outside-in-invite-soak never=faucet-http assert-outside-in-invite-soak-evidence nightly_run= ci_run=)
+for n in "${soak_needles[@]}"; do
   grep -qF -- "$n" "$SCRIPT_DIR/outside-in-invite-soak.sh" || {
     echo "outside-in-invite-soak-rehearsal-smoke: outside-in-invite-soak.sh missing $n" >&2
+    exit 1
+  }
+done
+
+for n in "missing # nightly_run" "missing # ci_run" "B-96"; do
+  grep -qF -- "$n" "$SCRIPT_DIR/assert-outside-in-invite-soak-evidence.sh" || {
+    echo "outside-in-invite-soak-rehearsal-smoke: assert missing $n" >&2
     exit 1
   }
 done
@@ -41,12 +48,9 @@ assert_out="$(bash "$SCRIPT_DIR/assert-outside-in-invite-soak-evidence.sh" \
 }
 
 echo "outside-in-invite-soak-rehearsal-smoke: plan"
-echo "  unit=B-27"
+echo "  unit=B-27+B-96"
 echo "  soak=outside-in-invite-soak.sh"
 echo "  assert=assert-outside-in-invite-soak-evidence.sh"
 echo "  fixture_assert=true"
-if (( PLAN_ONLY )); then
-  echo "outside-in-invite-soak-rehearsal-smoke: PASS plan-only"
-  exit 0
-fi
 echo "outside-in-invite-soak-rehearsal-smoke: PASS plan-only"
+exit 0

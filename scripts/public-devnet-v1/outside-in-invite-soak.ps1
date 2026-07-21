@@ -52,6 +52,12 @@ if (-not $ciRun) {
 }
 if ($nightlyRun) { $lines.Add("# nightly_run=$nightlyRun") }
 if ($ciRun) { $lines.Add("# ci_run=$ciRun") }
+# B-96 fail-closed: soak evidence without Nightly+CI pins is not archiveable.
+if (-not $nightlyRun -or -not $ciRun) {
+    if ($env:MFN_B27_ALLOW_UNPINNED -ne "1") {
+        throw "outside-in-invite-soak: FAIL missing nightly_run/ci_run pins (set MFN_B27_ALLOW_UNPINNED=1 to override)"
+    }
+}
 
 function Get-Tip {
     $body = '{"jsonrpc":"2.0","id":1,"method":"get_tip","params":[]}'

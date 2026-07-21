@@ -70,6 +70,13 @@ trap 'rm -f "$tmp"' EXIT
   if [[ -n "$ci_run" ]]; then
     echo "# ci_run=$ci_run"
   fi
+  # B-96 fail-closed: soak evidence without Nightly+CI pins is not archiveable.
+  if [[ -z "$nightly_run" || -z "$ci_run" ]]; then
+    if [[ "${MFN_B27_ALLOW_UNPINNED:-0}" != "1" ]]; then
+      echo "outside-in-invite-soak: FAIL missing nightly_run/ci_run pins (set MFN_B27_ALLOW_UNPINNED=1 to override)" >&2
+      exit 1
+    fi
+  fi
 } >"$tmp"
 
 get_tip() {

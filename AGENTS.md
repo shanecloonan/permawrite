@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-99** early B-24j (full CI). **CI `#29800034125` GREEN** on B-100 `4b10e51`; **CI `#29797153366` GREEN** on B-98. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-96** soak pin-assert (full CI) after B-99. Prior **CI #29800034125 GREEN** on B-100 4b10e51. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
+| **1** RC core | **B-96** soak pin-assert (this commit; tip 4820->4822); **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
 | **4** Protocol | **B-99** slash→empty both-miss (this commit); **B-98** (`8eb586e`, CI `#29797153366` GREEN); **B-95** (`665c166`); **B-86**/**B-83**/**B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -209,7 +209,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | Phase 1; after B3 multi-op internet evidence |
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
-| B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak refreshed** (this commit; tip 4663->4665; Nightly `#29779143837`); participant JOIN half = lane-3 SUMMARY / post-B-15 |
+| B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak refreshed** (`08f8001` + B-96 tip 4820->4822); pin assert **B-96**; participant JOIN half = lane-3 SUMMARY / post-B-15 |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
 | B-29 | Nightly participant+observer GREEN | 1+3 | **CLOSED** — Nightly #29755942849 GREEN on d248ba2 (B-75 inclusive) |
 | B-75 | Nightly observer mesh tip-stall after h1 (EAGAIN) | 1 | **Landed** (this commit) - production_dial_peers + persistable start-all / produce-smoke ports |
@@ -220,6 +220,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-33 | B-13b human sign-off checklist | 6+7+human | One-lever + producer budget + telemetry baseline before B-13c |
 | B-34 | CI queue/stall watch + cancel/re-dispatch | 1 | **Landed** (this commit) — `scripts/watch-ci-stall.py` + ci-check plan gate (gate was prematurely wired in B-90; scripts complete it); `--cancel-if-stalled` only when zero progress |
 | B-93 | Post-push CI stall watch wrapper (B-34 follow-up) | 1 | **Landed** (this commit) — `scripts/post-push-ci-watch.py` + ci-check plan gate; wired into after-push agent rule |
+| B-96 | Soak evidence requires Nightly+CI pins (assert + soak fail-closed) | 1 | **Landed** (this commit) — assert `# nightly_run=`/`# ci_run=`; soak fail-closed; tip 4820->4822 evidence |
 | B-94 | Spent-debris prune + gitignore tighten (M2.5.39 follow-up) | 2 | **Landed** (this commit) — delete 5 tracked spent one-shots; ignore `_*.py` / lane WIP / nightly dumps / live-testnet-data* / evidence `_*` |
 
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
@@ -289,6 +290,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 1 — B-96 soak pin-assert** (this commit): assert requires `# nightly_run=`/`# ci_run=`; soak fail-closed without pins (`MFN_B27_ALLOW_UNPINNED=1` override); live soak PASS tip 4820->4822; evidence `outside-in-invite-soak-20260721T022948Z.txt` + `b96-outside-in-invite-soak-pin-assert-20260721.md`; pins Nightly `#29790006106` + CI `#29793832972`. B-15-safe. Full CI (no skip). *Observed local work (not staged):* lane-4 `apply_block_proptest.rs` WIP, lane-5 `light_wallet.rs`/JOIN/bootstrap WIP.
 
 1. **2026-07-21 — lane 4 — B-99 slash→empty both-miss** (this commit): early B-24j `b99_b5_slash_funded_treasury_then_empty_both_miss_*`; closes post-slash prove matrix with mask=0b00. Local debug + `cargo fmt` PASS. Prior **CI `#29800034125` GREEN** on B-100 / **CI `#29797153366` GREEN** on B-98. Full CI (no skip). *Observed (not staged):* JOIN temps, lane-1 soak WIP, lane-7 evidence. Still blocked on 2nd host for live **B-32**.
 2. **2026-07-21 — lane 5 — B-50 follow-up claim** (`726ee78`): claim Rust auto-bootstrap for `light-scan --checkpoint-log` from log max tip. `[skip ci]`.
