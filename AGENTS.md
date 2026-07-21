@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-152** early B-24at (full CI). **CI `#29870158905` GREEN** on B-151 `9d20b00`. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Claiming **B-153** early B-24au (docs-only while **CI `#29872307794`** runs on B-152 `cd3d37ae`). **CI `#29870158905` GREEN** on B-151. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-152** sixth-offense asymmetric→absentee re-slash (this commit); **B-151** (`9d20b00`, CI `#29870158905` GREEN); **B-150** (`6a2c779`); **B-149**/**B-148** stack | *Idle* — next **B-153** op1 twin; live **B-32** needs 2nd host | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-152** (`cd3d37ae`, watch CI `#29872307794`); **B-151** (`9d20b00`, CI `#29870158905` GREEN); **B-150**/**B-149** stack | **B-153** sixth-offense op1 asymmetric→absentee re-slash (claim base: `cd3d37ae`) | After land: settle-reset→seventh dual-slash; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -329,7 +329,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-150 | Sixth dual-slash then op1 asymmetric settle drain (early B-24ar) | 4 | **Landed** (`6a2c779`, subject mislabeled rustfmt); elevates B-131; full CI |
 | B-151 | Sixth dual-slash then empty both-miss (early B-24as) | 4 | **Landed** (`9d20b00`); **CI `#29870158905` GREEN**; closes sixth-offense prove matrix |
 | B-152 | Sixth-offense asymmetric then absentee re-slash (early B-24at) | 4 | **Landed** (this commit); elevates B-142; full CI |
-| B-153 | Sixth-offense op1 asymmetric then absentee re-slash (early B-24au) | 4 | **Claimed** (this commit) — B-152 twin; elevates B-143; full CI after `#29872169366` GREEN |
+| B-153 | Sixth-offense op1 asymmetric then absentee re-slash (early B-24au) | 4 | **Claimed** (this commit) — B-152 twin; elevates B-143/B-124; full CI after `#29872307794` GREEN |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -344,6 +344,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — claim B-153** (this commit): early B-24au sixth-offense op1 asymmetric→absentee re-slash (B-152 twin) while **CI `#29872307794`** runs on B-152. Claim base `cd3d37ae`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-152 sixth-offense asymmetric→absentee re-slash** (this commit): early B-24at `b152_b5_sixth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local release PASS. **CI `#29870158905` GREEN** on B-151. Elevates B-142 to sixth-offense funding. Full CI (no skip). Next: **B-153** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
 
