@@ -72,6 +72,8 @@ mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet light-scan \
   --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
 ```
 
+On a fresh wallet, `--checkpoint-log` also auto-bootstraps from the log max tip (B-50 follow-up) before scanning the remaining delta — same privacy posture as the explicit pin helper, without a silent genesis walk.
+
 See [`CHECKPOINT_LOG.md`](./CHECKPOINT_LOG.md). Browser wallets use the same rules via `mfn-wasm` `checkpointLogVerify` / `checkpointLogCrossCheck`. Keep wallet keys on loopback RPC; the public observer proxy is read-only tip/header surface only.
 
 ### Authorship claims (optional) — key separation

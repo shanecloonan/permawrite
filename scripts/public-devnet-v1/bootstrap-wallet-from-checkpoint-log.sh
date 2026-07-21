@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # B-50: pin a wallet to the signed checkpoint tip via get_light_snapshot, then light-scan.
-# Honesty: `wallet light-scan --checkpoint-log` only *cross-checks after sync* — it does NOT
-# skip genesis→tip. Fresh wallets still walk every header (~0.5s/block at tip 4k+).
+# Honesty: B-50 follow-up — Rust light-scan --checkpoint-log auto-bootstraps from
+# log max tip when the wallet lacks a light checkpoint. This helper remains the explicit
+# pin/retry path (EAGAIN, Windows TCP snapshot, F67 pin-before-fund).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

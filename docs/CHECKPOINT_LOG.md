@@ -91,7 +91,7 @@ WASM exports: `checkpointLogVerify`, `checkpointLogCrossCheck` (`wasm-full` feat
 
 ## Light client usage (phase 2)
 
-After sync, wallets can cross-check the evolved checkpoint against a published log:
+After sync, wallets can cross-check the evolved checkpoint against a published log. On a fresh wallet, `light-scan --checkpoint-log` also auto-bootstraps from the log max tip (**B-50 follow-up**) before scanning the remaining delta:
 
 ```bash
 mfn-cli --rpc HOST:PORT wallet light-scan \

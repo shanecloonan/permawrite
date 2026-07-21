@@ -134,15 +134,15 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-158** early B-24az (seventh empty both-miss) while **CI `#29876590150`** runs on B-157 tip `8d6e8203`. **CI `#29874504154` GREEN** on B-154. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Landing **B-158** early B-24az (full CI). **CI `#29876590150` GREEN** on B-157 tip `8d6e8203`. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-157** (`8d6e8203`); **B-156** (`c3ebb5ab`); **B-155** (`7d3ba35d`); **B-154** (`dd268c1b`, CI `#29874504154` GREEN) | **B-158** seventh empty both-miss (claim base: `8d6e8203`) | After B-158 CI: seventh-offense re-slash pair; live **B-32** needs 2nd host | Lane 1 CI |
-| **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **4** Protocol | **B-158** seventh empty both-miss (this commit); **B-157** (`8d6e8203`, CI `#29876590150` GREEN); **B-156** (`c3ebb5ab`); **B-155** (`7d3ba35d`) | *Idle* — next **B-159** seventh-offense asymmetric→absentee re-slash; live **B-32** needs 2nd host | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **5** Privacy | **B-50 follow-up** Rust checkpoint-log auto-bootstrap (this commit); **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -164,8 +164,8 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | planning | 1+3 | **B-29 close:** seed-isolation `23204cb` + CI GREEN; Nightly `#29727713979` — closes only on Nightly GREEN | **Ack** |
 | planning | 1 | **B-34:** `#29713542820` in_progress on `4d07b7d` (post-outage dispatch) | **Done** (tooling landed this commit) |
 | 1 | 7 | Outside-in: observer proxy `ECONNREFUSED 127.0.0.1:18734`; B-15 wave4 reports P2P `:19001` down — repair without faucet restart | **Done** (B-46; tip advancing; proxy OK) |
-| 7 | 3 | **B-50:** `--checkpoint-log` does not skip genesis — use `bootstrap-wallet-from-checkpoint-log.sh --apply` (or `.ps1` on Windows — B-52) for receive verify | **Open** |
-| 7 | 5 | **B-50 follow-up:** Rust — `light-scan --checkpoint-log` should auto-bootstrap from log max tip (docs honesty landed) | **Open** |
+| 7 | 3 | **B-50:** `--checkpoint-log` does not skip genesis — use `bootstrap-wallet-from-checkpoint-log.sh --apply` (or `.ps1` on Windows — B-52) for receive verify | **Done** (B-50 follow-up Rust auto-bootstrap) |
+| 7 | 5 | **B-50 follow-up:** Rust — `light-scan --checkpoint-log` auto-bootstraps from log max tip | **Done** (this commit) |
 | 3 | 7 | **F54** proxy `get_light_snapshot` TIMEOUT; **F56** Windows no bash for B-50 | **Done** (B-52: heavy timeout 180s + `.ps1` twin) |
 | planning | 3+7 | **B-42:** invite-load plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) | **Ack** (plan) |
 | planning | 2+7 | **B-31:** use ROADMAP work package before TL-9 (RPC/faucet/TLS verify) | **Done** (probe landed; P2P FAIL → B-41) |
@@ -239,7 +239,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-47 | Faucet EAGAIN harden (health/CLI race) | 7+2 | **Done** (`fe56ca8`) — health lock + runRetry; VPS faucet restarted idle; tip 4047+ |
 | B-48 | Soft-ignore EAGAIN for P2P peer quarantine | 4 | **Landed** — soft-fail EAGAIN/WouldBlock in peer quarantine (not os error 111) |
 | B-49 | VPS `vps-roll-mfnd.sh` tooling (hub+voters, no faucet) | 7 | **Done** (`284e803`) — live apply after CI GREEN |
-| B-50 | Checkpoint-log bootstrap honesty + helper | 7+5 | **Done** (docs+script); Rust auto-bootstrap still follow-up for lane 5 |
+| B-50 | Checkpoint-log bootstrap honesty + helper | 7+5 | **Done** (docs+script + Rust auto-bootstrap this commit) |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
 | B-52 | Observer proxy heavy RPC timeout + Windows B-50 twin | 7 | **Done** — F54/F56; `PROXY_HEAVY_RPC_TIMEOUT_MS=180000`; `.ps1` twin |
 | B-53 | Non-blocking faucet `/health` + VPS block-log assert | 7 | **Done** — F62 VPS cleared |
@@ -334,7 +334,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-155 | Seventh dual-slash then dual-settle drain (early B-24aw) | 4 | **Landed** (`7d3ba35d`/`c3ebb5ab`); elevates B-148; covered by tip CI `#29876274630` |
 | B-156 | Seventh dual-slash then asymmetric settle drain (early B-24ax) | 4 | **Landed** (`c3ebb5ab`); elevates B-149; rustfmt fixed in B-157 tip |
 | B-157 | Seventh dual-slash then op1 asymmetric settle drain (early B-24ay) | 4 | **Landed** (this commit); completes seventh-offense asymmetric settle pair; full CI (also fixes B-156 rustfmt) |
-| B-158 | Seventh dual-slash then empty both-miss (early B-24az) | 4 | **Claimed** — closes seventh-offense prove matrix after B-157 CI GREEN |
+| B-158 | Seventh dual-slash then empty both-miss (early B-24az) | 4 | **Landed** (this commit); closes seventh-offense prove matrix; full CI |
+| B-159 | Seventh-offense asymmetric then absentee re-slash (early B-24ba) | 4 | Next after B-158 CI GREEN — elevates B-152 |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -350,6 +351,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-21 — lane 4 — B-158 seventh-slash→empty both-miss** (this commit): early B-24az `b158_b5_seventh_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29876590150` GREEN** on B-157. Closes seventh-offense prove matrix {00,01,10,11}. Full CI (no skip). Next: **B-159** seventh-offense asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-50 WIP + lane-3 `join-testnet-rehearsal-smoke/`.
+
+1. **2026-07-21 — lane 5 — B-50 follow-up Rust auto-bootstrap** (this commit): `light-scan --checkpoint-log` pins from log max tip via `get_light_snapshot` when wallet lacks a light checkpoint; prints `checkpoint_log_auto_bootstrap tip=…`; unit tests + JOIN/PRIVACY/CHECKPOINT_LOG honesty. Closes §6 7→5. Prior **CI `#29876590150` GREEN** on B-157. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 join-testnet-rehearsal-smoke/.
 1. **2026-07-21 — lane 4 — claim B-158** (this commit): early B-24az seventh-slash→empty both-miss while **CI `#29876590150`** runs on B-157. Claim base `8d6e8203`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-157 seventh-slash→op1 asymmetric settle + B-156 rustfmt fix** (this commit): early B-24ay `b157_b5_seventh_dual_slash_then_op1_asymmetric_settle_drain_identity`; local release PASS. Fix-forward: remove extra blanks after B-156 (CI `#29876274630` rustfmt FAIL). Completes seventh-offense asymmetric settle pair. Full CI (no skip). Next: **B-158** seventh empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.

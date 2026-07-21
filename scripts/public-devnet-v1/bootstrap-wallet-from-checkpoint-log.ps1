@@ -29,7 +29,7 @@ if ($PlanOnly) {
   Write-Output "  f68=snapshot via temp .py TCP JSON-RPC"
   Write-Output "  f45=soft-pass when tip races past latest Schnorr attestation"
   Write-Output "  flow=log max tip -> get_light_snapshot(height) -> patch wallet -> light-scan soft"
-  Write-Output "  honesty=checkpoint-log alone does not bootstrap; see JOIN_TESTNET.md"
+  Write-Output "  honesty=B-50 follow-up Rust auto-bootstrap; helper remains explicit pin/retry (JOIN_TESTNET.md)"
   Write-Output "bootstrap-wallet-from-checkpoint-log: PASS plan-only"
   exit 0
 }

@@ -14,7 +14,8 @@ use mfn_light::{LightChain, LightChainError};
 use mfn_wallet::Wallet;
 
 use crate::checkpoint_log::{
-    cross_check_summary_against_checkpoint_log, CheckpointLogCrossCheckReport,
+    checkpoint_log_verify, cross_check_summary_against_checkpoint_log,
+    CheckpointLogCrossCheckReport,
 };
 use crate::light_follow_quorum::light_follow_pages_quorum;
 use crate::light_subjectivity::{
@@ -47,6 +48,10 @@ pub struct LightScanParams {
     /// Stop after this inclusive height even if the node tip is higher (**M3.21**).
     pub max_height: Option<u32>,
     /// Cross-check post-sync summary against signed checkpoint log (**F12** phase 2).
+    ///
+    /// **B-50 follow-up:** when the wallet still needs a genesis→tip walk (no usable
+    /// light checkpoint / scan tip), also auto-bootstrap from the log's max
+    /// `tip_height` via `get_light_snapshot` before scanning the remaining delta.
     pub checkpoint_log_path: Option<PathBuf>,
 }
 
@@ -159,17 +164,6 @@ pub(crate) fn sync_wallet_light_from_node(
 
     let tip = client.get_tip()?;
     let chain_tip_height = tip.tip_height.unwrap_or(0);
-    // Keep resume height even when owned_outputs is temporarily empty (e.g. after
-    // submit_tx spends local UTXOs before change is re-scanned). Resetting to 1
-    // while a light checkpoint still points near tip fails bootstrap badly.
-    let start_height = match file.scan_height {
-        Some(h) if h > 0 => h.saturating_add(1),
-        _ if used_utxo_cache => file
-            .scan_height
-            .expect("has_owned_cache implies scan_height")
-            .saturating_add(1),
-        _ => 1,
-    };
 
     if params.reset_trusted_summary {
         file.trusted_light_summary = None;
@@ -186,6 +180,24 @@ pub(crate) fn sync_wallet_light_from_node(
         }
         file.trusted_light_summary = Some(summary);
     }
+
+    // B-50 follow-up: `--checkpoint-log` pins from log max tip when the wallet would
+    // otherwise walk genesis→tip (JOIN tall-tip honesty). Explicit
+    // `--import-trusted-summary` wins and skips this path.
+    let _auto_bootstrapped =
+        maybe_auto_bootstrap_from_checkpoint_log(client, file, params, chain_tip_height)?;
+
+    // Keep resume height even when owned_outputs is temporarily empty (e.g. after
+    // submit_tx spends local UTXOs before change is re-scanned). Resetting to 1
+    // while a light checkpoint still points near tip fails bootstrap badly.
+    let start_height = match file.scan_height {
+        Some(h) if h > 0 => h.saturating_add(1),
+        _ if used_utxo_cache => file
+            .scan_height
+            .expect("has_owned_cache implies scan_height")
+            .saturating_add(1),
+        _ => 1,
+    };
 
     let scan_through = scan_through_height(chain_tip_height, start_height, params.max_height)?;
 
@@ -360,6 +372,63 @@ fn cross_check_checkpoint_log_if_requested(
     cross_check_summary_against_checkpoint_log(&summary, log_path).map(Some)
 }
 
+/// True when a light-scan would still walk from genesis (or height 1) without a pin.
+fn needs_checkpoint_log_auto_bootstrap(file: &WalletFile) -> bool {
+    match (file.scan_height, file.light_checkpoint_hex.as_ref()) {
+        (_, Some(_)) => false,
+        (None, None) | (Some(0), None) => true,
+        (Some(h), None) => h <= 1,
+    }
+}
+
+/// Pin `scan_height` + light checkpoint from the signed log's max tip (**B-50 follow-up**).
+///
+/// Returns `true` when a snapshot pin was applied. Skips when `--import-trusted-summary`
+/// was provided, when the wallet already has a usable checkpoint, or when the chain tip
+/// is still genesis (mesh smokes).
+fn maybe_auto_bootstrap_from_checkpoint_log(
+    client: &mut RpcClient,
+    file: &mut WalletFile,
+    params: &LightScanParams,
+    chain_tip_height: u64,
+) -> Result<bool, WalletCmdError> {
+    let Some(log_path) = &params.checkpoint_log_path else {
+        return Ok(false);
+    };
+    if params.import_trusted_summary_path.is_some() {
+        return Ok(false);
+    }
+    if !needs_checkpoint_log_auto_bootstrap(file) {
+        return Ok(false);
+    }
+    if chain_tip_height == 0 {
+        return Ok(false);
+    }
+
+    let report = checkpoint_log_verify(log_path)?;
+    let max_tip = report.max_tip_height;
+    if max_tip == 0 {
+        return Ok(false);
+    }
+
+    let snap = client.get_light_snapshot(Some(max_tip))?;
+    if snap.tip_height != max_tip {
+        return Err(WalletCmdError::Usage(format!(
+            "checkpoint-log auto-bootstrap: get_light_snapshot at {max_tip} returned tip_height {}",
+            snap.tip_height
+        )));
+    }
+    cross_check_summary_against_checkpoint_log(&snap.summary, log_path)?;
+
+    file.scan_height = Some(max_tip);
+    file.light_checkpoint_hex = Some(snap.checkpoint_hex.clone());
+    if file.trusted_light_summary.is_none() || params.pin_trusted_summary {
+        file.trusted_light_summary = Some(snap.summary);
+    }
+    println!("checkpoint_log_auto_bootstrap tip={max_tip}");
+    Ok(true)
+}
+
 fn refresh_trusted_summary_from_checkpoint(
     file: &mut WalletFile,
     params: &LightScanParams,
@@ -522,4 +591,43 @@ fn decode_hex32(s: &str, label: &str) -> Result<[u8; 32], WalletCmdError> {
 
 fn parse_block_id_hex(s: &str) -> Result<[u8; 32], WalletCmdError> {
     decode_hex32(s, "block_id")
+}
+
+#[cfg(test)]
+mod b50_auto_bootstrap_tests {
+    use super::needs_checkpoint_log_auto_bootstrap;
+    use crate::wallet_store::{KeyDerivation, WalletFile};
+
+    fn fresh_file() -> WalletFile {
+        WalletFile::new(&[7u8; 32], KeyDerivation::MfnWalletV1)
+    }
+
+    #[test]
+    fn needs_bootstrap_when_fresh_wallet() {
+        let file = fresh_file();
+        assert!(needs_checkpoint_log_auto_bootstrap(&file));
+    }
+
+    #[test]
+    fn skips_bootstrap_when_checkpoint_present() {
+        let mut file = fresh_file();
+        file.light_checkpoint_hex = Some("ab".repeat(32));
+        file.scan_height = Some(100);
+        assert!(!needs_checkpoint_log_auto_bootstrap(&file));
+    }
+
+    #[test]
+    fn needs_bootstrap_when_scan_height_at_genesis_floor() {
+        let mut file = fresh_file();
+        file.scan_height = Some(1);
+        assert!(needs_checkpoint_log_auto_bootstrap(&file));
+    }
+
+    #[test]
+    fn skips_bootstrap_when_scan_height_advanced_without_hex() {
+        // Unusual, but do not clobber an in-progress tall scan_height.
+        let mut file = fresh_file();
+        file.scan_height = Some(50);
+        assert!(!needs_checkpoint_log_auto_bootstrap(&file));
+    }
 }
