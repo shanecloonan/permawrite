@@ -335,6 +335,8 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 1 — B-127 outside-in tip-ckpt lag assert** (this commit): `assert-outside-in-tip-ckpt-lag.{sh,ps1}` + rehearsal smokes; ci-check plan gate. Live probe FAIL tip=5215 ckpt_max=4851 lag=364 (expected until lane7 Path A). Evidence `outside-in-tip-ckpt-lag-20260721T154019Z.txt` + `b127-outside-in-tip-ckpt-lag-assert-20260721.md`. B-15-safe. Full CI (no skip). **CI `#29844848474` GREEN** on B-124 prior. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
+1. **2026-07-21 — lane 4 — claim B-128** (this commit): early B-24ai fifth-slash→dual settle (B-127 is lane1 ops) while **CI `#29847644779`** runs on B-126. Claim base `ba0b69d`. `[skip ci]`.
+
 
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
