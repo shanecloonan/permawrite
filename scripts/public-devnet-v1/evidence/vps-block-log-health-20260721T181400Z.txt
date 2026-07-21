@@ -1,0 +1,4 @@
+# B-140 assert-vps-block-log-health (VPS / B-53)
+assert-vps-block-log-health: rpc=127.0.0.1:18734 tip_height=5291
+assert-vps-block-log-health: get_block_ok height=5291 hexlen=2992
+assert-vps-block-log-health: PASS tip=5291
