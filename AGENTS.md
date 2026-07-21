@@ -134,13 +134,13 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-98** early B-24i (full CI). **CI `#29795731587` GREEN** on B-95 `665c166`. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-97** Path A tip-4833 (full CI). **CI #29797153366 GREEN** on B-98 8eb586e; **CI #29795731587 GREEN** on B-95. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4833** after B-97 | L4 checklist |
 | **4** Protocol | **B-98** slash→op1 asymmetric settle (this commit); **B-95** (`665c166`, CI `#29795731587` GREEN); **B-86** (`9fede5b`/`bef823d`, CI `#29793832972` GREEN); **B-83**/**B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | **B-99** slash→empty both-miss (post-slash prove matrix); after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -177,7 +177,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | 7+4 | **Wave10 F62/F65:** VPS not F62 (chain.blocks 6.3MiB, get_block PASS). F65 last_proven=4071 needs B-45 mfnd roll after CI+B-51. Evidence `b53-…` + wave10 | **Done** (F62 VPS); **Done** (mfnd roll + B-68) |
 | 7 | 3 | **B-53:** faucet `/health` no longer blocks on keepalive lock; use `assert-vps-block-log-health.sh` for F62 checks | **Open** |
 | 7 | 1+4 | **CI `#29715111633`:** produce-smoke timeout fixed in B-51 (60s); **b3_legacy** flake = **B-60** (`7ab86ad`) | **Done** |
-| 7 | 3 | **B-22 tip-4323:** re-pin / soft light-scan at new log max for SUMMARY | **Open** |
+| 7 | 3 | **B-22 / B-97 tip-4833:** re-pin / soft light-scan at new log max for SUMMARY (was 4679; F45 lag~130→~0) | **Open** |
 | 7 | 3 | **B-55:** browser UI at `http://5.161.201.73:3000/testnet` (optional; local observer still preferred for JOIN evidence) | **Open** |
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
 | 3 | 7 | **F68/F68b:** Windows bootstrap ps1 - temp `.py` TCP snapshot (B-58). Evidence wave12 + `b58-…` | **Done** (B-58) |
@@ -269,6 +269,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-90 | Observer proxy tip-align before list_recent_uploads (F105) + tip-4641 | 7 | **Landed** (`89a047b`); CI `#29776397760` cancelled by B-34; re-proved via B-91; entries=24 |
 | B-91 | Public-testnet health assert (timer+proxy tip-align+faucet+ckpt lag) + tip-4662 | 7 | **Landed** (`13cdb01`); **CI `#29779275119` GREEN**; entries=25 |
 | B-92 | Path A tip-4679 (lag=17 after waves 46-47) + B-91 CI note | 7 | **Landed** (this commit); entries=26 |
+| B-97 | Path A tip-4833 land + Windows land-path-a-checkpoint-from-vps.ps1 | 7 | **Landed** (this commit); closes F45 lag~130; exact-tip 4833; entries=32; B-15-safe |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
@@ -287,6 +288,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-21 — lane 7 — B-97 Path A tip-4833** (this commit): published+landed exact-tip ckpt **4679→4833** (entries=32); lag 130→0; `assert-public-testnet-health` + peers-clean OK; added Windows `land-path-a-checkpoint-from-vps.ps1`. B-15-safe (no faucet/mfnd restart). Evidence `b97-path-a-tip4833-20260721.md`. Prior **CI #29797153366 GREEN** on B-98. Full CI (no skip). *Observed (not staged):* lane-1 B-96 soak WIP, JOIN temps.
 1. **2026-07-21 — lane 4 — B-98 slash→op1 asymmetric settle** (this commit): early B-24i `b98_b5_slash_funded_treasury_then_op1_asymmetric_settle_*`; local release test PASS. Prior **CI `#29795731587` GREEN** on B-95. Id avoids lane-1 **B-96** + lane-7 **B-97**. Full CI (no skip). *Observed (not staged):* lane-1 soak pin-assert WIP, lane-7 Path A / ckpt WIP, JOIN temps. Still blocked on 2nd host for live **B-32**.
 1. **2026-07-21 — lane 3 — B-15 wave58**: **zion** faucet-F101b permanence **last_proven=4823** (commit `54887d55`); F45 lag=130; claims 32→33. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-21 — lane 4 — B-95 slash→asymmetric settle** (this commit): early B-24h `b95_b5_slash_funded_treasury_then_asymmetric_settle_*`; local debug + `cargo fmt` PASS. Prior **CI `#29793832972` GREEN** on B-86. Full CI (no skip). *Observed (not staged):* JOIN temps. Still blocked on 2nd host for live **B-32**.
@@ -338,7 +340,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-07-20 - lane 1 - B-27 CI watch** (`45e40d6`): CI #29758129931 cancelled by B-81; scripts ubuntu/windows were GREEN. Watching #29758805553 on f924a63. Docs [skip ci].
 1. **2026-07-20 — lane 3 — B-15 wave34 open**: F104 wipe — quarantined divergent `live-testnet-data` → `…-divergent-20260720-113211`; fresh mfnd tip_id match @4525; proxy-prove gate armed; zoe battery running. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 3 — B-15 wave33b**: yara faucet+upload **Fresh** `0d2b070b` but prove stuck **local_only**; proxy has=false; claims stayed 13 (**F104**). F45 hard-scan TIMEOUT. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.
-2. **2026-07-20 - lane 1 - B-27 outside-in invite soak** (this commit): successor soak for systemd-live invite head via public proxy; tip 4501->4503; evidence outside-in-invite-soak-20260720T155203Z.txt + 27-outside-in-invite-soak-20260720.md; ci-check plan gate. Pins Nightly #29755942849 + CI #29753244727. B-15-safe. *Observed (not staged):* JOIN temps, user-wallet/, live-testnet-data*.
+2. **2026-07-20 - lane 1 - B-27 outside-in invite soak** (this commit): successor soak for systemd-live invite head via public proxy; tip 4501->4503; evidence outside-in-invite-soak-20260720T155203Z.txt + b27-outside-in-invite-soak-20260720.md; ci-check plan gate. Pins Nightly #29755942849 + CI #29753244727. B-15-safe. *Observed (not staged):* JOIN temps, user-wallet/, live-testnet-data*.
 1. **2026-07-20 — lane 4 — B-81 full-slash deregister while peer settles** (this commit): early B-24e `b81_b5_full_slash_deregister_*` (code was missing from B-27 board claim — landed here). Local debug test PASS. Full CI. *Observed (not staged):* JOIN/`user-wallet`/`live-testnet-data*`/lane-3 temps.
 2. **2026-07-20 — lane 3 — B-15 wave33**: yara permanence **FAIL** — F45 lag=1 after B-80 tip-4496; faucet 429; peer xena/uma **available 0** after pin_clean (**F103**); F97 timeouts. Recovery = wave33b. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.
 2. **2026-07-20 - lane 1 - B-29 CLOSED** (this commit): Nightly #29755942849 GREEN — participant + observer + ignored P2P/produce all success on d248ba2 (ancestor **B-75** 9d8bd30; **CI #29753244727 GREEN**). Docs board close [skip ci] while B-80 CI in progress.
@@ -370,7 +372,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-07-20 — lane 4 — board SYNC** (this commit): **B-67** on `f6273cb` (subject mislabeled); **B-71/B-70** on `09ca8c4` (lane-3 wave22 commit carried the peers filter + tip-4307). Watching **CI `#29733127733`**. Docs-only `[skip ci]`.
 2. **2026-07-20 — lane 4 — B-67** (`f6273cb` body): multi-op slash while peer settles. Prior CI cancelled by docs concurrency.
 3. **2026-07-20 - lane 7 - B-68 + B-69**: Hetzner mfnd roll after CI `#29725270815` GREEN; tip stall from ephemeral `peers.json` → scrub + restart (tip 4295+); `scrub-vps-peers-json.sh` wired into `vps-roll-mfnd`. CI `#29728151679` RED (windows produce-smoke synced public tip) → `MFN_SKIP_MANIFEST_SEEDS=1` in produce smokes. Evidence `b68-peers-scrub-mfnd-roll-20260720.md`. *Observed:* leave `apply_block_proptest.rs`, `support-bundle.*`, JOIN temps, `user-wallet/`, `live-testnet-data*` unstaged.
-1. **2026-07-20 — lane 3 — B-15 wave20+21** (this commit): wave20 F87/F88/F79/F85; wave21 wipe+resync tip_id match; mike faucet /faucet + upload bound; **last_proven=4304**; proxy listed; claims for PASS. Findings F88b tip_id lag, F89 faucet path. JOIN SUMMARY draft. Evidence wave20.md + wave21.md + B15-JOIN-SUMMARY-DRAFT-20260720.md. *Observed (not staged):* pply_block_proptest.rs, probe temps, user-wallet/, live-testnet-data*.
+1. **2026-07-20 — lane 3 — B-15 wave20+21** (this commit): wave20 F87/F88/F79/F85; wave21 wipe+resync tip_id match; mike faucet /faucet + upload bound; **last_proven=4304**; proxy listed; claims for PASS. Findings F88b tip_id lag, F89 faucet path. JOIN SUMMARY draft. Evidence wave20.md + wave21.md + B15-JOIN-SUMMARY-DRAFT-20260720.md. *Observed (not staged):* apply_block_proptest.rs, probe temps, user-wallet/, live-testnet-data*.
 
 1. **2026-07-20 - lane 7 - B-68 peers scrub + mfnd roll**: CI `#29725270815` GREEN; `vps-roll-mfnd --skip-build` then tip stall (ephemeral `peers.json`); scrub + restart voters/hub; tip 4295+; tooling `scrub-vps-peers-json.sh`. Evidence `b68-peers-scrub-mfnd-roll-20260720.md`. *Observed:* leave `apply_block_proptest.rs`, JOIN `user-wallet/`, `live-testnet-data*`, lane-3 temps unstaged.
 2. **2026-07-20 — lane 4 — B-67 claim** (this commit): multi-op B5 slash while peer settles (early B-24c); local test PASS; land after **CI `#29728151679`**. Docs-only `[skip ci]`.
