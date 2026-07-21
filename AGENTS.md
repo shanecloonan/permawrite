@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-147** early B-24ao (docs-only while **CI `#29862082733`** runs on B-143 `2dec0fd`). **CI `#29859782849` GREEN** on B-142. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Landing **B-147** early B-24ao (full CI). **CI `#29862082733` GREEN** on B-143 `2dec0fd`. **B-15 JOIN PASS**. **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-143** (`2dec0fd`, watch CI `#29862082733`); **B-142** (`360481f`, CI `#29859782849` GREEN); **B-132** (`d025b37`); **B-131**/**B-130** stack | **B-147** settle-reset→sixth dual-slash (claim base: `2dec0fd`) | After land: sixth-offense prove matrix; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-147** settle-reset→sixth dual-slash (this commit); **B-143** (`2dec0fd`, CI `#29862082733` GREEN); **B-142** (`360481f`); **B-132** stack | *Idle* — next sixth-offense dual settle (**B-148**); live **B-32** still needs 2nd host | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -323,7 +323,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-132 | Fifth dual-slash then empty both-miss (early B-24al) | 4 | **Landed** (`d025b37`); **CI `#29857236769` GREEN**; closes fifth-offense prove matrix |
 | B-142 | Fifth-offense asymmetric then absentee re-slash (early B-24am) | 4 | **Landed** (this commit); elevates B-122; full CI |
 | B-143 | Fifth-offense op1 asymmetric then absentee re-slash (early B-24an) | 4 | **Landed** (`2dec0fd`); completes fifth-offense re-slash pair; full CI |
-| B-147 | Settle-reset then sixth dual-slash treasury identity (early B-24ao) | 4 | **Claimed** (this commit) — elevates B-126; full CI after `#29862082733` GREEN |
+| B-147 | Settle-reset then sixth dual-slash treasury identity (early B-24ao) | 4 | **Landed** (this commit); elevates B-126; full CI |
+| B-148 | Sixth dual-slash then dual-settle drain (early B-24ap) | 4 | Next after B-147 CI GREEN — elevates B-128 |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -338,6 +339,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — B-147 settle-reset→sixth dual-slash** (this commit): early B-24ao `b147_b5_settle_reset_then_sixth_dual_slash_treasury_identity`; local debug PASS. **CI `#29862082733` GREEN** on B-143. Elevates B-126. Full CI (no skip). Next: **B-148** sixth-slash→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
 
 1. **2026-07-21 — lane 4 — claim B-147** (this commit): early B-24ao settle-reset→sixth dual-slash while **CI `#29862082733`** runs on B-143. Claim base `2dec0fd`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
@@ -376,8 +379,4 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-07-21 — lane 7 — B-139 peers-clean + checklist tip-5290** (this commit): VPS `assert-vps-peers-clean` OK; mirrored **B-137** tip-5290 + **B-138** health + **B-29 CLOSED** into `docs/TESTNET_CHECKLIST.md`. Evidence `vps-peers-clean-20260721T181200Z.txt` + `b139-peers-clean-checklist-tip5290-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 1. **2026-07-21 — lane 7 — B-138 public-testnet health post-B-137** (this commit): VPS `assert-public-testnet-health --apply` OK (timer success, proxy+faucet ok, tip=5290 ckpt=5290 lag=0). Evidence `public-testnet-health-20260721T181000Z.txt` + `b138-public-testnet-health-post-b137-20260721.md`. §6 B-22/B-100 → Ack tip-5290 for lane3 SUMMARY. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
-
-1. **2026-07-21 — lane 7 — B-137 Path A tip-5290 land** (this commit): VPS timer active; `publish-near-tip-checkpoint-if-lag --apply` → tip=5290 entries=48; `land-path-a-checkpoint-from-vps -Apply`; tip-ckpt lag assert OK (tip=5289 ckpt=5290). Closes §6 B-125 tip lag. Evidence `b137-path-a-land-tip5290-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. Also repaired mangled §7/§8. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
-
-1. **2026-07-21 — lane 7 — claim B-137** (this commit): Path A land from VPS (timer active; remote ckpt tip=5269 vs local 4851) while **CI `#29854607541`** runs on B-131. Also repair mangled §7/§8. Claim base `713473b`. `[skip ci]`. B-15-safe (scp jsonl only; no faucet/mfnd). *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 

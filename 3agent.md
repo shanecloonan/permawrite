@@ -24,7 +24,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **B-141** (`7e2746b`); pin **CI `#29857236769` GREEN** on B-132; Nightly `#29854540235` GREEN | *Idle* — pin B-132 when GREEN | Release-evidence after CI+Nightly; Path A lag probe |
-| **B** Protocol/Privacy | **B-143** (`2dec0fd`); fifth-offense re-slash pair closed | **B-147** settle-reset→sixth dual-slash (claim base `2dec0fd`) | After land: sixth-offense prove matrix; after 2 hosts: **B-32** |
+| **B** Protocol/Privacy | **B-147** settle-reset→sixth dual-slash (this commit); **B-143** (`2dec0fd`, CI `#29862082733` GREEN) | *Idle* — next **B-148** sixth dual settle | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; **B-146**/**B-145**/**B-144** | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
 
 ### Hard locks (all seats)
