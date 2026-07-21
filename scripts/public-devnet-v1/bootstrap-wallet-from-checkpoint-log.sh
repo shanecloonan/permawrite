@@ -5,13 +5,16 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib-python3.sh
+source "$SCRIPT_DIR/lib-python3.sh"
+mfn_require_python3
 REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 PLAN_ONLY=0
 APPLY=0
 RPC="${MFN_BOOTSTRAP_RPC:-127.0.0.1:18731}"
 WALLET=""
 LOG="$REPO_ROOT/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
-MCLI="${MCLI:-$REPO_ROOT/target/release/mfn-cli}"
+MCLI="${MCLI:-$(mfn_resolve_release_bin "$REPO_ROOT/target/release/mfn-cli")}"
 
 usage() {
   cat <<'EOF'

@@ -6,6 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=ports-env-lib.sh
 source "$SCRIPT_DIR/ports-env-lib.sh"
+# shellcheck source=lib-python3.sh
+source "$SCRIPT_DIR/lib-python3.sh"
+mfn_require_python3
 
 RPC=""
 FAUCET_URL="http://127.0.0.1:8788"
@@ -102,7 +105,7 @@ if [[ ! -f "$CHECKPOINT_LOG" ]]; then
   exit 1
 fi
 
-MFN_CLI="$REPO_ROOT/target/release/mfn-cli"
+MFN_CLI="$(mfn_resolve_release_bin "$REPO_ROOT/target/release/mfn-cli")"
 if (( ! NO_BUILD )); then
   cargo build -p mfn-cli --release --bin mfn-cli --manifest-path "$REPO_ROOT/Cargo.toml"
   cargo build -p mfn-storage-operator --release --bin mfn-storage-operator --manifest-path "$REPO_ROOT/Cargo.toml"

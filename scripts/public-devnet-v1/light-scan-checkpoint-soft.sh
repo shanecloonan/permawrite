@@ -5,8 +5,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib-python3.sh
+source "$SCRIPT_DIR/lib-python3.sh"
+mfn_require_python3
 REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
-MCLI="${MCLI:-$REPO_ROOT/target/release/mfn-cli}"
+MCLI="${MCLI:-$(mfn_resolve_release_bin "$REPO_ROOT/target/release/mfn-cli")}"
 RPC=""
 WALLET=""
 LOG=""

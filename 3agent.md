@@ -25,7 +25,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | --- | --- | --- | --- |
 | **A** RC/CI | **B-141** (`7e2746b`); **CI `#29854607541` GREEN** on B-131; Nightly `#29854540235` GREEN; **B-29 CLOSED** | *Idle* — watch B-132 head CI | Release-evidence after CI+Nightly GREEN; do not cancel healthy in_progress |
 | **B** Protocol/Privacy | **B-132** fifth-slash→empty both-miss (`7b5f3ef`); **B-131** (`40d0222`); fifth-offense matrix {00,01,10,11} closed | *Idle* | After 2 hosts + B-15: live **B-32** → **B-44** → full **B-24**; lane5 **B-50** Rust auto-bootstrap |
-| **C** Testnet/Onboarding | **B-140**…**B-137** Path A tip-**5290** | **B-15** formal JOIN (observer sync + rehearsal; claim base `92f1f31`) | Assert SUMMARY PASS → unlock **B-42** → **B-14** TL-9; 2nd host for **B-32** |
+| **C** Testnet/Onboarding | **B-144** python3 JOIN resolve (this commit); Path A tip-**5290** | **B-15** formal JOIN — local observer syncing (`b15-fresh` tip climbing to ~5306) | JOIN smoke + assert SUMMARY PASS → **B-42** → **B-14** |
 
 ### Hard locks (all seats)
 
