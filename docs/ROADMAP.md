@@ -324,6 +324,10 @@ B-108 arc through a third dual empty-audit slash, then the B-101 path: op0-only 
 
 Symmetric twin of B-113: B-108 arc through a third dual slash, then op1-only settle, window-spaced climb of absentee (op0) miss to `cap-1`, then op1 settles again while op0 alone re-slashes. Completes the third-offense asymmetric re-slash pair (B-113/B-114). Does **not** close full **B-24**.
 
+#### B-115 — second-offense asymmetric then absentee re-slash while peer settles (lane 4; early B-24y)
+
+Two successive dual empty-audit slashes (B-103), then the B-101 path: op0-only settle, window-spaced climb of absentee miss to `cap-1`, then op0 settles again while op1 alone re-slashes. Fills the second-offense gap between B-101 (first-offense funding) and B-113 (third-offense funding). Complements B-104/B-105 (second-slash settle matrix). Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
