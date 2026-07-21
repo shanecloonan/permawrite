@@ -1,9 +1,62 @@
-# 3agent (retired pointer)
+# 3agent — three-seat session cockpit
 
-The 3agent board is retired. **All agent coordination — every lane, claim, status, request, and backlog — lives in exactly one file:**
+> **Authority:** [`AGENTS.md`](./AGENTS.md) wins every disagreement (claims, backlog, §6, pipeline).
+> **This file:** human-facing Done / Doing / Next for up to **three concurrent agents**.
+> **History:** retired 3agent session dumps live in [`docs/AGENTS_LEDGER.md`](./docs/AGENTS_LEDGER.md).
+> **Release gates:** still tick [`docs/TESTNET_CHECKLIST.md`](./docs/TESTNET_CHECKLIST.md) and mirror TL in [`docs/TESTNET_LAUNCH.md`](./docs/TESTNET_LAUNCH.md).
 
-> **[`AGENTS.md`](./AGENTS.md)** — the live control board and unit pipeline.
+Update this cockpit in the **same commit** as the unit it describes. If it drifts from `AGENTS.md` §5, fix the board first, then mirror here.
 
-History from this board (the lanes 1–3 session-by-session record) is preserved verbatim in [`docs/AGENTS_LEDGER.md`](./docs/AGENTS_LEDGER.md) § *Snapshot: 3agent.md session history*.
+## Seats (map to lanes)
 
-Do not add coordination content here.
+| Seat | Focus | Owns (lanes) | Does not steal |
+| --- | --- | --- | --- |
+| **A — RC / CI** | Mesh, CI/Nightly, board integrity, release evidence | 1 + 2 | Protocol tests (B), VPS JOIN / Path A live apply (C) |
+| **B — Protocol / Privacy** | `apply_block`, SPoRA/slash matrix, wallet ring defaults | 4 + 5 | Hetzner mfnd/faucet restarts (C), Nightly dispatch (A) |
+| **C — Testnet / Onboarding** | JOIN evidence, Path A, faucet/observer/VPS, invite-load | 3 + 7 | Consensus proptest edits (B), board-encoding guards alone (A) |
+
+Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
+
+## Live seats (NOW)
+
+Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path A max=5290, lag≈1 (healthy).
+
+| Seat | Done | Doing | Next |
+| --- | --- | --- | --- |
+| **A** RC/CI | **B-141** 3agent cockpit + §8 repair (this commit); **B-136** tip-ckpt health_ok FAIL; **B-94**; **B-29 CLOSED**; Nightly `#29854540235` GREEN | *Idle* after B-141 — watch CI `#29854607541` (rate-limit may hide `gh`) | Pin CI when green; release-evidence after CI+Nightly; do not cancel healthy in_progress |
+| **B** Protocol/Privacy | **B-131** fifth-slash→op1 asymmetric (`40d0222` tip); **B-130**…**B-126** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) — owns `apply_block_proptest.rs` | After matrix close + 2 hosts + B-15: live **B-32** → **B-44** → full **B-24**; lane5 **B-50** Rust auto-bootstrap |
+| **C** Testnet/Onboarding | **B-140** block-log + §6 B-53/B-56; **B-139** peers+checklist; **B-138** health; **B-137** Path A tip-**5290** | **B-15** formal JOIN archive (lane 3) — re-pin / soft light-scan at ckpt **5290** | Human/assert SUMMARY → unlock **B-42** invite-load live → **B-14** TL-9; 2nd host for **B-32** |
+
+### Hard locks (all seats)
+
+1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
+2. **CI concurrency:** if GitHub CI is `in_progress` on `main`, prefer `[skip ci]` for docs/ops; never cancel a healthy run.
+3. **Foreign WIP:** never stage another seat's uncommitted files (today: seat B `mfn-consensus/tests/apply_block_proptest.rs`).
+4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
+
+## Critical path (shared)
+
+```text
+L4 public testnet harden
+  ├─ Seat C: B-15 JOIN SUMMARY (re-pin tip-5290)
+  ├─ Seat B: B-132 close fifth-offense prove matrix → (later) B-32 multi-op
+  └─ Seat A: green CI+Nightly pins on heads
+→ Phase 1 permanence: B-40 + B-13a → B-25 (seat A/B with lane 6)
+→ TL-9 invites: B-42 → B-14 (seat C) after B-15 PASS
+```
+
+## Collaboration protocol
+
+1. **SYNC** `AGENTS.md` §5–§8 + this file + `git log -15` + `gh run list` (when API allows).
+2. **CLAIM** on `AGENTS.md` §5 first (lane Doing + claim base), then mirror the seat row here.
+3. **BUILD / PROVE / LAND** per `AGENTS.md` §3; tick TESTNET checklist when a release gate closes.
+4. **CLOSE:** clear seat Doing (or claim next), prepend `AGENTS.md` §8, keep this cockpit ≤ one screen of Now.
+
+## Chat announcement (copy)
+
+```text
+3agent — Seat A: Done / Doing / Next
+3agent — Seat B: Done / Doing / Next
+3agent — Seat C: Done / Doing / Next
+(AGENTS.md §5 remains the claim surface)
+```

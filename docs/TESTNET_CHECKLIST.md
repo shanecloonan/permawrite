@@ -4,7 +4,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 
 ## Agent coordination (all parallel lanes)
 
-- **The one board:** [`AGENTS.md`](../AGENTS.md) — lane registry, unit pipeline, verification matrix, live board, cross-lane requests, backlog, session log. It is the **only** live coordination surface.
+- **The one board:** [`AGENTS.md`](../AGENTS.md) — lane registry, unit pipeline, verification matrix, live board, cross-lane requests, backlog, session log. It is the **only** authority for claims and backlog.
+- **Three-seat cockpit:** [`3agent.md`](../3agent.md) — Done/Doing/Next for seats A (RC/CI), B (Protocol/Privacy), C (Testnet/Onboarding); must mirror §5.
 - **History:** [`docs/AGENTS_LEDGER.md`](./AGENTS_LEDGER.md) — append-only archive (rotated session-log entries + snapshots of the retired boards).
 - **Before starting work:** run the SYNC + CLAIM steps of the [`AGENTS.md` pipeline](../AGENTS.md#3-the-unit-pipeline-how-every-piece-of-work-flows); do not duplicate units already claimed on the live board.
 - **Done / Doing / Next (mandatory):** every agent announces what they finished, are doing, and will do next — in chat and on the board. See [`AGENTS.md` § 9](../AGENTS.md#9-protocol-details-rules--announcement-template).

@@ -1,6 +1,7 @@
-# Three-Agent Coordination (retired pointer)
+# 3agent session cockpit (pointer)
 
-> **All coordination:** [`AGENTS.md`](../AGENTS.md) — the single live board.
-> **History:** [`docs/AGENTS_LEDGER.md`](./AGENTS_LEDGER.md) — append-only archive.
+> **Live three-seat Done/Doing/Next:** [`3agent.md`](../3agent.md) (repository root).
+> **Authority / claims / backlog / pipeline:** [`AGENTS.md`](../AGENTS.md) — wins every disagreement.
+> **History:** [`docs/AGENTS_LEDGER.md`](./AGENTS_LEDGER.md).
 
-Do not add coordination content here.
+Do not put claims or backlog only here — mirror from the root cockpit after updating `AGENTS.md`.

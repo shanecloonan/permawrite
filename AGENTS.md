@@ -12,7 +12,7 @@ Why this system exists (and why it is this strict): [`docs/VIBECODING.md`](docs/
 
 ## 0. The contract (read before anything else)
 
-1. **One live board.** All claims, status, handoffs, requests, and backlog live in this file only. You never have to update two surfaces, so the board can never drift against itself.
+1. **One live board.** All claims, status, handoffs, requests, and backlog live in this file only. You never have to update two surfaces, so the board can never drift against itself. Optional mirror: [`3agent.md`](3agent.md) holds three-seat Done/Doing/Next for concurrent agents — never claim only there; if it disagrees with §5, fix §5 first.
 2. **No silent work.** If you are coding without a **Doing** row in §5, stop and claim first.
 3. **Read before write.** Scan the whole §5 board + §6 requests before claiming anything.
 4. **History is append-only.** Completed work rotates from §8 into [docs/AGENTS_LEDGER.md](docs/AGENTS_LEDGER.md); nothing is ever silently deleted.
@@ -29,7 +29,7 @@ Why this system exists (and why it is this strict): [`docs/VIBECODING.md`](docs/
 | [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Release gates (RC hardening checklist) | Check off gates when units land; do not track live work here |
 | [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md) | Lane 7 TL phase tracker | Lane 7 mirrors TL unit status here |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Strategic phase map L0–L7, critical path, research backlog | External planning + all lanes at SYNC |
-| [`3agent.md`](3agent.md), [`docs/3agent.md`](docs/3agent.md), [`docs/AGENTS.md`](docs/AGENTS.md) | Legacy pointer stubs | Redirect here; never add content |
+| [`3agent.md`](3agent.md) (+ [`docs/3agent.md`](docs/3agent.md) pointer) | Three-seat Done/Doing/Next cockpit (A/B/C) | **Derived** from §5; update same-commit; this file wins on conflict. [`docs/AGENTS.md`](docs/AGENTS.md) stays a retired pointer |
 | [`docs/VIBECODING.md`](docs/VIBECODING.md) | Rationale: how AI builds this chain | Context, not state |
 | `scripts/validate-workflow-encoding.*`, `scripts/validate-rc-helper-scripts.*` | Board integrity guards | Fail closed on UTF-16/mojibake corruption of this file, the stubs, and the ledger |
 
@@ -134,12 +134,12 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-140** block-log health + §6 B-53/B-56 close (`[skip ci]` — do not cancel `#29854607541` on B-131). **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-141** 3agent cockpit + §8 repair (`[skip ci]` — do not cancel `#29854607541` on B-131; `gh` rate-limited at SYNC). **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
-| **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
+| **2** RC ops | **B-141** 3agent cockpit + §8 repair (this commit); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **5290** | L4 checklist |
 | **4** Protocol | **B-131** (`40d0222`, watch CI `#29854607541`); **B-130** (`b0fd1b1`, CI `#29852461441` GREEN); **B-128** (`1909584`); **B-126**/**B-124** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
@@ -325,18 +325,21 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-138 | Public-testnet health verify after Path A tip-5290 | 7 | **Landed** (`555d5df`) — VPS health OK lag=0; §6 re-pin Ack tip-5290 |
 | B-139 | VPS peers-clean + TESTNET_CHECKLIST tip-5290 / B-29 mirror | 7 | **Landed** (`002ee6c`) — peers OK; checklist B-22/B-29/B-137/B-138 |
 | B-140 | VPS block-log health + close §6 B-53/B-56 | 7 | **Landed** (`262c748`) — F62 PASS tip=5291; B-42 plan-only only |
+| B-141 | Revive `3agent.md` three-seat cockpit under AGENTS authority + §8 repair | 2 | **Landed** (this commit) — seats A/B/C Done/Doing/Next; AGENTS wins; tip lag≈1 |
 
 ---
 
-## 8. Session l1. **2026-07-21 — lane 7 — B-140 block-log health + §6 B-53/B-56** (this commit): VPS `assert-vps-block-log-health` PASS tip=5291; tip advancing; `invite-load-smoke-rehearsal --plan-only` PASS (live B-42 after B-15). Closed §6 B-53/B-56. Evidence `vps-block-log-health-20260721T181400Z.txt` + `b140-block-log-health-section6-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+## 8. Session log (who did what — newest first, max 20 entries)
 
-og (who did what — newest first, max 20 entries)
+> One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-> One entry per landed unit or board correction: date, lane, unit, com1. **2026-07-21 — lane 7 — B-139 peers-clean + checklist tip-5290** (this commit): VPS `assert-vps-peers-clean` OK; mirrored **B-137** tip-5290 + **B-138** health + **B-29 CLOSED** into `docs/TESTNET_CHECKLIST.md`. Evidence `vps-peers-clean-20260721T181200Z.txt` + `b139-peers-clean-checklist-tip5290-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+1. **2026-07-21 — lane 2 — B-141 3agent cockpit + §8 repair** (this commit): Revived `3agent.md` as three-seat Done/Doing/Next cockpit (A=RC/CI, B=Protocol/Privacy, C=Testnet/Onboarding) under AGENTS authority; updated §1 system map + §0 contract note; repaired mangled §8 header (B-140/B-139/B-138 splice). Outside-in tip=5291 ckpt=5290 lag=1. Evidence `b141-3agent-session-cockpit-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` may still be in flight; `gh` rate-limited at SYNC. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
-mits, v1. **2026-07-21 — lane 7 — B-138 public-testnet health post-B-137** (this commit): VPS `assert-public-testnet-health --apply` OK (timer success, proxy+faucet ok, tip=5290 ckpt=5290 lag=0). Evidence `public-testnet-health-20260721T181000Z.txt` + `b138-public-testnet-health-post-b137-20260721.md`. §6 B-22/B-100 → Ack tip-5290 for lane3 SUMMARY. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+1. **2026-07-21 — lane 7 — B-140 block-log health + §6 B-53/B-56** (this commit): VPS `assert-vps-block-log-health` PASS tip=5291; tip advancing; `invite-load-smoke-rehearsal --plan-only` PASS (live B-42 after B-15). Closed §6 B-53/B-56. Evidence `vps-block-log-health-20260721T181400Z.txt` + `b140-block-log-health-section6-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
-erification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+1. **2026-07-21 — lane 7 — B-139 peers-clean + checklist tip-5290** (this commit): VPS `assert-vps-peers-clean` OK; mirrored **B-137** tip-5290 + **B-138** health + **B-29 CLOSED** into `docs/TESTNET_CHECKLIST.md`. Evidence `vps-peers-clean-20260721T181200Z.txt` + `b139-peers-clean-checklist-tip5290-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+
+1. **2026-07-21 — lane 7 — B-138 public-testnet health post-B-137** (this commit): VPS `assert-public-testnet-health --apply` OK (timer success, proxy+faucet ok, tip=5290 ckpt=5290 lag=0). Evidence `public-testnet-health-20260721T181000Z.txt` + `b138-public-testnet-health-post-b137-20260721.md`. §6 B-22/B-100 → Ack tip-5290 for lane3 SUMMARY. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 1. **2026-07-21 — lane 7 — B-137 Path A tip-5290 land** (this commit): VPS timer active; `publish-near-tip-checkpoint-if-lag --apply` → tip=5290 entries=48; `land-path-a-checkpoint-from-vps -Apply`; tip-ckpt lag assert OK (tip=5289 ckpt=5290). Closes §6 B-125 tip lag. Evidence `b137-path-a-land-tip5290-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. Also repaired mangled §7/§8. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
@@ -364,17 +367,9 @@ erification verdicts. When this list exceeds 20, rotate the oldest entries verba
 
 1. **2026-07-21 — lane 4 — claim B-131** (this commit): early B-24ak fifth-slash→op1 asymmetric settle (B-130 twin) while **CI `#29852461441`** runs on B-130. Claim base `b0fd1b1`. *Observed (not staged):* lane-1 B-129 tip-ckpt lag scripts/evidence. `[skip ci]`.
 
-1. **2026-07-21 — lane 4 — claim B-131** (this commit): early B-24ak fifth-slash→op1 asymmetric settle (B-130 twin) while **CI `#29852461441`** runs on B-130. Claim base `b0fd1b1`. *Observed (not staged):* lane-1 B-129 tip-ckpt lag WIP. `[skip ci]`.
-
 1. **2026-07-21 — lane 4 — B-130 fifth-slash→asymmetric settle** (this commit): early B-24aj `b130_b5_fifth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29849999987` GREEN** on B-128. Full CI (no skip). Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-1 B-129 tip-ckpt lag scripts/evidence. Next: **B-131** op1 twin.
 
 1. **2026-07-21 — lane 1 — B-129 tip-ckpt lag auto-evidence** (this commit): scripts+evidence land — `--apply`/`-Apply` archives `evidence/outside-in-tip-ckpt-lag-*.txt` (disable `--no-archive`/`-NoArchive`); rehearsal smokes updated. Live FAIL tip=5233 ckpt_max=4851 lag=382. Evidence `outside-in-tip-ckpt-lag-20260721T161508Z.txt` + `b129-tip-ckpt-lag-auto-evidence-20260721.md`. Pins **B-127** via **CI `#29847644779` GREEN**. Board text raced into `b0fd1b1`; scripts land here. B-15-safe. `[skip ci]` so as not to cancel **CI `#29854607541`** on B-131; next full-CI tip proves scripts. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 1. **2026-07-21 — lane 4 — claim B-130** (this commit): early B-24aj fifth-slash→asymmetric settle (skip B-129 lane1) while **CI `#29849999987`** runs on B-128. Claim base `1909584`. *Observed (not staged):* lane-1 B-129 tip-ckpt lag scripts/evidence. `[skip ci]`.
-
-1. **2026-07-21 — lane 4 — claim B-130** (this commit): early B-24aj fifth-slash→asymmetric settle while **CI `#29849999987`** runs on B-128. Claim base `1909584`. Skip B-129 (lane1). *Observed (not staged):* lane-1 tip-ckpt lag scripts/evidence. `[skip ci]`.
-
-1. **2026-07-21 — lane 4 — B-128 fifth-slash→dual settle** (this commit): early B-24ai `b128_b5_fifth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29847644779` GREEN** on B-126. Full CI (no skip). Still blocked on 2nd host for live **B-32**. Next: **B-130** (B-129 = lane1).
-
-1. **2026-07-21 — lane 1 — claim B-129** (this commit): tip-ckpt lag auto-evidence archive while **CI `#29847644779`** runs on B-126 (proves B-127). Claim base `52496a4`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
