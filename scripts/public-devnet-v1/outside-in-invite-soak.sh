@@ -59,10 +59,19 @@ trap 'rm -f "$tmp"' EXIT
   nightly_run="${MFN_B27_NIGHTLY_RUN:-}"
   ci_run="${MFN_B27_CI_RUN:-}"
   if [[ -z "$nightly_run" ]] && command -v gh >/dev/null 2>&1; then
-    nightly_run="$(gh run list --workflow Nightly --limit 3 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>/dev/null | head -n1 || true)"
+    nightly_run="$(gh run list --workflow Nightly --limit 12 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>/dev/null | head -n1 || true)"
   fi
   if [[ -z "$ci_run" ]] && command -v gh >/dev/null 2>&1; then
-    ci_run="$(gh run list --workflow CI --branch main --limit 8 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>/dev/null | head -n1 || true)"
+    ci_run="$(gh run list --workflow CI --branch main --limit 12 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>/dev/null | head -n1 || true)"
+  fi
+  # B-123: single numeric pin only (reject multi-line/junk gh output; Win parity).
+  if [[ -n "$nightly_run" && ! "$nightly_run" =~ ^[0-9]+$ ]]; then
+    echo "outside-in-invite-soak: WARN ignoring non-numeric nightly_run=$nightly_run" >&2
+    nightly_run=""
+  fi
+  if [[ -n "$ci_run" && ! "$ci_run" =~ ^[0-9]+$ ]]; then
+    echo "outside-in-invite-soak: WARN ignoring non-numeric ci_run=$ci_run" >&2
+    ci_run=""
   fi
   if [[ -n "$nightly_run" ]]; then
     echo "# nightly_run=$nightly_run"

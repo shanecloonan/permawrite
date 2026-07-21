@@ -11,7 +11,7 @@ foreach ($f in $need) {
     if (-not (Test-Path $f)) { throw "outside-in-invite-soak-rehearsal-smoke: missing $f" }
 }
 $soakSrc = Get-Content -Raw (Join-Path $ScriptDir "outside-in-invite-soak.ps1")
-foreach ($n in @("B-27", "outside-in-invite-soak", "never=faucet-http", "assert-outside-in-invite-soak-evidence", "nightly_run=", "ci_run=", "Get-MfnGreenRunId")) {
+foreach ($n in @("B-27", "outside-in-invite-soak", "never=faucet-http", "assert-outside-in-invite-soak-evidence", "nightly_run=", "ci_run=", "Get-MfnGreenRunId", "B-123")) {
     if ($soakSrc -notmatch [regex]::Escape($n)) {
         throw "outside-in-invite-soak-rehearsal-smoke: outside-in-invite-soak.ps1 missing $n"
     }
@@ -32,7 +32,7 @@ if ($assertText -notmatch "assert-outside-in-invite-soak-evidence: OK") {
     throw "outside-in-invite-soak-rehearsal-smoke: fixture assert failed`n$assertText"
 }
 Write-Host "outside-in-invite-soak-rehearsal-smoke: plan"
-Write-Host "  unit=B-27+B-96"
+Write-Host "  unit=B-27+B-96+B-123"
 Write-Host "  soak=outside-in-invite-soak.ps1"
 Write-Host "  assert=assert-outside-in-invite-soak-evidence.ps1"
 Write-Host "  fixture_assert=true"

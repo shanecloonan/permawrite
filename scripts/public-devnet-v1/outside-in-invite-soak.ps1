@@ -40,7 +40,7 @@ $lines.Add("# samples=$Samples interval_s=$IntervalS min_delta=$MinDelta")
 $lines.Add("# never=faucet-http mfnd restart join-testnet-rehearsal")
 $nightlyRun = $env:MFN_B27_NIGHTLY_RUN
 $ciRun = $env:MFN_B27_CI_RUN
-# B-96 follow-up: avoid gh --jq (PowerShell eats quotes) and ExpandProperty (throws on empty under Stop).
+# B-96 follow-up / B-123: avoid gh --jq (PowerShell eats quotes) and ExpandProperty (throws on empty under Stop).
 function Get-MfnGreenRunId {
   param([string]$Workflow, [int]$Limit = 12, [string]$Branch = "")
   $ghArgs = @("run", "list", "--workflow", $Workflow, "--limit", "$Limit", "--json", "databaseId,conclusion")

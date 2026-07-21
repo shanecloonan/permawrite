@@ -19,7 +19,7 @@ do
   [[ -f "$f" ]] || { echo "outside-in-invite-soak-rehearsal-smoke: missing $f" >&2; exit 1; }
 done
 
-soak_needles=(B-27 outside-in-invite-soak never=faucet-http assert-outside-in-invite-soak-evidence nightly_run= ci_run=)
+soak_needles=(B-27 outside-in-invite-soak never=faucet-http assert-outside-in-invite-soak-evidence nightly_run= ci_run= B-123)
 for n in "${soak_needles[@]}"; do
   grep -qF -- "$n" "$SCRIPT_DIR/outside-in-invite-soak.sh" || {
     echo "outside-in-invite-soak-rehearsal-smoke: outside-in-invite-soak.sh missing $n" >&2
@@ -27,7 +27,7 @@ for n in "${soak_needles[@]}"; do
   }
 done
 
-for n in "missing # nightly_run" "missing # ci_run" "B-96"; do
+for n in "missing # nightly_run" "missing # ci_run" "B-96" "nightly_run=[0-9]+[[:space:]]*"; do
   grep -qF -- "$n" "$SCRIPT_DIR/assert-outside-in-invite-soak-evidence.sh" || {
     echo "outside-in-invite-soak-rehearsal-smoke: assert missing $n" >&2
     exit 1
@@ -48,7 +48,7 @@ assert_out="$(bash "$SCRIPT_DIR/assert-outside-in-invite-soak-evidence.sh" \
 }
 
 echo "outside-in-invite-soak-rehearsal-smoke: plan"
-echo "  unit=B-27+B-96"
+echo "  unit=B-27+B-96+B-123"
 echo "  soak=outside-in-invite-soak.sh"
 echo "  assert=assert-outside-in-invite-soak-evidence.sh"
 echo "  fixture_assert=true"

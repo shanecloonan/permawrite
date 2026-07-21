@@ -15,6 +15,14 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-122 (from live AGENTS.md §8)
+
+- **2026-07-21 — lane 4 — B-115 second-offense asymmetric→absentee re-slash** (this commit): early B-24y `b115_b5_second_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29829071765` GREEN** on B-114. Fills second-offense B-101 gap. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
+- **2026-07-21 — lane 4 — claim B-115** (this commit): early B-24y second-offense asymmetric→absentee re-slash while **CI `#29829071765`** runs on B-114. Claim base `e8300b9`. `[skip ci]`.
+- **2026-07-21 — lane 4 — B-114 third-offense op1 asymmetric→absentee re-slash** (this commit): early B-24x `b114_b5_third_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29826982613` GREEN** on B-113. Completes third-offense asymmetric re-slash pair. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
+- **2026-07-21 — lane 4 — claim B-114** (this commit): early B-24x third-offense op1 asymmetric→absentee re-slash while **CI `#29826982613`** runs on B-113. Claim base `9ae9618`. `[skip ci]`.
+
+
 ### Rotation 2026-07-21 B-122-claim (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 4 — B-113 third-offense asymmetric→absentee re-slash** (this commit): early B-24w `b113_b5_third_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29824883480` GREEN** on B-112. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
