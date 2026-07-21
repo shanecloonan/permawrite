@@ -12246,6 +12246,514 @@ fn b153_b5_sixth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles
     }
 }
 
+/// B-154 (early B-24av): B-148 arc through sixth dual slash + dual settle reset, then
+/// advance past the proof-reward window and climb to a **seventh** dual empty-audit slash.
+/// Elevates B-147 settle-reset re-arm (fifth→sixth) to sixth→seventh. Does **not** close full **B-24**.
+#[test]
+fn b154_b5_settle_reset_then_seventh_dual_slash_treasury_identity() {
+    let gen = genesis_with_b5_two_operators();
+    let mut st = gen.state;
+    let cap = st.endowment_params.operator_audit_missed_cap;
+    let slash_bps = st.endowment_params.operator_slash_bps;
+    let window = st.endowment_params.proof_reward_window_slots;
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let mut slot = 10_000u32;
+    let mut bond0 = PROP_B5_OPERATOR_BOND;
+    let mut bond1 = PROP_B5_OPERATOR_BOND.saturating_mul(2);
+    let ch = storage_commitment_hash(&gen.built.commit);
+
+    let advance_past_window = |st: &ChainState, slot: u32| -> u32 {
+        let last = st.storage.get(&ch).map(|e| e.last_proven_slot).unwrap_or(0);
+        let min_slot =
+            u32::try_from(last.saturating_add(window).saturating_add(1)).unwrap_or(u32::MAX);
+        slot.max(min_slot)
+    };
+
+    let mut model = st.treasury;
+    // Offenses 1 and 2: dual empty-audit slash.
+    for offense in 0..2u32 {
+        for i in 0..(cap - 1) {
+            st = apply_empty_at_audit_slot(&st, slot);
+            assert_eq!(st.treasury, model, "pre-slash climb offense {offense} {i}");
+            slot = slot.saturating_add(1);
+        }
+        (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+        (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(st.treasury, model, "dual slash offense {offense}");
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            0
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            0
+        );
+        slot = slot.saturating_add(1);
+    }
+
+    // Dual settle drains second-offense slash credit and keeps miss at 0.
+    let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+    let proofs =
+        b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b11);
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+    assert_eq!(settlements.len(), 2, "both settle after second slash");
+    let bonus_total: u128 = settlements
+        .iter()
+        .map(|(_, b)| *b)
+        .fold(0, u128::saturating_add);
+    let storage_drain = u128::from(emission.storage_proof_reward)
+        .saturating_mul(2)
+        .saturating_add(bonus_total);
+    let expected_after_settle = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    st = match apply_block(&st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert_eq!(state.treasury, expected_after_settle, "dual settle drain");
+            assert_eq!(
+                state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+                0
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                0
+            );
+            assert_eq!(state.storage_operators[&gen.id0].bond_amount, bond0);
+            assert_eq!(state.storage_operators[&gen.id1].bond_amount, bond1);
+            state
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("settle accept, got {errors:?}"),
+    };
+    model = st.treasury;
+    slot = slot.saturating_add(1);
+
+    // Past proof-reward window: empties again count as missed audits.
+    slot = advance_past_window(&st, slot);
+
+    // Offense 3: re-climb from settle-reset miss=0, then dual slash again.
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(
+            st.treasury, model,
+            "pre-third-slash climb must not change treasury {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1,
+            "op0 miss after settle-reset {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1,
+            "op1 miss after settle-reset {i}"
+        );
+        slot = slot.saturating_add(1);
+    }
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(
+        st.treasury, model,
+        "third dual slash credits both forfeitures on post-settle bonds"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+    assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+    assert!(
+        st.storage_operators.contains_key(&gen.id0) && st.storage_operators.contains_key(&gen.id1),
+        "partial third slash must keep both registered"
+    );
+    slot = slot.saturating_add(1);
+
+    // Dual settle drains third-offense credit and resets miss streaks again.
+    {
+        let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+        let proofs =
+            b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b11);
+        let settlements =
+            storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+        assert_eq!(settlements.len(), 2, "both settle after third slash");
+        let bonus_total: u128 = settlements
+            .iter()
+            .map(|(_, b)| *b)
+            .fold(0, u128::saturating_add);
+        let storage_drain = u128::from(emission.storage_proof_reward)
+            .saturating_mul(2)
+            .saturating_add(bonus_total);
+        let expected_after_settle = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+        let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            proofs,
+        );
+        st = match apply_block(&st, &blk) {
+            ApplyOutcome::Ok { state, .. } => {
+                assert_eq!(
+                    state.treasury, expected_after_settle,
+                    "post-third settle drain"
+                );
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+                    0
+                );
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                    0
+                );
+                state
+            }
+            ApplyOutcome::Err { errors, .. } => panic!("post-third settle, got {errors:?}"),
+        };
+        model = st.treasury;
+        slot = slot.saturating_add(1);
+    }
+
+    // Past proof-reward window: empties again count as missed audits.
+    slot = advance_past_window(&st, slot);
+
+    // Offense 4: re-climb from settle-reset miss=0, then dual slash again.
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(
+            st.treasury, model,
+            "pre-fourth-slash climb must not change treasury {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1,
+            "op0 miss after second settle-reset {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1,
+            "op1 miss after second settle-reset {i}"
+        );
+        slot = slot.saturating_add(1);
+    }
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(
+        st.treasury, model,
+        "fourth dual slash credits both forfeitures on post-settle bonds"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+    assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+    assert!(
+        st.storage_operators.contains_key(&gen.id0) && st.storage_operators.contains_key(&gen.id1),
+        "partial fourth slash must keep both registered"
+    );
+    assert!(st.treasury > 0, "fourth-offense credit spendable");
+
+    slot = slot.saturating_add(1);
+
+    // Dual settle drains fourth-offense credit and resets miss streaks again.
+    {
+        let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+        let proofs =
+            b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b11);
+        let settlements =
+            storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+        assert_eq!(settlements.len(), 2, "both settle after fourth slash");
+        let bonus_total: u128 = settlements
+            .iter()
+            .map(|(_, b)| *b)
+            .fold(0, u128::saturating_add);
+        let storage_drain = u128::from(emission.storage_proof_reward)
+            .saturating_mul(2)
+            .saturating_add(bonus_total);
+        let expected_after_settle = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+        let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            proofs,
+        );
+        st = match apply_block(&st, &blk) {
+            ApplyOutcome::Ok { state, .. } => {
+                assert_eq!(
+                    state.treasury, expected_after_settle,
+                    "post-fourth settle drain"
+                );
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+                    0
+                );
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                    0
+                );
+                state
+            }
+            ApplyOutcome::Err { errors, .. } => panic!("post-fourth settle, got {errors:?}"),
+        };
+        model = st.treasury;
+        slot = slot.saturating_add(1);
+    }
+
+    // Past proof-reward window: empties again count as missed audits.
+    slot = advance_past_window(&st, slot);
+
+    // Offense 5: re-climb from settle-reset miss=0, then dual slash again.
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(
+            st.treasury, model,
+            "pre-fifth-slash climb must not change treasury {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1,
+            "op0 miss after third settle-reset {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1,
+            "op1 miss after third settle-reset {i}"
+        );
+        slot = slot.saturating_add(1);
+    }
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(
+        st.treasury, model,
+        "fifth dual slash credits both forfeitures on post-settle bonds"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+    assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+    assert!(
+        st.storage_operators.contains_key(&gen.id0) && st.storage_operators.contains_key(&gen.id1),
+        "partial fifth slash must keep both registered"
+    );
+    assert!(st.treasury > 0, "fifth-offense credit spendable");
+    slot = slot.saturating_add(1);
+
+    // Dual settle drains fifth-offense credit and resets miss streaks again.
+    {
+        let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+        let proofs =
+            b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b11);
+        let settlements =
+            storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+        assert_eq!(settlements.len(), 2, "both settle after fifth slash");
+        let bonus_total: u128 = settlements
+            .iter()
+            .map(|(_, b)| *b)
+            .fold(0, u128::saturating_add);
+        let storage_drain = u128::from(emission.storage_proof_reward)
+            .saturating_mul(2)
+            .saturating_add(bonus_total);
+        let expected_after_settle = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+        let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            proofs,
+        );
+        st = match apply_block(&st, &blk) {
+            ApplyOutcome::Ok { state, .. } => {
+                assert_eq!(
+                    state.treasury, expected_after_settle,
+                    "post-fifth settle drain"
+                );
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+                    0
+                );
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                    0
+                );
+                state
+            }
+            ApplyOutcome::Err { errors, .. } => panic!("post-fifth settle, got {errors:?}"),
+        };
+        model = st.treasury;
+        slot = slot.saturating_add(1);
+    }
+
+    // Past proof-reward window: empties again count as missed audits.
+    slot = advance_past_window(&st, slot);
+
+    // Offense 6: re-climb from settle-reset miss=0, then dual slash again.
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(
+            st.treasury, model,
+            "pre-sixth-slash climb must not change treasury {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1,
+            "op0 miss after fourth settle-reset {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1,
+            "op1 miss after fourth settle-reset {i}"
+        );
+        slot = slot.saturating_add(1);
+    }
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(
+        st.treasury, model,
+        "sixth dual slash credits both forfeitures on post-settle bonds"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+    assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+    assert!(
+        st.storage_operators.contains_key(&gen.id0) && st.storage_operators.contains_key(&gen.id1),
+        "partial sixth slash must keep both registered"
+    );
+    assert!(st.treasury > 0, "sixth-offense credit spendable");
+    slot = slot.saturating_add(1);
+
+    // Dual settle drains sixth-offense slash credit.
+    let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+    let proofs =
+        b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b11);
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+    assert_eq!(settlements.len(), 2, "both settle after sixth slash");
+    let bonus_total: u128 = settlements
+        .iter()
+        .map(|(_, b)| *b)
+        .fold(0, u128::saturating_add);
+    let storage_drain = u128::from(emission.storage_proof_reward)
+        .saturating_mul(2)
+        .saturating_add(bonus_total);
+    let expected_treasury = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert_eq!(
+                state.treasury, expected_treasury,
+                "sixth-offense slash-funded treasury then dual SPoRA drain"
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+                0
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                0
+            );
+            assert_eq!(state.storage_operators[&gen.id0].bond_amount, bond0);
+            assert_eq!(state.storage_operators[&gen.id1].bond_amount, bond1);
+            assert_eq!(
+                state.storage.get(&ch).expect("entry").last_proven_slot,
+                u64::from(slot)
+            );
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+
+    slot = advance_past_window(&st, slot);
+
+    // Offense 7: re-climb from settle-reset miss=0, then dual slash again.
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(
+            st.treasury, model,
+            "pre-seventh-slash climb must not change treasury {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1,
+            "op0 miss after fifth settle-reset {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1,
+            "op1 miss after fifth settle-reset {i}"
+        );
+        slot = slot.saturating_add(1);
+    }
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(
+        st.treasury, model,
+        "seventh dual slash credits both forfeitures on post-settle bonds"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+    assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+    assert!(
+        st.storage_operators.contains_key(&gen.id0) && st.storage_operators.contains_key(&gen.id1),
+        "partial seventh slash must keep both registered"
+    );
+    assert!(st.treasury > 0, "seventh-offense credit spendable");
+}
+
 /// B-118 (early B-24ab): B-117 arc through fourth dual slash, then both operators settle
 /// (`mask=0b11`) — fourth-offense slash credits fund dual SPoRA drain. Complements B-117
 /// (stops at fourth slash) and B-109 (third-slash→dual settle).
