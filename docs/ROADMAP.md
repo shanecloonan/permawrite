@@ -384,6 +384,10 @@ B-126 arc through a fifth dual empty-audit slash, then an empty audit slot. Clos
 
 B-126 arc through fifth dual slash, then the B-101 path: op0-only settle, window-spaced climb of absentee miss to `cap-1`, then op0 settles again while op1 alone re-slashes. Elevates B-122/B-113 to fifth-offense funding. Does **not** close full **B-24**.
 
+#### B-143 — fifth-offense op1 asymmetric then absentee re-slash while peer settles (lane 4; early B-24an)
+
+B-142 twin: B-126 arc through fifth dual slash, then B-102 path — op1-only settle. Completes fifth-offense asymmetric re-slash pair. Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).

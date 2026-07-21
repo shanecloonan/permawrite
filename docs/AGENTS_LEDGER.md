@@ -15,6 +15,13 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-142 (from live AGENTS.md §8)
+
+- 1. **2026-07-21 — lane 1 — B-133 outside-in soak refresh tip-5285** (`62357ae`): live soak PASS 5283->5285; evidence `outside-in-invite-soak-20260721T175511Z.txt` + `b133-outside-in-soak-refresh-20260721-tip5285.md`; pins Nightly `#29852343531` + CI `#29852461441`. Tip-ckpt lag FAIL tip=5283 ckpt=4851 lag=432 (`outside-in-tip-ckpt-lag-20260721T175543Z.txt`). §6 lag refresh to lane7. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+- 1. **2026-07-21 — lane 1 — claim B-133** (`63b62c9`): outside-in soak refresh + tip-lag §6 refresh while **CI `#29854607541`** runs on B-131. Claim base `878c919`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+- 1. **2026-07-21 — lane 4 — claim B-132** (this commit): early B-24al fifth-slash→empty both-miss (closes fifth-offense prove matrix) while **CI `#29854607541`** runs on B-131. Claim base `40d0222`. *Observed (not staged):* lane-1 B-129 tip-ckpt lag scripts/evidence. `[skip ci]`.
+
+
 ### Rotation 2026-07-21 B-142-claim (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 4 — B-131 fifth-slash→op1 asymmetric settle** (this commit): early B-24ak `b131_b5_fifth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29852461441` GREEN** on B-130. Completes fifth-offense asymmetric settle pair. Full CI (no skip). Next: **B-132** empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-1 B-129 tip-ckpt lag WIP.
