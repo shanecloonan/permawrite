@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-133** outside-in soak refresh + tip-lag §6 (docs-only while **CI `#29854607541`** on B-131). **CI `#29852461441` GREEN** on B-130. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-133** soak tip-5285 + tip-lag §6 (`[skip ci]` — do not cancel `#29854607541` on B-131). **CI `#29852461441` GREEN** on B-130. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-129** tip-ckpt lag auto-evidence (`7e2afb8`); **B-127** (`981dfd1`, CI `#29847644779` GREEN); **B-125** (`f46a162`); **B-123** (CI `#29842437172` GREEN); **B-96**; **B-34** | **B-133** outside-in soak refresh + tip-lag §6 (claim base: `878c919`) | Participant JOIN half after B-15 SUMMARY (lane 3); Path A republish = lane 7 (§6) | CI/Nightly run IDs |
+| **1** RC core | **B-133** soak tip-5285 (this commit); **B-129** (`7e2afb8`); **B-127** (`981dfd1`, CI `#29847644779` GREEN); **B-125** (`f46a162`); **B-123**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); Path A republish = lane 7 (§6) | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
 | **4** Protocol | **B-131** (`40d0222`, watch CI `#29854607541`); **B-130** (`b0fd1b1`, CI `#29852461441` GREEN); **B-128** (`1909584`); **B-126**/**B-124** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -182,7 +182,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
 | 3 | 7 | **F68/F68b:** Windows bootstrap ps1 - temp `.py` TCP snapshot (B-58). Evidence wave12 + `b58-…` | **Done** (B-58) |
 | 7 | 3 | **B-59:** wire `join-testnet-rehearsal.sh` light-scan through `light-scan-checkpoint-soft.sh` (F45 tip race) | **Done** (B-60) |
-| 1 | 7 | **B-125 tip lag:** public tip~5233 vs Path A ckpt max **4851** (lag=382 >> 16). **B-129** auto-evidence archived — please Path A republish (B-85/B-100). |
+| 1 | 7 | **B-125 tip lag:** public tip~5285 vs Path A ckpt max **4851** (lag=434 >> 16). **B-133** soak PASS + lag evidence — please Path A republish (B-85/B-100); B-85 timer may be stale. |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
@@ -312,7 +312,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-125 | Outside-in soak refresh + tip-lag §6 to lane7 | 1 | **Landed** (`f46a162`) — tip 5200->5202; §6 Path A lag~351 Open |
 | B-127 | Outside-in tip-vs-checkpoint lag assert (B-15-safe) | 1 | **Landed** (`981dfd1`); **CI `#29847644779` GREEN** (proved on B-126 tip) |
 | B-129 | Tip-ckpt lag assert auto-archives evidence (B-127 follow-up) | 1 | **Landed** (`7e2afb8`; board raced `b0fd1b1`) — scripts+evidence; tip=5233 lag=382 |
-| B-133 | Outside-in soak refresh + tip-lag §6 refresh | 1 | **Claimed** (this commit) — B-15-safe proxy soak; Path A still lane7 |
+| B-133 | Outside-in soak refresh + tip-lag §6 refresh | 1 | **Landed** (this commit) — tip 5283->5285; lag=432 evidence; Path A = lane7 |
 | B-126 | Settle-reset then fifth dual-slash treasury identity (early B-24ah) | 4 | **Landed** (`ba0b69d`); **CI `#29847644779` GREEN** |
 | B-128 | Fifth dual-slash then dual-settle drain (early B-24ai) | 4 | **Landed** (`1909584`); **CI `#29849999987` GREEN** |
 | B-130 | Fifth dual-slash then asymmetric settle drain (early B-24aj) | 4 | **Landed** (`b0fd1b1`); **CI `#29852461441` GREEN**; elevates B-119 |
@@ -323,7 +323,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
-> One entry per landed unit or board correction: d1. **2026-07-21 — lane 1 — claim B-133** (this commit): outside-in soak refresh + tip-lag §6 refresh while **CI `#29854607541`** runs on B-131. Claim base `878c919`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+> One entry per landed unit or board correction: d1. **2026-07-21 — lane 1 — claim B-133** (this com1. **2026-07-21 — lane 1 — B-133 outside-in soak refresh tip-5285** (this commit): live soak PASS 5283->5285; evidence `outside-in-invite-soak-20260721T175511Z.txt` + `b133-outside-in-soak-refresh-20260721-tip5285.md`; pins Nightly `#29852343531` + CI `#29852461441`. Tip-ckpt lag FAIL tip=5283 ckpt=4851 lag=432 (`outside-in-tip-ckpt-lag-20260721T175543Z.txt`). §6 lag refresh to lane7. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+
+mit): outside-in soak refresh + tip-lag §6 refresh while **CI `#29854607541`** runs on B-131. Claim base `878c919`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 ate, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
