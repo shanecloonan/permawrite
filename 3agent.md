@@ -23,7 +23,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-141** 3agent cockpit + §8 repair (this commit); **B-136** tip-ckpt health_ok FAIL; **B-94**; **B-29 CLOSED**; Nightly `#29854540235` GREEN | *Idle* after B-141 — watch CI `#29854607541` (rate-limit may hide `gh`) | Pin CI when green; release-evidence after CI+Nightly; do not cancel healthy in_progress |
+| **A** RC/CI | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-136** tip-ckpt health_ok FAIL; **B-94**; **B-29 CLOSED**; Nightly `#29854540235` GREEN | *Idle* after B-141 — watch CI `#29854607541` (rate-limit may hide `gh`) | Pin CI when green; release-evidence after CI+Nightly; do not cancel healthy in_progress |
 | **B** Protocol/Privacy | **B-131** fifth-slash→op1 asymmetric (`40d0222` tip); **B-130**…**B-126** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) — owns `apply_block_proptest.rs` | After matrix close + 2 hosts + B-15: live **B-32** → **B-44** → full **B-24**; lane5 **B-50** Rust auto-bootstrap |
 | **C** Testnet/Onboarding | **B-140** block-log + §6 B-53/B-56; **B-139** peers+checklist; **B-138** health; **B-137** Path A tip-**5290** | **B-15** formal JOIN archive (lane 3) — re-pin / soft light-scan at ckpt **5290** | Human/assert SUMMARY → unlock **B-42** invite-load live → **B-14** TL-9; 2nd host for **B-32** |
 

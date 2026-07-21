@@ -139,7 +139,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
-| **2** RC ops | **B-141** 3agent cockpit + §8 repair (this commit); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
+| **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **5290** | L4 checklist |
 | **4** Protocol | **B-131** (`40d0222`, watch CI `#29854607541`); **B-130** (`b0fd1b1`, CI `#29852461441` GREEN); **B-128** (`1909584`); **B-126**/**B-124** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
@@ -325,7 +325,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-138 | Public-testnet health verify after Path A tip-5290 | 7 | **Landed** (`555d5df`) — VPS health OK lag=0; §6 re-pin Ack tip-5290 |
 | B-139 | VPS peers-clean + TESTNET_CHECKLIST tip-5290 / B-29 mirror | 7 | **Landed** (`002ee6c`) — peers OK; checklist B-22/B-29/B-137/B-138 |
 | B-140 | VPS block-log health + close §6 B-53/B-56 | 7 | **Landed** (`262c748`) — F62 PASS tip=5291; B-42 plan-only only |
-| B-141 | Revive `3agent.md` three-seat cockpit under AGENTS authority + §8 repair | 2 | **Landed** (this commit) — seats A/B/C Done/Doing/Next; AGENTS wins; tip lag≈1 |
+| B-141 | Revive `3agent.md` three-seat cockpit under AGENTS authority + §8 repair | 2 | **Landed** (`7e2746b`) — seats A/B/C Done/Doing/Next; AGENTS wins; tip lag≈1 |
 
 ---
 
@@ -333,7 +333,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-21 — lane 2 — B-141 3agent cockpit + §8 repair** (this commit): Revived `3agent.md` as three-seat Done/Doing/Next cockpit (A=RC/CI, B=Protocol/Privacy, C=Testnet/Onboarding) under AGENTS authority; updated §1 system map + §0 contract note; repaired mangled §8 header (B-140/B-139/B-138 splice). Outside-in tip=5291 ckpt=5290 lag=1. Evidence `b141-3agent-session-cockpit-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` may still be in flight; `gh` rate-limited at SYNC. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+1. **2026-07-21 — lane 2 — B-141 3agent cockpit + §8 repair** (`7e2746b`): Revived `3agent.md` as three-seat Done/Doing/Next cockpit (A=RC/CI, B=Protocol/Privacy, C=Testnet/Onboarding) under AGENTS authority; updated §1 system map + §0 contract note; repaired mangled §8 header (B-140/B-139/B-138 splice). Outside-in tip=5291 ckpt=5290 lag=1. Evidence `b141-3agent-session-cockpit-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` may still be in flight; `gh` rate-limited at SYNC. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 1. **2026-07-21 — lane 7 — B-140 block-log health + §6 B-53/B-56** (this commit): VPS `assert-vps-block-log-health` PASS tip=5291; tip advancing; `invite-load-smoke-rehearsal --plan-only` PASS (live B-42 after B-15). Closed §6 B-53/B-56. Evidence `vps-block-log-health-20260721T181400Z.txt` + `b140-block-log-health-section6-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
