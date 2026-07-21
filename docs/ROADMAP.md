@@ -360,6 +360,10 @@ B-117 arc through fourth dual slash, then the B-101 path: op0-only settle, windo
 
 B-122 twin: B-117 arc through fourth dual slash, then B-102 path — op1-only settle, window-spaced climb of absentee (op0) miss to `cap-1`, then op1 settles again while op0 alone re-slashes. Completes fourth-offense asymmetric re-slash pair. **B-123** is lane1 soak id — skipped. Does **not** close full **B-24**.
 
+#### B-126 — settle-reset then fifth dual-slash treasury identity (lane 4; early B-24ah)
+
+B-117 elevated: fourth dual slash + dual settle reset, then advance past the proof-reward window and climb to a fifth dual empty-audit slash. Proves settle-reset re-arm across a third post-settle offense cycle. Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).

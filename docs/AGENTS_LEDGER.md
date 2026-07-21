@@ -15,6 +15,13 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-124 (from live AGENTS.md §8)
+
+- 1. **2026-07-21 — lane 4 — B-117 settle-reset→fourth dual-slash** (this commit): early B-24aa `b117_b5_settle_reset_then_fourth_dual_slash_treasury_identity`; local debug PASS. **CI `#29833394102` GREEN** on B-116. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
+- 1. **2026-07-21 — lane 1 — claim B-27 soak refresh** (this commit): outside-in invite soak at live tip~5145 while **CI #29833394102** runs on B-116. Claim base f943802. B-15-safe (public proxy only). [skip ci]. *Observed (not staged):* lane-4 pply_block_proptest.rs WIP.
+- 1. **2026-07-21 — lane 4 — claim B-117** (this commit): early B-24aa settle-reset→fourth dual-slash while **CI `#29833394102`** runs on B-116. Claim base `cd856d3`. `[skip ci]`.
+
+
 ### Rotation 2026-07-21 B-124-claim (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 4 — B-116 second-offense op1 asymmetric→absentee re-slash** (this commit): early B-24z `b116_b5_second_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29831106571` GREEN** on B-115. Completes second-offense asymmetric re-slash pair. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
