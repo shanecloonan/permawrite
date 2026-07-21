@@ -5404,6 +5404,106 @@ fn b102_b5_slash_funded_op1_asymmetric_then_absentee_reslash_while_peer_settles(
     }
 }
 
+/// B-103 (early B-24m): after a first dual empty-audit slash (B-76), both operators
+/// re-accumulate miss to `cap` and slash again. Treasury/bonds track two successive
+/// modeled dual forfeitures; miss streaks reset after each slash; both stay registered.
+#[test]
+fn b103_b5_repeated_dual_slash_second_offense_treasury_identity() {
+    let gen = genesis_with_b5_two_operators();
+    let mut st = gen.state;
+    let cap = st.endowment_params.operator_audit_missed_cap;
+    let slash_bps = st.endowment_params.operator_slash_bps;
+    let mut slot = 10_000u32;
+    let mut bond0 = PROP_B5_OPERATOR_BOND;
+    let mut bond1 = PROP_B5_OPERATOR_BOND.saturating_mul(2);
+
+    // First offense (B-76 path).
+    let treasury_before_first = st.treasury;
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(
+            st.treasury, treasury_before_first,
+            "pre-first-slash empty {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1
+        );
+        slot = slot.saturating_add(1);
+    }
+    let mut model = st.treasury;
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(
+        st.treasury, model,
+        "first dual slash credits both forfeitures"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+    assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+    slot = slot.saturating_add(1);
+
+    // Second offense: re-climb from reset streaks, then dual slash again.
+    let treasury_after_first = st.treasury;
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(
+            st.treasury, treasury_after_first,
+            "pre-second-slash empty must not change treasury {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1,
+            "second-offense op0 miss {i}"
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1,
+            "second-offense op1 miss {i}"
+        );
+        assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+        assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+        slot = slot.saturating_add(1);
+    }
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(
+        st.treasury, model,
+        "second dual slash must credit both forfeitures on reduced bonds"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits, 0,
+        "second slash resets op0"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits, 0,
+        "second slash resets op1"
+    );
+    assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+    assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+    assert!(
+        st.storage_operators.contains_key(&gen.id0) && st.storage_operators.contains_key(&gen.id1),
+        "partial dual slash must keep both operators registered after second offense"
+    );
+    assert!(
+        st.treasury > treasury_after_first,
+        "second offense must grow treasury"
+    );
+}
+
 /// B-64: settlements soft-skip unknown commit; apply hard-rejects.
 #[test]
 fn b64_unknown_commit_settlements_skip_apply_rejects() {
