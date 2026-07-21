@@ -15,6 +15,22 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-158-land
+
+1. **2026-07-21 — lane 4 — claim B-151** (this commit): early B-24as sixth empty both-miss while **CI `#29867968439`** runs on B-150. Claim base `6a2c779`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — B-150 sixth→op1 asymmetric settle** (`6a2c779`): early B-24ar `b150_b5_sixth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. Commit subject mislabeled as rustfmt fix-forward (parallel race with B-149 land). Watch **CI `#29867968439`**. Completes sixth-offense asymmetric settle pair with B-149. Next: **B-151** empty both-miss. Still blocked on 2nd host for live **B-32**.
+
+1. **2026-07-21 — lane 4 — claim B-150** (this commit): early B-24ar sixth-slash→op1 asymmetric settle while **CI `#29867927644`** runs on B-149. Claim base `6a2c779`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — claim B-150** (this commit): early B-24ar sixth dual-slash→op1 asymmetric settle while **CI `#29867927644`** runs on B-149. Claim base `bdf31e5`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — B-149 sixth dual-slash→asymmetric settle + B-148 rustfmt fix** (this commit): early B-24aq `b149_b5_sixth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. Fix-forward: remove extra blank after B-148 (CI `#29866791874` rustfmt FAIL). Elevates B-130. Full CI (no skip). Next: **B-150** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+1. **2026-07-21 — lane 4 — claim B-149** (this commit): early B-24aq sixth dual-slash→asymmetric settle while **CI `#29866791874`** runs on B-148. Claim base `cc77d1ff`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+
+
 ### Rotation 2026-07-21 B-155-land (from live AGENTS.md §8)
 
 - 1. **2026-07-21 — lane 4 — B-148 sixth dual-slash→dual settle** (this commit): early B-24ap `b148_b5_sixth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29864361735` GREEN** on B-147. Elevates B-128. Full CI (no skip). Next: **B-149** sixth-slash→asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
