@@ -1,4 +1,4 @@
-# B-127 / B-129 / B-134 / B-135 / lane 1: outside-in tip vs Path A checkpoint lag (Windows twin).
+# B-127 / B-129 / B-134 / B-135 / B-136 / lane 1: outside-in tip vs Path A checkpoint lag (Windows twin).
 # B-15-safe: never restarts faucet/mfnd/proxy; never runs JOIN. Does not publish Path A (lane 7).
 param(
     [switch]$PlanOnly,
@@ -22,12 +22,13 @@ if (-not $PlanOnly -and -not $Apply) {
 
 if ($PlanOnly) {
     Write-Host "assert-outside-in-tip-ckpt-lag: plan"
-    Write-Host "  unit=B-127+B-129+B-134+B-135"
+    Write-Host "  unit=B-127+B-129+B-134+B-135+B-136"
     Write-Host "  proxy=$ProxyUrl"
     Write-Host "  checkpoint_log=$LogPath"
     Write-Host "  lag_threshold=$LagThreshold"
     Write-Host "  staleness=ckpt_entries,published_at,tip_block_id,age_sec"
     Write-Host "  remote_health=proxy+faucet"
+    Write-Host "  fail_reason=health_ok|outage (B-136)"
     Write-Host "  never=faucet-http mfnd restart join-testnet-rehearsal path-a-publish"
     Write-Host "assert-outside-in-tip-ckpt-lag: PASS plan-only"
     exit 0
@@ -95,9 +96,16 @@ Write-Host $health
 
 $status = "OK"
 $reason = "ok"
+$recommendedAction = "none"
 if ($lag -ge $LagThreshold) {
     $status = "FAIL"
-    $reason = "tip_lag>=threshold"
+    if ($proxyHealthStatus -eq "ok" -and $faucetHealthStatus -eq "ok") {
+        $reason = "tip_lag>=threshold;health_ok"
+        $recommendedAction = "path_a_republish"
+    } else {
+        $reason = "tip_lag>=threshold;health_degraded"
+        $recommendedAction = "diagnose_public_health"
+    }
 }
 
 if (-not $NoArchive) {
@@ -107,7 +115,11 @@ if (-not $NoArchive) {
     $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
     $out = Join-Path $EvidenceDir "outside-in-tip-ckpt-lag-$stamp.txt"
     $failLine = if ($status -eq "FAIL") {
-        "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)"
+        if ($recommendedAction -eq "path_a_republish") {
+            "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold health_ok (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)"
+        } else {
+            "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold health_degraded (diagnose proxy/faucet; lane7 Path A after recovery)"
+        }
     } else {
         "assert-outside-in-tip-ckpt-lag: OK tip=$tipH ckpt_max=$ckptMax lag=$lag"
     }
@@ -116,6 +128,7 @@ if (-not $NoArchive) {
         "# B-129 auto-archive",
         "# B-134 Path A staleness",
         "# B-135 age_sec + remote public health",
+        "# B-136 health_ok FAIL reason",
         "# head_sha=$headSha",
         "# proxy=$ProxyUrl",
         "# checkpoint_log=$LogPath",
@@ -125,12 +138,16 @@ if (-not $NoArchive) {
         $staleness,
         $health,
         $failLine,
-        "assert-outside-in-tip-ckpt-lag: SUMMARY status=$status tip=$tipH ckpt_max=$ckptMax lag=$lag ckpt_entries=$ckptEntries published_at=$ckptPublishedAt age_sec=$ckptAgeSec proxy_health=$proxyHealthStatus faucet_health=$faucetHealthStatus reason=$reason"
+        "assert-outside-in-tip-ckpt-lag: SUMMARY status=$status tip=$tipH ckpt_max=$ckptMax lag=$lag ckpt_entries=$ckptEntries published_at=$ckptPublishedAt age_sec=$ckptAgeSec proxy_health=$proxyHealthStatus faucet_health=$faucetHealthStatus reason=$reason recommended_action=$recommendedAction"
     ) | Set-Content -Path $out -Encoding utf8
     Write-Host "assert-outside-in-tip-ckpt-lag: EVIDENCE archived=$out status=$status"
 }
 
 if ($status -eq "FAIL") {
-    throw "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)"
+    if ($recommendedAction -eq "path_a_republish") {
+        throw "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold health_ok (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)"
+    } else {
+        throw "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold health_degraded (diagnose proxy/faucet; lane7 Path A after recovery)"
+    }
 }
 Write-Host "assert-outside-in-tip-ckpt-lag: OK tip=$tipH ckpt_max=$ckptMax lag=$lag"

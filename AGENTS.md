@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-136** tip-ckpt lag health_ok FAIL reason (docs/scripts while **CI `#29854607541`** on B-131). **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-136** tip-ckpt health_ok FAIL reason (`[skip ci]` — do not cancel `#29854607541` on B-131). **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-135** Path A age_sec + remote health (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129** (`7e2afb8`); **B-127**; **B-96**; **B-34** | **B-136** tip-ckpt lag health_ok FAIL reason (claim base: `a61e770`) | Participant JOIN half after B-15 SUMMARY (lane 3); Path A republish = lane 7 (§6) | CI/Nightly run IDs |
+| **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (this commit); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); Path A republish = lane 7 (§6) | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
 | **4** Protocol | **B-131** (`40d0222`, watch CI `#29854607541`); **B-130** (`b0fd1b1`, CI `#29852461441` GREEN); **B-128** (`1909584`); **B-126**/**B-124** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -182,7 +182,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
 | 3 | 7 | **F68/F68b:** Windows bootstrap ps1 - temp `.py` TCP snapshot (B-58). Evidence wave12 + `b58-…` | **Done** (B-58) |
 | 7 | 3 | **B-59:** wire `join-testnet-rehearsal.sh` light-scan through `light-scan-checkpoint-soft.sh` (F45 tip race) | **Done** (B-60) |
-| 1 | 7 | **B-125 tip lag:** tip~5287 ckpt=4851 lag=436 age_sec~52462 (~14.6h); proxy=ok faucet=ok (**B-135**). Please Path A republish (B-85/B-100) — timer stale, not tip/faucet outage. |
+| 1 | 7 | **B-125 tip lag:** tip~5288 ckpt=4851 lag=437 age~14.6h; `recommended_action=path_a_republish` (**B-136** health_ok). Please Path A republish (B-85/B-100) — timer stale, not tip/faucet outage. |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
@@ -315,12 +315,14 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-133 | Outside-in soak refresh + tip-lag §6 refresh | 1 | **Landed** (`62357ae`) — tip 5283->5285; lag=432 evidence; Path A = lane7 |
 | B-134 | Tip-ckpt lag Path A staleness fields + §8 board repair | 1 | **Landed** (`04295ea`) — STALENESS line; tip=5287 lag=436; §8 header repaired |
 | B-135 | Tip-ckpt lag Path A age_sec + remote public health pings | 1 | **Landed** (`2151d02`) — age_sec+HEALTH; tip=5287 lag=436 age~14.6h proxy/faucet ok |
-| B-136 | Tip-ckpt lag FAIL reason distinguishes health_ok vs outage | 1 | **Claimed** (this commit) — recommended_action=path_a_republish; no Path A publish |
+| B-136 | Tip-ckpt lag FAIL reason distinguishes health_ok vs outage | 1 | **Landed** (this commit) — health_ok→path_a_republish; tip=5288 lag=437 |
 | B-126 | Settle-reset then fifth dual-slash treasury identity (early B-24ah) | 4 | **Landed** (`ba0b69d`); **CI `#29847644779` GREEN** |
 | B-128 | Fifth dual-slash then dual-settle drain (early B-24ai) | 4 | **Landed** (`1909584`); **CI `#29849999987` GREEN** |
 | B-130 | Fifth dual-slash then asymmetric settle drain (early B-24aj) | 4 | **Landed** (`b0fd1b1`); **CI `#29852461441` GREEN**; elevates B-119 |
 | B-131 | Fifth dual-slash then op1 asymmetric settle drain (early B-24ak) | 4 | **Landed** (this commit); B-130 twin; full CI |
-| B-132 | Fifth dual-slash then empty both-1. **2026-07-21 — lane 1 — claim B-136** (this commit): tip-ckpt lag FAIL reason `health_ok→path_a_republish` vs outage while **CI `#29854607541`** runs on B-131. Claim base `a61e770`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+| B-132 | Fifth dual-slash then empty both-1. **2026-07-21 — lane 1 — B-136 tip-ckpt health_ok FAIL reason** (this commit): FAIL reason `tip_lag>=threshold;health_ok` + `recommended_action=path_a_republish` (vs health_degraded). Live tip=5288 lag=437 proxy=ok faucet=ok. Evidence `outside-in-tip-ckpt-lag-20260721T180548Z.txt` + `b136-tip-ckpt-health-ok-fail-reason-20260721.md`. B-15-safe; no Path A publish. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+
+1. **2026-07-21 — lane 1 — claim B-136** (this commit): tip-ckpt lag FAIL reason `health_ok→path_a_republish` vs outage while **CI `#29854607541`** runs on B-131. Claim base `a61e770`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 miss (early B-24al) | 4 | **Claimed** (this commit) — closes fifth-offense prove matrix; full CI after `#29854607541` GREEN |
 
@@ -369,6 +371,4 @@ or board correction: date, lane, unit, commits, verification verdicts. When this
 1. **2026-07-21 — lane 4 — B-126 settle-reset→fifth dual-slash** (this commit): early B-24ah `b126_b5_settle_reset_then_fifth_dual_slash_treasury_identity`; local debug PASS. **CI `#29844848474` GREEN** on B-124. Full CI (no skip). Next: **B-128** fifth-slash dual-settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-1 B-127 tip-ckpt lag scripts/ci-check.
 
 1. **2026-07-21 — lane 1 — B-127 outside-in tip-ckpt lag assert** (this commit): `assert-outside-in-tip-ckpt-lag.{sh,ps1}` + rehearsal smokes; ci-check plan gate. Live probe FAIL tip=5215 ckpt_max=4851 lag=364 (expected until lane7 Path A). Evidence `outside-in-tip-ckpt-lag-20260721T154019Z.txt` + `b127-outside-in-tip-ckpt-lag-assert-20260721.md`. B-15-safe. Full CI (no skip). **CI `#29844848474` GREEN** on B-124 prior. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
-
-1. **2026-07-21 — lane 1 — claim B-127** (this commit): outside-in tip-ckpt lag assert tooling while **CI `#29844848474`** runs on B-124. Claim base `428af13`. `[skip ci]`. *Observed (not staged):* none this claim.
 

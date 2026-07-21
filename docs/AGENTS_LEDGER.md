@@ -327,6 +327,8 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 1 — B-123 CI GREEN** (`2a98633`): CI `#29842437172` GREEN (public-devnet scripts ubuntu/windows + full matrix). Proves soak.sh single-id pin harden + Win Get-MfnGreenRunId path. Board pin only `[skip ci]` — B-124 CI in flight.
 
+1. **2026-07-21 — lane 1 — claim B-127** (this commit): outside-in tip-ckpt lag assert tooling while **CI `#29844848474`** runs on B-124. Claim base `428af13`. `[skip ci]`. *Observed (not staged):* none this claim.
+
 
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 

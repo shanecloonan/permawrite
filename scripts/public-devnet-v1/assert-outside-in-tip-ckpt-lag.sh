@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# B-127 / B-129 / B-134 / B-135 / lane 1: outside-in tip vs Path A checkpoint lag (public proxy + local jsonl).
+# B-127 / B-129 / B-134 / B-135 / B-136 / lane 1: outside-in tip vs Path A checkpoint lag (public proxy + local jsonl).
 # B-15-safe: never restarts faucet/mfnd/proxy; never runs JOIN. Does not publish Path A (lane 7).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,6 +25,7 @@ Outside-in permanence lag probe:
   - FAIL if tip - ckpt_max >= MFN_CKPT_LAG_THRESHOLD (default 16)
   - B-134: report ckpt_entries + last published_at + last tip_block_id (staleness)
   - B-135: age_sec from published_at + remote public proxy/faucet /health pings
+  - B-136: FAIL reason health_ok→path_a_republish vs outage (recommended_action)
 Never publishes checkpoints (lane 7 Path A). Never restarts services.
 B-129: --apply archives evidence under evidence/ (disable with --no-archive).
 EOF
@@ -47,7 +48,7 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "assert-outside-in-tip-ckpt-lag: plan"
-  echo "  unit=B-127+B-129+B-134+B-135"
+  echo "  unit=B-127+B-129+B-134+B-135+B-136"
   echo "  proxy=$PROXY_URL"
   echo "  checkpoint_log=$LOG_PATH"
   echo "  lag_threshold=$LAG_THRESHOLD"
@@ -143,9 +144,16 @@ health="assert-outside-in-tip-ckpt-lag: HEALTH proxy=$proxy_health_status faucet
 echo "$health"
 status=OK
 reason=ok
+recommended_action=none
 if (( lag >= LAG_THRESHOLD )); then
   status=FAIL
-  reason="tip_lag>=threshold"
+  if [[ "$proxy_health_status" == ok && "$faucet_health_status" == ok ]]; then
+    reason="tip_lag>=threshold;health_ok"
+    recommended_action=path_a_republish
+  else
+    reason="tip_lag>=threshold;health_degraded"
+    recommended_action=diagnose_public_health
+  fi
 fi
 
 if (( NO_ARCHIVE == 0 )); then
@@ -158,6 +166,7 @@ if (( NO_ARCHIVE == 0 )); then
     echo "# B-129 auto-archive"
     echo "# B-134 Path A staleness"
     echo "# B-135 age_sec + remote public health"
+    echo "# B-136 health_ok FAIL reason"
     echo "# head_sha=$head_sha"
     echo "# proxy=$PROXY_URL"
     echo "# checkpoint_log=$LOG_PATH"
@@ -167,17 +176,25 @@ if (( NO_ARCHIVE == 0 )); then
     echo "$staleness"
     echo "$health"
     if [[ "$status" == FAIL ]]; then
-      echo "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)"
+      if [[ "$recommended_action" == path_a_republish ]]; then
+        echo "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold health_ok (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)"
+      else
+        echo "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold health_degraded (diagnose proxy/faucet; lane7 Path A after recovery)"
+      fi
     else
       echo "assert-outside-in-tip-ckpt-lag: OK tip=$tip_h ckpt_max=$ckpt_max lag=$lag"
     fi
-    echo "assert-outside-in-tip-ckpt-lag: SUMMARY status=$status tip=$tip_h ckpt_max=$ckpt_max lag=$lag ckpt_entries=$ckpt_entries published_at=$ckpt_published_at age_sec=$ckpt_age_sec proxy_health=$proxy_health_status faucet_health=$faucet_health_status reason=$reason"
+    echo "assert-outside-in-tip-ckpt-lag: SUMMARY status=$status tip=$tip_h ckpt_max=$ckpt_max lag=$lag ckpt_entries=$ckpt_entries published_at=$ckpt_published_at age_sec=$ckpt_age_sec proxy_health=$proxy_health_status faucet_health=$faucet_health_status reason=$reason recommended_action=$recommended_action"
   } >"$out"
   echo "assert-outside-in-tip-ckpt-lag: EVIDENCE archived=$out status=$status"
 fi
 
 if [[ "$status" == FAIL ]]; then
-  echo "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)" >&2
+  if [[ "$recommended_action" == path_a_republish ]]; then
+    echo "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold health_ok (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)" >&2
+  else
+    echo "assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold health_degraded (diagnose proxy/faucet; lane7 Path A after recovery)" >&2
+  fi
   exit 1
 fi
 echo "assert-outside-in-tip-ckpt-lag: OK tip=$tip_h ckpt_max=$ckpt_max lag=$lag"
