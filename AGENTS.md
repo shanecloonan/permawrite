@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Lane-1 claiming **B-125** soak refresh tip~5199 + tip-lag note to lane7 (docs-only while **CI `#29842437172`** on B-122). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-125** soak tip-5202 `[skip ci]` (B-122 CI `#29842437172` still in flight; public-devnet scripts already GREEN = B-123 proved). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-123** (`2a98633` body; soak.sh single-id pin); **B-27 soak refresh** tip-5148 (`b0371b0`); **B-96**; **B-93**; **B-34** | **B-125** soak refresh tip~5199 (claim base: `a1577f6`)  | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
+| **1** RC core | **B-125** soak tip-5202 (this commit); **B-123** (`2a98633` body); **B-27** tip-5148 (`b0371b0`); **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/Path A to 7 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
 | **4** Protocol | **B-122** (`2a98633`, watch CI `#29842437172`); **B-121** (`a0443ba`, CI `#29839631308` GREEN); **B-120** (`ea70e2a`); **B-119**/**B-118**/**B-117** stack | **B-124** fourth-offense op1 asymmetric→absentee re-slash (claim base: `2a98633`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -210,7 +210,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | Phase 1; after B3 multi-op internet evidence |
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
-| B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak refreshed** tip 5146->5148 (this commit; Win `Get-MfnGreenRunId` pin fix); participant JOIN half = lane-3 SUMMARY / post-B-15 |
+| B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak refreshed** tip 5200->5202 (B-125); prior 5146->5148; participant JOIN half = lane-3 SUMMARY / post-B-15 |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
 | B-29 | Nightly participant+observer GREEN | 1+3 | **CLOSED** — Nightly #29755942849 GREEN on d248ba2 (B-75 inclusive) |
 | B-75 | Nightly observer mesh tip-stall after h1 (EAGAIN) | 1 | **Landed** (this commit) - production_dial_peers + persistable start-all / produce-smoke ports |
@@ -309,13 +309,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-122 | Fourth-offense asymmetric then absentee re-slash (early B-24af) | 4 | **Landed** (this commit); elevates B-113/B-115; full CI |
 | B-124 | Fourth-offense op1 asymmetric then absentee re-slash (early B-24ag) | 4 | **Claimed** (this commit) — B-122 twin; skip B-123 (lane1); full CI after `#29842437172` GREEN |
 | B-123 | Soak.sh single-id pin validation (B-96/Win parity) | 1 | **Landed** (2a98633 body, subject mislabeled B-122) — reject non-numeric/multi pins; rehearsal smoke needles |
-| B-125 | Outside-in soak refresh + tip-lag §6 to lane7 | 1 | **Claimed** (this commit) — tip~5199 soak; Path A lag~348 handoff |
+| B-125 | Outside-in soak refresh + tip-lag §6 to lane7 | 1 | **Landed** (this commit) — tip 5200->5202; §6 Path A lag~351 Open |
 
 ---
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 1 — B-125 soak refresh tip-5202** (this commit): live soak PASS 5200->5202; evidence `outside-in-invite-soak-20260721T150909Z.txt` + `b125-outside-in-invite-soak-refresh-20260721-tip5202.md`; pins Nightly `#29838974900` + CI `#29839631308`. §6 tip-lag handoff to lane7 (ckpt 4851, lag~351). B-15-safe. `[skip ci]` — B-122 CI in flight; scripts jobs already GREEN (B-123 proved). *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 1. **2026-07-21 — lane 1 — claim B-125** (this commit): outside-in soak refresh tip~5199 + §6 tip-lag handoff to lane7 (ckpt 4851, lag~348) while **CI `#29842437172`** runs on B-122 (proves B-123). Claim base `a1577f6`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
