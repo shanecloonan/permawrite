@@ -141,7 +141,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | **B-96** (`7ee3f66` body, CI `#29801574290` GREEN; tip 4820->4822); **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
-| **4** Protocol | **B-110** third-slash→asymmetric settle (this commit); **B-109** (`f93b02d`, CI `#29818297963` GREEN); **B-108** (`1572fcb`); **B-107**/**B-106**/**B-105**/**B-104**/**B-103** stack | **B-111** early B-24u third-slash→op1 asymmetric (next) | After B-111: live **B-32** still blocked on 2nd host (**B-79**) | Lane 1 CI |
+| **4** Protocol | **B-110** third-slash→asymmetric settle (`be3e80a`); **B-109** (`f93b02d`, CI `#29818297963` GREEN); **B-108** stack | **B-111** early B-24u third-slash→op1 asymmetric (claim base: `be3e80a`) | After land: watch CI; live **B-32** still blocked on 2nd host (**B-79**) | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-100** tip-4851 (`4b10e51`, CI `#29800034125` GREEN); **B-97** tip-4833 (`de0d94c`); **B-92** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
@@ -294,13 +294,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-108 | Settle-reset then third dual-slash treasury identity (early B-24r) | 4 | **Landed** (`1572fcb`); **CI `#29815977566` GREEN** |
 | B-109 | Third dual-slash then dual-settle drain (early B-24s) | 4 | **Landed** (`f93b02d`); **CI `#29818297963` GREEN** |
 | B-110 | Third dual-slash then asymmetric settle drain (early B-24t) | 4 | **Landed** (this commit); B-109 twin corner; full CI |
-| B-111 | Third dual-slash then op1 asymmetric settle drain (early B-24u) | 4 | **Next** — completes third-offense asymmetric settle pair |
+| B-111 | Third dual-slash then op1 asymmetric settle drain (early B-24u) | 4 | **Doing** (claim base `be3e80a`); B-110 twin |
 
 ---
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — claim B-111** (this commit): early B-24u third-slash→op1 asymmetric while **CI `#29820501612`** runs on B-110. Claim base `be3e80a`. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-110 third-slash→asymmetric settle** (this commit): early B-24t `b110_b5_third_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29818297963` GREEN** on B-109. Full CI (no skip). Next: **B-111** op1 twin. Still blocked on 2nd host for live **B-32**.
 
