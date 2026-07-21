@@ -304,6 +304,10 @@ Two dual empty-audit slashes, then dual settle (B-104), then advance past the pr
 
 Extend the B-108 arc through a third dual empty-audit slash, then both operators settle (`mask=0b11`). Treasury identity: third-offense slash credits fund dual SPoRA drain; bonds stay post-third-slash; miss streaks clear; `last_proven_slot` advances. Complements B-108 (stops at third slash) and B-104 (second-slash→settle). Does **not** close full **B-24**.
 
+#### B-110 — third dual-slash then asymmetric settle drain (lane 4; early B-24t)
+
+B-108 arc through a third dual empty-audit slash, then only op0 settles (`mask=0b01`). Treasury drains for one settlement; prover miss=0; absentee miss=1; bonds stay post-third-slash. Twin settle corner of B-109. Complements B-105 (second-slash asymmetric). Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
