@@ -4792,10 +4792,12 @@ fn b86_b5_slash_funded_treasury_then_dual_settle_drain_identity() {
                 "slash-funded treasury then dual SPoRA drain"
             );
             assert_eq!(
-                state.storage_operator_stats[&gen.id0].consecutive_missed_audits, 0
+                state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+                0
             );
             assert_eq!(
-                state.storage_operator_stats[&gen.id1].consecutive_missed_audits, 0
+                state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                0
             );
             assert_eq!(state.storage_operators[&gen.id0].bond_amount, bond0);
             assert_eq!(state.storage_operators[&gen.id1].bond_amount, bond1);

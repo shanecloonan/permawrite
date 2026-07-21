@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Landing **B-86** early B-24g (full CI). Prior **CI `#29788432236` GREEN** on B-93 `1a2b496`. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Fix-forward **B-86** rustfmt after **CI `#29791944150` RED**. Prior **CI `#29788432236` GREEN** on B-93. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -286,7 +286,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-07-21 — lane 3 — B-15 wave56**: **xavier** faucet permanence **last_proven=4794** (commit `7121030f`); F45 lag=107; claims 30→31. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-21 — lane 3 — B-15 wave55**: **wren** faucet permanence **last_proven=4785** (commit `a88d7bcb`); F45 lag=98 (ckpt 4679 frozen); claims 29→30. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-21 — lane 3 — B-15 wave54**: **viv** faucet-retry permanence **last_proven=4763** (commit `aefcaf80`); shell monitor aborted mid-600s wait but runner completed; claims 28→29; F45 lag open=71. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
-2. **2026-07-20 — lane 4 — B-86 slash→treasury→dual-settle** (this commit): early B-24g `b86_b5_slash_funded_treasury_then_dual_settle_drain_identity`; local debug test PASS. Prior **CI `#29788432236` GREEN** on B-93. Full CI (no skip). *Observed (not staged):* JOIN/`user-wallet`/`live-testnet-data*`/other-lane temps. Still blocked on 2nd host for live **B-32**.
+1. **2026-07-21 — lane 4 — B-86 rustfmt fix-forward** (this commit): **CI `#29791944150` RED** rustfmt only; `cargo fmt --all`; re-push full CI. *Observed (not staged):* JOIN temps.
+2. **2026-07-20 — lane 4 — B-86 slash→treasury→dual-settle** (`9fede5b`): early B-24g `b86_b5_slash_funded_*`; local debug PASS; CI `#29791944150` rustfmt RED → fix-forward. Still blocked on 2nd host for live **B-32**.
 2. **2026-07-20 — lane 3 — B-15 wave53**: **tess** faucet-retry permanence **last_proven=4749** (commit `e4ae6e05`); F45 lag=58; claims 27→28. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 1 — B-93 post-push CI watch** (this commit): `scripts/post-push-ci-watch.py` (+ wrappers) wraps B-34 stall detect after every push; failure hints `gh-ci-failed`; never cancels healthy `in_progress`. ci-check plan gate + `.cursor/rules/ci-before-push.mdc` + `docs/CI.md`. Local docs-only ci-check OK. Full CI (no skip). *Observed (not staged):* lane-3 JOIN temps, `user-wallet/`, `live-testnet-data*`, lane-4 proptest WIP.
 1. **2026-07-20 — lane 3 — B-15 wave52**: **sara** faucet permanence **last_proven=4736** (commit `a900c1d5`); clean first-try faucet; F45 lag=50 (ckpt 4679); claims 26→27. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
