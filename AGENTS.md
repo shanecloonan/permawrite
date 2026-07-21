@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-138** public-testnet health post-B-137 (`[skip ci]` — do not cancel `#29854607541` on B-131). **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-139** peers-clean + checklist tip-5290 (`[skip ci]` — do not cancel `#29854607541` on B-131). **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-131** (`40d0222`, watch CI `#29854607541`); **B-130** (`b0fd1b1`, CI `#29852461441` GREEN); **B-128** (`1909584`); **B-126**/**B-124** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-138** public-testnet health OK (`555d5df`); **B-137** Path A tip-5290 (`10eedc1`); **B-100**; **B-97** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-139** peers-clean + checklist tip-5290 (this commit); **B-138** (`555d5df`); **B-137** (`10eedc1`); **B-100** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -323,12 +323,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-132 | Fifth dual-slash then empty both-miss (early B-24al) | 4 | **Claimed** (this commit) — closes fifth-offense prove matrix; full CI after `#29854607541` GREEN |
 | B-137 | Path A land from VPS tip-5269+ (close tip-lag §6) | 7 | **Landed** (`10eedc1`) — VPS publish tip-5290 + land jsonl; lag assert OK |
 | B-138 | Public-testnet health verify after Path A tip-5290 | 7 | **Landed** (`555d5df`) — VPS health OK lag=0; §6 re-pin Ack tip-5290 |
+| B-139 | VPS peers-clean + TESTNET_CHECKLIST tip-5290 / B-29 mirror | 7 | **Landed** (this commit) — peers OK; checklist B-22/B-29/B-137/B-138 |
 
 ---
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
-> One entry per landed unit or board correction: date, lane, unit, commits, v1. **2026-07-21 — lane 7 — B-138 public-testnet health post-B-137** (this commit): VPS `assert-public-testnet-health --apply` OK (timer success, proxy+faucet ok, tip=5290 ckpt=5290 lag=0). Evidence `public-testnet-health-20260721T181000Z.txt` + `b138-public-testnet-health-post-b137-20260721.md`. §6 B-22/B-100 → Ack tip-5290 for lane3 SUMMARY. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+> One entry per landed unit or board correction: date, lane, unit, com1. **2026-07-21 — lane 7 — B-139 peers-clean + checklist tip-5290** (this commit): VPS `assert-vps-peers-clean` OK; mirrored **B-137** tip-5290 + **B-138** health + **B-29 CLOSED** into `docs/TESTNET_CHECKLIST.md`. Evidence `vps-peers-clean-20260721T181200Z.txt` + `b139-peers-clean-checklist-tip5290-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+
+mits, v1. **2026-07-21 — lane 7 — B-138 public-testnet health post-B-137** (this commit): VPS `assert-public-testnet-health --apply` OK (timer success, proxy+faucet ok, tip=5290 ckpt=5290 lag=0). Evidence `public-testnet-health-20260721T181000Z.txt` + `b138-public-testnet-health-post-b137-20260721.md`. §6 B-22/B-100 → Ack tip-5290 for lane3 SUMMARY. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 erification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 

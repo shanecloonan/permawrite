@@ -1,0 +1,2 @@
+# B-139 assert-vps-peers-clean (VPS)
+assert-vps-peers-clean: OK
