@@ -15,6 +15,11 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-130 (from live AGENTS.md §8)
+
+- **2026-07-21 — lane 1 — claim B-123** (this commit): soak.sh single-id pin harden (bash parity with Win Get-MfnGreenRunId) while **CI #29839631308** runs on B-121. Claim base b0371b0. [skip ci]. *Observed (not staged):* lane-4 pply_block_proptest.rs WIP.
+
+
 ### Rotation 2026-07-21 B-130-claim (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 4 — claim B-122** (this commit): early B-24af fourth-offense asymmetric→absentee re-slash while **CI `#29839631308`** runs on B-121. Claim base `a0443ba`. *Observed (not staged):* lane-1 outside-in soak scripts/evidence. `[skip ci]`.
@@ -293,6 +298,9 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 - **2026-07-19 — lane 3 — B-15 checkpoint light-scan** (`02c8df8` / `73abf77`): JOIN/`fund-wallet-http`.
 
 ---
+
+1. **2026-07-21 — lane 1 — B-27 soak refresh tip-5148 + Win pin fix** (this commit): live soak PASS 5146->5148; evidence `outside-in-invite-soak-20260721T132129Z.txt` + `b27-outside-in-invite-soak-refresh-20260721-tip5148.md`; pins Nightly `#29833331135` + CI `#29831106571`. Fixed PowerShell `gh --jq` pin mangling via `Get-MfnGreenRunId`/`ConvertFrom-Json`; assert single numeric pin (CRLF-safe). B-15-safe. `[skip ci]` — lane-4 full-CI queue thrash; scripts gate proves on next non-skip matrix. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+
 
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
