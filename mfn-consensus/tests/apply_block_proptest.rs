@@ -4988,6 +4988,65 @@ fn b98_b5_slash_funded_treasury_then_op1_asymmetric_settle_drain_identity() {
     }
 }
 
+/// B-99 (early B-24j): dual partial slash credits treasury, then neither
+/// operator proves on the next audit slot -- closes the post-slash prove
+/// matrix {00,01,10,11} with the empty both-miss corner.
+#[test]
+fn b99_b5_slash_funded_treasury_then_empty_both_miss_no_drain_identity() {
+    let gen = genesis_with_b5_two_operators();
+    let mut st = gen.state;
+    let cap = st.endowment_params.operator_audit_missed_cap;
+    let slash_bps = st.endowment_params.operator_slash_bps;
+    let mut slot = 10_000u32;
+    let mut bond0 = PROP_B5_OPERATOR_BOND;
+    let mut bond1 = PROP_B5_OPERATOR_BOND.saturating_mul(2);
+
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(st.treasury, 0, "pre-slash empty {i}");
+        slot = slot.saturating_add(1);
+    }
+
+    let mut model = st.treasury;
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(st.treasury, model, "dual slash funds treasury");
+    assert!(st.treasury > 0, "slash credit must be spendable");
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+        0
+    );
+    let treasury_after_slash = st.treasury;
+    let ch = storage_commitment_hash(&gen.built.commit);
+    let last_proven_before = st.storage.get(&ch).expect("entry").last_proven_slot;
+    slot = slot.saturating_add(1);
+
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(
+        st.treasury, treasury_after_slash,
+        "empty post-slash audit must not drain slash-funded treasury"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id0].consecutive_missed_audits, 1,
+        "op0 starts a new miss streak after slash reset"
+    );
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits, 1,
+        "op1 starts a new miss streak after slash reset"
+    );
+    assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
+    assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
+    assert_eq!(
+        st.storage.get(&ch).expect("entry").last_proven_slot,
+        last_proven_before,
+        "no prove -> last_proven_slot unchanged"
+    );
+}
 /// B-64: settlements soft-skip unknown commit; apply hard-rejects.
 #[test]
 fn b64_unknown_commit_settlements_skip_apply_rejects() {
