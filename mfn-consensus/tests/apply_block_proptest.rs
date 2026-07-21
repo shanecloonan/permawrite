@@ -5696,6 +5696,89 @@ fn b105_b5_second_dual_slash_then_asymmetric_settle_drain_identity() {
     }
 }
 
+/// B-106 (early B-24p): B-105 twin — two successive dual empty-audit slashes, then only
+/// op1 settles (`mask=0b10`). Second-offense slash credits fund a single SPoRA drain;
+/// absentee (op0) restarts miss=1. Completes the second-offense asymmetric settle pair.
+#[test]
+fn b106_b5_second_dual_slash_then_op1_asymmetric_settle_drain_identity() {
+    let gen = genesis_with_b5_two_operators();
+    let mut st = gen.state;
+    let cap = st.endowment_params.operator_audit_missed_cap;
+    let slash_bps = st.endowment_params.operator_slash_bps;
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let mut slot = 10_000u32;
+    let mut bond0 = PROP_B5_OPERATOR_BOND;
+    let mut bond1 = PROP_B5_OPERATOR_BOND.saturating_mul(2);
+
+    let mut model = st.treasury;
+    for offense in 0..2u32 {
+        for i in 0..(cap - 1) {
+            st = apply_empty_at_audit_slot(&st, slot);
+            assert_eq!(
+                st.treasury, model,
+                "pre-slash climb offense {offense} empty {i}"
+            );
+            slot = slot.saturating_add(1);
+        }
+        (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+        (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(
+            st.treasury, model,
+            "dual slash offense {offense} credits both forfeitures"
+        );
+        slot = slot.saturating_add(1);
+    }
+    assert!(
+        st.treasury > 0,
+        "second-offense slash credit must be spendable"
+    );
+
+    let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+    let proofs =
+        b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b10);
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+    assert_eq!(settlements.len(), 1, "only op1 settles after second slash");
+    let bonus = settlements[0].1;
+    let storage_drain = u128::from(emission.storage_proof_reward).saturating_add(bonus);
+    let expected_treasury = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert_eq!(
+                state.treasury, expected_treasury,
+                "second-offense slash-funded treasury then op1 asymmetric SPoRA drain"
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id1].consecutive_missed_audits, 0,
+                "prover miss resets"
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id0].consecutive_missed_audits, 1,
+                "absentee starts miss=1 after slash reset"
+            );
+            assert_eq!(state.storage_operators[&gen.id0].bond_amount, bond0);
+            assert_eq!(state.storage_operators[&gen.id1].bond_amount, bond1);
+            let ch = storage_commitment_hash(&gen.built.commit);
+            assert_eq!(
+                state.storage.get(&ch).expect("entry").last_proven_slot,
+                u64::from(slot)
+            );
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
 /// B-64: settlements soft-skip unknown commit; apply hard-rejects.
 #[test]
 fn b64_unknown_commit_settlements_skip_apply_rejects() {
