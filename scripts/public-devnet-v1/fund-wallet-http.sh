@@ -99,12 +99,9 @@ parse_kv() {
 }
 
 wallet_light_scan() {
-  if [[ -n "$CHECKPOINT_LOG" && -f "$CHECKPOINT_LOG" ]]; then
-    "$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet light-scan \
-      --checkpoint-log "$CHECKPOINT_LOG" >/dev/null 2>&1 || true
-  else
-    "$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet light-scan >/dev/null 2>&1 || true
-  fi
+  # B-146 / F101b: after faucet mine, use plain light-scan. Hard --checkpoint-log F45-fails
+  # when live tip > Path A max and can abort the entire scan (owned_count stuck at 0).
+  "$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet light-scan >/dev/null 2>&1 || true
 }
 
 # F67 / B-54: pin scan_height to the signed checkpoint *before* faucet sends.
@@ -227,6 +224,9 @@ while :; do
   fi
   sleep 3
 done
+
+echo "fund-wallet-http: post-fund light-scan (plain; F45-safe)"
+wallet_light_scan
 
 if (( WAIT_MINED_SECONDS <= 0 )); then
   echo "fund-wallet-http: PASS (wait disabled)"

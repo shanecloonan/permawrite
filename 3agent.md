@@ -25,7 +25,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | --- | --- | --- | --- |
 | **A** RC/CI | **B-141** (`7e2746b`); **CI `#29854607541` GREEN** on B-131; Nightly `#29854540235` GREEN; **B-29 CLOSED** | *Idle* — watch B-132 head CI | Release-evidence after CI+Nightly GREEN; do not cancel healthy in_progress |
 | **B** Protocol/Privacy | **B-132** fifth-slash→empty both-miss (`7b5f3ef`); **B-131** (`40d0222`); fifth-offense matrix {00,01,10,11} closed | *Idle* | After 2 hosts + B-15: live **B-32** → **B-44** → full **B-24**; lane5 **B-50** Rust auto-bootstrap |
-| **C** Testnet/Onboarding | **B-145** tall-tip snapshot timeout (`9ca1124`); **B-144** (`cc79bfe`) | **B-15** JOIN re-run after F67 timeout fix | Assert SUMMARY PASS → **B-42** → **B-14** |
+| **C** Testnet/Onboarding | **B-146** F101b fund-wait fix (this commit); **B-145**/**B-144** | **B-15** permanence + archive from funded wallet | SUMMARY assert PASS → unlock **B-42** |
 
 ### Hard locks (all seats)
 
