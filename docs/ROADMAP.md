@@ -432,6 +432,14 @@ B-156 twin: B-154 arc through seventh dual slash, then only op1 settles (`mask=0
 
 B-154 arc through seventh dual slash, then empty both-miss (no drain). Elevates B-151. Closes seventh-offense prove matrix with B-155..B-157. Does **not** close full **B-24**.
 
+#### B-159 — seventh-offense asymmetric then absentee re-slash while peer settles (lane 4; early B-24ba)
+
+B-154 arc through seventh dual slash, then B-152 path: op0-only settle, window-spaced climb of absentee miss to `cap-1`, then op0 settles again while op1 alone re-slashes. Elevates B-152. Does **not** close full **B-24**.
+
+#### B-160 — seventh-offense op1 asymmetric then absentee re-slash while peer settles (lane 4; early B-24bb)
+
+B-159 twin (`mask=0b10`). Elevates B-153. Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).

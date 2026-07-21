@@ -15,6 +15,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-159-claim
+
+1. **2026-07-21 — lane 4 — claim B-151** (this commit): early B-24as sixth-slash→empty both-miss (closes sixth-offense prove matrix) while **CI `#29867968439`** runs on B-150 tip. Claim base `6a2c779`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+
+
 ### Rotation 2026-07-21 B-158-land
 
 1. **2026-07-21 — lane 4 — claim B-151** (this commit): early B-24as sixth empty both-miss while **CI `#29867968439`** runs on B-150. Claim base `6a2c779`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
