@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Tip `7ee3f66` = B-99 (`55c3a28`) + lane-1 **B-96** soak pin-assert (commit subject mislabeled B-99). Watching CI `#29801574290`. Prior **CI `#29800034125` GREEN** on B-100. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-101** early B-24k (full CI). **CI `#29801574290` GREEN** on tip `7ee3f66` (B-99+B-96). Prior **CI `#29800034125` GREEN** on B-100. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-96** soak pin-assert (this commit; tip 4820->4822); **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
-| **4** Protocol | **B-99** slash→empty both-miss (`55c3a28`); **B-98** (`8eb586e`, CI `#29797153366` GREEN); **B-95** (`665c166`); **B-86**/**B-83**/**B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-101** early B-24k asymmetric→absentee re-slash (claim base: `7ee3f66`) | After land: watch CI; live **B-32** still blocked on 2nd host (**B-79**) | Lane 1 CI |
+| **4** Protocol | **B-101** asymmetric→absentee re-slash (this commit); **B-99** (`55c3a28`); **B-98** (`8eb586e`, CI `#29797153366` GREEN); **B-95** (`665c166`); **B-86**/**B-83**/**B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | *Idle* — live **B-32** blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-100** tip-4851 (`4b10e51`, CI `#29800034125` GREEN); **B-97** tip-4833 (`de0d94c`); **B-92** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
@@ -284,13 +284,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-95 | Slash-funded treasury then asymmetric settle (early B-24h) | 4 | **Landed** (`665c166`); **CI `#29795731587` GREEN**; not full B-24 |
 | B-98 | Slash-funded treasury then op1 asymmetric settle (early B-24i) | 4 | **Landed** (`8eb586e`); **CI `#29797153366` GREEN** |
 | B-99 | Slash-funded treasury then empty both-miss (early B-24j) | 4 | **Landed** (`55c3a28`); closes post-slash prove matrix; watch CI on tip (note: `7ee3f66` subject mislabeled — body is lane-1 **B-96** soak) |
-| B-101 | Slash-funded asymmetric then absentee re-slash while peer settles (early B-24k) | 4 | **Doing** (claim base `7ee3f66`); permanence multi-block identity after B-99 matrix close |
+| B-101 | Slash-funded asymmetric then absentee re-slash while peer settles (early B-24k) | 4 | **Landed** (this commit); multi-block permanence after B-99 matrix; full CI |
 
 ---
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — B-101 asymmetric→absentee re-slash** (this commit): early B-24k `b101_b5_slash_funded_asymmetric_then_absentee_reslash_while_peer_settles`; local debug test PASS. **CI `#29801574290` GREEN** on prior tip. Full CI (no skip). *Observed (not staged):* lane-5 bootstrap WIP. Still blocked on 2nd host for live **B-32**.
 
 1. **2026-07-21 — lane 4 — board SYNC B-99/B-96 race** (this commit): **B-99** code is `55c3a28`; tip `7ee3f66` also carried lane-1 **B-96** soak under a mislabeled B-99 subject (shared-tree race). Docs correction `[skip ci]`.
 1. **2026-07-21 — lane 1 — B-96 soak pin-assert** (`7ee3f66` body): assert requires `# nightly_run=`/`# ci_run=`; soak fail-closed without pins; live soak PASS tip 4820->4822; evidence `b96-outside-in-invite-soak-pin-assert-20260721.md`. Subject line wrongly says B-99.

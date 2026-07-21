@@ -5047,6 +5047,185 @@ fn b99_b5_slash_funded_treasury_then_empty_both_miss_no_drain_identity() {
         "no prove -> last_proven_slot unchanged"
     );
 }
+
+/// B-101 (early B-24k): dual partial slash, then op0-only settle (B-95 path),
+/// then keep op0 proving on window-spaced slots until op1 alone re-crosses the
+/// miss cap and slashes while the peer settles again. Slots must sit beyond
+/// `proof_reward_window` after each prove so B5 audit challenge stays active.
+#[test]
+fn b101_b5_slash_funded_asymmetric_then_absentee_reslash_while_peer_settles() {
+    let gen = genesis_with_b5_two_operators();
+    let mut st = gen.state;
+    let cap = st.endowment_params.operator_audit_missed_cap;
+    let slash_bps = st.endowment_params.operator_slash_bps;
+    let window = st.endowment_params.proof_reward_window_slots;
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let mut slot = 10_000u32;
+    let mut bond0 = PROP_B5_OPERATOR_BOND;
+    let mut bond1 = PROP_B5_OPERATOR_BOND.saturating_mul(2);
+    let ch = storage_commitment_hash(&gen.built.commit);
+
+    let advance_past_window = |st: &ChainState, slot: u32| -> u32 {
+        let last = st.storage.get(&ch).map(|e| e.last_proven_slot).unwrap_or(0);
+        let min_slot =
+            u32::try_from(last.saturating_add(window).saturating_add(1)).unwrap_or(u32::MAX);
+        slot.max(min_slot)
+    };
+
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(st.treasury, 0, "pre-slash empty {i}");
+        slot = slot.saturating_add(1);
+    }
+
+    let mut model = st.treasury;
+    (model, bond0) = treasury_after_b5_slash(model, bond0, slash_bps);
+    (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
+    st = apply_empty_at_audit_slot(&st, slot);
+    assert_eq!(st.treasury, model, "dual slash funds treasury");
+    assert!(st.treasury > 0, "slash credit must be spendable");
+    slot = slot.saturating_add(1);
+
+    // B-95 corner: only op0 settles; absentee starts miss=1 after slash reset.
+    slot = advance_past_window(&st, slot);
+    {
+        let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+        let proofs =
+            b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b01);
+        let settlements =
+            storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+        assert_eq!(settlements.len(), 1, "only op0 settles");
+        let bonus = settlements[0].1;
+        let storage_drain = u128::from(emission.storage_proof_reward).saturating_add(bonus);
+        let expected_treasury = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+        let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            proofs,
+        );
+        st = match apply_block(&st, &blk) {
+            ApplyOutcome::Ok { state, .. } => {
+                assert_eq!(state.treasury, expected_treasury, "asymmetric settle drain");
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+                    0
+                );
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                    1
+                );
+                assert_eq!(state.storage_operators[&gen.id0].bond_amount, bond0);
+                assert_eq!(state.storage_operators[&gen.id1].bond_amount, bond1);
+                state
+            }
+            ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+        };
+        slot = slot.saturating_add(1);
+    }
+
+    // Climb absentee miss to cap-1 on window-spaced op0-only settles.
+    assert!(cap >= 2, "cap must allow a climb");
+    for i in 0..(cap.saturating_sub(2)) {
+        slot = advance_past_window(&st, slot);
+        let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+        let proofs =
+            b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b01);
+        let settlements =
+            storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+        assert_eq!(settlements.len(), 1);
+        let bonus = settlements[0].1;
+        let storage_drain = u128::from(emission.storage_proof_reward).saturating_add(bonus);
+        let expected_treasury = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+        let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            proofs,
+        );
+        st = match apply_block(&st, &blk) {
+            ApplyOutcome::Ok { state, .. } => {
+                assert_eq!(state.treasury, expected_treasury, "climb settle {i}");
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id0].consecutive_missed_audits, 0,
+                    "prover stays reset during climb {i}"
+                );
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                    2 + i,
+                    "absentee miss climbs during window-spaced op0-only settle {i}"
+                );
+                assert_eq!(state.storage_operators[&gen.id1].bond_amount, bond1);
+                state
+            }
+            ApplyOutcome::Err { errors, .. } => panic!("climb accept, got {errors:?}"),
+        };
+        slot = slot.saturating_add(1);
+    }
+    assert_eq!(
+        st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+        cap - 1,
+        "absentee poised at cap-1 before re-slash"
+    );
+
+    // Cap-crossing slot: op0 settles again; op1 alone re-slashes.
+    slot = advance_past_window(&st, slot);
+    let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+    let proofs =
+        b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b01);
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+    assert_eq!(settlements.len(), 1, "only op0 settles on re-slash slot");
+    let bonus = settlements[0].1;
+    let storage_drain = u128::from(emission.storage_proof_reward).saturating_add(bonus);
+    let mut expected_treasury = st.treasury;
+    (expected_treasury, bond1) = treasury_after_b5_slash(expected_treasury, bond1, slash_bps);
+    expected_treasury = expected_treasury.saturating_sub(storage_drain.min(expected_treasury));
+
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert_eq!(
+                state.treasury, expected_treasury,
+                "absentee re-slash credit then peer SPoRA drain"
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id0].consecutive_missed_audits, 0,
+                "prover miss resets"
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id1].consecutive_missed_audits, 0,
+                "re-slash resets absentee miss streak"
+            );
+            assert_eq!(state.storage_operators[&gen.id0].bond_amount, bond0);
+            assert_eq!(state.storage_operators[&gen.id1].bond_amount, bond1);
+            assert!(
+                state.storage_operators.contains_key(&gen.id1),
+                "partial re-slash must keep absentee registered"
+            );
+            assert_eq!(
+                state.storage.get(&ch).expect("entry").last_proven_slot,
+                u64::from(slot)
+            );
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
 /// B-64: settlements soft-skip unknown commit; apply hard-rejects.
 #[test]
 fn b64_unknown_commit_settlements_skip_apply_rejects() {

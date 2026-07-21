@@ -268,6 +268,10 @@ Symmetric twin of B-95: dual-slash funding, then only op1 prove (`mask=0b10`) on
 
 Same dual-slash funding as B-86/B-95/B-98, but the next audit slot is empty (`mask=0b00`). Treasury stays at post-slash credit (no SPoRA drain); both operators restart miss streaks at 1; bonds unchanged; `last_proven_slot` unchanged. Closes the post-slash prove matrix {00,01,10,11}. Does **not** close full **B-24**.
 
+#### B-101 — slash-funded asymmetric then absentee re-slash while peer settles (lane 4; early B-24k)
+
+After dual-slash funding (B-86 path) and an op0-only settle (B-95 corner), climb the absentee miss streak to `cap-1` via window-spaced op0-only settles, then on the cap-crossing slot keep op0 proving while op1 alone re-slashes. Treasury identity: absentee re-slash credit then peer SPoRA drain in one block; prover miss stays 0; re-slash resets absentee miss; bonds track modeled partial slash; `last_proven_slot` advances; absentee stays registered. Pins multi-block slash→asymmetric-settle→re-slash permanence. Complements B-67 (same-block slash+settle) and B-95/B-99 (single post-slash slot). Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
