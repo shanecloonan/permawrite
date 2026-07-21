@@ -15,6 +15,13 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-142-claim (from live AGENTS.md §8)
+
+- **2026-07-21 — lane 4 — B-131 fifth-slash→op1 asymmetric settle** (this commit): early B-24ak `b131_b5_fifth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29852461441` GREEN** on B-130. Completes fifth-offense asymmetric settle pair. Full CI (no skip). Next: **B-132** empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-1 B-129 tip-ckpt lag WIP.
+- **2026-07-21 — lane 4 — claim B-131** (this commit): early B-24ak fifth-slash→op1 asymmetric settle (B-130 twin) while **CI `#29852461441`** runs on B-130. Claim base `b0fd1b1`. *Observed (not staged):* lane-1 B-129 tip-ckpt lag scripts/evidence. `[skip ci]`.
+- **2026-07-21 — lane 4 — B-130 fifth-slash→asymmetric settle** (this commit): early B-24aj `b130_b5_fifth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29849999987` GREEN** on B-128. Full CI (no skip). Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-1 B-129 tip-ckpt lag scripts/evidence. Next: **B-131** op1 twin.
+
+
 ### Rotation 2026-07-21 B-132 (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 1 — B-129 tip-ckpt lag auto-evidence** (this commit): scripts+evidence land — `--apply`/`-Apply` archives `evidence/outside-in-tip-ckpt-lag-*.txt` (disable `--no-archive`/`-NoArchive`); rehearsal smokes updated. Live FAIL tip=5233 ckpt_max=4851 lag=382. Evidence `outside-in-tip-ckpt-lag-20260721T161508Z.txt` + `b129-tip-ckpt-lag-auto-evidence-20260721.md`. Pins **B-127** via **CI `#29847644779` GREEN**. Board text raced into `b0fd1b1`; scripts land here. B-15-safe. `[skip ci]` so as not to cancel **CI `#29854607541`** on B-131; next full-CI tip proves scripts. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
