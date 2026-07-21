@@ -15,6 +15,11 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-132-claim (from live AGENTS.md §8)
+
+- **2026-07-21 — lane 4 — claim B-124** (this commit): early B-24ag fourth-offense op1 asymmetric→absentee re-slash (B-122 twin; skip B-123 — lane1 soak id) while **CI `#29842437172`** runs on B-122. Claim base `2a98633`. Note: B-122 commit also carried lane1 B-123 soak.sh pin-harden WIP (unintended staging). `[skip ci]`.
+
+
 ### Rotation 2026-07-21 B-131 (from live AGENTS.md §8)
 
 - 1. **2026-07-21 — lane 4 — B-122 fourth-offense asymmetric→absentee re-slash** (this commit): early B-24af `b122_b5_fourth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29839631308` GREEN** on B-121. Full CI (no skip). Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-1 soak WIP. Next id **B-124** (B-123 taken by lane1).
