@@ -1,0 +1,16 @@
+# B-15 live testnet JOIN_TESTNET participant rehearsal
+# utc=2026-07-21T19:13:40Z
+# docs=docs/JOIN_TESTNET.md
+# note=resumed after B-146 fund-wait fix; faucet job done earlier same smoke dir
+
+SUMMARY: PASS
+
+RPC=127.0.0.1:18734
+faucet_url=http://5.161.201.73:8788
+observer_proxy_url=http://5.161.201.73:8787/rpc
+genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005
+tip_height=5322
+
+join-testnet-rehearsal-smoke: PASS faucet_http=true light_scan_checkpoint=true observer_proxy=true
+
+join-testnet-rehearsal: PASS genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005 tip_height=5322 faucet_http=true light_scan_checkpoint=true commitment_hash=a2b1526811ddb9e1d928298fff5c8e7761fd9626ebd1c393b5fd787bfda0138d restored_sha256=d67c656e01756650d77717b0839985a056ec28ffe174601d690fc407a2ceffca restored_path=scripts/public-devnet-v1/join-testnet-rehearsal-smoke/b15-20260721T135542/run/restored.bin support_bundle=

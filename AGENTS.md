@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-146** fund-wait plain light-scan (F101b) + resume B-15 JOIN (`[skip ci]` — B-132 CI `#29857236769`). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-15** JOIN archive PASS + SUMMARY (`[skip ci]` — do not cancel B-132 CI `#29857236769`). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25** (B-42 unlocked).
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-146** fund-wait plain light-scan (this commit); **B-145** (`9ca1124`); **B-144** | **B-15** JOIN resume (funded wallet owned=2; permanence next) | Assert SUMMARY archive PASS | L4 checklist |
+| **3** Onboarding | **B-15** JOIN archive PASS (`join-testnet-rehearsal-windows-20260721T191340Z.txt` tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
 | **4** Protocol | **B-142** (`360481f`, watch CI `#29859782849`); **B-132** (`d025b37`, CI `#29857236769` GREEN); **B-131** (`40d0222`); **B-130**/**B-128** stack | **B-143** fifth-offense op1 asymmetric→absentee re-slash (claim base: `360481f`) | After land: settle-reset→sixth dual-slash; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-140** block-log health + §6 close (`262c748`); **B-139** (`002ee6c`); **B-138** (`555d5df`); **B-137** (`10eedc1`) | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -154,7 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Open** |
+| 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Done** (B-15 archive PASS tip=5322) |
 | 4 | 7 | **B-45+B-48+B-51+B-64:** rolled on Hetzner after **CI `#29725270815` GREEN**; **B-68** peers scrub restored tip | **Done** (VPS roll) |
 | 7 | 4 | **B-68 follow-up:** filter ephemeral/0.0.0.0 on `peers.json` load so polluted durable sets cannot recur (ops scrub is not enough) | **Done** (B-71 + B-73 smoke) |
 | 4 | 7 | **B-32:** mfnd re-roll with B-71/B-73 binary; then help arm ≥2 distinct-host operators for live multi-op pack (after B-15 JOIN window) | **Ack** — **B-77** rolled; **B-79** arm-ready NOT READY (1 host); need real `MFN_B32_OPERATOR_HOSTS` >=2 |
@@ -198,7 +198,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | After L4 gate; promote existing unit test to 256–512 block sim |
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | After B-13a green |
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
-| B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | Wave1 landed; B-41 seeds OPEN — full JOIN archive next |
+| B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (this commit) — windows evidence tip=5322 assert OK; SUMMARY `B15-JOIN-SUMMARY-20260721.md` |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | Phase 2; [`PROBLEMS.md` §15](docs/PROBLEMS.md) |
@@ -337,6 +337,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 3 — B-15 JOIN archive PASS** (this commit): `join-testnet-rehearsal-windows-20260721T191340Z.txt` tip=5322; `assert-join-testnet-rehearsal-evidence` OK; permanence commitment `a2b15268…`. SUMMARY `B15-JOIN-SUMMARY-20260721.md`. Unblocks **B-42**. Built on B-144/B-145/B-146. `[skip ci]` — B-132 CI `#29857236769` may still be in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP; smoke wallets under join-testnet-rehearsal-smoke/.
 
 1. **2026-07-21 — lane 3 — B-146 fund-wait plain light-scan** (this commit): post-faucet wait no longer uses hard `--checkpoint-log` (F45 abort → owned=0 timeout). B-15 JOIN had faucet done + txs; manual scan → balance=1e6 owned=2. Evidence `b146-fund-wait-plain-light-scan-20260721.md`. Resume permanence + archive. `[skip ci]` — B-132 CI `#29857236769`.
 
