@@ -15,6 +15,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-128 (from live AGENTS.md §8)
+
+- **2026-07-21 — lane 4 — claim B-121** (this commit): early B-24ae fourth-slash→empty both-miss while **CI #29839404798** runs on tip. Claim base c55c097. Local debug PASS ready. *Observed (not staged):* lane-1 soak scripts/evidence. [skip ci].
+- **2026-07-21 — lane 4 — B-120 fourth-slash→op1 asymmetric** (ea70e2a): early B-24ad b120_b5_fourth_dual_slash_then_op1_asymmetric_settle_* landed under mislabeled B-119 subject; local debug PASS. Board correction. Full CI #29839404798. Still blocked on 2nd host for live **B-32**. [skip ci].
+
+
 ### Rotation 2026-07-21 B-128-claim (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 4 — B-119 fourth-slash→asymmetric settle** (this commit): early B-24ac `b119_b5_fourth_dual_slash_then_asymmetric_settle_*`; local debug PASS. **CI `#29836555770` GREEN** on prior tip. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
