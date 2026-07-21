@@ -1,0 +1,14 @@
+﻿# B-127 outside-in tip-ckpt lag probe (public observer proxy)
+# B-129 auto-archive
+# B-134 Path A staleness
+# B-135 age_sec + remote public health
+# head_sha=84d78a15defb0523d8e05135be59728d456d0245
+# proxy=http://5.161.201.73:8787/rpc
+# checkpoint_log=C:\Users\shane\Downloads\permawrite-main\mfn-node\testdata\public_devnet_v1.checkpoints.jsonl
+# lag_threshold=16
+# never=faucet-http mfnd restart join-testnet-rehearsal path-a-publish
+assert-outside-in-tip-ckpt-lag: tip=5287 ckpt_max=4851 lag=436 threshold=16 tip_id=8ced5d6a306c7b9529cd93f17799a71602b8d962355c850fdf26eda97ffe30fb
+assert-outside-in-tip-ckpt-lag: STALENESS ckpt_entries=33 published_at=1784604599Z tip_block_id=fabdeb6f0f1c4feef6efb1e8fbe505dead8bd01ba7400d5a104ff0b1129a187a age_sec=52462
+assert-outside-in-tip-ckpt-lag: HEALTH proxy=ok faucet=ok proxy_url=http://5.161.201.73:8787/health faucet_url=http://5.161.201.73:8788/health
+assert-outside-in-tip-ckpt-lag: FAIL tip lag >= threshold (lane7: publish-near-tip-checkpoint-if-lag --apply then land jsonl)
+assert-outside-in-tip-ckpt-lag: SUMMARY status=FAIL tip=5287 ckpt_max=4851 lag=436 ckpt_entries=33 published_at=1784604599Z age_sec=52462 proxy_health=ok faucet_health=ok reason=tip_lag>=threshold
