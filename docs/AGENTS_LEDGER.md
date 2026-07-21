@@ -15,6 +15,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-132 (from live AGENTS.md §8)
+
+- **2026-07-21 — lane 1 — B-129 tip-ckpt lag auto-evidence** (this commit): scripts+evidence land — `--apply`/`-Apply` archives `evidence/outside-in-tip-ckpt-lag-*.txt` (disable `--no-archive`/`-NoArchive`); rehearsal smokes updated. Live FAIL tip=5233 ckpt_max=4851 lag=382. Evidence `outside-in-tip-ckpt-lag-20260721T161508Z.txt` + `b129-tip-ckpt-lag-auto-evidence-20260721.md`. Pins **B-127** via **CI `#29847644779` GREEN**. Board text raced into `b0fd1b1`; scripts land here. B-15-safe. `[skip ci]` so as not to cancel **CI `#29854607541`** on B-131; next full-CI tip proves scripts. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+- **2026-07-21 — lane 4 — claim B-130** (this commit): early B-24aj fifth-slash→asymmetric settle (skip B-129 lane1) while **CI `#29849999987`** runs on B-128. Claim base `1909584`. *Observed (not staged):* lane-1 B-129 tip-ckpt lag scripts/evidence. `[skip ci]`.
+
+
 ### Rotation 2026-07-21 B-132-claim (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 4 — claim B-124** (this commit): early B-24ag fourth-offense op1 asymmetric→absentee re-slash (B-122 twin; skip B-123 — lane1 soak id) while **CI `#29842437172`** runs on B-122. Claim base `2a98633`. Note: B-122 commit also carried lane1 B-123 soak.sh pin-harden WIP (unintended staging). `[skip ci]`.
