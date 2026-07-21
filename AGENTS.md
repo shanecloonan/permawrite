@@ -134,12 +134,12 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Fix-forward **B-86** rustfmt after **CI `#29791944150` RED**. Prior **CI `#29788432236` GREEN** on B-93. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** **CI `#29793832972` GREEN** on B-86 rustfmt (`bef823d`). Prior **CI `#29788432236` GREEN** on B-93. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
-| **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
+| **2** RC ops | **B-94** spent-debris prune (this commit); R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave57** (yuki last_proven=4808; faucet-F101b; F45 lag=116) | **B-15** wave58+ + formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-86** slash→treasury→dual-settle (this commit); **B-83** (`8cfe137`); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
@@ -220,6 +220,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-33 | B-13b human sign-off checklist | 6+7+human | One-lever + producer budget + telemetry baseline before B-13c |
 | B-34 | CI queue/stall watch + cancel/re-dispatch | 1 | **Landed** (this commit) — `scripts/watch-ci-stall.py` + ci-check plan gate (gate was prematurely wired in B-90; scripts complete it); `--cancel-if-stalled` only when zero progress |
 | B-93 | Post-push CI stall watch wrapper (B-34 follow-up) | 1 | **Landed** (this commit) — `scripts/post-push-ci-watch.py` + ci-check plan gate; wired into after-push agent rule |
+| B-94 | Spent-debris prune + gitignore tighten (M2.5.39 follow-up) | 2 | **Landed** (this commit) — delete 5 tracked spent one-shots; ignore `_*.py` / lane WIP / nightly dumps / live-testnet-data* / evidence `_*` |
+
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -283,6 +285,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-21 — lane 2 — B-94 spent-debris prune** (this commit): removed 5 tracked spent one-shots (`fix-codebase-improvements-closure.py`, `split/gen-cli-parse.ps1`, `split-validator-finality-tests.ps1`, wave22-open stub); tightened `.gitignore` for `_*.py`, `_lane*-wip/`, `_nightly*/`, `ci-docs-*.txt`, `live-testnet-data*`, evidence `_*`. Left JOIN runners + live-testnet-data on disk. Docs-only ci-check. `[skip ci]`. *Observed (not staged):* lane-3 JOIN evidence temps.
 1. **2026-07-21 — lane 3 — B-15 wave57**: **yuki** faucet-F101b permanence **last_proven=4808** (commit `99b7e801`); F101b rounds=1; F45 lag=116; claims 31→32. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-21 — lane 3 — B-15 wave56**: **xavier** faucet permanence **last_proven=4794** (commit `7121030f`); F45 lag=107; claims 30→31. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-21 — lane 3 — B-15 wave55**: **wren** faucet permanence **last_proven=4785** (commit `a88d7bcb`); F45 lag=98 (ckpt 4679 frozen); claims 29→30. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.

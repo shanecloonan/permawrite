@@ -66,6 +66,7 @@ _*.tmp
 _*.txt
 _*.ps1
 _*.sh
+_*.py
 _a.tmp
 AGENTS.*.md
 AGENTS.md.*
@@ -76,6 +77,7 @@ docs/*.new*.md
 .gitattributes.new
 scripts/_*.ps1
 scripts/_*.sh
+scripts/_*.py
 scripts/validate-rc*.new.ps1
 scripts/*.restored
 
@@ -83,4 +85,18 @@ scripts/*.restored
 /*.json
 /*.zip
 .worktrees/
+
+# Spent one-shot lane WIP copies + local Nightly/CI dumps
+_lane*-wip/
+_nightly*/
+ci-docs-*.txt
+__pycache__/
+*.pyc
+
+# Local outside-in JOIN node state + underscore evidence scratch (never commit)
+live-testnet-data/
+live-testnet-data-*/
+user-wallet/
+scripts/public-devnet-v1/user-wallet/
+scripts/public-devnet-v1/evidence/_*
 
