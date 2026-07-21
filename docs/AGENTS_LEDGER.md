@@ -15,6 +15,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-131-claim (from live AGENTS.md §8)
+
+- **2026-07-21 — lane 1 — board SYNC B-123/B-122 race** (this commit): **B-123** soak.sh single-id pin harden rode into tip 2a98633 under a B-122 subject (shared-tree race). Code on main; watching CI #29842437172. Docs correction [skip ci].
+- **2026-07-21 — lane 1 — B-123 soak.sh single-id pin harden** (2a98633 body): bash rejects non-numeric nnightly_run/ci_run (Win Get-MfnGreenRunId parity); smoke needles for B-123 + assert space-safe pin anchors. Subject line wrongly says B-122.
+
+
 ### Rotation 2026-07-21 B-130 (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 1 — claim B-123** (this commit): soak.sh single-id pin harden (bash parity with Win Get-MfnGreenRunId) while **CI #29839631308** runs on B-121. Claim base b0371b0. [skip ci]. *Observed (not staged):* lane-4 pply_block_proptest.rs WIP.

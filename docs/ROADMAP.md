@@ -372,6 +372,10 @@ B-126 arc through fifth dual slash, then both operators settle (`mask=0b11`) —
 
 B-126 arc through fifth dual slash, then only op0 settles (`mask=0b01`) — fifth-offense slash credits fund a single SPoRA drain; absentee restarts miss=1. Complements B-128 (dual settle) and B-119 (fourth-slash asymmetric). **B-129** is lane1 tip-ckpt lag id. Does **not** close full **B-24**.
 
+#### B-131 — fifth dual-slash then op1 asymmetric settle drain (lane 4; early B-24ak)
+
+B-130 twin: B-126 arc through fifth dual slash, then only op1 settles (`mask=0b10`) — fifth-offense slash credits fund a single SPoRA drain; absentee (op0) restarts miss=1. Completes the fifth-offense asymmetric settle pair. Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
