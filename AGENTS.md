@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-124** early B-24ag (docs-only while **CI `#29842437172`** runs on B-122 `2a98633`). **CI `#29839631308` GREEN** on B-121. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Lane-1 claiming **B-125** soak refresh tip~5199 + tip-lag note to lane7 (docs-only while **CI `#29842437172`** on B-122). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-123** (`2a98633` body; soak.sh single-id pin); **B-27 soak refresh** tip-5148 (`b0371b0`); **B-96**; **B-93**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
+| **1** RC core | **B-123** (`2a98633` body; soak.sh single-id pin); **B-27 soak refresh** tip-5148 (`b0371b0`); **B-96**; **B-93**; **B-34** | **B-125** soak refresh tip~5199 (claim base: `a1577f6`)  | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
 | **4** Protocol | **B-122** (`2a98633`, watch CI `#29842437172`); **B-121** (`a0443ba`, CI `#29839631308` GREEN); **B-120** (`ea70e2a`); **B-119**/**B-118**/**B-117** stack | **B-124** fourth-offense op1 asymmetric→absentee re-slash (claim base: `2a98633`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -182,6 +182,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
 | 3 | 7 | **F68/F68b:** Windows bootstrap ps1 - temp `.py` TCP snapshot (B-58). Evidence wave12 + `b58-…` | **Done** (B-58) |
 | 7 | 3 | **B-59:** wire `join-testnet-rehearsal.sh` light-scan through `light-scan-checkpoint-soft.sh` (F45 tip race) | **Done** (B-60) |
+| 1 | 7 | **B-125 tip lag:** public tip~5199 vs Path A ckpt max **4851** (lag~348 >> threshold 16). Please Path A republish (B-85/B-100 pattern) so JOIN/F45 can re-pin. B-15-safe probe only from lane1. |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
@@ -308,12 +309,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-122 | Fourth-offense asymmetric then absentee re-slash (early B-24af) | 4 | **Landed** (this commit); elevates B-113/B-115; full CI |
 | B-124 | Fourth-offense op1 asymmetric then absentee re-slash (early B-24ag) | 4 | **Claimed** (this commit) — B-122 twin; skip B-123 (lane1); full CI after `#29842437172` GREEN |
 | B-123 | Soak.sh single-id pin validation (B-96/Win parity) | 1 | **Landed** (2a98633 body, subject mislabeled B-122) — reject non-numeric/multi pins; rehearsal smoke needles |
+| B-125 | Outside-in soak refresh + tip-lag §6 to lane7 | 1 | **Claimed** (this commit) — tip~5199 soak; Path A lag~348 handoff |
 
 ---
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 1 — claim B-125** (this commit): outside-in soak refresh tip~5199 + §6 tip-lag handoff to lane7 (ckpt 4851, lag~348) while **CI `#29842437172`** runs on B-122 (proves B-123). Claim base `a1577f6`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 1. **2026-07-21 — lane 4 — claim B-124** (this commit): early B-24ag fourth-offense op1 asymmetric→absentee re-slash (B-122 twin; skip B-123 — lane1 soak id) while **CI `#29842437172`** runs on B-122. Claim base `2a98633`. Note: B-122 commit also carried lane1 B-123 soak.sh pin-harden WIP (unintended staging). `[skip ci]`.
 
