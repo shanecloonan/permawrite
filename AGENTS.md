@@ -138,7 +138,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (this commit); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); Path A republish = lane 7 (§6) | CI/Nightly run IDs |
+| **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); Path A republish = lane 7 (§6) | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
 | **4** Protocol | **B-131** (`40d0222`, watch CI `#29854607541`); **B-130** (`b0fd1b1`, CI `#29852461441` GREEN); **B-128** (`1909584`); **B-126**/**B-124** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -315,7 +315,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-133 | Outside-in soak refresh + tip-lag §6 refresh | 1 | **Landed** (`62357ae`) — tip 5283->5285; lag=432 evidence; Path A = lane7 |
 | B-134 | Tip-ckpt lag Path A staleness fields + §8 board repair | 1 | **Landed** (`04295ea`) — STALENESS line; tip=5287 lag=436; §8 header repaired |
 | B-135 | Tip-ckpt lag Path A age_sec + remote public health pings | 1 | **Landed** (`2151d02`) — age_sec+HEALTH; tip=5287 lag=436 age~14.6h proxy/faucet ok |
-| B-136 | Tip-ckpt lag FAIL reason distinguishes health_ok vs outage | 1 | **Landed** (this commit) — health_ok→path_a_republish; tip=5288 lag=437 |
+| B-136 | Tip-ckpt lag FAIL reason distinguishes health_ok vs outage | 1 | **Landed** (`85f48ce`) — health_ok→path_a_republish; tip=5288 lag=437 |
 | B-126 | Settle-reset then fifth dual-slash treasury identity (early B-24ah) | 4 | **Landed** (`ba0b69d`); **CI `#29847644779` GREEN** |
 | B-128 | Fifth dual-slash then dual-settle drain (early B-24ai) | 4 | **Landed** (`1909584`); **CI `#29849999987` GREEN** |
 | B-130 | Fifth dual-slash then asymmetric settle drain (early B-24aj) | 4 | **Landed** (`b0fd1b1`); **CI `#29852461441` GREEN**; elevates B-119 |
