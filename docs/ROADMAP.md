@@ -350,7 +350,7 @@ B-119 twin: B-117 arc through fourth dual slash, then only op1 settles (`mask=0b
 
 #### B-121 — fourth dual-slash then empty both-miss (lane 4; early B-24ae)
 
-B-117 arc through a fourth dual empty-audit slash, then an empty audit slot. Treasury stays at post-fourth-slash credit (no SPoRA drain); both operators restart miss streaks at 1; bonds unchanged; \last_proven_slot\ unchanged. Closes the fourth-offense prove matrix {00,01,10,11} with B-118/B-119/B-120. Complements B-112 (third-offense empty). Does **not** close full **B-24**.
+B-117 arc through a fourth dual empty-audit slash, then an empty audit slot. Treasury stays at post-fourth-slash credit (no SPoRA drain); both operators restart miss streaks at 1; bonds unchanged; last_proven_slot unchanged. Closes the fourth-offense prove matrix {00,01,10,11} with B-118/B-119/B-120. Complements B-112 (third-offense empty). Does **not** close full **B-24**.
 
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 

@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-121** early B-24ae (docs-only while **CI #29839404798** runs on tip ea70e2a). Prior **CI #29836555770 GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-121** early B-24ae (full CI). **CI `#29839404798` GREEN** on tip (B-119+B-120). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-96** (`7ee3f66` body, CI `#29801574290` GREEN; tip 4820->4822); **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | **B-27 soak refresh** tip~5145 (claim base: f943802)  | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
-| **4** Protocol | **B-120** (ea70e2a); **B-119** (f3e776); **B-118** (48cfbb3); **B-117** (7d51632); stack | **B-121** fourth-slash→empty both-miss (claim base: c55c097) | After land: closes fourth-offense matrix; after 2 hosts + B-15: 3-multi-op-*.txt → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-121** fourth-slash→empty both-miss (this commit); **B-120** (`ea70e2a`); **B-119** (`bf3e776`); **B-118**/**B-117**/**B-116** stack | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | Fourth-offense matrix closed; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-100** tip-4851 (`4b10e51`, CI `#29800034125` GREEN); **B-97** tip-4833 (`de0d94c`); **B-92** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
@@ -304,7 +304,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-118 | Fourth dual-slash then dual-settle drain (early B-24ab) | 4 | **Landed** (`48cfbb3` subject mislabeled B-117); **CI `#29836555770` GREEN** |
 | B-119 | Fourth dual-slash then asymmetric settle (early B-24ac) | 4 | **Landed** (f3e776); elevates B-110; CI #29839142227 (watch) |
 | B-120 | Fourth dual-slash then op1 asymmetric settle drain (early B-24ad) | 4 | **Landed** (ea70e2a, subject mislabeled B-119); elevates B-111; full CI |
-| B-121 | Fourth dual-slash then empty both-miss (early B-24ae) | 4 | **Claimed** (this commit) — B-112 elevated; full CI after #29839404798 GREEN |
+| B-121 | Fourth dual-slash then empty both-miss (early B-24ae) | 4 | **Landed** (this commit); closes fourth-offense prove matrix; full CI |
 
 ---
 
@@ -312,6 +312,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-21 — lane 4 — B-121 fourth-slash→empty both-miss** (this commit): early B-24ae `b121_b5_fourth_dual_slash_then_empty_both_miss_*`; closes fourth-offense matrix {00,01,10,11}. Local debug PASS. **CI `#29839404798` GREEN** on prior tip. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
 1. **2026-07-21 — lane 4 — claim B-121** (this commit): early B-24ae fourth-slash→empty both-miss while **CI #29839404798** runs on tip. Claim base c55c097. Local debug PASS ready. *Observed (not staged):* lane-1 soak scripts/evidence. [skip ci].
 1. **2026-07-21 — lane 4 — B-120 fourth-slash→op1 asymmetric** (ea70e2a): early B-24ad 120_b5_fourth_dual_slash_then_op1_asymmetric_settle_* landed under mislabeled B-119 subject; local debug PASS. Board correction. Full CI #29839404798. Still blocked on 2nd host for live **B-32**. [skip ci].
 1. **2026-07-21 — lane 4 — B-119 fourth-slash→asymmetric settle** (this commit): early B-24ac `b119_b5_fourth_dual_slash_then_asymmetric_settle_*`; local debug PASS. **CI `#29836555770` GREEN** on prior tip. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
