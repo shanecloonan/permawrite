@@ -302,7 +302,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-116 | Second-offense op1 asymmetric then absentee re-slash (early B-24z) | 4 | **Landed** (`cd856d3`); **CI `#29833394102` GREEN** |
 | B-117 | Settle-reset then fourth dual-slash treasury identity (early B-24aa) | 4 | **Landed** (7d51632); elevates B-108; CI #29835953151 (watch) |
 | B-118 | Fourth dual-slash then dual-settle drain (early B-24ab) | 4 | **Landed** (`48cfbb3` subject mislabeled B-117); **CI `#29836555770` GREEN** |
-| B-119 | Fourth dual-slash then asymmetric settle (early B-24ac) | 4 | **Landed** (f3e776); elevates B-110; CI #29839142227 (watch) |
+| B-119 | Fourth dual-slash then asymmetric settle (early B-24ac) | 4 | **Landed** (bf3e776); elevates B-110; CI #29839142227 (watch) |
 | B-120 | Fourth dual-slash then op1 asymmetric settle drain (early B-24ad) | 4 | **Landed** (ea70e2a, subject mislabeled B-119); elevates B-111; full CI |
 | B-121 | Fourth dual-slash then empty both-miss (early B-24ae) | 4 | **Landed** (`a0443ba`); **CI `#29839631308` GREEN** |
 | B-122 | Fourth-offense asymmetric then absentee re-slash (early B-24af) | 4 | **Landed** (this commit); elevates B-113/B-115; full CI |
@@ -328,7 +328,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-07-21 — lane 4 — B-121 fourth-slash→empty both-miss** (this commit): early B-24ae `b121_b5_fourth_dual_slash_then_empty_both_miss_*`; closes fourth-offense matrix {00,01,10,11}. Local debug PASS. **CI `#29839404798` GREEN** on prior tip. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
 1. **2026-07-21 — lane 4 — claim B-121** (this commit): early B-24ae fourth-slash→empty both-miss while **CI #29839404798** runs on tip. Claim base c55c097. Local debug PASS ready. *Observed (not staged):* lane-1 soak scripts/evidence. [skip ci].
-1. **2026-07-21 — lane 4 — B-120 fourth-slash→op1 asymmetric** (ea70e2a): early B-24ad 120_b5_fourth_dual_slash_then_op1_asymmetric_settle_* landed under mislabeled B-119 subject; local debug PASS. Board correction. Full CI #29839404798. Still blocked on 2nd host for live **B-32**. [skip ci].
+1. **2026-07-21 — lane 4 — B-120 fourth-slash→op1 asymmetric** (ea70e2a): early B-24ad b120_b5_fourth_dual_slash_then_op1_asymmetric_settle_* landed under mislabeled B-119 subject; local debug PASS. Board correction. Full CI #29839404798. Still blocked on 2nd host for live **B-32**. [skip ci].
 1. **2026-07-21 — lane 4 — B-119 fourth-slash→asymmetric settle** (this commit): early B-24ac `b119_b5_fourth_dual_slash_then_asymmetric_settle_*`; local debug PASS. **CI `#29836555770` GREEN** on prior tip. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
 1. **2026-07-21 — lane 4 — claim B-120** (this commit): early B-24ad fourth-slash→op1 asymmetric settle (B-119 twin) while **CI `#29839142227`** runs on B-119. Claim base `bf3e776`. *Observed (not staged):* lane-1 outside-in soak scripts/evidence. `[skip ci]`.
 
@@ -337,7 +337,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-07-21 — lane 4 — claim B-119** (this commit): early B-24ac fourth-slash→asymmetric settle while **CI `#29836555770`** runs on B-118. Claim base `5b99063`. *Observed (not staged):* lane-1 outside-in soak scripts/evidence. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — claim B-119** (this commit): early B-24ac fourth-slash→asymmetric settle while **CI #29836555770** runs on tip. Claim base 5b99063. Local debug PASS staged. *Observed (not staged):* lane-1 soak scripts/evidence. [skip ci].
-1. **2026-07-21 — lane 4 — B-118 fourth-slash→dual settle** (48cfbb3): early B-24ab 118_b5_fourth_dual_slash_then_dual_settle_* landed under mislabeled B-117 subject; local debug PASS. Board correction. Full CI #29836555770. Still blocked on 2nd host for live **B-32**. [skip ci].
+1. **2026-07-21 — lane 4 — B-118 fourth-slash→dual settle** (48cfbb3): early B-24ab b118_b5_fourth_dual_slash_then_dual_settle_* landed under mislabeled B-117 subject; local debug PASS. Board correction. Full CI #29836555770. Still blocked on 2nd host for live **B-32**. [skip ci].
 1. **2026-07-21 — lane 4 — claim B-118** (this commit): early B-24ab fourth-slash→dual settle while **CI `#29835953151`** runs on B-117. Claim base `7d51632`. *Observed (not staged):* lane-1 outside-in soak scripts/evidence. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-117 settle-reset→fourth dual-slash** (this commit): early B-24aa `b117_b5_settle_reset_then_fourth_dual_slash_treasury_identity`; local debug PASS. **CI `#29833394102` GREEN** on B-116. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
