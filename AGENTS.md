@@ -138,7 +138,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-129** tip-ckpt lag auto-evidence (this commit); **B-127** (`981dfd1`, CI `#29847644779` GREEN); **B-125** (`f46a162`); **B-123** (CI `#29842437172` GREEN); **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); Path A republish = lane 7 (§6) | CI/Nightly run IDs |
+| **1** RC core | **B-129** tip-ckpt lag auto-evidence (`7e2afb8`); **B-127** (`981dfd1`, CI `#29847644779` GREEN); **B-125** (`f46a162`); **B-123** (CI `#29842437172` GREEN); **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); Path A republish = lane 7 (§6) | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
 | **4** Protocol | **B-131** (`40d0222`, watch CI `#29854607541`); **B-130** (`b0fd1b1`, CI `#29852461441` GREEN); **B-128** (`1909584`); **B-126**/**B-124** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -311,7 +311,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-123 | Soak.sh single-id pin validation (B-96/Win parity) | 1 | **Landed** (`2a98633` body; **CI `#29842437172` GREEN**) — reject non-numeric/multi pins; rehearsal smoke needles |
 | B-125 | Outside-in soak refresh + tip-lag §6 to lane7 | 1 | **Landed** (`f46a162`) — tip 5200->5202; §6 Path A lag~351 Open |
 | B-127 | Outside-in tip-vs-checkpoint lag assert (B-15-safe) | 1 | **Landed** (`981dfd1`); **CI `#29847644779` GREEN** (proved on B-126 tip) |
-| B-129 | Tip-ckpt lag assert auto-archives evidence (B-127 follow-up) | 1 | **Landed** (this commit; board raced `b0fd1b1`) — scripts+evidence; tip=5233 lag=382 |
+| B-129 | Tip-ckpt lag assert auto-archives evidence (B-127 follow-up) | 1 | **Landed** (`7e2afb8`; board raced `b0fd1b1`) — scripts+evidence; tip=5233 lag=382 |
 | B-126 | Settle-reset then fifth dual-slash treasury identity (early B-24ah) | 4 | **Landed** (`ba0b69d`); **CI `#29847644779` GREEN** |
 | B-128 | Fifth dual-slash then dual-settle drain (early B-24ai) | 4 | **Landed** (`1909584`); **CI `#29849999987` GREEN** |
 | B-130 | Fifth dual-slash then asymmetric settle drain (early B-24aj) | 4 | **Landed** (`b0fd1b1`); **CI `#29852461441` GREEN**; elevates B-119 |
