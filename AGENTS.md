@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-97** Path A tip-4833 (full CI). **CI #29797153366 GREEN** on B-98 8eb586e; **CI #29795731587 GREEN** on B-95. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-100** Path A tip-4851 (full CI). **CI `#29798634416` GREEN** on B-97 `de0d94c`. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4833** after B-97 | L4 checklist |
+| **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** after B-100 | L4 checklist |
 | **4** Protocol | **B-98** slash→op1 asymmetric settle (this commit); **B-95** (`665c166`, CI `#29795731587` GREEN); **B-86** (`9fede5b`/`bef823d`, CI `#29793832972` GREEN); **B-83**/**B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | **B-99** slash→empty both-miss (post-slash prove matrix); after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-92** tip-4679 (`db5874c`); **B-91** (`13cdb01`); **B-90** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-100** tip-4851 (this commit; entries=33; lag=0); **B-97** tip-4833 (`de0d94c`); **B-92** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -177,7 +177,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | 7+4 | **Wave10 F62/F65:** VPS not F62 (chain.blocks 6.3MiB, get_block PASS). F65 last_proven=4071 needs B-45 mfnd roll after CI+B-51. Evidence `b53-…` + wave10 | **Done** (F62 VPS); **Done** (mfnd roll + B-68) |
 | 7 | 3 | **B-53:** faucet `/health` no longer blocks on keepalive lock; use `assert-vps-block-log-health.sh` for F62 checks | **Open** |
 | 7 | 1+4 | **CI `#29715111633`:** produce-smoke timeout fixed in B-51 (60s); **b3_legacy** flake = **B-60** (`7ab86ad`) | **Done** |
-| 7 | 3 | **B-22 / B-97 tip-4833:** re-pin / soft light-scan at new log max for SUMMARY (was 4679; F45 lag~130→~0) | **Open** |
+| 7 | 3 | **B-22 / B-100 tip-4851:** re-pin / soft light-scan at new log max for SUMMARY (B-97 was 4833) | **Open** |
 | 7 | 3 | **B-55:** browser UI at `http://5.161.201.73:3000/testnet` (optional; local observer still preferred for JOIN evidence) | **Open** |
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
 | 3 | 7 | **F68/F68b:** Windows bootstrap ps1 - temp `.py` TCP snapshot (B-58). Evidence wave12 + `b58-…` | **Done** (B-58) |
@@ -270,6 +270,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-91 | Public-testnet health assert (timer+proxy tip-align+faucet+ckpt lag) + tip-4662 | 7 | **Landed** (`13cdb01`); **CI `#29779275119` GREEN**; entries=25 |
 | B-92 | Path A tip-4679 (lag=17 after waves 46-47) + B-91 CI note | 7 | **Landed** (this commit); entries=26 |
 | B-97 | Path A tip-4833 land + Windows land-path-a-checkpoint-from-vps.ps1 | 7 | **Landed** (this commit); closes F45 lag~130; exact-tip 4833; entries=32; B-15-safe |
+| B-100 | Path A tip-4851 land (post-B-97 lag reopen) | 7 | **Landed** (this commit); entries=33; B-15-safe; health OK |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
@@ -288,6 +289,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-21 — lane 7 — B-100 Path A tip-4851** (this commit): force-publish+land after health FAIL lag=18; ckpt **4833→4851** (entries=33); lag 0; `assert-public-testnet-health` + peers-clean OK. B-15-safe. Evidence `b100-path-a-tip4851-20260721.md`. **CI `#29798634416` GREEN** on B-97. Full CI (no skip). *Observed (not staged):* lane-1 B-96 soak WIP, lane-4 B-99/`apply_block_proposals.rs`, JOIN temps.
 1. **2026-07-21 — lane 7 — B-97 Path A tip-4833** (this commit): published+landed exact-tip ckpt **4679→4833** (entries=32); lag 130→0; `assert-public-testnet-health` + peers-clean OK; added Windows `land-path-a-checkpoint-from-vps.ps1`. B-15-safe (no faucet/mfnd restart). Evidence `b97-path-a-tip4833-20260721.md`. Prior **CI #29797153366 GREEN** on B-98. Full CI (no skip). *Observed (not staged):* lane-1 B-96 soak WIP, JOIN temps.
 1. **2026-07-21 — lane 4 — B-98 slash→op1 asymmetric settle** (this commit): early B-24i `b98_b5_slash_funded_treasury_then_op1_asymmetric_settle_*`; local release test PASS. Prior **CI `#29795731587` GREEN** on B-95. Id avoids lane-1 **B-96** + lane-7 **B-97**. Full CI (no skip). *Observed (not staged):* lane-1 soak pin-assert WIP, lane-7 Path A / ckpt WIP, JOIN temps. Still blocked on 2nd host for live **B-32**.
 1. **2026-07-21 — lane 3 — B-15 wave58**: **zion** faucet-F101b permanence **last_proven=4823** (commit `54887d55`); F45 lag=130; claims 32→33. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
