@@ -342,7 +342,7 @@ B-117 arc through fourth dual slash, then both operators settle (`mask=0b11`) �
 
 #### B-119 — fourth dual-slash then asymmetric settle (lane 4; early B-24ac)
 
-B-117 arc through a fourth dual empty-audit slash, then only op0 settles (\mask=0b01\). Fourth-offense slash credits fund a single SPoRA drain; prover miss=0; absentee miss=1; bonds stay post-fourth-slash. Twin settle corner of B-118. Complements B-110 (third-slash asymmetric). Does **not** close full **B-24**.
+B-117 arc through a fourth dual empty-audit slash, then only op0 settles (`mask=0b01`). Fourth-offense slash credits fund a single SPoRA drain; prover miss=0; absentee miss=1; bonds stay post-fourth-slash. Twin settle corner of B-118. Complements B-110 (third-slash asymmetric). Does **not** close full **B-24**.
 
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
