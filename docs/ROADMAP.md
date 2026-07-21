@@ -260,6 +260,10 @@ Drive both operators to miss=`cap−1`, then empty-audit dual partial slash (B-7
 
 Same dual-slash funding as B-86, but the next audit slot has only op0 prove (`mask=0b01`). Treasury drains for one settlement; prover miss=0; absentee miss=1 (new streak after slash reset); bonds stay post-slash. Complements B-86 (dual settle) and B-67 (slash+settle same block). Does **not** close full **B-24**.
 
+#### B-98 — slash-funded treasury then op1 asymmetric settle (lane 4; early B-24i)
+
+Symmetric twin of B-95: dual-slash funding, then only op1 prove (`mask=0b10`) on the next audit slot. Treasury drains for one settlement; prover (op1) miss=0; absentee (op0) miss=1; bonds stay post-slash. Completes the post-slash asymmetric pair (op0 / op1). Note: backlog ids **B-96** (lane-1 soak pin-assert) and **B-97** (lane-7 Path A) are unrelated. Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
