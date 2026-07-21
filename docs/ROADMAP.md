@@ -316,6 +316,10 @@ Symmetric twin of B-110: B-108 arc through a third dual empty-audit slash, then 
 
 B-108 arc through a third dual empty-audit slash, then an empty audit slot. Treasury stays at post-third-slash credit (no SPoRA drain); both operators restart miss streaks at 1; bonds unchanged; `last_proven_slot` unchanged. Closes the third-offense prove matrix {00,01,10,11} with B-109/B-110/B-111. Complements B-107 (second-offense empty). Does **not** close full **B-24**.
 
+#### B-113 — third-offense asymmetric then absentee re-slash while peer settles (lane 4; early B-24w)
+
+B-108 arc through a third dual empty-audit slash, then the B-101 path: op0-only settle, window-spaced climb of absentee miss to `cap-1`, then op0 settles again while op1 alone re-slashes. Treasury identity: absentee re-slash credit then peer SPoRA drain; prover miss stays 0; re-slash resets absentee; bonds track modeled partial slash; `last_proven_slot` advances. Complements B-101 (first-slash funding) and B-110 (stops at asymmetric). Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
