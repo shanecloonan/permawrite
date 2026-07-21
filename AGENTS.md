@@ -134,13 +134,13 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-15** JOIN archive PASS + SUMMARY (`[skip ci]` — do not cancel B-132 CI `#29857236769`). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25** (B-42 unlocked).
+**CI gate (2026-07-21):** **B-15 JOIN PASS** (`9974828`). **CI `#29857236769` GREEN** on B-132 tip `d025b37`. **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Next: **B-42** live; Path A republish; L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15** JOIN archive PASS (`join-testnet-rehearsal-windows-20260721T191340Z.txt` tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
+| **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
 | **4** Protocol | **B-142** (`360481f`, watch CI `#29859782849`); **B-132** (`d025b37`, CI `#29857236769` GREEN); **B-131** (`40d0222`); **B-130**/**B-128** stack | **B-143** fifth-offense op1 asymmetric→absentee re-slash (claim base: `360481f`) | After land: settle-reset→sixth dual-slash; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -198,7 +198,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | After L4 gate; promote existing unit test to 256–512 block sim |
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | After B-13a green |
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
-| B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (this commit) — windows evidence tip=5322 assert OK; SUMMARY `B15-JOIN-SUMMARY-20260721.md` |
+| B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) — windows evidence tip=5322 assert OK; SUMMARY `B15-JOIN-SUMMARY-20260721.md` |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | Phase 2; [`PROBLEMS.md` §15](docs/PROBLEMS.md) |
@@ -337,6 +337,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 1/3 — pin B-15 + CI `#29857236769` GREEN** (this commit): B-15 head `9974828`; B-132 tip CI GREEN on `d025b37`. `[skip ci]`.
 
 1. **2026-07-21 — lane 3 — B-15 JOIN archive PASS** (this commit): `join-testnet-rehearsal-windows-20260721T191340Z.txt` tip=5322; `assert-join-testnet-rehearsal-evidence` OK; permanence commitment `a2b15268…`. SUMMARY `B15-JOIN-SUMMARY-20260721.md`. Unblocks **B-42**. Built on B-144/B-145/B-146. `[skip ci]` — B-132 CI `#29857236769` may still be in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP; smoke wallets under join-testnet-rehearsal-smoke/.
 

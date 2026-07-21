@@ -23,7 +23,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-141** (`7e2746b`); watch B-132 CI `#29857236769`; Nightly `#29854540235` GREEN | *Idle* — pin B-132 when GREEN | Release-evidence after CI+Nightly; Path A lag probe |
+| **A** RC/CI | **B-141** (`7e2746b`); pin **CI `#29857236769` GREEN** on B-132; Nightly `#29854540235` GREEN | *Idle* — pin B-132 when GREEN | Release-evidence after CI+Nightly; Path A lag probe |
 | **B** Protocol/Privacy | **B-132** fifth-offense matrix closed (`7b5f3ef`/`d025b37`) | **B-142** fifth-offense asymmetric→absentee re-slash (lane4) | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; **B-146**/**B-145**/**B-144** | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
 
