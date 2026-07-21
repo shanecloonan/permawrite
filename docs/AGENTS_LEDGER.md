@@ -15,6 +15,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-149-claim
+
+1. **2026-07-21 — lane 2 — B-141 3agent cockpit + §8 repair** (`7e2746b`): Revived `3agent.md` as three-seat Done/Doing/Next cockpit (A=RC/CI, B=Protocol/Privacy, C=Testnet/Onboarding) under AGENTS authority; updated §1 system map + §0 contract note; repaired mangled §8 header (B-140/B-139/B-138 splice). Outside-in tip=5291 ckpt=5290 lag=1. Evidence `b141-3agent-session-cockpit-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` may still be in flight; `gh` rate-limited at SYNC. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+
+
+
 ### Rotation 2026-07-21 B-148-land
 
 1. **2026-07-21 — lane 7 — B-140 block-log health + §6 B-53/B-56** (this commit): VPS `assert-vps-block-log-health` PASS tip=5291; tip advancing; `invite-load-smoke-rehearsal --plan-only` PASS (live B-42 after B-15). Closed §6 B-53/B-56. Evidence `vps-block-log-health-20260721T181400Z.txt` + `b140-block-log-health-section6-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.

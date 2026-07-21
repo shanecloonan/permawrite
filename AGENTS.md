@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-148** early B-24ap (full CI). **CI `#29864361735` GREEN** on B-147 `97dd712`. **CI `#29862082733` GREEN** on B-143. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Claiming **B-149** early B-24aq (docs-only while **CI `#29866791874`** runs on B-148 `cc77d1ff`). **CI `#29864361735` GREEN** on B-147. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-148** sixth dual-slash→dual settle (this commit); **B-147** (`97dd712`, CI `#29864361735` GREEN); **B-143** (`2dec0fd`); **B-142** stack | *Idle* — next sixth-offense asymmetric settle (**B-149**); live **B-32** still needs 2nd host | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-148** (`cc77d1ff`, watch CI `#29866791874`); **B-147** (`97dd712`, CI `#29864361735` GREEN); **B-143** (`2dec0fd`); **B-142** stack | **B-149** sixth dual-slash→asymmetric settle (claim base: `cc77d1ff`) | After land: sixth op1 asymmetric (**B-150**); after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -325,7 +325,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-143 | Fifth-offense op1 asymmetric then absentee re-slash (early B-24an) | 4 | **Landed** (`2dec0fd`); completes fifth-offense re-slash pair; full CI |
 | B-147 | Settle-reset then sixth dual-slash treasury identity (early B-24ao) | 4 | **Landed** (this commit); elevates B-126; full CI |
 | B-148 | Sixth dual-slash then dual-settle drain (early B-24ap) | 4 | **Landed** (this commit); elevates B-128; full CI |
-| B-149 | Sixth dual-slash then asymmetric settle drain (early B-24aq) | 4 | Next after B-148 CI GREEN — elevates B-130 |
+| B-149 | Sixth dual-slash then asymmetric settle drain (early B-24aq) | 4 | **Claimed** (this commit) — elevates B-130; full CI after `#29866791874` GREEN |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -340,6 +340,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — claim B-149** (this commit): early B-24aq sixth dual-slash→asymmetric settle while **CI `#29866791874`** runs on B-148. Claim base `cc77d1ff`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-148 sixth dual-slash→dual settle** (this commit): early B-24ap `b148_b5_sixth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29864361735` GREEN** on B-147. Elevates B-128. Full CI (no skip). Next: **B-149** sixth-slash→asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
 
@@ -379,6 +381,4 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-07-21 — lane 4 — B-132 fifth-slash→empty both-miss** (this commit): early B-24al `b132_b5_fifth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29854607541` GREEN** on B-131. Closes fifth-offense prove matrix {00,01,10,11}. Full CI (no skip). Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-1 tip-ckpt lag WIP.
 
 1. **2026-07-21 — lane 4 — B-132 fifth-slash→empty both-miss** (`7b5f3ef`): early B-24al `b132_b5_fifth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. Closes fifth-offense prove matrix {00,01,10,11} with B-128/B-130/B-131. Full CI (no skip) after **CI `#29854607541` GREEN** on B-131. Still blocked on 2nd host for live **B-32**. *Observed:* 3agent cockpit B-141 live.
-
-1. **2026-07-21 — lane 2 — B-141 3agent cockpit + §8 repair** (`7e2746b`): Revived `3agent.md` as three-seat Done/Doing/Next cockpit (A=RC/CI, B=Protocol/Privacy, C=Testnet/Onboarding) under AGENTS authority; updated §1 system map + §0 contract note; repaired mangled §8 header (B-140/B-139/B-138 splice). Outside-in tip=5291 ckpt=5290 lag=1. Evidence `b141-3agent-session-cockpit-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` may still be in flight; `gh` rate-limited at SYNC. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
