@@ -15,6 +15,14 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-151-land
+
+1. **2026-07-21 — lane 3 — B-145 tall-tip bootstrap snapshot timeout** (`9ca1124`): `bootstrap-wallet-from-checkpoint-log` uses python NDJSON fetch with `MFN_BOOTSTRAP_SNAPSHOT_TIMEOUT_SECS` (default 300) — measured ~145s for tip-5290 vs mfn-cli 30s I/O. Evidence `b145-bootstrap-long-timeout-snapshot-20260721.md`. B-15 JOIN re-run next. `[skip ci]` — B-132 CI `#29857236769` in flight.
+
+1. **2026-07-21 — lane 3 — B-144 Windows JOIN python3 resolve** (`cc79bfe`): `lib-python3.sh` (`mfn_require_python3` + `mfn_resolve_release_bin`); wired into bootstrap / light-scan-soft / join-testnet-rehearsal. B-15 blocked on fresh observer sync (corrupt `chain.blocks` quarantine) tip catch-up to ~5306. Evidence `b144-windows-join-python3-resolve-20260721.md`. `[skip ci]` — B-132 CI `#29857236769` in flight.
+
+
+
 ### Rotation 2026-07-21 B-150-land (from live AGENTS.md §8)
 
 - 1. **2026-07-21 — lane 3 — claim B-15 formal JOIN capture** (this commit): Seat C / 3agent — start local observer sync then `join-testnet-rehearsal` against public faucet+proxy; Path A tip-5290 ready (lag~8). Claim base `92f1f31`. `[skip ci]` — B-132 CI `#29857189652` in flight. Respect §6: no parallel JOIN; faucet idle at claim.
