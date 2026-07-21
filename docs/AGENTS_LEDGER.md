@@ -15,6 +15,15 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-153-pin (from live AGENTS.md §8)
+
+- 1. **2026-07-21 — lane 3 — B-146 fund-wait plain light-scan** (this commit): post-faucet wait no longer uses hard `--checkpoint-log` (F45 abort → owned=0 timeout). B-15 JOIN had faucet done + txs; manual scan → balance=1e6 owned=2. Evidence `b146-fund-wait-plain-light-scan-20260721.md`. Resume permanence + archive. `[skip ci]` — B-132 CI `#29857236769`.
+
+- 1. **2026-07-21 — lane 3 — B-15 JOIN archive PASS** (this commit): `join-testnet-rehearsal-windows-20260721T191340Z.txt` tip=5322; `assert-join-testnet-rehearsal-evidence` OK; permanence commitment `a2b15268…`. SUMMARY `B15-JOIN-SUMMARY-20260721.md`. Unblocks **B-42**. Built on B-144/B-145/B-146. `[skip ci]` — B-132 CI `#29857236769` may still be in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP; smoke wallets under join-testnet-rehearsal-smoke/.
+
+- 1. **2026-07-21 — lane 1/3 — pin B-15 + CI `#29857236769` GREEN** (this commit): B-15 head `9974828`; B-132 tip CI GREEN on `d025b37`. `[skip ci]`.
+
+
 ### Rotation 2026-07-21 B-153-claim
 
 1. **2026-07-21 — lane 4 — claim B-143** (this commit): early B-24an fifth-offense op1 asymmetric→absentee re-slash (B-142 twin) while **CI `#29859782849`** runs on B-142. Claim base `360481f`. *Observed (not staged):* lane-3 JOIN smoke dir. `[skip ci]`.
