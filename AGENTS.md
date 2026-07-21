@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-128** early B-24ai (full CI). **CI `#29847644779` GREEN** on B-126 `ba0b69d`. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Claiming **B-130** early B-24aj (docs-only while **CI `#29849999987`** runs on B-128 `1909584`). **CI `#29847644779` GREEN** on B-126. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-127** tip-ckpt lag assert (this commit); **B-125** soak tip-5202 (`f46a162`); **B-123** (CI `#29842437172` GREEN); **B-96**; **B-34** | **B-129** tip-ckpt lag auto-evidence (claim base: `52496a4`)  | Participant JOIN half after B-15 SUMMARY (lane 3); Path A republish = lane 7 (§6) | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
-| **4** Protocol | **B-128** fifth-slash→dual settle (this commit); **B-126** (`ba0b69d`, CI `#29847644779` GREEN); **B-124** (`73ab34a`); **B-122**/**B-121**/**B-120** stack | *Idle* — live **B-32** blocked on 2nd host (**B-79** NOT READY) | Next: **B-130** fifth-slash asymmetric (skip B-129 lane1); after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-128** (`1909584`, watch CI `#29849999987`); **B-126** (`ba0b69d`, CI `#29847644779` GREEN); **B-124** (`73ab34a`); **B-122**/**B-121** stack | **B-130** fifth-slash→asymmetric settle (claim base: `1909584`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-100** tip-4851 (`4b10e51`, CI `#29800034125` GREEN); **B-97** tip-4833 (`de0d94c`); **B-92** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
@@ -313,13 +313,18 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-127 | Outside-in tip-vs-checkpoint lag assert (B-15-safe) | 1 | **Landed** (this commit) — `assert-outside-in-tip-ckpt-lag.{sh,ps1}` + ci-check plan gate; live FAIL lag=364 evidence |
 | B-129 | Tip-ckpt lag assert auto-archives evidence (B-127 follow-up) | 1 | **Claimed** (this commit) — soak-parity evidence on FAIL/OK; full CI after B-126 |
 | B-126 | Settle-reset then fifth dual-slash treasury identity (early B-24ah) | 4 | **Landed** (`ba0b69d`); **CI `#29847644779` GREEN** |
-| B-128 | Fifth dual-slash then dual-settle drain (early B-24ai) | 4 | **Landed** (this commit); elevates B-118; full CI |
+| B-128 | Fifth dual-slash then dual-settle drain (early B-24ai) | 4 | **Landed** (`1909584`); elevates B-118; watch CI `#29849999987` |
+| B-130 | Fifth dual-slash then asymmetric settle drain (early B-24aj) | 4 | **Claimed** (this commit) — elevates B-119; skip B-129 (lane1); full CI after `#29849999987` GREEN |
 
 ---
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — claim B-130** (this commit): early B-24aj fifth-slash→asymmetric settle (skip B-129 lane1) while **CI `#29849999987`** runs on B-128. Claim base `1909584`. *Observed (not staged):* lane-1 B-129 tip-ckpt lag scripts/evidence. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — claim B-130** (this commit): early B-24aj fifth-slash→asymmetric settle while **CI `#29849999987`** runs on B-128. Claim base `1909584`. Skip B-129 (lane1). *Observed (not staged):* lane-1 tip-ckpt lag scripts/evidence. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-128 fifth-slash→dual settle** (this commit): early B-24ai `b128_b5_fifth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29847644779` GREEN** on B-126. Full CI (no skip). Still blocked on 2nd host for live **B-32**. Next: **B-130** (B-129 = lane1).
 
@@ -357,6 +362,3 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-07-21 — lane 1 — B-27 soak refresh tip-5148 + Win pin fix** (this commit): live soak PASS 5146->5148; evidence `outside-in-invite-soak-20260721T132129Z.txt` + `b27-outside-in-invite-soak-refresh-20260721-tip5148.md`; pins Nightly `#29833331135` + CI `#29831106571`. Fixed PowerShell `gh --jq` pin mangling via `Get-MfnGreenRunId`/`ConvertFrom-Json`; assert single numeric pin (CRLF-safe). B-15-safe. `[skip ci]` — lane-4 full-CI queue thrash; scripts gate proves on next non-skip matrix. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
-1. **2026-07-21 — lane 4 — claim B-122** (this commit): early B-24af fourth-offense asymmetric→absentee re-slash while **CI `#29839631308`** runs on B-121. Claim base `a0443ba`. *Observed (not staged):* lane-1 outside-in soak scripts/evidence. `[skip ci]`.
-
-1. **2026-07-21 — lane 4 — B-121 fourth-slash→empty both-miss** (this commit): early B-24ae `b121_b5_fourth_dual_slash_then_empty_both_miss_*`; closes fourth-offense matrix {00,01,10,11}. Local debug PASS. **CI `#29839404798` GREEN** on prior tip. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
