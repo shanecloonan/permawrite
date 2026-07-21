@@ -352,6 +352,10 @@ B-119 twin: B-117 arc through fourth dual slash, then only op1 settles (`mask=0b
 
 B-117 arc through a fourth dual empty-audit slash, then an empty audit slot. Treasury stays at post-fourth-slash credit (no SPoRA drain); both operators restart miss streaks at 1; bonds unchanged; last_proven_slot unchanged. Closes the fourth-offense prove matrix {00,01,10,11} with B-118/B-119/B-120. Complements B-112 (third-offense empty). Does **not** close full **B-24**.
 
+#### B-122 — fourth-offense asymmetric then absentee re-slash while peer settles (lane 4; early B-24af)
+
+B-117 arc through fourth dual slash, then the B-101 path: op0-only settle, window-spaced climb of absentee miss to `cap-1`, then op0 settles again while op1 alone re-slashes. Elevates B-113/B-115 to fourth-offense funding. Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).

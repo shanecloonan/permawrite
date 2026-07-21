@@ -15,6 +15,15 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-122-claim (from live AGENTS.md §8)
+
+- **2026-07-21 — lane 4 — B-113 third-offense asymmetric→absentee re-slash** (this commit): early B-24w `b113_b5_third_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29824883480` GREEN** on B-112. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
+- **2026-07-21 — lane 4 — claim B-113** (this commit): early B-24w third-offense asymmetric→absentee re-slash while **CI `#29824883480`** runs on B-112. Claim base `2adf089`. `[skip ci]`.
+- **2026-07-21 — lane 4 — B-112 third-slash→empty both-miss** (this commit): early B-24v `b112_b5_third_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29822696096` GREEN** on B-111. Closes third-offense prove matrix {00,01,10,11}. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
+- **2026-07-21 — lane 4 — claim B-112** (this commit): early B-24v third-slash→empty both-miss while **CI `#29822696096`** runs on B-111. Claim base `c705c77`. `[skip ci]`.
+- **2026-07-21 — lane 4 — B-111 third-slash→op1 asymmetric settle** (this commit): early B-24u `b111_b5_third_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29820501612` GREEN** on B-110. Completes third-offense asymmetric settle pair. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
+
+
 ### Rotation 2026-07-21 B-120-claim (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 4 — claim B-111** (this commit): early B-24u third-slash→op1 asymmetric while **CI `#29820501612`** runs on B-110. Claim base `be3e80a`. `[skip ci]`.
