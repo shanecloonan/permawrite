@@ -15,6 +15,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-152-claim
+
+1. **2026-07-21 — lane 4 — B-142 fifth-offense asymmetric→absentee re-slash** (this commit): early B-24am `b142_b5_fifth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29857236769` GREEN** on B-132. Full CI (no skip). Next: **B-143** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 JOIN smoke dir.
+
+
+
 ### Rotation 2026-07-21 B-151-land
 
 1. **2026-07-21 — lane 3 — B-145 tall-tip bootstrap snapshot timeout** (`9ca1124`): `bootstrap-wallet-from-checkpoint-log` uses python NDJSON fetch with `MFN_BOOTSTRAP_SNAPSHOT_TIMEOUT_SECS` (default 300) — measured ~145s for tip-5290 vs mfn-cli 30s I/O. Evidence `b145-bootstrap-long-timeout-snapshot-20260721.md`. B-15 JOIN re-run next. `[skip ci]` — B-132 CI `#29857236769` in flight.
