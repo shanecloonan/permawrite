@@ -91,18 +91,58 @@ trap 'rm -rf "$TMP"' EXIT
 SNAP_ERR="$TMP/snap.err"
 SNAP_OUT="$TMP/snap.json"
 
+# B-145: tall-tip get_light_snapshot can exceed mfn-cli default 30s I/O timeout (~145s at tip~5290).
+# Prefer a long-timeout NDJSON fetch (MFN_BOOTSTRAP_SNAPSHOT_TIMEOUT_SECS, default 300).
+SNAP_TIMEOUT_SECS="${MFN_BOOTSTRAP_SNAPSHOT_TIMEOUT_SECS:-300}"
 ok=0
 for i in 1 2 3 4 5 6 7 8; do
-  if "$MCLI" --rpc "$RPC" call get_light_snapshot --params "{\"height\":$MAX_TIP}" >"$SNAP_OUT" 2>"$SNAP_ERR"; then
+  if python3 - "$RPC" "$MAX_TIP" "$SNAP_OUT" "$SNAP_TIMEOUT_SECS" <<'PY' 2>"$SNAP_ERR"
+import json, socket, sys, time
+from pathlib import Path
+
+rpc, height_s, out_path, timeout_s = sys.argv[1], sys.argv[2], Path(sys.argv[3]), int(sys.argv[4])
+host, port_s = rpc.rsplit(":", 1)
+port = int(port_s)
+height = int(height_s)
+req = {"jsonrpc": "2.0", "id": 1, "method": "get_light_snapshot", "params": {"height": height}}
+deadline = time.time() + timeout_s
+s = socket.create_connection((host, port), timeout=min(30, timeout_s))
+s.settimeout(min(60, timeout_s))
+s.sendall((json.dumps(req) + "\n").encode())
+buf = b""
+while time.time() < deadline:
+    remaining = max(1.0, deadline - time.time())
+    s.settimeout(min(60.0, remaining))
+    try:
+        chunk = s.recv(1024 * 1024)
+    except socket.timeout:
+        continue
+    if not chunk:
+        break
+    buf += chunk
+    if buf.endswith(b"\n"):
+        break
+else:
+    raise SystemExit(f"get_light_snapshot timed out after {timeout_s}s bytes={len(buf)}")
+s.close()
+if not buf.strip():
+    raise SystemExit("empty get_light_snapshot response")
+payload = json.loads(buf.decode().split("\n", 1)[0])
+if "error" in payload:
+    raise SystemExit(payload["error"])
+out_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+print(f"snapshot_bytes={out_path.stat().st_size}")
+PY
+  then
     ok=1
-    echo "bootstrap-wallet-from-checkpoint-log: snapshot_ok attempt=$i"
+    echo "bootstrap-wallet-from-checkpoint-log: snapshot_ok attempt=$i via=python timeout_secs=$SNAP_TIMEOUT_SECS"
     break
   fi
   echo "bootstrap-wallet-from-checkpoint-log: snapshot_retry=$i $(head -c 160 "$SNAP_ERR" | tr '\n' ' ')"
   sleep $((i + 1))
 done
 if (( ok == 0 )); then
-  echo "bootstrap-wallet-from-checkpoint-log: get_light_snapshot failed (hub EAGAIN under load?). Retry when tip is quiet." >&2
+  echo "bootstrap-wallet-from-checkpoint-log: get_light_snapshot failed (timeout/EAGAIN?). Raise MFN_BOOTSTRAP_SNAPSHOT_TIMEOUT_SECS or retry when tip is quiet." >&2
   exit 2
 fi
 
