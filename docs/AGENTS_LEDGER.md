@@ -15,6 +15,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-148-land
+
+1. **2026-07-21 — lane 7 — B-140 block-log health + §6 B-53/B-56** (this commit): VPS `assert-vps-block-log-health` PASS tip=5291; tip advancing; `invite-load-smoke-rehearsal --plan-only` PASS (live B-42 after B-15). Closed §6 B-53/B-56. Evidence `vps-block-log-health-20260721T181400Z.txt` + `b140-block-log-health-section6-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+
+
+
 ### Rotation 2026-07-21 B-148-claim (from live AGENTS.md §8)
 
 - 1. **2026-07-21 — lane 7 — B-138 public-testnet health post-B-137** (this commit): VPS `assert-public-testnet-health --apply` OK (timer success, proxy+faucet ok, tip=5290 ckpt=5290 lag=0). Evidence `public-testnet-health-20260721T181000Z.txt` + `b138-public-testnet-health-post-b137-20260721.md`. §6 B-22/B-100 → Ack tip-5290 for lane3 SUMMARY. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
