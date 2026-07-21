@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-124** early B-24ag (full CI). **CI `#29842437172` GREEN** on B-122 `2a98633` (also proved B-123 soak needles). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Claiming **B-126** early B-24ah (docs-only while **CI `#29844848474`** runs on B-124 `73ab34a`). **CI `#29842437172` GREEN** on B-122. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-125** soak tip-5202 (this commit); **B-123** (`2a98633` body); **B-27** tip-5148 (`b0371b0`); **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/Path A to 7 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
-| **4** Protocol | **B-124** fourth-offense op1 asymmetric→absentee re-slash (this commit); **B-122** (`2a98633`, CI `#29842437172` GREEN); **B-121** (`a0443ba`); **B-120**/**B-119** stack | *Idle* — live **B-32** blocked on 2nd host (**B-79** NOT READY) | Next: **B-126** settle-reset→fifth dual-slash; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-124** (`73ab34a`, watch CI `#29844848474`); **B-122** (`2a98633`, CI `#29842437172` GREEN); **B-121** (`a0443ba`); **B-120**/**B-119** stack | **B-126** settle-reset→fifth dual-slash (claim base: `73ab34a`) | After land: fifth-offense settle matrix; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-100** tip-4851 (`4b10e51`, CI `#29800034125` GREEN); **B-97** tip-4833 (`de0d94c`); **B-92** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
@@ -310,13 +310,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-124 | Fourth-offense op1 asymmetric then absentee re-slash (early B-24ag) | 4 | **Landed** (this commit); B-122 twin; completes fourth-offense re-slash pair; full CI |
 | B-123 | Soak.sh single-id pin validation (B-96/Win parity) | 1 | **Landed** (2a98633 body, subject mislabeled B-122) — reject non-numeric/multi pins; rehearsal smoke needles |
 | B-125 | Outside-in soak refresh + tip-lag §6 to lane7 | 1 | **Landed** (`f46a162`) — tip 5200->5202; §6 Path A lag~351 Open |
-| B-126 | Settle-reset then fifth dual-slash treasury identity (early B-24ah) | 4 | Next after B-124 — elevates B-117/B-108 |
+| B-126 | Settle-reset then fifth dual-slash treasury identity (early B-24ah) | 4 | **Claimed** (this commit) — elevates B-117; full CI after `#29844848474` GREEN |
 
 ---
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — claim B-126** (this commit): early B-24ah settle-reset→fifth dual-slash while **CI `#29844848474`** runs on B-124. Claim base `73ab34a`. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-124 fourth-offense op1 asymmetric→absentee re-slash** (this commit): early B-24ag `b124_b5_fourth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29842437172` GREEN** on B-122. Completes fourth-offense re-slash pair with B-122. Full CI (no skip). Next: **B-126** settle-reset→fifth dual-slash. Still blocked on 2nd host for live **B-32**.
 
