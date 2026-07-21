@@ -317,6 +317,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 1 — B-27 soak refresh tip-5148 + Win pin fix** (this commit): live soak PASS 5146->5148; evidence `outside-in-invite-soak-20260721T132129Z.txt` + `b27-outside-in-invite-soak-refresh-20260721-tip5148.md`; pins Nightly `#29833331135` + CI `#29831106571`. Fixed PowerShell `gh --jq` pin mangling via `Get-MfnGreenRunId`/`ConvertFrom-Json`; assert single numeric pin (CRLF-safe). B-15-safe. `[skip ci]` — lane-4 full-CI queue thrash; scripts gate proves on next non-skip matrix. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
+1. **2026-07-21 — lane 4 — B-124 fourth-offense op1 asymmetric→absentee re-slash** (this commit): early B-24ag `b124_b5_fourth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29842437172` GREEN** on B-122. Completes fourth-offense re-slash pair with B-122. Full CI (no skip). Next: **B-126** settle-reset→fifth dual-slash. Still blocked on 2nd host for live **B-32**.
+
+1. **2026-07-21 — lane 1 — B-125 soak refresh tip-5202** (this commit): live soak PASS 5200->5202; evidence `outside-in-invite-soak-20260721T150909Z.txt` + `b125-outside-in-invite-soak-refresh-20260721-tip5202.md`; pins Nightly `#29838974900` + CI `#29839631308`. §6 tip-lag handoff to lane7 (ckpt 4851, lag~351). B-15-safe. `[skip ci]` — B-122 CI in flight; scripts jobs already GREEN (B-123 proved). *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+
+1. **2026-07-21 — lane 1 — claim B-125** (this commit): outside-in soak refresh tip~5199 + §6 tip-lag handoff to lane7 (ckpt 4851, lag~348) while **CI `#29842437172`** runs on B-122 (proves B-123). Claim base `a1577f6`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
+
 
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
