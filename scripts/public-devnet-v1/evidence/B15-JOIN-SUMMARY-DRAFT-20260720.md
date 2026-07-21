@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–56; xavier@**4794** faucet PASS; claims=31; thirty-four proxy-proven wallets. F45 lag=107.
+**Status:** DRAFT — waves 6–57; yuki@**4808** faucet-F101b PASS; claims=32; thirty-five proxy-proven wallets. F45 lag=116.
+| yuki | faucet-F101b | n/a | yes | **4808** (wave57; proxy-prove PASS) |
 | xavier | faucet | n/a | yes | **4794** (wave56; proxy-prove PASS) |
 | wren | faucet | n/a | yes | **4785** (wave55; proxy-prove PASS) |
 | viv | faucet-retry (after 429+600s) | n/a | yes | **4763** (wave54; proxy-prove PASS) |
@@ -62,7 +63,7 @@
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 | zoe | faucet (post-wipe) | n/a | yes | **4533** (wave34; proxy-prove PASS) |
 
-Thirty-four wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Thirty-five wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -110,6 +111,9 @@ Thirty-four wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/osca
 
 
 32. **Faucet-retry JOIN path (wave50)** — when donor pool is all owned=1, `429 → wait ~15m → faucet retry` is the proven fund path (fund_mode=faucet-retry).
+
+
+36. **F101b runner proven (wave57)** — explicit re-pin after faucet `done` with owned=1 closed fund (fund_mode=`faucet-F101b`). Prefer this over failing fund or fake peer labels.
 
 ## Still open before formal archive PASS
 
