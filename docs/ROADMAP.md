@@ -416,6 +416,14 @@ Elevates B-142 to sixth offense. Does **not** close full **B-24**.
 
 B-147 arc through sixth dual slash + dual settle reset, then climb to a **seventh** dual empty-audit slash. Elevates B-147. Does **not** close full **B-24**.
 
+#### B-155 — seventh dual-slash then dual-settle drain (lane 4; early B-24aw)
+
+B-154 arc through seventh dual slash, then both operators settle (`mask=0b11`). Elevates B-148.
+
+#### B-156 — seventh dual-slash then asymmetric settle drain (lane 4; early B-24ax)
+
+Elevates B-149. Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).

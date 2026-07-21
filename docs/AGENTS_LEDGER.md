@@ -15,6 +15,14 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-155-claim
+
+1. **2026-07-21 — lane 4 — B-147 settle-reset→sixth dual-slash** (this commit): early B-24ao `b147_b5_settle_reset_then_sixth_dual_slash_treasury_identity`; local debug PASS. **CI `#29862082733` GREEN** on B-143. Elevates B-126. Full CI (no skip). Next: **B-148** sixth-slash→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+1. **2026-07-21 — lane 4 — claim B-147** (this commit): early B-24ao settle-reset→sixth dual-slash while **CI `#29862082733`** runs on B-143. Claim base `2dec0fd`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+
+
 ### Rotation 2026-07-21 B-154-land
 
 1. **2026-07-21 — lane 4 — B-143 fifth-offense op1 asymmetric→absentee re-slash** (this commit): early B-24an `b143_b5_fifth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI #29859782849 GREEN** on B-142. Completes fifth-offense re-slash pair. Full CI (no skip). Next: **B-147** settle-reset→sixth dual-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 join-testnet-rehearsal-smoke/.
