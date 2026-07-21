@@ -250,6 +250,12 @@ if ($outsideInInviteSoakPlan -notmatch "outside-in-invite-soak-rehearsal-smoke: 
     $outsideInInviteSoakPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+
+$outsideInTipCkptLagPlan = (powershell -NoProfile -File scripts/public-devnet-v1/assert-outside-in-tip-ckpt-lag-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($outsideInTipCkptLagPlan -notmatch "assert-outside-in-tip-ckpt-lag-rehearsal-smoke: PASS plan-only") {
+    $outsideInTipCkptLagPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 # B-34: CI queue/stall watch plan gate (lane 1; never cancel healthy in_progress).
 $watchCiStallPlan = (powershell -NoProfile -File scripts/watch-ci-stall-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($watchCiStallPlan -notmatch "watch-ci-stall-rehearsal-smoke: PASS plan-only") {

@@ -175,6 +175,9 @@ public_testnet_health_plan="$(bash scripts/public-devnet-v1/assert-public-testne
 outside_in_invite_soak_plan="$(bash scripts/public-devnet-v1/outside-in-invite-soak-rehearsal-smoke.sh --plan-only)"
 [[ "$outside_in_invite_soak_plan" == *"outside-in-invite-soak-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$outside_in_invite_soak_plan" >&2; exit 1; }
 # B-34: CI queue/stall watch plan gate (lane 1; never cancel healthy in_progress).
+outside_in_tip_ckpt_lag_plan="$(bash scripts/public-devnet-v1/assert-outside-in-tip-ckpt-lag-rehearsal-smoke.sh --plan-only)"
+[[ "$outside_in_tip_ckpt_lag_plan" == *"assert-outside-in-tip-ckpt-lag-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$outside_in_tip_ckpt_lag_plan" >&2; exit 1; }
+
 watch_ci_stall_plan="$(bash scripts/watch-ci-stall-rehearsal-smoke.sh --plan-only)"
 [[ "$watch_ci_stall_plan" == *"watch-ci-stall-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$watch_ci_stall_plan" >&2; exit 1; }
 # B-93: post-push CI stall watch plan gate (lane 1; wraps B-34).
