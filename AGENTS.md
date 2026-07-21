@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-27 soak refresh** tip-5148 + Windows pin fix `[skip ci]` (lane-4 CI queue thrash). Prior **CI `#29836555770` GREEN** on B-117. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Lane-1 claiming **B-123** soak.sh single-id pin harden (docs-only while **CI #29839631308** on B-121). Prior tip 0371b0 soak refresh. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-27 soak refresh** tip-5148 + Win pin fix (this commit); **B-96** (`7ee3f66`, CI `#29801574290` GREEN); **B-93**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
+| **1** RC core | **B-27 soak refresh** tip-5148 + Win pin fix (this commit); **B-96** (`7ee3f66`, CI `#29801574290` GREEN); **B-93**; **B-34** | **B-123** soak.sh single-id pin harden (claim base: b0371b0)  | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
 | **4** Protocol | **B-121** (`a0443ba`, watch CI `#29839631308`); **B-120** (`ea70e2a`); **B-119** (`bf3e776`); **B-118**/**B-117** stack | **B-122** fourth-offense asymmetric→absentee re-slash (claim base: `a0443ba`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -306,12 +306,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-120 | Fourth dual-slash then op1 asymmetric settle drain (early B-24ad) | 4 | **Landed** (ea70e2a, subject mislabeled B-119); elevates B-111; full CI |
 | B-121 | Fourth dual-slash then empty both-miss (early B-24ae) | 4 | **Landed** (this commit); closes fourth-offense prove matrix; full CI |
 | B-122 | Fourth-offense asymmetric then absentee re-slash (early B-24af) | 4 | **Claimed** (this commit) — elevates B-113/B-115; full CI after `#29839631308` GREEN |
+| B-123 | Soak.sh single-id pin validation (B-96/Win parity) | 1 | **Claimed** (this commit) — reject non-numeric/multi pins; full CI prove after B-121 |
 
 ---
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 1 — claim B-123** (this commit): soak.sh single-id pin harden (bash parity with Win Get-MfnGreenRunId) while **CI #29839631308** runs on B-121. Claim base b0371b0. [skip ci]. *Observed (not staged):* lane-4 pply_block_proptest.rs WIP.
 
 1. **2026-07-21 — lane 1 — B-27 soak refresh tip-5148 + Win pin fix** (this commit): live soak PASS 5146->5148; evidence `outside-in-invite-soak-20260721T132129Z.txt` + `b27-outside-in-invite-soak-refresh-20260721-tip5148.md`; pins Nightly `#29833331135` + CI `#29831106571`. Fixed PowerShell `gh --jq` pin mangling via `Get-MfnGreenRunId`/`ConvertFrom-Json`; assert single numeric pin (CRLF-safe). B-15-safe. `[skip ci]` — lane-4 full-CI queue thrash; scripts gate proves on next non-skip matrix. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
