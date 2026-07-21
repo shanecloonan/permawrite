@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** **B-15 JOIN PASS** (`9974828`). **CI `#29857236769` GREEN** on B-132 tip `d025b37`. **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Next: **B-42** live; Path A republish; L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Landing **B-143** early B-24an (full CI). **CI #29859782849 GREEN** on B-142 360481f. **B-15 JOIN PASS** (9974828). **Nightly #29854540235 GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-142** (`360481f`, watch CI `#29859782849`); **B-132** (`d025b37`, CI `#29857236769` GREEN); **B-131** (`40d0222`); **B-130**/**B-128** stack | **B-143** fifth-offense op1 asymmetric→absentee re-slash (claim base: `360481f`) | After land: settle-reset→sixth dual-slash; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-143** fifth-offense op1 asymmetric→absentee re-slash (this commit); **B-142** (360481f, CI #29859782849 GREEN); **B-132** (d025b37); **B-131**/**B-130** stack | *Idle* — next settle-reset→sixth dual-slash (**B-147**); live **B-32** still needs 2nd host | After 2 hosts + B-15: 3-multi-op-*.txt → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -322,7 +322,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-131 | Fifth dual-slash then op1 asymmetric settle drain (early B-24ak) | 4 | **Landed** (`40d0222`); **CI `#29854607541` GREEN** |
 | B-132 | Fifth dual-slash then empty both-miss (early B-24al) | 4 | **Landed** (`d025b37`); **CI `#29857236769` GREEN**; closes fifth-offense prove matrix |
 | B-142 | Fifth-offense asymmetric then absentee re-slash (early B-24am) | 4 | **Landed** (this commit); elevates B-122; full CI |
-| B-143 | Fifth-offense op1 asymmetric then absentee re-slash (early B-24an) | 4 | **Claimed** (this commit) — B-142 twin; elevates B-124; full CI after `#29859782849` GREEN |
+| B-143 | Fifth-offense op1 asymmetric then absentee re-slash (early B-24an) | 4 | **Landed** (this commit); completes fifth-offense re-slash pair; elevates B-124; full CI |
+| B-147 | Settle-reset then sixth dual-slash treasury identity (early B-24ao) | 4 | Next after B-143 CI GREEN — elevates B-126/B-117 |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -337,6 +338,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — B-143 fifth-offense op1 asymmetric→absentee re-slash** (this commit): early B-24an 143_b5_fifth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles; local debug PASS. **CI #29859782849 GREEN** on B-142. Completes fifth-offense re-slash pair. Full CI (no skip). Next: **B-147** settle-reset→sixth dual-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 join-testnet-rehearsal-smoke/.
 
 1. **2026-07-21 — lane 1/3 — pin B-15 + CI `#29857236769` GREEN** (this commit): B-15 head `9974828`; B-132 tip CI GREEN on `d025b37`. `[skip ci]`.
 
@@ -375,14 +378,4 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-07-21 — lane 7 — B-137 Path A tip-5290 land** (this commit): VPS timer active; `publish-near-tip-checkpoint-if-lag --apply` → tip=5290 entries=48; `land-path-a-checkpoint-from-vps -Apply`; tip-ckpt lag assert OK (tip=5289 ckpt=5290). Closes §6 B-125 tip lag. Evidence `b137-path-a-land-tip5290-20260721.md`. B-15-safe. `[skip ci]` — B-131 CI `#29854607541` in flight. Also repaired mangled §7/§8. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
 1. **2026-07-21 — lane 7 — claim B-137** (this commit): Path A land from VPS (timer active; remote ckpt tip=5269 vs local 4851) while **CI `#29854607541`** runs on B-131. Also repair mangled §7/§8. Claim base `713473b`. `[skip ci]`. B-15-safe (scp jsonl only; no faucet/mfnd). *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
-
-1. **2026-07-21 — lane 1 — B-136 tip-ckpt health_ok FAIL reason** (`85f48ce`): FAIL reason `tip_lag>=threshold;health_ok` + `recommended_action=path_a_republish` (vs health_degraded). Live tip=5288 lag=437 proxy=ok faucet=ok. Evidence `outside-in-tip-ckpt-lag-20260721T180548Z.txt` + `b136-tip-ckpt-health-ok-fail-reason-20260721.md`. B-15-safe; no Path A publish. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
-
-1. **2026-07-21 — lane 1 — claim B-136** (`2d29361`): tip-ckpt lag FAIL reason `health_ok→path_a_republish` vs outage while **CI `#29854607541`** runs on B-131. Claim base `a61e770`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
-
-1. **2026-07-21 — lane 1 — B-135 Path A age_sec + remote health** (`2151d02`): tip-ckpt lag assert reports `age_sec` + informational `HEALTH proxy/faucet` (public URLs; never restart). Live tip=5287 lag=436 age_sec=52462 proxy=ok faucet=ok. Evidence `outside-in-tip-ckpt-lag-20260721T180421Z.txt` + `b135-path-a-age-remote-health-20260721.md`. §6: timer stale not tip outage. B-15-safe; no Path A publish. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
-
-1. **2026-07-21 — lane 1 — claim B-135** (`84d78a1`): Path A `age_sec` + remote public proxy/faucet health pings on tip-ckpt lag assert while **CI `#29854607541`** runs on B-131. Claim base `5ed7e16`. `[skip ci]`. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
-
-1. **2026-07-21 — lane 1 — B-134 Path A staleness + §8 repair** (this commit): tip-ckpt lag assert reports `STALENESS ckpt_entries/published_at/tip_block_id`; rehearsal smokes updated; repaired mangled §8 header. Live FAIL tip=5287 ckpt=4851 lag=436 entries=33 published_at=1784604599Z. Evidence `outside-in-tip-ckpt-lag-20260721T180241Z.txt` + `b134-path-a-staleness-20260721.md`. Pins Nightly `#29854540235` GREEN. B-15-safe; no Path A publish. `[skip ci]` — B-131 CI `#29854607541` in flight. *Observed (not staged):* lane-4 `apply_block_proptest.rs` WIP.
 
