@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-148** early B-24ap (docs-only while **CI `#29864361735`** runs on B-147 `97dd712`). **CI `#29862082733` GREEN** on B-143. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Claiming **B-148** early B-24ap (docs-only while **CI `#29864361735`** runs on B-147 `97dd712`). **CI `#29862082733` GREEN** on B-143. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-147** (`97dd712`, watch CI `#29864361735`); **B-143** (`2dec0fd`, CI `#29862082733` GREEN); **B-142** (`360481f`); **B-132** stack | **B-148** sixth-slash→dual settle (claim base: `97dd712`) | After land: sixth-offense asymmetric pair; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-147** (`97dd712`, watch CI `#29864361735`); **B-143** (`2dec0fd`, CI `#29862082733` GREEN); **B-142** (`360481f`); **B-132** stack | **B-148** sixth dual-slash→dual settle (claim base: `97dd712`) | After land: sixth-offense asymmetric settle; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -340,9 +340,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-21 — lane 4 — claim B-148** (this commit): early B-24ap sixth dual-slash→dual settle while **CI `#29864361735`** runs on B-147. Claim base `97dd712`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
 1. **2026-07-21 — lane 4 — claim B-148** (this commit): early B-24ap sixth-slash→dual settle while **CI `#29864361735`** runs on B-147. Claim base `97dd712`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
-1. **2026-07-21 — lane 4 — claim B-148** (this commit): early B-24ap sixth dual-slash→dual settle while **CI `#29864361735`** runs on B-147. Claim base `97dd712`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-147 settle-reset→sixth dual-slash** (this commit): early B-24ao `b147_b5_settle_reset_then_sixth_dual_slash_treasury_identity`; local debug PASS. **CI `#29862082733` GREEN** on B-143. Elevates B-126. Full CI (no skip). Next: **B-148** sixth-slash→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
 
