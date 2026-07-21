@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Seat C claiming **B-15** formal JOIN capture (local observer sync → `join-testnet-rehearsal`). **B-132** head CI `#29857189652` in flight — docs claim uses `[skip ci]`. **CI `#29854607541` GREEN** on B-131. **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Claiming **B-142** early B-24am (docs-only while **CI `#29857189652`** runs on B-132 `7b5f3ef`). **CI `#29854607541` GREEN** on B-131. **Nightly `#29854540235` GREEN**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive (local observer + rehearsal; claim base: `92f1f31`) | Assert SUMMARY PASS + archive; re-pin at ckpt **5290** | L4 checklist |
-| **4** Protocol | **B-132** fifth-slash→empty both-miss (this commit); **B-131** (`40d0222`, CI `#29854607541` GREEN); **B-130** (`b0fd1b1`); **B-128**/**B-126**/**B-124** stack | *Idle* — live **B-32** blocked on 2nd host (**B-79** NOT READY) | Next: fifth-offense absentee re-slash (pick free id); after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-132** (`7b5f3ef`, watch CI `#29857189652`); **B-131** (`40d0222`, CI `#29854607541` GREEN); **B-130** (`b0fd1b1`); **B-128**/**B-126** stack | **B-142** fifth-offense asymmetric→absentee re-slash (claim base: `7b5f3ef`) | After land: B-143 op1 twin; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** block-log health + §6 close (`262c748`); **B-139** (`002ee6c`); **B-138** (`555d5df`); **B-137** (`10eedc1`) | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
@@ -332,6 +332,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — claim B-142** (this commit): early B-24am fifth-offense asymmetric→absentee re-slash while **CI `#29857189652`** runs on B-132. Claim base `7b5f3ef`. *Observed (not staged):* lane-1/7 tip-ckpt/Path A residual if any. `[skip ci]`.
 
 1. **2026-07-21 — lane 3 — claim B-15 formal JOIN capture** (this commit): Seat C / 3agent — start local observer sync then `join-testnet-rehearsal` against public faucet+proxy; Path A tip-5290 ready (lag~8). Claim base `92f1f31`. `[skip ci]` — B-132 CI `#29857189652` in flight. Respect §6: no parallel JOIN; faucet idle at claim.
 
