@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-115** early B-24y (full CI). **CI `#29829071765` GREEN** on B-114 `e8300b9`. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Claiming **B-116** early B-24z (docs-only while **CI `#29831106571`** runs on B-115 `696d9e8`). **CI `#29829071765` GREEN** on B-114 `e8300b9`. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-96** (`7ee3f66` body, CI `#29801574290` GREEN; tip 4820->4822); **B-93** (`1a2b496`, CI `#29788432236` GREEN); **B-27** (`08f8001`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); leave Hetzner/protocol to 7/4 | CI/Nightly run IDs |
 | **2** RC ops | **B-94** spent-debris prune (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave58** (zion last_proven=4823; faucet-F101b; F45 lag=130) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; re-pin at ckpt **4851** | L4 checklist |
-| **4** Protocol | **B-115** second-offense asymmetric→absentee re-slash (this commit); **B-114** (`e8300b9`, CI `#29829071765` GREEN); **B-113** (`9ae9618`); **B-112**/**B-111**/**B-110**/**B-109**/**B-108** stack | *Idle* — live **B-32** blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-115** (`696d9e8`, watch CI `#29831106571`); **B-114** (`e8300b9`, CI `#29829071765` GREEN); **B-113** (`9ae9618`); **B-112**/**B-111**/**B-110**/**B-109**/**B-108** stack | **B-116** second-offense op1 asymmetric→absentee re-slash (claim base: `ba47f6c`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-100** tip-4851 (`4b10e51`, CI `#29800034125` GREEN); **B-97** tip-4833 (`de0d94c`); **B-92** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
@@ -299,12 +299,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-113 | Third-offense asymmetric then absentee re-slash while peer settles (early B-24w) | 4 | **Landed** (`9ae9618`); **CI `#29826982613` GREEN** |
 | B-114 | Third-offense op1 asymmetric then absentee re-slash while peer settles (early B-24x) | 4 | **Landed** (`e8300b9`); **CI `#29829071765` GREEN** |
 | B-115 | Second-offense asymmetric then absentee re-slash while peer settles (early B-24y) | 4 | **Landed** (this commit); fills B-101 gap between 1st/3rd offense; full CI |
+| B-116 | Second-offense op1 asymmetric then absentee re-slash (early B-24z) | 4 | **Claimed** (this commit) — B-115 twin; full CI after `#29831106571` GREEN |
 
 ---
 
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — claim B-116** (this commit): early B-24z second-offense op1 asymmetric→absentee re-slash (B-115 twin) while **CI `#29831106571`** runs on B-115. Claim base `ba47f6c`. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-115 second-offense asymmetric→absentee re-slash** (this commit): early B-24y `b115_b5_second_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29829071765` GREEN** on B-114. Fills second-offense B-101 gap. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
 
