@@ -15,6 +15,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-124-claim (from live AGENTS.md §8)
+
+- **2026-07-21 — lane 4 — B-116 second-offense op1 asymmetric→absentee re-slash** (this commit): early B-24z `b116_b5_second_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29831106571` GREEN** on B-115. Completes second-offense asymmetric re-slash pair. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
+- **2026-07-21 — lane 4 — claim B-116** (this commit): early B-24z second-offense op1 asymmetric→absentee re-slash (B-115 twin) while **CI `#29831106571`** runs on B-115. Claim base `ba47f6c`. `[skip ci]`.
+
+
 ### Rotation 2026-07-21 B-122 (from live AGENTS.md §8)
 
 - **2026-07-21 — lane 4 — B-115 second-offense asymmetric→absentee re-slash** (this commit): early B-24y `b115_b5_second_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29829071765` GREEN** on B-114. Fills second-offense B-101 gap. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
