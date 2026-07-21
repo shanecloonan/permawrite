@@ -15,6 +15,15 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-126 (from live AGENTS.md §8)
+
+- 1. **2026-07-21 — lane 4 — B-119 fourth-slash→asymmetric settle** (this commit): early B-24ac `b119_b5_fourth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29836555770` GREEN** on B-118. Full CI (no skip). Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-1 outside-in soak scripts/evidence.
+- 1. **2026-07-21 — lane 4 — claim B-119** (this commit): early B-24ac fourth-slash→asymmetric settle while **CI `#29836555770`** runs on B-118. Claim base `5b99063`. *Observed (not staged):* lane-1 outside-in soak scripts/evidence. `[skip ci]`.
+- 1. **2026-07-21 — lane 4 — claim B-119** (this commit): early B-24ac fourth-slash→asymmetric settle while **CI #29836555770** runs on tip. Claim base 5b99063. Local debug PASS staged. *Observed (not staged):* lane-1 soak scripts/evidence. [skip ci].
+- 1. **2026-07-21 — lane 4 — B-118 fourth-slash→dual settle** (48cfbb3): early B-24ab b118_b5_fourth_dual_slash_then_dual_settle_* landed under mislabeled B-117 subject; local debug PASS. Board correction. Full CI #29836555770. Still blocked on 2nd host for live **B-32**. [skip ci].
+- 1. **2026-07-21 — lane 4 — claim B-118** (this commit): early B-24ab fourth-slash→dual settle while **CI `#29835953151`** runs on B-117. Claim base `7d51632`. *Observed (not staged):* lane-1 outside-in soak scripts/evidence. `[skip ci]`.
+
+
 ### Rotation 2026-07-21 B-124 (from live AGENTS.md §8)
 
 - 1. **2026-07-21 — lane 4 — B-117 settle-reset→fourth dual-slash** (this commit): early B-24aa `b117_b5_settle_reset_then_fourth_dual_slash_treasury_identity`; local debug PASS. **CI `#29833394102` GREEN** on B-116. Full CI (no skip). Still blocked on 2nd host for live **B-32**.
