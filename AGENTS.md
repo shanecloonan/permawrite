@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-131** (`40d0222`, watch CI `#29854607541`); **B-130** (`b0fd1b1`, CI `#29852461441` GREEN); **B-128** (`1909584`); **B-126**/**B-124** stack | **B-132** fifth-slash→empty both-miss (claim base: `40d0222`) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | **B-50 follow-up** Rust auto-bootstrap from checkpoint-log max tip (claim base: `4b10e51`) | After land: doc honesty sync; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-139** peers-clean + checklist tip-5290 (this commit); **B-138** (`555d5df`); **B-137** (`10eedc1`); **B-100** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-139** peers-clean + checklist tip-5290 (`002ee6c`); **B-138** (`555d5df`); **B-137** (`10eedc1`); **B-100** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -323,7 +323,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-132 | Fifth dual-slash then empty both-miss (early B-24al) | 4 | **Claimed** (this commit) — closes fifth-offense prove matrix; full CI after `#29854607541` GREEN |
 | B-137 | Path A land from VPS tip-5269+ (close tip-lag §6) | 7 | **Landed** (`10eedc1`) — VPS publish tip-5290 + land jsonl; lag assert OK |
 | B-138 | Public-testnet health verify after Path A tip-5290 | 7 | **Landed** (`555d5df`) — VPS health OK lag=0; §6 re-pin Ack tip-5290 |
-| B-139 | VPS peers-clean + TESTNET_CHECKLIST tip-5290 / B-29 mirror | 7 | **Landed** (this commit) — peers OK; checklist B-22/B-29/B-137/B-138 |
+| B-139 | VPS peers-clean + TESTNET_CHECKLIST tip-5290 / B-29 mirror | 7 | **Landed** (`002ee6c`) — peers OK; checklist B-22/B-29/B-137/B-138 |
 
 ---
 
