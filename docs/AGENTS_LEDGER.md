@@ -15,6 +15,15 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-150-land (from live AGENTS.md §8)
+
+- 1. **2026-07-21 — lane 3 — claim B-15 formal JOIN capture** (this commit): Seat C / 3agent — start local observer sync then `join-testnet-rehearsal` against public faucet+proxy; Path A tip-5290 ready (lag~8). Claim base `92f1f31`. `[skip ci]` — B-132 CI `#29857189652` in flight. Respect §6: no parallel JOIN; faucet idle at claim.
+
+- 1. **2026-07-21 — lane 4 — claim B-142** (this commit): early B-24am fifth-offense asymmetric→absentee re-slash while **CI `#29857189652`** runs on B-132. Claim base `7b5f3ef`. *Observed (not staged):* lane-1/7 tip-ckpt/Path A residual if any. `[skip ci]`.
+
+- 1. **2026-07-21 — lane 4 — claim B-142** (this commit): early B-24am fifth-offense asymmetric→absentee re-slash (elevates B-122; IDs B-133–B-141 taken by other lanes) while **CI `#29857236769`** runs on B-132 tip. Claim base `d025b37`. *Observed (not staged):* lane-1 tip-ckpt lag scripts/evidence. `[skip ci]`.
+
+
 ### Rotation 2026-07-21 B-150-claim
 
 1. **2026-07-21 — lane 4 — B-132 fifth-slash→empty both-miss** (this commit): early B-24al `b132_b5_fifth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29854607541` GREEN** on B-131. Closes fifth-offense prove matrix {00,01,10,11}. Full CI (no skip). Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-1 tip-ckpt lag WIP.
