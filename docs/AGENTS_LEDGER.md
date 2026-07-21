@@ -15,6 +15,13 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-155-land
+
+1. **2026-07-21 — lane 4 — claim B-148** (this commit): early B-24ap sixth-slash→dual settle while **CI `#29864361735`** runs on B-147. Claim base `97dd712`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+
+
+
 ### Rotation 2026-07-21 B-155-claim
 
 1. **2026-07-21 — lane 4 — B-147 settle-reset→sixth dual-slash** (this commit): early B-24ao `b147_b5_settle_reset_then_sixth_dual_slash_treasury_identity`; local debug PASS. **CI `#29862082733` GREEN** on B-143. Elevates B-126. Full CI (no skip). Next: **B-148** sixth-slash→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
