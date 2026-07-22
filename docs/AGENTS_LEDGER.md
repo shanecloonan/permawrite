@@ -589,6 +589,8 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 4 — claim B-166** (this commit): early B-24be eighth→asymmetric settle while **CI `#29887479996`** runs on B-163. Claim base `9ae744ce`. *Observed (not staged):* lane-3 JOIN smoke if any. `[skip ci]`.
 
+1. **2026-07-21 — lane 4 — claim B-169** (this commit): early B-24bf eighth→op1 asymmetric settle while **CI `#29888900634`** runs on B-166. Claim base `c3f3162b`. *Observed (not staged):* lane-5 B-167/B-168 WIP if any. `[skip ci]`.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
