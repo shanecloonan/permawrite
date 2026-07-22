@@ -8,7 +8,7 @@ use mfn_crypto::point::point_from_bytes;
 use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
     build_decoy_pool_from_sources, build_transfer, StoredOwnedOutput, TransferPlan,
-    TransferRecipient, UtxoDecoySource, WALLET_MIN_RING_SIZE,
+    TransferRecipient, UtxoDecoySource, WALLET_MIN_RING_SIZE, WALLET_MIN_TX_INPUTS,
 };
 use serde::{Deserialize, Serialize};
 
@@ -139,6 +139,12 @@ pub fn build_transfer_json(plan_json: &str) -> Result<String, WasmCoreError> {
             plan.ring_size
         )));
     }
+    if plan.inputs.len() < WALLET_MIN_TX_INPUTS {
+        return Err(WasmCoreError::InvalidHex(format!(
+            "input count {} below wallet minimum {WALLET_MIN_TX_INPUTS} (F7 privacy floor)",
+            plan.inputs.len()
+        )));
+    }
 
     let mut inputs = Vec::with_capacity(plan.inputs.len());
     for stored in &plan.inputs {
@@ -234,7 +240,7 @@ mod tests {
             spend_pub: me.spend_pub(),
         };
         let signed = sign_transaction(
-            vec![fake_input(1_000_000, 4)],
+            vec![fake_input(1_000_000, 16)],
             vec![OutputSpec::ToRecipient {
                 recipient,
                 value: 999_000,
@@ -246,7 +252,21 @@ mod tests {
         .expect("sign");
         let scan = scan_transaction(&signed.tx, 7, &me, &HashSet::new());
         assert_eq!(scan.recovered.len(), 1);
-        let owned = StoredOwnedOutput::from_owned(&scan.recovered[0]);
+        let owned_a = StoredOwnedOutput::from_owned(&scan.recovered[0]);
+        let signed_b = sign_transaction(
+            vec![fake_input(500_000 + 1_000, 16)],
+            vec![OutputSpec::ToRecipient {
+                recipient,
+                value: 500_000,
+                storage: None,
+            }],
+            1_000,
+            Vec::new(),
+        )
+        .expect("sign b");
+        let scan_b = scan_transaction(&signed_b.tx, 7, &me, &HashSet::new());
+        assert_eq!(scan_b.recovered.len(), 1);
+        let owned_b = StoredOwnedOutput::from_owned(&scan_b.recovered[0]);
 
         let mut decoy_utxos = Vec::new();
         for i in 0..20u32 {
@@ -261,11 +281,11 @@ mod tests {
         }
 
         let plan = TransferPlanJson {
-            inputs: vec![owned],
+            inputs: vec![owned_a, owned_b],
             recipients: vec![RecipientJson {
                 view_pub_hex: hex::encode(me.view_pub().compress().to_bytes()),
                 spend_pub_hex: hex::encode(me.spend_pub().compress().to_bytes()),
-                value: 998_000,
+                value: 1_497_000,
             }],
             fee: 1_000,
             ring_size: 16,
@@ -307,6 +327,43 @@ mod tests {
         );
         assert!(
             msg.contains(&(WALLET_MIN_RING_SIZE - 1).to_string()),
+            "unexpected error: {msg}"
+        );
+    }
+
+    /// B-168: WASM JSON builders fail closed on one-input plans (F7 floor).
+    #[test]
+    fn build_transfer_json_rejects_single_input() {
+        let owned = StoredOwnedOutput {
+            one_time_addr_hex: "00".repeat(32),
+            commit_hex: "00".repeat(32),
+            value: 1,
+            blinding_hex: "00".repeat(32),
+            one_time_spend_hex: "00".repeat(32),
+            key_image_hex: "00".repeat(32),
+            tx_id_hex: "00".repeat(32),
+            output_idx: 0,
+            height: 1,
+        };
+        let plan = TransferPlanJson {
+            inputs: vec![owned],
+            recipients: vec![RecipientJson {
+                view_pub_hex: "00".repeat(32),
+                spend_pub_hex: "00".repeat(32),
+                value: 1,
+            }],
+            fee: 1,
+            ring_size: WALLET_MIN_RING_SIZE,
+            current_height: 1,
+            decoy_utxos: vec![],
+            exclude_one_time_addrs_hex: vec![],
+            extra_hex: String::new(),
+        };
+        let plan_str = serde_json::to_string(&plan).expect("plan json");
+        let err = build_transfer_json(&plan_str).expect_err("must reject");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("input count") && msg.contains("F7"),
             "unexpected error: {msg}"
         );
     }

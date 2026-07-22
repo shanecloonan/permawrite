@@ -58,7 +58,7 @@ Reference wallets enforce a **two-input floor** (`WALLET_MIN_TX_INPUTS = 2`, Mon
 - After age-band coin selection ([§B2 in `PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md)), the wallet merges an additional real UTXO into the spend and folds the excess back into change.
 - Unlike the output floor, extra inputs are genuine CLSAG spends (not zero-value padding); wallets holding only one UTXO cannot reach the floor until they receive a second spendable output.
 - On networks running the uniform-ring tier, **consensus** also enforces `RingPolicy.min_input_count = 2` (**F7**): single-input regular txs are rejected at mempool ingress and `apply_block`, matching the two-output floor.
-- Low-level [`build_transfer`](../mfn-wallet/src/spend.rs) / [`build_storage_upload`](../mfn-wallet/src/upload.rs) callers that assemble `TransferPlan` manually must supply at least two inputs when broadcasting on production policy; CLI and WASM route through `Wallet` and inherit the floor when possible.
+- Low-level [`build_transfer`](../mfn-wallet/src/spend.rs) / [`build_storage_upload`](../mfn-wallet/src/upload.rs) callers that assemble plans manually must supply at least two inputs when broadcasting on production policy. The high-level `Wallet` API pads when a second UTXO exists. WASM JSON builders (`build_transfer_json` / `build_storage_upload_json`) **fail closed** when `inputs.len() < WALLET_MIN_TX_INPUTS` (**B-168**) — they do not silently construct one-input txs.
 - Operator faucets and the public HTTP faucet therefore send **two** transfers so a fresh wallet can meet the floor without a second payment from elsewhere.
 
 ### Light-scan at high tip (default wallet sync)
@@ -76,7 +76,7 @@ mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet light-scan \
 
 On a fresh wallet, `--checkpoint-log` also auto-bootstraps from the log max tip (B-50 follow-up) before scanning the remaining delta — same privacy posture as the explicit pin helper, without a silent genesis walk. Tall-tip `get_light_snapshot` uses a heavy RPC I/O budget (**B-161**; default 180s / `MFN_HEAVY_RPC_TIMEOUT_MS`, matching observer-proxy B-52) so the pin is not aborted by the ordinary 30s client timeout. When the live tip races past the latest Schnorr attestation (F45), `light-scan --checkpoint-log` soft-passes in-process after log verify (**B-161**; same honesty as `light-scan-checkpoint-soft.sh` / `.ps1`) — it does **not** skip Schnorr verification or same-height disagreement.
 
-See [`CHECKPOINT_LOG.md`](./CHECKPOINT_LOG.md). Browser wallets use the same rules via `mfn-wasm` `checkpointLogVerify` / `checkpointLogCrossCheck`. Keep wallet keys on loopback RPC; the public observer proxy is read-only tip/header surface only.
+See [`CHECKPOINT_LOG.md`](./CHECKPOINT_LOG.md). Browser wallets share Schnorr verify / tip-height cross-check via `mfn-wasm` `checkpointLogVerify` / `checkpointLogCrossCheck`. **F45 tip-race soft-pass** (`checkpoint_log_f45_soft_pass`) is **CLI-only** (B-161); WASM does not auto-soft-pass a raced tip — re-pin or refresh the log. Keep wallet keys on loopback RPC; the public observer proxy is read-only tip/header surface only.
 
 ### Authorship claims (optional) — key separation
 

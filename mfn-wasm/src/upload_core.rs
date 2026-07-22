@@ -14,7 +14,7 @@ use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
     build_decoy_pool_from_sources, build_storage_upload, estimate_minimum_fee_for_upload,
     wallet_from_seed, ClaimingIdentity, StorageUploadPlan, StoredOwnedOutput, TransferRecipient,
-    UtxoDecoySource, WALLET_MIN_RING_SIZE,
+    UtxoDecoySource, WALLET_MIN_RING_SIZE, WALLET_MIN_TX_INPUTS,
 };
 use serde::{Deserialize, Serialize};
 
@@ -247,6 +247,12 @@ pub fn build_storage_upload_json(
         return Err(WasmCoreError::InvalidHex(format!(
             "ring size {} below wallet minimum {WALLET_MIN_RING_SIZE}",
             plan.ring_size
+        )));
+    }
+    if plan.inputs.len() < WALLET_MIN_TX_INPUTS {
+        return Err(WasmCoreError::InvalidHex(format!(
+            "input count {} below wallet minimum {WALLET_MIN_TX_INPUTS} (F7 privacy floor)",
+            plan.inputs.len()
         )));
     }
     let endowment_params = merge_endowment_params(&plan.endowment)?;
@@ -615,22 +621,25 @@ mod tests {
             view_pub: me.view_pub(),
             spend_pub: me.spend_pub(),
         };
-        let input_value = 50_000_000u64;
-        let signed = sign_transaction(
-            vec![fake_input(input_value, 16)],
-            vec![OutputSpec::ToRecipient {
-                recipient,
-                value: input_value - 1,
-                storage: None,
-            }],
-            1,
-            Vec::new(),
-        )
-        .expect("sign");
-        let scan = scan_transaction(&signed.tx, 1, &me, &HashSet::new());
-        assert_eq!(scan.recovered.len(), 1);
-        let owned = StoredOwnedOutput::from_owned(&scan.recovered[0]);
-        let owned_value = owned.value;
+        let mut owned_inputs = Vec::with_capacity(2);
+        let mut owned_value = 0u64;
+        for value in [30_000_000u64, 20_000_000u64] {
+            let signed = sign_transaction(
+                vec![fake_input(value + 1, 16)],
+                vec![OutputSpec::ToRecipient {
+                    recipient,
+                    value,
+                    storage: None,
+                }],
+                1,
+                Vec::new(),
+            )
+            .expect("sign");
+            let scan = scan_transaction(&signed.tx, 1, &me, &HashSet::new());
+            assert_eq!(scan.recovered.len(), 1);
+            owned_value = owned_value.saturating_add(scan.recovered[0].value);
+            owned_inputs.push(StoredOwnedOutput::from_owned(&scan.recovered[0]));
+        }
 
         let mut decoy_utxos = Vec::new();
         for i in 0..20u32 {
@@ -650,7 +659,7 @@ mod tests {
         let anchor_value = 1_000u64;
         let change_value = owned_value.saturating_sub(anchor_value).saturating_sub(fee);
         let plan = StorageUploadPlanJson {
-            inputs: vec![owned],
+            inputs: owned_inputs,
             anchor: RecipientJson {
                 view_pub_hex: hex::encode(me.view_pub().compress().to_bytes()),
                 spend_pub_hex: hex::encode(me.spend_pub().compress().to_bytes()),
