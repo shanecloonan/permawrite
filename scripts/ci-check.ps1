@@ -303,6 +303,11 @@ if ($softCkptPlan -notmatch "light-scan-checkpoint-soft-rehearsal-smoke: PASS pl
     $softCkptPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$privFloorPlan = (bash scripts/public-devnet-v1/wallet-privacy-floor-rehearsal-smoke.sh) -join "`n"
+if ($privFloorPlan -notmatch "wallet-privacy-floor-rehearsal-smoke: PASS plan-only") {
+    $privFloorPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $blockLogHealthPlan = (bash scripts/public-devnet-v1/assert-vps-block-log-health-rehearsal-smoke.sh --plan-only) -join "`n"
 if ($blockLogHealthPlan -notmatch "assert-vps-block-log-health-rehearsal-smoke: PASS plan-only") {
     $blockLogHealthPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

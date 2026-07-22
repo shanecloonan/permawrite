@@ -715,4 +715,78 @@ mod tests {
         let b: u64 = serde_json::from_str(&big).expect("parse");
         assert!(b >= s);
     }
+
+    /// B-167/B-172: upload JSON boundary refuses sub-floor rings.
+    #[test]
+    fn build_storage_upload_json_rejects_ring_below_minimum() {
+        let plan = StorageUploadPlanJson {
+            inputs: vec![],
+            anchor: RecipientJson {
+                view_pub_hex: "00".repeat(32),
+                spend_pub_hex: "00".repeat(32),
+                value: 1,
+            },
+            replication: 3,
+            fee: 1,
+            ring_size: WALLET_MIN_RING_SIZE - 1,
+            current_height: 1,
+            decoy_utxos: vec![],
+            exclude_one_time_addrs_hex: vec![],
+            fee_to_treasury_bps: 9000,
+            change_recipients: vec![],
+            extra_hex: String::new(),
+            message_hex: String::new(),
+            endowment: EndowmentPlanJson::default(),
+            chunk_size: None,
+        };
+        let plan_str = serde_json::to_string(&plan).expect("plan json");
+        let seed = [0u8; 32];
+        let err = build_storage_upload_json(&seed, b"x", &plan_str).expect_err("must reject");
+        let msg = err.to_string();
+        assert!(msg.contains("below wallet minimum"), "unexpected: {msg}");
+    }
+
+    /// B-168/B-172: upload JSON boundary refuses one-input plans (F7).
+    #[test]
+    fn build_storage_upload_json_rejects_single_input_plan() {
+        let owned = StoredOwnedOutput {
+            one_time_addr_hex: "00".repeat(32),
+            commit_hex: "00".repeat(32),
+            value: 1,
+            blinding_hex: "00".repeat(32),
+            one_time_spend_hex: "00".repeat(32),
+            key_image_hex: "00".repeat(32),
+            tx_id_hex: "00".repeat(32),
+            output_idx: 0,
+            height: 1,
+        };
+        let plan = StorageUploadPlanJson {
+            inputs: vec![owned],
+            anchor: RecipientJson {
+                view_pub_hex: "00".repeat(32),
+                spend_pub_hex: "00".repeat(32),
+                value: 1,
+            },
+            replication: 3,
+            fee: 1,
+            ring_size: WALLET_MIN_RING_SIZE,
+            current_height: 1,
+            decoy_utxos: vec![],
+            exclude_one_time_addrs_hex: vec![],
+            fee_to_treasury_bps: 9000,
+            change_recipients: vec![],
+            extra_hex: String::new(),
+            message_hex: String::new(),
+            endowment: EndowmentPlanJson::default(),
+            chunk_size: None,
+        };
+        let plan_str = serde_json::to_string(&plan).expect("plan json");
+        let seed = [0u8; 32];
+        let err = build_storage_upload_json(&seed, b"x", &plan_str).expect_err("must reject");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("input count") && msg.contains("F7"),
+            "unexpected: {msg}"
+        );
+    }
 }

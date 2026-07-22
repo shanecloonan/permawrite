@@ -197,6 +197,8 @@ boot_ckpt_plan="$(bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint
 [[ "$boot_ckpt_plan" == *"bootstrap-wallet-from-checkpoint-log-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$boot_ckpt_plan" >&2; exit 1; }
 soft_ckpt_plan="$(bash scripts/public-devnet-v1/light-scan-checkpoint-soft-rehearsal-smoke.sh)"
 [[ "$soft_ckpt_plan" == *"light-scan-checkpoint-soft-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$soft_ckpt_plan" >&2; exit 1; }
+priv_floor_plan="$(bash scripts/public-devnet-v1/wallet-privacy-floor-rehearsal-smoke.sh)"
+[[ "$priv_floor_plan" == *"wallet-privacy-floor-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$priv_floor_plan" >&2; exit 1; }
 block_log_health_plan="$(bash scripts/public-devnet-v1/assert-vps-block-log-health-rehearsal-smoke.sh --plan-only)"
 [[ "$block_log_health_plan" == *"assert-vps-block-log-health-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$block_log_health_plan" >&2; exit 1; }
 frontend_plan="$(bash scripts/public-devnet-v1/vps-start-testnet-frontend-rehearsal-smoke.sh --plan-only)"
