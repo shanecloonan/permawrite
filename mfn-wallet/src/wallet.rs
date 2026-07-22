@@ -318,10 +318,20 @@ impl Wallet {
     }
 
     /// Coin selection for reference transfers/uploads: [`Self::select_inputs`]
-    /// plus the [`crate::WALLET_MIN_TX_INPUTS`] privacy floor when possible.
+    /// plus the [`crate::WALLET_MIN_TX_INPUTS`] privacy floor.
+    ///
+    /// Fails closed with [`WalletError::TxInputCountBelowMinimum`] when the
+    /// wallet cannot pad to two real inputs (**B-186**) — matching low-level
+    /// builders (**B-185**), WASM (**B-168**), and production F7 consensus.
     fn select_inputs_for_tx(&self, target: u64) -> Result<(Vec<&OwnedOutput>, u64), WalletError> {
         let (mut chosen, mut sum) = self.select_inputs(target)?;
         self.pad_inputs_to_floor(&mut chosen, &mut sum);
+        if chosen.len() < crate::WALLET_MIN_TX_INPUTS {
+            return Err(WalletError::TxInputCountBelowMinimum {
+                got: chosen.len(),
+                min: crate::WALLET_MIN_TX_INPUTS,
+            });
+        }
         Ok((chosen, sum))
     }
 
@@ -1168,7 +1178,7 @@ mod tests {
     }
 
     #[test]
-    fn select_inputs_for_tx_single_utxo_cannot_pad() {
+    fn select_inputs_for_tx_single_utxo_fails_closed() {
         let mut wallet = Wallet::from_seed(&[11u8; 32]);
         let payout = PayoutAddress {
             view_pub: wallet.keys().view_pub(),
@@ -1179,9 +1189,13 @@ mod tests {
             vec![build_coinbase(1, 1_000, &payout).unwrap()],
         ));
 
-        let (chosen, sum) = wallet.select_inputs_for_tx(500).expect("select");
-        assert_eq!(chosen.len(), 1, "only one UTXO — floor cannot be reached");
-        assert_eq!(sum, 1_000);
+        match wallet.select_inputs_for_tx(500) {
+            Err(WalletError::TxInputCountBelowMinimum { got, min }) => {
+                assert_eq!(got, 1);
+                assert_eq!(min, crate::WALLET_MIN_TX_INPUTS);
+            }
+            other => panic!("expected TxInputCountBelowMinimum, got {other:?}"),
+        }
     }
 
     #[test]

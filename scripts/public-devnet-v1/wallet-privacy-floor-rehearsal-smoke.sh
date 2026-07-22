@@ -82,4 +82,12 @@ grep -q "TxInputCountBelowMinimum" "$REPO_ROOT/mfn-wallet/src/upload.rs" || {
   echo "missing TxInputCountBelowMinimum in upload.rs (B-185)" >&2
   exit 1
 }
+grep -q "TxInputCountBelowMinimum" "$REPO_ROOT/mfn-wallet/src/wallet.rs" || {
+  echo "missing TxInputCountBelowMinimum in wallet.rs high-level select (B-186)" >&2
+  exit 1
+}
+grep -q "select_inputs_for_tx_single_utxo_fails_closed" "$REPO_ROOT/mfn-wallet/src/wallet.rs" || {
+  echo "missing B-186 single-UTXO fail-closed unit (B-186)" >&2
+  exit 1
+}
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"

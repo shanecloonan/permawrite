@@ -100,7 +100,9 @@ pub const WALLET_MIN_TX_OUTPUTS: usize = 2;
 ///
 /// Unlike the output floor, extra inputs are **real** spends (not
 /// zero-value padding): each input carries a CLSAG and key image.
-/// Wallets with only one UTXO cannot reach this floor.
+/// Wallets with only one UTXO cannot reach this floor and the reference
+/// wallet **fails closed** rather than broadcasting a one-input shape
+/// (**B-185**/**B-186**).
 pub const WALLET_MIN_TX_INPUTS: usize = 2;
 
 /// Normative OS CSPRNG for transaction construction (**F5-P9** / B3 tail).

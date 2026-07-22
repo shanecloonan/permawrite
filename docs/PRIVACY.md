@@ -54,12 +54,12 @@ This is a wallet-layer privacy default (like ring-16 selection), complementing t
 
 Input *count* is also public (`tx.inputs.len()`). A **one-input** transaction advertises that the sender had a single UTXO large enough to cover the payment — distinct from the common two-input shape where one input likely funded the payment and another supplied change.
 
-Reference wallets enforce a **two-input floor** (`WALLET_MIN_TX_INPUTS = 2`, Monero parity) on the high-level `Wallet` API whenever a second spendable UTXO exists:
+Reference wallets enforce a **two-input floor** (`WALLET_MIN_TX_INPUTS = 2`, Monero parity) end-to-end:
 
-- After age-band coin selection ([§B2 in `PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md)), the wallet merges an additional real UTXO into the spend and folds the excess back into change.
-- Unlike the output floor, extra inputs are genuine CLSAG spends (not zero-value padding); wallets holding only one UTXO cannot reach the floor until they receive a second spendable output.
+- After age-band coin selection ([§B2 in `PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md)), the high-level `Wallet` API merges an additional real UTXO into the spend and folds the excess back into change when a second spendable UTXO exists.
+- Unlike the output floor, extra inputs are genuine CLSAG spends (not zero-value padding). If the wallet holds only one UTXO, selection **fails closed** with [`WalletError::TxInputCountBelowMinimum`](../mfn-wallet/src/error.rs) (**B-186**) — it does **not** broadcast a one-input fingerprint and wait for mempool rejection.
 - On networks running the uniform-ring tier, **consensus** also enforces `RingPolicy.min_input_count = 2` (**F7**): single-input regular txs are rejected at mempool ingress and `apply_block`, matching the two-output floor.
-- Low-level [`build_transfer`](../mfn-wallet/src/spend.rs) / [`build_storage_upload`](../mfn-wallet/src/upload.rs) **fail closed** via [`WalletError::TxInputCountBelowMinimum`](../mfn-wallet/src/error.rs) when `inputs.len() < WALLET_MIN_TX_INPUTS` (**B-185**) — matching production F7 consensus and the WASM JSON builders (**B-168**). The high-level `Wallet` API still pads when a second spendable UTXO exists so ordinary callers reach the floor without assembling plans by hand.
+- Low-level [`build_transfer`](../mfn-wallet/src/spend.rs) / [`build_storage_upload`](../mfn-wallet/src/upload.rs) likewise fail closed on `< WALLET_MIN_TX_INPUTS` (**B-185**), matching WASM JSON builders (**B-168**).
 - Operator faucets and the public HTTP faucet therefore send **two** transfers so a fresh wallet can meet the floor without a second payment from elsewhere.
 
 ### Light-scan at high tip (default wallet sync)
