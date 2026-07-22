@@ -24,7 +24,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **CI `#29887479996` GREEN** on B-163; **B-15** PASS | *Idle* — watch B-166 head CI | Do not cancel healthy in_progress |
-| **B** Protocol/Privacy | **B-166** (this commit); **B-163** (CI `#29887479996` GREEN); **B-162** | *Idle* — next **B-167** eighth op1 asymmetric | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **B** Protocol/Privacy | **B-166** (this commit); **B-163** (CI `#29887479996` GREEN); **B-162** | *Idle* — next **B-168** eighth op1 asymmetric | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; **B-146**/**B-145**/**B-144** | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
 
 ### Hard locks (all seats)
