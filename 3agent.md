@@ -23,9 +23,10 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#29903453186` GREEN** on B-177; **CI `#29900841536` GREEN** on B-176 | *Idle* — do not cancel healthy in_progress | Do not cancel healthy in_progress |
-| **B** Protocol/Privacy | **B-177** GREEN (lane5); **B-176** GREEN | **B-178** ninth asymmetric (lane4) | After B-25: **B-35**/**B-37**/**B-19** |
-| **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; wave59 FUND FAIL note | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
+| **A** RC/CI | **CI `#29903453186` GREEN** on B-177; watch tip after B-180 | *Idle* — do not cancel healthy in_progress | Do not cancel healthy in_progress |
+| **B** Protocol/Privacy | **B-180** wallet upload ring fixture pin (lane5 this tip); **B-177** GREEN | **B-178** ninth asymmetric (lane4) | After B-25: **B-35**/**B-37**/**B-19** |
+| **C** Testnet/Onboarding | **B-15** wave59/60 tall-tip; JOIN PASS tip=5322 | *Idle*/Doing per AGENTS | No parallel Hetzner JOIN |
+
 
 ### Hard locks (all seats)
 

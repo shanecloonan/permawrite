@@ -30,5 +30,9 @@ foreach ($wasmFile in @("mfn-wasm/src/transfer_core.rs", "mfn-wasm/src/upload_co
     Write-Error "WASM still hardcodes ring_size: 16 in $wasmFile (B-177)"
   }
 }
+$uploadTxt = Get-Content -Raw (Join-Path $RepoRoot "mfn-wallet/src/upload.rs")
+if ($uploadTxt -match "ring_size: 16,") {
+  Write-Error "mfn-wallet upload.rs still hardcodes ring_size: 16 (B-180)"
+}
 Write-Output "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
 if (-not $PlanOnly) { exit 0 }

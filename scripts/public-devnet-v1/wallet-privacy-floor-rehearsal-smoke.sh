@@ -57,4 +57,9 @@ if grep -n "ring_size: 16," "$REPO_ROOT/mfn-wasm/src/transfer_core.rs" "$REPO_RO
   echo "WASM still hardcodes ring_size: 16 (B-177)" >&2
   exit 1
 fi
+# B-180: wallet upload fixtures must not hardcode ring_size: 16
+if grep -n "ring_size: 16," "$REPO_ROOT/mfn-wallet/src/upload.rs" >/dev/null 2>&1; then
+  echo "mfn-wallet upload.rs still hardcodes ring_size: 16 (B-180)" >&2
+  exit 1
+fi
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
