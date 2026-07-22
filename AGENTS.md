@@ -134,15 +134,15 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-160** early B-24bb (docs-only while **CI `#29879858576`** runs on B-159 `7ef832a7`). **CI `#29878259419` GREEN** on B-158. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-21):** Claiming **B-160** early B-24bb (docs-only while **CI `#29879858576`** runs on B-159 tip). **CI `#29878259419` GREEN** on B-158. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-159** (`7ef832a7`/`356c7859`, watch CI `#29879858576`); **B-158** (CI `#29878259419` GREEN); **B-157**/**B-156** stack | **B-160** seventh-offense op1 asymmetric→absentee re-slash (claim base: `7ef832a7`) | After land: settle-reset→eighth dual-slash; after 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
-| **5** Privacy | **B-50 follow-up** Rust checkpoint-log auto-bootstrap (`3df22fd3`, co-landed with B-158); **B-16** (`49d28f9`) | **B-161** heavy `get_light_snapshot` CLI timeout (claim base: `65e19cbe`) | After land: live B-50 prove; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **4** Protocol | **B-159** (`356c7859`/`7ef832a7`, watch CI `#29879858576`); **B-158** (`d5dc6f38`, CI `#29878259419` GREEN); **B-157** stack | **B-160** seventh-offense op1 asymmetric→absentee re-slash (claim base: `356c7859`) | After land: settle-reset→eighth dual-slash; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
+| **5** Privacy | **B-161** heavy `get_light_snapshot` CLI timeout + F45 soft (this commit); **B-50 follow-up** (`3df22fd3`); **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -240,7 +240,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-48 | Soft-ignore EAGAIN for P2P peer quarantine | 4 | **Landed** — soft-fail EAGAIN/WouldBlock in peer quarantine (not os error 111) |
 | B-49 | VPS `vps-roll-mfnd.sh` tooling (hub+voters, no faucet) | 7 | **Done** (`284e803`) — live apply after CI GREEN |
 | B-50 | Checkpoint-log bootstrap honesty + helper | 7+5 | **Done** (docs+script + Rust auto-bootstrap `3df22fd3`) |
-| B-161 | mfn-cli heavy RPC timeout for `get_light_snapshot` (B-52 client twin) | 5 | **Claimed** — default 180s / `MFN_HEAVY_RPC_TIMEOUT_MS`; unblocks live B-50 tall-tip auto-bootstrap |
+| B-161 | mfn-cli heavy RPC timeout for `get_light_snapshot` (B-52 client twin) | 5 | **Landed** (this commit) — 180s/`MFN_HEAVY_RPC_TIMEOUT_MS` + in-CLI F45 soft; live `checkpoint_log_auto_bootstrap tip=5463` + `checkpoint_log_f45_soft_pass` |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
 | B-52 | Observer proxy heavy RPC timeout + Windows B-50 twin | 7 | **Done** — F54/F56; `PROXY_HEAVY_RPC_TIMEOUT_MS=180000`; `.ps1` twin |
 | B-53 | Non-blocking faucet `/health` + VPS block-log assert | 7 | **Done** — F62 VPS cleared |
@@ -337,7 +337,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-157 | Seventh dual-slash then op1 asymmetric settle drain (early B-24ay) | 4 | **Landed** (`8d6e8203`); **CI `#29876590150` GREEN**; completes seventh asymmetric settle pair |
 | B-158 | Seventh dual-slash then empty both-miss (early B-24az) | 4 | **Landed** (`d5dc6f38`); **CI `#29878259419` GREEN**; closes seventh-offense prove matrix |
 | B-159 | Seventh-offense asymmetric then absentee re-slash (early B-24ba) | 4 | **Landed** (this commit); elevates B-152; full CI |
-| B-160 | Seventh-offense op1 asymmetric then absentee re-slash (early B-24bb) | 4 | **Claimed** (this commit) — B-159 twin; elevates B-153; full CI after `#29879858576` GREEN |
+| B-160 | Seventh-offense op1 asymmetric then absentee re-slash (early B-24bb) | 4 | **Claimed** (this commit) — elevates B-153; full CI after `#29879858576` GREEN |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -352,6 +352,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 5 — B-161 heavy CLI snapshot timeout + F45 soft** (this commit): `get_light_snapshot` uses 180s/`MFN_HEAVY_RPC_TIMEOUT_MS`; in-CLI F45 soft-pass after Schnorr log verify; persist pin on mid-scan failure. Live needles `checkpoint_log_auto_bootstrap tip=5463` + `checkpoint_log_f45_soft_pass` (tip~5474). Fix-forward: prior `872f1ee1` was evidence-only after concurrent wipe. **CI `#29878259419` GREEN** on B-158/B-50. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 join-testnet-rehearsal-smoke/.
 
 1. **2026-07-21 — lane 4 — claim B-160** (this commit): early B-24bb seventh-offense op1 asymmetric→absentee re-slash (B-159 twin) while **CI `#29879858576`** runs on B-159. Claim base `7ef832a7`. *Observed (not staged):* lane-5 B-161 evidence; lane-3 JOIN smoke. `[skip ci]`.
 
