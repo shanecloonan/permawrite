@@ -25,7 +25,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | --- | --- | --- | --- |
 | **A** RC/CI | **CI `#29931611895` GREEN** (B-188); watch `#29934475574` (B-190) | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-193** (`2dd978ed`) | **B-194** tenth op1 asymmetric→absentee re-slash (claim base: `2dd978ed`) | After CI: settle-reset→eleventh; live **B-32** needs 2nd host |
-| **C** Testnet/Onboarding | **B-15** wave82 brynn@5982 PASS | wave83+ density | No parallel Hetzner JOIN |
+| **C** Testnet/Onboarding | **B-15** wave83 coral@5993 PASS | wave84+ density | No parallel Hetzner JOIN |
 
 
 ### Hard locks (all seats)

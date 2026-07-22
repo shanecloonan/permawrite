@@ -1,6 +1,10 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–79; yukon@**5947** faucet-retry-F101b PASS; tip~5947 ckpt=5290 lag=643; fifty-four proxy-proven.
+**Status:** DRAFT — waves 6–83; coral@5993 PASS; tip~5993 ckpt=5290 lag=693; fifty-seven proxy-proven.
+| coral | faucet-F101b | n/a | yes | **5993** (wave83; proxy-prove PASS; F95) |
+| brynn | faucet-F101b | n/a | yes | **5982** (wave82; proxy-prove PASS; F110) |
+| aster | faucet-F101b | n/a | yes | **5972** (wave81; proxy-prove PASS; post-wipe) |
+| zara | faucet-F101b | n/a | **no** | FAIL wave80 prove (F107 sticky mem=1 / local_only) |
 | yukon | faucet-retry-F101b | n/a | yes | **5947** (wave79; proxy-prove PASS) |
 | wynn | faucet-F101b | n/a | yes | **5932** (wave78; proxy-prove PASS; F110) |
 | vela | faucet-retry-F101b | n/a | yes | **5923** (wave77; proxy-prove PASS; F112 fix) |
