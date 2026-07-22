@@ -544,6 +544,8 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 4 — B-158 seventh-slash→empty both-miss** (this commit): early B-24az `b158_b5_seventh_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29876590150` GREEN** on B-157. Closes seventh-offense prove matrix {00,01,10,11}. Full CI (no skip). Next: **B-159** seventh-offense asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-50 WIP + lane-3 `join-testnet-rehearsal-smoke/`.
 
+1. **2026-07-21 — lane 5 — claim B-161** (this commit): heavy `get_light_snapshot` CLI I/O timeout (B-52 client twin; live prove saw ~65s snapshot vs 30s CLI abort). Claim base `65e19cbe`. Pin B-50 Done=`3df22fd3`. Watch tip **CI `#29878259419`**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 join-testnet-rehearsal-smoke/. `[skip ci]`.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
