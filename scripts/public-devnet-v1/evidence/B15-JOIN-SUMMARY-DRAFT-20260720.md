@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–91; kade@6083 PASS; tip~6083 ckpt=5290 lag=781; sixty-five proxy-proven.
+**Status:** DRAFT — waves 6–92; luna@6094 PASS; tip~6094 ckpt=5290 lag=794; sixty-six proxy-proven.
+| luna | faucet-F101b | n/a | yes | **6094** (wave92; proxy-prove PASS; F110) |
 | kade | faucet-F101b | n/a | yes | **6083** (wave91; proxy-prove PASS; F110) |
 | juno | faucet-F101b | n/a | yes | **6070** (wave90; proxy-prove PASS; F110; milestone) |
 | iota | faucet-F101b | n/a | yes | **6060** (wave89; proxy-prove PASS; F110) |
