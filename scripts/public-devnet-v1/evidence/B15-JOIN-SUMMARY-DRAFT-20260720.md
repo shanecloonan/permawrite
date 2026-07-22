@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–65; gwen@**5784** faucet-F101b PASS; tip~5784 ckpt=5290 lag=486; claims=39; forty-two proxy-proven; F110 streak x5 after wave59 fail.
+**Status:** DRAFT — waves 6–66; hugo@**5800** faucet-retry-F101b PASS (F95 429+600s); tip~5800 ckpt=5290 lag=495; claims=40; forty-three proxy-proven.
+| hugo | faucet-retry-F101b | n/a | yes | **5800** (wave66; proxy-prove PASS; F95+F110) |
 | gwen | faucet-F101b | n/a | yes | **5784** (wave65; proxy-prove PASS; F110) |
 | finn | faucet-F101b | n/a | yes | **5775** (wave64; proxy-prove PASS; F110) |
 | ella | faucet-F101b | n/a | yes | **5761** (wave63; proxy-prove PASS; F110) |
@@ -71,7 +72,7 @@
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 | zoe | faucet (post-wipe) | n/a | yes | **4533** (wave34; proxy-prove PASS) |
 
-Forty-two wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Forty-three wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -144,3 +145,5 @@ Forty-two wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/
 38. **F110 (wave60)** — deep Path A pin+balance (ckpt_max / ckpt−50) still TIMEOUT at 400s on tip~5700; near-tip ladder + early F101b on owned=1 required. F109 poll≥100×5s validated (faucet done ~181s).
 
 39. **F110 validated (wave61)** — near-tip ladder + early F101b on owned=1 cut wall time ~43→~22 min; zero bal TIMEOUTs at tip~5740.
+
+40. **F95 reconfirmed (wave66)** — back-to-back density waves hit faucet 429; 600s wait + faucet-retry-F101b still reaches permanence. Space >=15m or budget the idle.
