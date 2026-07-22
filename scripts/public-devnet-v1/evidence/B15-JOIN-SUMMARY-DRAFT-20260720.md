@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–70; lena@**5842** faucet-F101b PASS; tip~5842 ckpt=5290 lag=544; claims=44; forty-seven proxy-proven.
+**Status:** DRAFT — waves 6–71; mira@**5853** faucet-F101b PASS; tip~5853 ckpt=5290 lag=553; claims=45; forty-eight proxy-proven.
+| mira | faucet-F101b | n/a | yes | **5853** (wave71; proxy-prove PASS; F110) |
 | lena | faucet-F101b | n/a | yes | **5842** (wave70; proxy-prove PASS; F110) |
 | kira | faucet-F101b | n/a | yes | **5833** (wave69; proxy-prove PASS; F110) |
 | joss | faucet-F101b | n/a | yes | **5819** (wave68; proxy-prove PASS; F110) |
@@ -76,7 +77,7 @@
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 | zoe | faucet (post-wipe) | n/a | yes | **4533** (wave34; proxy-prove PASS) |
 
-Forty-seven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Forty-eight wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
