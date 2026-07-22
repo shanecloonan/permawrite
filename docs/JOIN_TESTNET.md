@@ -134,7 +134,7 @@ After an **upload**, if `wallet send` reports a weak-subjectivity tip mismatch (
 
 Operator shortcut (same F67 order baked in): `bash scripts/public-devnet-v1/fund-wallet-http.sh --rpc … --recipient-wallet … --checkpoint-log …`.
 
-**F45 tip race:** wallet light-scan --checkpoint-log requires a Schnorr attestation **at the current tip**. If the tip moved past the log max, use `bash scripts/public-devnet-v1/light-scan-checkpoint-soft.sh` (B-59) or re-pin after a fresh Path A publish. Soft-pass does **not** skip Schnorr verify of the log.
+**F45 tip race:** after pin+scan, `wallet light-scan --checkpoint-log` soft-passes when the tip raced past the log max (**B-161** in-CLI; prints `checkpoint_log_f45_soft_pass`). Wrappers remain for older binaries / ops: `light-scan-checkpoint-soft.sh` / `.ps1` (B-59/B-164; CI-gated by B-165). Soft-pass does **not** skip Schnorr verify of the log or same-height disagreement; re-pin after a fresh Path A publish if you want exact-tip attestation.
 
 **Important (B-50 / B-50 follow-up):** On a **fresh** wallet (no `light_checkpoint_hex` / `scan_height` ≤ 1), `wallet light-scan --checkpoint-log` now **auto-bootstrap**s from the log's max tip via `get_light_snapshot` (prints `checkpoint_log_auto_bootstrap tip=…`), then scans only the remaining tip delta and **F12** cross-checks. The pin helper above remains the explicit/retry path (EAGAIN, Windows TCP snapshot, F67 pin-before-fund).
 

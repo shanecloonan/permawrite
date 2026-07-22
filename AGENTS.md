@@ -356,6 +356,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-21 — lane 5 — JOIN F45 doc honesty (B-161/B-165)** (this commit): align JOIN_TESTNET F45 paragraph with in-CLI soft-pass + Windows twin + B-165 CI gate. [skip ci] while **CI #29884711182** runs on B-165. *Observed (not staged):* lane-4 pply_block_proposals.rs, lane-3 JOIN smoke.
+
 1. **2026-07-21 — lane 5 — B-165 F45 soft rehearsal CI gate** (this commit): `light-scan-checkpoint-soft-rehearsal-smoke.sh`/`.ps1` + bootstrap smoke needles + ci-check wire. Local plan-only PASS. Live prove tip=5523 auto-bootstrap + F45 soft. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke.
 1. **2026-07-21 — lane 5 — B-164 privacy-doc honesty + Windows F45 soft twin** (this commit): PRIVACY/CHECKPOINT_LOG document B-161 heavy timeout + in-CLI F45 soft; add `light-scan-checkpoint-soft.ps1`; soft.sh notes B-161. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke.
 
