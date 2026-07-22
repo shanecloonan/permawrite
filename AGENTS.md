@@ -134,15 +134,15 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-171** early B-24bh while **CI `#29893569581`** runs on B-170 tip `b40c1ccc`. **CI `#29888900634` GREEN** on B-166. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Claiming **B-171** early B-24bh (docs-only while **CI `#29893569581`** runs on B-170 tip). **CI `#29888900634` GREEN** on B-166. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-170** (`b40c1ccc`); **B-169** (`5868f68f`); **B-166** (CI `#29888900634` GREEN) | **B-171** eighth asymmetric→absentee re-slash (claim base: `b40c1ccc`) | After CI: **B-172** op1 twin; live **B-32** needs 2nd host | Lane 1 CI |
-| **5** Privacy | **B-168** WASM F7 floor + F45/WASM honesty (this commit); **B-167** (`894ca63f`); **B-165** (`0da9cd27`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **4** Protocol | **B-170** (`b40c1ccc`, watch CI `#29893569581`); **B-169**; **B-166** | **B-171** eighth-offense asymmetric→absentee re-slash (claim base: `b40c1ccc`) | After land: **B-172** op1 twin; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
+| **5** Privacy | **B-168** (b4dbba1; watch tip CI #29893569581 on B-170); **B-167** (894ca63f) | **B-172** privacy-floor CI gate (claim base: $claimBase) | After land: after B-25 **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -244,6 +244,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-164 | Privacy-doc honesty for B-50/B-161 + Windows `light-scan-checkpoint-soft.ps1` twin | 5 | **Landed** (`07c30df0`) — PRIVACY/CHECKPOINT_LOG + `.ps1` twin; Schnorr still hard |
 | B-165 | CI fail-closed gate for F45 soft twin + B-161 needles | 5 | **Landed** (`0da9cd27`; **CI `#29884711182` GREEN**) — soft rehearsal smoke + ci-check wire; live tip~5523/5524 |
 | B-167 | Ring-size no-silent-downgrade: typed `RingSizeBelowMinimum` + CLI/WASM refuse `< WALLET_MIN_RING_SIZE` | 5 | **Landed** (`894ca63f`; covered by **CI `#29888900634` GREEN** on B-166 tip) |
+| B-172 | CI fail-closed gate for B-167/B-168 privacy floors (WALLET_MIN_RING_SIZE + F7 inputs) | 5 | **Claimed** (this commit) — rehearsal smoke + upload twin tests |
 | B-168 | WASM F7 two-input floor + F45/WASM doc honesty | 5 | **Landed** (this commit) — WASM fail-closed `<2` inputs; F45 soft CLI-only doc honesty |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
 | B-52 | Observer proxy heavy RPC timeout + Windows B-50 twin | 7 | **Done** — F54/F56; `PROXY_HEAVY_RPC_TIMEOUT_MS=180000`; `.ps1` twin |
@@ -347,7 +348,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-166 | Eighth dual-slash then asymmetric settle drain (early B-24be) | 4 | **Landed** (this commit); elevates B-156; full CI |
 | B-169 | Eighth dual-slash then op1 asymmetric settle drain (early B-24bf) | 4 | **Landed** (this commit); elevates B-157; completes eighth asymmetric pair; full CI |
 | B-170 | Eighth dual-slash then empty both-miss no-drain identity (early B-24bg) | 4 | **Landed** (this commit); closes eighth-offense prove matrix; elevates B-158; full CI |
-| B-171 | Eighth-offense asymmetric then absentee re-slash (early B-24bh) | 4 | **Claimed** — elevates B-159 after B-170 CI GREEN |
+| B-171 | Eighth-offense asymmetric then absentee re-slash (early B-24bh) | 4 | **Claimed** (this commit) — elevates B-159; full CI after `#29893569581` GREEN |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -362,6 +363,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 5 — claim B-172** (this commit): privacy-floor CI gate (B-167/B-168 needles) while tip **CI #29893569581** runs on B-170 (covers B-168). Claim base $claimBase. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].
+
+1. **2026-07-21 — lane 4 — claim B-171** (this commit): early B-24bh eighth-offense asymmetric→absentee re-slash while **CI `#29893569581`** runs on B-170. Claim base `b40c1ccc`. *Observed (not staged):* lane-5 B-168 residual if any. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — claim B-171** (this commit): early B-24bh eighth asymmetric→absentee re-slash while **CI `#29893569581`** runs on B-170. Claim base `b40c1ccc`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
@@ -400,15 +405,4 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-07-21 — lane 5 — claim B-167** (this commit): ring-size fail-closed (RingSizeBelowMinimum + CLI/WASM <16 refuse) while **CI #29887479996** runs on B-163. Claim base 681cc30d. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].
 
 1. **2026-07-21 — lane 5 — pin CI #29884711182 GREEN on B-165** (this commit): tip  da9cd27 full matrix GREEN (Nightly dispatched). Lane5 Idle; Next after B-25: **B-35**/**B-37**/**B-19**. [skip ci].
-
-1. **2026-07-21 — lane 5 — JOIN F45 doc honesty (B-161/B-165)** (this commit): align JOIN_TESTNET F45 paragraph with in-CLI soft-pass + Windows twin + B-165 CI gate. [skip ci] while **CI #29884711182** runs on B-165. *Observed (not staged):* lane-4 pply_block_proposals.rs, lane-3 JOIN smoke.
-
-1. **2026-07-21 — lane 5 — B-165 F45 soft rehearsal CI gate** (this commit): `light-scan-checkpoint-soft-rehearsal-smoke.sh`/`.ps1` + bootstrap smoke needles + ci-check wire. Local plan-only PASS. Live prove tip=5523 auto-bootstrap + F45 soft. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke.
-1. **2026-07-21 — lane 5 — B-164 privacy-doc honesty + Windows F45 soft twin** (this commit): PRIVACY/CHECKPOINT_LOG document B-161 heavy timeout + in-CLI F45 soft; add `light-scan-checkpoint-soft.ps1`; soft.sh notes B-161. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke.
-
-1. **2026-07-21 — lane 5 — claim B-164** (this commit): privacy-doc honesty for B-161 + Windows `light-scan-checkpoint-soft.ps1` twin while tip **CI `#29882509412`** runs on B-161. Claim base `3113229f`. *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke. `[skip ci]`.
-
-1. **2026-07-21 — lane 5 — B-161 heavy CLI snapshot timeout + F45 soft** (this commit): get_light_snapshot uses 180s/MFN_HEAVY_RPC_TIMEOUT_MS; in-CLI F45 soft-pass; persist pin on mid-scan failure. Fix-forward after 872f1ee1 evidence-only wipe. Full CI (no skip). *Observed (not staged):* lane-4 pply_block_proposals.rs, lane-3 join-testnet-rehearsal-smoke/.
-
-1. **2026-07-21 — lane 4 — claim B-162** (this commit): early B-24bc settle-reset→eighth dual-slash while **CI `#29881759838`** runs on B-160. Claim base `4b0781a1`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
