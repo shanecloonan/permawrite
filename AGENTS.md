@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Landing **B-180** (wallet upload no magic ring_size:16) after **CI `#29903453186` GREEN** on B-177. Lane4 **B-178** claimed. Live tip~5727. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** Claiming **B-179** early B-24bm while **CI `#29905438517`** runs on B-178 tip `faa97ba7`. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave59 FUND FAIL** (aria F109/F99 tall-tip; tip~5700) | **B-15** wave60 tall-tip harden + more permanence | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-178** ninth→asymmetric settle (this commit); **B-176** (`eb668d6f`, CI `#29900841536` GREEN); **B-175**/**B-173** | *Idle* — next **B-179** ninth op1 asymmetric; live **B-32** needs 2nd host | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-178** (`faa97ba7`); **B-176** (CI `#29900841536` GREEN); **B-175**/**B-173** | **B-179** ninth op1 asymmetric (claim base: `faa97ba7`) | After CI: ninth empty both-miss; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-180** wallet upload fixtures use WALLET_MIN_RING_SIZE (this commit); **B-177** (`fe4bfc05`, CI `#29903453186` GREEN); **B-174** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -356,7 +356,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-175 | Settle-reset then ninth dual-slash treasury identity (early B-24bj) | 4 | **Landed** (this commit); elevates B-162; full CI |
 | B-176 | Ninth dual-slash then dual-settle drain identity (early B-24bk) | 4 | **Landed** (this commit); elevates B-163; full CI |
 | B-178 | Ninth dual-slash then asymmetric settle drain (early B-24bl) | 4 | **Landed** (this commit); elevates B-166; full CI |
-| B-179 | Ninth dual-slash then op1 asymmetric settle drain (early B-24bm) | 4 | Next after B-178 CI GREEN — elevates B-169 |
+| B-179 | Ninth dual-slash then op1 asymmetric settle drain (early B-24bm) | 4 | **Claimed** — elevates B-169 after B-178 CI GREEN |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -371,6 +371,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 4 — claim B-179** (this commit): early B-24bm ninth op1 asymmetric while **CI `#29905438517`** runs on B-178. Claim base `faa97ba7`. `[skip ci]`.
 
 1. **2026-07-22 — lane 4 — B-178 ninth-slash→asymmetric settle** (this commit): early B-24bl `b178_b5_ninth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29900841536` GREEN** on B-176; **CI `#29903453186` GREEN** on B-177. Elevates B-166. Full CI (no skip). Next: **B-179** ninth op1 asymmetric. Still blocked on 2nd host for live **B-32**.
 
