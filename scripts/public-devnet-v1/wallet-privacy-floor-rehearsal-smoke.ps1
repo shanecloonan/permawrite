@@ -34,5 +34,12 @@ $uploadTxt = Get-Content -Raw (Join-Path $RepoRoot "mfn-wallet/src/upload.rs")
 if ($uploadTxt -match "ring_size: 16,") {
   Write-Error "mfn-wallet upload.rs still hardcodes ring_size: 16 (B-180)"
 }
+$parseTxt = Get-Content -Raw (Join-Path $RepoRoot "mfn-cli/src/cli/parse.rs")
+if ($parseTxt -notmatch [regex]::Escape("default 16, wallet/consensus floor")) {
+  Write-Error "missing CLI usage wallet/consensus floor for ring-size (B-182)"
+}
+if ($parseTxt -match "consensus min") {
+  Write-Error "CLI usage still says consensus min (B-182)"
+}
 Write-Output "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
 if (-not $PlanOnly) { exit 0 }

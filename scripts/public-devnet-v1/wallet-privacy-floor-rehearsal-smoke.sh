@@ -62,4 +62,12 @@ if grep -n "ring_size: 16," "$REPO_ROOT/mfn-wallet/src/upload.rs" >/dev/null 2>&
   echo "mfn-wallet upload.rs still hardcodes ring_size: 16 (B-180)" >&2
   exit 1
 fi
+grep -q "default 16, wallet/consensus floor" "$REPO_ROOT/mfn-cli/src/cli/parse.rs" || {
+  echo "missing CLI usage wallet/consensus floor for ring-size (B-182)" >&2
+  exit 1
+}
+if grep -n "consensus min" "$REPO_ROOT/mfn-cli/src/cli/parse.rs" >/dev/null 2>&1; then
+  echo "CLI usage still says consensus min (B-182)" >&2
+  exit 1
+fi
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
