@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-165** F45 soft rehearsal CI gate (full CI). **B-164** tip `07c30df0`. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** **CI `#29884711182` GREEN** on B-165 tip `0da9cd27`. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -242,7 +242,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-50 | Checkpoint-log bootstrap honesty + helper | 7+5 | **Done** (docs+script + Rust auto-bootstrap `3df22fd3`) |
 | B-161 | mfn-cli heavy RPC timeout for `get_light_snapshot` (B-52 client twin) | 5 | **Landed** (this commit) — 180s/`MFN_HEAVY_RPC_TIMEOUT_MS` + in-CLI F45 soft; live `checkpoint_log_auto_bootstrap tip=5463` + `checkpoint_log_f45_soft_pass` |
 | B-164 | Privacy-doc honesty for B-50/B-161 + Windows `light-scan-checkpoint-soft.ps1` twin | 5 | **Landed** (`07c30df0`) — PRIVACY/CHECKPOINT_LOG + `.ps1` twin; Schnorr still hard |
-| B-165 | CI fail-closed gate for F45 soft twin + B-161 needles | 5 | **Landed** (this commit) — soft rehearsal smoke + ci-check wire; live tip~5523/5524 |
+| B-165 | CI fail-closed gate for F45 soft twin + B-161 needles | 5 | **Landed** (`0da9cd27`; **CI `#29884711182` GREEN**) — soft rehearsal smoke + ci-check wire; live tip~5523/5524 |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
 | B-52 | Observer proxy heavy RPC timeout + Windows B-50 twin | 7 | **Done** — F54/F56; `PROXY_HEAVY_RPC_TIMEOUT_MS=180000`; `.ps1` twin |
 | B-53 | Non-blocking faucet `/health` + VPS block-log assert | 7 | **Done** — F62 VPS cleared |
@@ -355,6 +355,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 5 — pin CI #29884711182 GREEN on B-165** (this commit): tip  da9cd27 full matrix GREEN (Nightly dispatched). Lane5 Idle; Next after B-25: **B-35**/**B-37**/**B-19**. [skip ci].
 
 1. **2026-07-21 — lane 5 — JOIN F45 doc honesty (B-161/B-165)** (this commit): align JOIN_TESTNET F45 paragraph with in-CLI soft-pass + Windows twin + B-165 CI gate. [skip ci] while **CI #29884711182** runs on B-165. *Observed (not staged):* lane-4 pply_block_proposals.rs, lane-3 JOIN smoke.
 
