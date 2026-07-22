@@ -569,6 +569,22 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 4 — claim B-162** (this commit): early B-24bc settle-reset→eighth dual-slash while **CI `#29881759838`** runs on B-160. Claim base `4b0781a1`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
+1. **2026-07-21 — lane 4 — B-163 eighth→dual settle drain** (this commit): early B-24bd `b163_b5_eighth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29886131086` GREEN** on B-162. Elevates B-155. Full CI (no skip). Next: **B-166** eighth→asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 JOIN smoke if any.
+
+1. **2026-07-21 — lane 4 — claim B-163** (this commit): early B-24bd eighth→dual settle while **CI `#29886131086`** runs on B-162. Claim base `3b0fd892`. *Observed (not staged):* lane-3 JOIN smoke; local B-163 test PASS unstaged. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — claim B-163** (this commit): early B-24bd eighth→dual settle while **CI `#29886131086`** runs on B-162. Claim base `3b0fd892`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — claim B-163** (this commit): early B-24bd eighth→dual settle while **CI `#29886131086`** runs on B-162. Claim base `3b0fd892`. *Observed (not staged):* lane-3 JOIN smoke. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — B-162 settle-reset→eighth dual-slash** (this commit): early B-24bc `b162_b5_settle_reset_then_eighth_dual_slash_treasury_identity`; local debug PASS. **CI `#29884711182` GREEN** on B-165 (B-160 covered in tree). Elevates B-154. Full CI (no skip). Next: **B-163** eighth→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+1. **2026-07-21 — lane 5 — B-167 ring-size fail-closed** (this commit): WalletError::RingSizeBelowMinimum; CLI parse/floor + WASM JSON refuse < WALLET_MIN_RING_SIZE; unit tests. **CI #29887479996 GREEN** on B-163. Full CI (no skip). Next: **B-168**. *Observed (not staged):* lane-4 pply_block_proposals.rs.
+
+1. **2026-07-21 — lane 5 — claim B-167** (this commit): ring-size fail-closed (RingSizeBelowMinimum + CLI/WASM <16 refuse) while **CI #29887479996** runs on B-163. Claim base 681cc30d. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].
+
+1. **2026-07-21 — lane 5 — pin CI #29884711182 GREEN on B-165** (this commit): tip  da9cd27 full matrix GREEN (Nightly dispatched). Lane5 Idle; Next after B-25: **B-35**/**B-37**/**B-19**. [skip ci].
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
