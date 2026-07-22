@@ -141,7 +141,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave86** (felix last_proven=6026; faucet-F101b; lag=728) | **B-15** wave87+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-196** eleventh→dual settle (this commit); **B-195** (`1a83d9d0`); **B-194** (CI `#29944414883` GREEN) | *Idle* | **B-197** eleventh→asymmetric settle; live **B-32** needs 2nd host | Lane 1 CI |
+| **4** Protocol | **B-196** (`da4c8b68`); **B-195** (`1a83d9d0`); **B-194** (CI `#29944414883` GREEN) | *Idle* — watch CI `#29949333319` | **B-198** eleventh→asymmetric settle (lane5 owns **B-197**); live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-189** CLI F7 owned-UTXO preflight (`ecc565a1`; watch CI `#29946719956`); **B-186** (`94cbfece`; CI `#29929300995` GREEN); **B-185** | **B-197** WASM/CLI F7 faucet dual-send message parity (claim base: `ffb037ce`) | Land after tip CI GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -249,6 +249,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-188 | Tenth dual-slash then dual settle drain (early B-24br) | 4 | **Landed** (this commit); elevates B-176; full CI |
 | B-187 | Settle-reset then tenth dual-slash treasury identity (early B-24bq) | 4 | **Landed** (this commit); elevates B-175; full CI |
 | B-186 | High-level `select_inputs_for_tx` fail-closed on single-UTXO (F7) | 5 | **Landed** (`94cbfece`; **CI `#29929300995` GREEN**) — elevates B-185 |
+| B-198 | Eleventh dual-slash then asymmetric settle drain (early B-24bz) | 4 | Next after B-196 CI GREEN — elevates B-190; lane5 owns B-197 |
 | B-196 | Eleventh dual-slash then dual settle drain (early B-24by) | 4 | **Landed** (this commit); elevates B-188; full CI (also re-proves B-195) |
 | B-197 | WASM/CLI F7 faucet dual-send error-message parity (elevates B-189) | 5 | **Claimed** — body ready; land after CI `#29946719956` GREEN; lane4 next = **B-198+** |
 | B-195 | Settle-reset then eleventh dual-slash treasury identity (early B-24bx) | 4 | **Landed** (`1a83d9d0`); elevates B-187; CI cancelled by B-189 — re-proved via B-196 tip |
@@ -388,6 +389,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 4 — board: next is B-198** (this commit): lane5 claimed **B-197** WASM/CLI F7 parity; lane4 eleventh→asymmetric is **B-198**. Watch **CI `#29949333319`** on B-196. `[skip ci]`.
 
 1. **2026-07-22 — lane 4 — B-196 eleventh→dual settle** (this commit): early B-24by `b196_b5_eleventh_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29946719956` GREEN** on B-189 (B-195 CI `#29946690265` cancelled by lane5). Elevates B-188; tip CI re-proves B-195. Full CI (no skip). Next: **B-197** eleventh→asymmetric settle. Still blocked on 2nd host for live **B-32**.
 
