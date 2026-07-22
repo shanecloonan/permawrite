@@ -111,7 +111,17 @@ pub fn wallet_light_scan(
 ) -> Result<(), WalletCmdError> {
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
-    let stats = sync_wallet_light_from_node(&mut wallet, &mut file, client, params)?;
+    let stats = match sync_wallet_light_from_node(&mut wallet, &mut file, client, params) {
+        Ok(stats) => stats,
+        Err(e) => {
+            // B-161: keep a successful checkpoint-log auto-bootstrap pin durable even when
+            // a later step fails (F45 tip race before soft-pass, RPC blip, etc.).
+            if file.light_checkpoint_hex.is_some() {
+                let _ = persist_wallet(path, &mut file, &wallet);
+            }
+            return Err(e);
+        }
+    };
     persist_wallet(path, &mut file, &wallet)?;
     print_scan_summary(
         &stats,
@@ -369,7 +379,29 @@ fn cross_check_checkpoint_log_if_requested(
     })?;
     let summary = summary_from_checkpoint_hex(cp_hex)
         .map_err(|e| WalletCmdError::Usage(format!("checkpoint log cross-check: {e}")))?;
-    cross_check_summary_against_checkpoint_log(&summary, log_path).map(Some)
+    match cross_check_summary_against_checkpoint_log(&summary, log_path) {
+        Ok(report) => Ok(Some(report)),
+        Err(e) => {
+            // B-59 / B-161: tip raced past the latest Schnorr attestation (F45). Soft-pass
+            // only when the log still verifies and the wallet has scanned at/through the
+            // log max tip — does not weaken entry signatures or same-height disagreement.
+            let msg = e.to_string();
+            if !msg.contains("has no attestation at tip_height") {
+                return Err(e);
+            }
+            let verify = checkpoint_log_verify(log_path)?;
+            let wallet_tip = summary.tip_height;
+            let scan_h = file.scan_height.unwrap_or(0);
+            if wallet_tip > verify.max_tip_height && scan_h >= verify.max_tip_height {
+                println!(
+                    "checkpoint_log_f45_soft_pass log_max={} wallet_tip={} scan_height={}",
+                    verify.max_tip_height, wallet_tip, scan_h
+                );
+                return Ok(None);
+            }
+            Err(e)
+        }
+    }
 }
 
 /// True when a light-scan would still walk from genesis (or height 1) without a pin.

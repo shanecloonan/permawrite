@@ -21,6 +21,36 @@ pub const DEFAULT_RPC_ADDR: &str = "127.0.0.1:18731";
 /// Environment variable: set to `1` / `true` to route RPC over Tor (same as `--tor`).
 pub const MFN_CLI_RPC_TOR_ENV: &str = "MFN_CLI_RPC_TOR";
 
+/// Default per-request TCP read/write timeout for ordinary RPC calls.
+pub const DEFAULT_RPC_IO_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Default per-request timeout for heavy light-wallet RPCs (`get_light_snapshot`, …).
+///
+/// Matches observer-proxy `PROXY_HEAVY_RPC_TIMEOUT_MS` (**B-52** / F54). Tall-tip
+/// snapshots on the live testnet take ~60s+; the ordinary 30s budget aborts B-50
+/// auto-bootstrap before the pin can land (**B-161**).
+pub const DEFAULT_HEAVY_RPC_IO_TIMEOUT: Duration = Duration::from_secs(180);
+
+/// Override heavy RPC I/O timeout in milliseconds (default [`DEFAULT_HEAVY_RPC_IO_TIMEOUT`]).
+pub const MFN_HEAVY_RPC_TIMEOUT_MS: &str = "MFN_HEAVY_RPC_TIMEOUT_MS";
+
+/// Resolve the heavy-RPC I/O timeout from [`MFN_HEAVY_RPC_TIMEOUT_MS`] or the default.
+pub fn heavy_rpc_io_timeout() -> Duration {
+    match std::env::var(MFN_HEAVY_RPC_TIMEOUT_MS) {
+        Ok(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                return DEFAULT_HEAVY_RPC_IO_TIMEOUT;
+            }
+            match trimmed.parse::<u64>() {
+                Ok(ms) if ms > 0 => Duration::from_millis(ms),
+                _ => DEFAULT_HEAVY_RPC_IO_TIMEOUT,
+            }
+        }
+        Err(_) => DEFAULT_HEAVY_RPC_IO_TIMEOUT,
+    }
+}
+
 /// Chain tip snapshot from `get_tip`.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ChainTip {
@@ -332,7 +362,7 @@ impl RpcClient {
             connect: RpcConnectConfig::tcp(),
             next_id: 1,
             connect_timeout: Duration::from_secs(10),
-            io_timeout: Duration::from_secs(30),
+            io_timeout: DEFAULT_RPC_IO_TIMEOUT,
         }
     }
 
@@ -376,41 +406,63 @@ impl RpcClient {
         &self.connect
     }
 
-    /// Spawn a client to `addr` with the same Tor/cleartext settings as `self`.
+    /// Spawn a client to `addr` with the same Tor/cleartext settings, API key, and timeouts.
     pub fn peer_client(&self, addr: impl Into<String>) -> Self {
-        Self::new(addr).with_connect_config(self.connect.clone())
+        let mut peer = Self::new(addr).with_connect_config(self.connect.clone());
+        if let Some(api_key) = &self.api_key {
+            peer = peer.with_api_key(api_key.clone());
+        }
+        peer.connect_timeout = self.connect_timeout;
+        peer.io_timeout = self.io_timeout;
+        peer
     }
 
     /// Issue a JSON-RPC 2.0 call and return the `result` value.
     pub fn call(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
-        let id = self.next_id;
-        self.next_id = self.next_id.saturating_add(1);
-        let mut req = json!({
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params,
-            "id": id,
-        });
-        if let (Some(api_key), Value::Object(obj)) = (&self.api_key, &mut req) {
-            obj.insert("api_key".to_string(), Value::String(api_key.clone()));
-        }
-        let line = serde_json::to_string(&req)?;
-        let resp_line = self.request_line(&line)?;
-        let v: Value = serde_json::from_str(resp_line.trim())?;
-        if let Some(err) = v.get("error") {
-            if !err.is_null() {
-                let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
-                let message = err
-                    .get("message")
-                    .and_then(|m| m.as_str())
-                    .unwrap_or("unknown error")
-                    .to_string();
-                return Err(RpcError::Server { code, message });
+        self.call_with_io_timeout(method, params, self.io_timeout)
+    }
+
+    /// Issue a JSON-RPC 2.0 call with an explicit per-request I/O timeout.
+    pub fn call_with_io_timeout(
+        &mut self,
+        method: &str,
+        params: Value,
+        io_timeout: Duration,
+    ) -> Result<Value, RpcError> {
+        let prev = self.io_timeout;
+        self.io_timeout = io_timeout;
+        let result = (|| {
+            let id = self.next_id;
+            self.next_id = self.next_id.saturating_add(1);
+            let mut req = json!({
+                "jsonrpc": "2.0",
+                "method": method,
+                "params": params,
+                "id": id,
+            });
+            if let (Some(api_key), Value::Object(obj)) = (&self.api_key, &mut req) {
+                obj.insert("api_key".to_string(), Value::String(api_key.clone()));
             }
-        }
-        v.get("result")
-            .cloned()
-            .ok_or_else(|| RpcError::Protocol("response missing result".into()))
+            let line = serde_json::to_string(&req)?;
+            let resp_line = self.request_line(&line)?;
+            let v: Value = serde_json::from_str(resp_line.trim())?;
+            if let Some(err) = v.get("error") {
+                if !err.is_null() {
+                    let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
+                    let message = err
+                        .get("message")
+                        .and_then(|m| m.as_str())
+                        .unwrap_or("unknown error")
+                        .to_string();
+                    return Err(RpcError::Server { code, message });
+                }
+            }
+            v.get("result")
+                .cloned()
+                .ok_or_else(|| RpcError::Protocol("response missing result".into()))
+        })();
+        self.io_timeout = prev;
+        result
     }
 
     /// `get_tip` — chain tip, genesis id, mempool summary fields.
@@ -541,12 +593,15 @@ impl RpcClient {
     }
 
     /// `get_light_snapshot` at `height` (or chain tip when `None`).
+    ///
+    /// Uses the heavy I/O timeout (**B-161**) so tall-tip Path A pins are not
+    /// aborted by the ordinary 30s budget.
     pub fn get_light_snapshot(&mut self, height: Option<u32>) -> Result<LightSnapshot, RpcError> {
         let params = match height {
             Some(h) => json!({ "height": h }),
             None => json!(null),
         };
-        let v = self.call("get_light_snapshot", params)?;
+        let v = self.call_with_io_timeout("get_light_snapshot", params, heavy_rpc_io_timeout())?;
         serde_json::from_value(v)
             .map_err(|e| RpcError::Protocol(format!("get_light_snapshot decode: {e}")))
     }
@@ -743,5 +798,37 @@ mod tests {
         std::env::remove_var(mfn_net::MFND_TOR_SOCKS5_ENV);
         let cfg = RpcConnectConfig::from_env().unwrap();
         assert_eq!(cfg, RpcConnectConfig::tcp());
+    }
+
+    #[test]
+    fn heavy_rpc_io_timeout_defaults_to_180s() {
+        std::env::remove_var(MFN_HEAVY_RPC_TIMEOUT_MS);
+        assert_eq!(heavy_rpc_io_timeout(), DEFAULT_HEAVY_RPC_IO_TIMEOUT);
+        assert_eq!(DEFAULT_HEAVY_RPC_IO_TIMEOUT, Duration::from_secs(180));
+        assert_eq!(DEFAULT_RPC_IO_TIMEOUT, Duration::from_secs(30));
+    }
+
+    #[test]
+    fn heavy_rpc_io_timeout_env_override_ms() {
+        std::env::set_var(MFN_HEAVY_RPC_TIMEOUT_MS, "120000");
+        assert_eq!(heavy_rpc_io_timeout(), Duration::from_millis(120_000));
+        std::env::set_var(MFN_HEAVY_RPC_TIMEOUT_MS, "0");
+        assert_eq!(heavy_rpc_io_timeout(), DEFAULT_HEAVY_RPC_IO_TIMEOUT);
+        std::env::set_var(MFN_HEAVY_RPC_TIMEOUT_MS, "nope");
+        assert_eq!(heavy_rpc_io_timeout(), DEFAULT_HEAVY_RPC_IO_TIMEOUT);
+        std::env::remove_var(MFN_HEAVY_RPC_TIMEOUT_MS);
+    }
+
+    #[test]
+    fn peer_client_preserves_timeouts_and_api_key() {
+        let client = RpcClient::new("127.0.0.1:18731")
+            .with_api_key("secret")
+            .with_io_timeout(Duration::from_secs(90))
+            .with_connect_timeout(Duration::from_secs(3));
+        let peer = client.peer_client("127.0.0.1:18732");
+        assert_eq!(peer.addr(), "127.0.0.1:18732");
+        assert_eq!(peer.io_timeout, Duration::from_secs(90));
+        assert_eq!(peer.connect_timeout, Duration::from_secs(3));
+        assert_eq!(peer.api_key.as_deref(), Some("secret"));
     }
 }

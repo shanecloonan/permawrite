@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-162** early B-24bc while **CI `#29881759838`** runs on B-160 tip `4b0781a1`. **CI `#29879940201` GREEN** on B-161. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Landing **B-161** Rust body (fix-forward; 872f1ee1 evidence-only). **CI #29879940201 GREEN** on evidence tip. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -353,6 +353,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 5 — B-161 heavy CLI snapshot timeout + F45 soft** (this commit): get_light_snapshot uses 180s/MFN_HEAVY_RPC_TIMEOUT_MS; in-CLI F45 soft-pass; persist pin on mid-scan failure. Fix-forward after 872f1ee1 evidence-only wipe. Full CI (no skip). *Observed (not staged):* lane-4 pply_block_proposals.rs, lane-3 join-testnet-rehearsal-smoke/.
 
 1. **2026-07-21 — lane 4 — claim B-162** (this commit): early B-24bc settle-reset→eighth dual-slash while **CI `#29881759838`** runs on B-160. Claim base `4b0781a1`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
