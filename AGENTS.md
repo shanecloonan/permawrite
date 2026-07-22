@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Landing **B-176** early B-24bk (full CI). **CI `#29898672643` GREEN** on B-174 tip (covers B-175). **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** B-177 body landed `fe4bfc05` (watching tip CI). **CI `#29900841536` GREEN** on B-176; **CI `#29898672643` GREEN** on B-174. Lane4 **B-178** claimed. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave59 FUND FAIL** (aria F109/F99 tall-tip; tip~5700) | **B-15** wave60 tall-tip harden + more permanence | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-176** (`eb668d6f`); **B-175** (`8b6da3e8`); **B-173** (CI `#29897006419` GREEN) | **B-178** ninth→asymmetric settle (claim base: `eb668d6f`) | After CI: **B-179** op1 twin; live **B-32** needs 2nd host | Lane 1 CI |
-| **5** Privacy | **B-174** DEFAULT_RING_SIZE≡WALLET_MIN_RING_SIZE pin (this commit; live tip=5648 F45 soft); **B-172** (`1ce0ed2e`); **B-168** (`ab4dbba1`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **5** Privacy | **B-177** WASM ring fixtures use WALLET_MIN_RING_SIZE (`fe4bfc05` body; board `0fbfd51e`); **B-174** (`c4ab2b74`, CI `#29898672643` GREEN); **B-172** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -245,6 +245,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-165 | CI fail-closed gate for F45 soft twin + B-161 needles | 5 | **Landed** (`0da9cd27`; **CI `#29884711182` GREEN**) — soft rehearsal smoke + ci-check wire; live tip~5523/5524 |
 | B-167 | Ring-size no-silent-downgrade: typed `RingSizeBelowMinimum` + CLI/WASM refuse `< WALLET_MIN_RING_SIZE` | 5 | **Landed** (`894ca63f`; covered by **CI `#29888900634` GREEN** on B-166 tip) |
 | B-172 | CI fail-closed gate for B-167/B-168 privacy floors (`WALLET_MIN_RING_SIZE` + F7 inputs) | 5 | **Landed** (`1ce0ed2e`; covered by tip **CI `#29893569581` GREEN**) |
+| B-177 | WASM transfer/upload fixtures use WALLET_MIN_RING_SIZE (no magic ring_size: 16) + smoke | 5 | **Landed** (`fe4bfc05`; board-only `0fbfd51e`) |
 | B-174 | Pin CLI `DEFAULT_RING_SIZE == WALLET_MIN_RING_SIZE` (unit + smoke) + tall-tip F45 soft live prove | 5 | **Landed** (this commit) — CLI unit + privacy-floor smoke; live tip=5648 / log_max=5290 F45 soft PASS |
 | B-168 | WASM F7 two-input floor + F45/WASM doc honesty | 5 | **Landed** (this commit) — WASM fail-closed `<2` inputs; F45 soft CLI-only doc honesty |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
@@ -368,6 +369,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 5 — B-177 fix-forward WASM body** (`fe4bfc05`): transfer/upload fixtures use WALLET_MIN_RING_SIZE; privacy-floor smoke rejects hardcoded ring_size: 16. Board-only tip was `0fbfd51e`. Watching tip CI. Full CI (no skip on body). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 apply_block / backups. `[skip ci]` board pin.
 
 1. **2026-07-22 — lane 3 — B-15 wave59 FUND FAIL**: **aria** faucet job stuck `running` 250s; 10× balance TIMEOUT 150s at tip~5700; Path A ckpt=5290 lag=395. Hardening wave60 runner (longer faucet/bal; near-tip pins). Honor §6. *Observed local work (not staged):* lane4 apply_block_proposals.rs, wallets, live-testnet-data*.
 2. **2026-07-22 — lane 4 — claim B-178** (this commit): early B-24bl ninth→asymmetric settle while **CI `#29900841536`** runs on B-176. Claim base `eb668d6f`. `[skip ci]`.

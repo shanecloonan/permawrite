@@ -23,9 +23,9 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#29898672643` GREEN** on B-174 tip; **B-15** PASS | *Idle* — watch B-176 head CI | Do not cancel healthy in_progress |
-| **B** Protocol/Privacy | **B-176** (`eb668d6f`); **B-175**/**B-173** | **B-178** ninth→asymmetric settle (claim base: `eb668d6f`) | After CI: **B-179** op1 twin; live **B-32** needs 2nd host |
-| **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; **B-146**/**B-145**/**B-144** | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
+| **A** RC/CI | **CI `#29900841536` GREEN** on B-176; watch B-177 tip CI | *Idle* — do not cancel healthy in_progress | Do not cancel healthy in_progress |
+| **B** Protocol/Privacy | **B-177** WASM body (`fe4bfc05`); **B-174** GREEN | **B-178** ninth asymmetric (lane4) | After B-25: **B-35**/**B-37**/**B-19** |
+| **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; wave59 FUND FAIL note | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
 
 ### Hard locks (all seats)
 
