@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Claiming **B-192** tenth empty both-miss while **CI `#29936920636`** runs on B-191 tip `1baee23e`. **CI `#29934475574` GREEN** on B-190. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** Landing **B-192** after **CI `#29936920636` GREEN** on B-191 tip `1baee23e`. Closes tenth prove matrix. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave80 PROVE FAIL** (zara F107 sticky mem=1; lag=658) | **B-15** wipe+resync then wave81+ | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-191** (`1baee23e`); **B-190** (CI `#29934475574` GREEN); **B-188** | **B-192** tenth empty both-miss (claim base: `1baee23e`) | After CI: tenth re-slash pair; live **B-32** needs 2nd host | Lane 1 CI |
+| **4** Protocol | **B-192** tenth empty both-miss (this commit); **B-191** (`1baee23e`, CI `#29936920636` GREEN); **B-190** | *Idle* | **B-193** tenth asymmetric→absentee re-slash; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-186** (`94cbfece`; **CI `#29929300995` GREEN**); **B-185** | **B-189** CLI F7 owned-UTXO preflight (claim base: `4d19b71f`) | Land after tip CI `#29934475574` GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -249,7 +249,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-188 | Tenth dual-slash then dual settle drain (early B-24br) | 4 | **Landed** (this commit); elevates B-176; full CI |
 | B-187 | Settle-reset then tenth dual-slash treasury identity (early B-24bq) | 4 | **Landed** (this commit); elevates B-175; full CI |
 | B-186 | High-level `select_inputs_for_tx` fail-closed on single-UTXO (F7) | 5 | **Landed** (`94cbfece`; **CI `#29929300995` GREEN**) — elevates B-185 |
-| B-192 | Tenth dual-slash then empty both-miss (early B-24bu) | 4 | **Claimed** — closes tenth prove matrix after B-191 CI GREEN |
+| B-192 | Tenth dual-slash then empty both-miss (early B-24bu) | 4 | **Landed** (this commit); closes tenth prove matrix; elevates B-181; full CI |
 | B-191 | Tenth dual-slash then op1 asymmetric settle drain (early B-24bt) | 4 | **Landed** (this commit); completes tenth asymmetric pair with B-190; full CI |
 | B-190 | Tenth dual-slash then asymmetric settle drain (early B-24bs) | 4 | **Landed** (this commit); elevates B-178; full CI |
 | B-189 | CLI `wallet send`/`upload` F7 owned-UTXO preflight (actionable faucet message) | 5 | **Claimed** — elevates B-186 into operator CLI UX |
@@ -383,6 +383,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 4 — B-192 tenth empty both-miss** (this commit): early B-24bu `b192_b5_tenth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29936920636` GREEN** on B-191. Closes tenth-offense prove matrix. Elevates B-181. Full CI (no skip). Next: **B-193** tenth asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-189 CLI F7 WIP.
 
 1. **2026-07-22 — lane 3 — B-15 wave80 PROVE FAIL**: **zara** funded+uploaded `227ce538` but stuck local_only mem=1 (F107); last_proven=None; proxy_has=false; F45 lag=658. Wipe observer before wave81. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
