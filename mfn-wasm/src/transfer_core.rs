@@ -288,7 +288,7 @@ mod tests {
                 value: 1_498_000,
             }],
             fee: 1_000,
-            ring_size: 16,
+            ring_size: WALLET_MIN_RING_SIZE,
             current_height: 7,
             decoy_utxos,
             exclude_one_time_addrs_hex: vec![],

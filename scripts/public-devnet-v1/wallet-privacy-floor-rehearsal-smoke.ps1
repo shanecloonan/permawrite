@@ -24,5 +24,11 @@ foreach ($pair in $needles) {
     Write-Error "missing needle '$($pair[1])' in $($pair[0])"
   }
 }
+foreach ($wasmFile in @("mfn-wasm/src/transfer_core.rs", "mfn-wasm/src/upload_core.rs")) {
+  $wasmTxt = Get-Content -Raw (Join-Path $RepoRoot $wasmFile)
+  if ($wasmTxt -match "ring_size: 16,") {
+    Write-Error "WASM still hardcodes ring_size: 16 in $wasmFile (B-177)"
+  }
+}
 Write-Output "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
 if (-not $PlanOnly) { exit 0 }

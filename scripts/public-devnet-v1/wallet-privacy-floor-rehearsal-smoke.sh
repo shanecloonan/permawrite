@@ -52,4 +52,9 @@ grep -q "Honesty (B-168)" "$REPO_ROOT/docs/CHECKPOINT_LOG.md" || {
   echo "missing B-168 honesty in CHECKPOINT_LOG.md" >&2
   exit 1
 }
+# B-177: WASM happy-path fixtures must not hardcode ring_size: 16
+if grep -n "ring_size: 16," "$REPO_ROOT/mfn-wasm/src/transfer_core.rs" "$REPO_ROOT/mfn-wasm/src/upload_core.rs" >/dev/null 2>&1; then
+  echo "WASM still hardcodes ring_size: 16 (B-177)" >&2
+  exit 1
+fi
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
