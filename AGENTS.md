@@ -141,7 +141,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-171** (`2c6983ea`, watch CI #1045); **B-170** (CI `#29893569581` GREEN); **B-169** | **B-173** eighth op1 asymmetric→absentee re-slash (claim base: `2c6983ea`) | After land: settle-reset→ninth dual-slash; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-171** (`2c6983ea`); **B-170** (CI `#29893569581` GREEN); **B-169**/**B-166** | **B-173** eighth op1 asymmetric→absentee re-slash (claim base: `2c6983ea`) | After CI: settle-reset→ninth dual-slash; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-172** privacy-floor CI gate (`1ce0ed2e`; tip CI `#29893569581` GREEN on B-170); **B-168** (`ab4dbba1`); **B-167** (`894ca63f`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -349,7 +349,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-169 | Eighth dual-slash then op1 asymmetric settle drain (early B-24bf) | 4 | **Landed** (this commit); elevates B-157; completes eighth asymmetric pair; full CI |
 | B-170 | Eighth dual-slash then empty both-miss no-drain identity (early B-24bg) | 4 | **Landed** (this commit); closes eighth-offense prove matrix; elevates B-158; full CI |
 | B-171 | Eighth-offense asymmetric then absentee re-slash (early B-24bh) | 4 | **Landed** (this commit); elevates B-159; full CI |
-| B-173 | Eighth-offense op1 asymmetric then absentee re-slash (early B-24bi) | 4 | **Claimed** (this commit) — elevates B-160; completes eighth re-slash pair; full CI after B-171 tip GREEN |
+| B-173 | Eighth-offense op1 asymmetric then absentee re-slash (early B-24bi) | 4 | **Claimed** — elevates B-160; completes eighth-offense re-slash pair |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -364,6 +364,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — claim B-173** (this commit): early B-24bi eighth op1 asymmetric→absentee re-slash (B-171 twin) while tip CI on B-171 settles. Claim base `2c6983ea`. *Observed (not staged):* lane-3 smoke/. `[skip ci]`.
 
 1. **2026-07-22 — lane 4 — claim B-173** (this commit): early B-24bi eighth op1 asymmetric→absentee re-slash while **CI #1045** runs on B-171. Claim base `2c6983ea`. Local B-173 PASS unstaged. *Observed (not staged):* none. `[skip ci]`.
 
