@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** **CI `#29884711182` GREEN** on B-165 tip `0da9cd27`. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Landing **B-162** early B-24bc (full CI). **CI `#29884711182` GREEN** on B-165 tip (covers B-160 tree after cancel storms). **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-160** (`4b0781a1`); **B-159** (`7ef832a7`); **B-158** (CI `#29878259419` GREEN) | **B-162** settle-reset→eighth dual-slash (claim base: `4b0781a1`) | After CI: **B-163** eighth→dual settle; live **B-32** needs 2nd host | Lane 1 CI |
+| **4** Protocol | **B-162** settle-reset→eighth dual-slash (this commit); **B-160** (`4b0781a1`); **B-159** (`7ef832a7`); **B-158** (CI `#29878259419` GREEN) | *Idle* — next **B-163** eighth→dual settle; live **B-32** needs 2nd host | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-165** F45 soft rehearsal CI gate (this commit); **B-164** (`07c30df0`); **B-161** (`3113229f`); **B-50** (`3df22fd3`); **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -340,7 +340,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-158 | Seventh dual-slash then empty both-miss (early B-24az) | 4 | **Landed** (`d5dc6f38`); **CI `#29878259419` GREEN**; closes seventh-offense prove matrix |
 | B-159 | Seventh-offense asymmetric then absentee re-slash (early B-24ba) | 4 | **Landed** (this commit); elevates B-152; full CI |
 | B-160 | Seventh-offense op1 asymmetric then absentee re-slash (early B-24bb) | 4 | **Landed** (this commit); elevates B-153; completes seventh-offense re-slash pair; full CI |
-| B-162 | Settle-reset then eighth dual-slash treasury identity (early B-24bc) | 4 | **Claimed** — elevates B-154 after B-160 CI GREEN |
+| B-162 | Settle-reset then eighth dual-slash treasury identity (early B-24bc) | 4 | **Landed** (this commit); elevates B-154; full CI |
+| B-163 | Eighth dual-slash then dual-settle drain (early B-24bd) | 4 | Next after B-162 CI GREEN — elevates B-155 |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -355,6 +356,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — B-162 settle-reset→eighth dual-slash** (this commit): early B-24bc `b162_b5_settle_reset_then_eighth_dual_slash_treasury_identity`; local debug PASS. **CI `#29884711182` GREEN** on B-165 (B-160 covered in tree). Elevates B-154. Full CI (no skip). Next: **B-163** eighth→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
 
 1. **2026-07-21 — lane 5 — pin CI #29884711182 GREEN on B-165** (this commit): tip  da9cd27 full matrix GREEN (Nightly dispatched). Lane5 Idle; Next after B-25: **B-35**/**B-37**/**B-19**. [skip ci].
 
