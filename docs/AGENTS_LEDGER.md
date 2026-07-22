@@ -597,6 +597,8 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 5 — pin B-167 + claim B-168** (this commit): B-167 covered by tip **CI #29888900634 GREEN** (B-166 includes 894ca63f). Claiming **B-168** WASM F7 two-input floor + F45/WASM doc honesty while **CI #29890640858** runs on B-169. Claim base $claimBase. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].
 
+1. **2026-07-21 — lane 5 — B-168 fix-forward #2** (this commit): commit the actual alue: 1_498_000 edit (7ef8fcb8 only touched AGENTS). Full CI.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
