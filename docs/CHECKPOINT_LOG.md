@@ -91,7 +91,7 @@ WASM exports: `checkpointLogVerify`, `checkpointLogCrossCheck` (`wasm-full` feat
 
 ## Light client usage (phase 2)
 
-After sync, wallets can cross-check the evolved checkpoint against a published log. On a fresh wallet, `light-scan --checkpoint-log` also auto-bootstraps from the log max tip (**B-50 follow-up**) before scanning the remaining delta:
+After sync, wallets can cross-check the evolved checkpoint against a published log. On a fresh wallet, `light-scan --checkpoint-log` also auto-bootstraps from the log max tip (**B-50 follow-up**) before scanning the remaining delta. Tall-tip snapshots use the heavy CLI RPC timeout (**B-161** / `MFN_HEAVY_RPC_TIMEOUT_MS`). Tip-race past the log max (F45) soft-passes in-CLI after Schnorr log verify (**B-161**); wrappers: `scripts/public-devnet-v1/light-scan-checkpoint-soft.sh` and `.ps1`:
 
 ```bash
 mfn-cli --rpc HOST:PORT wallet light-scan \
@@ -101,9 +101,10 @@ mfn-cli --rpc HOST:PORT wallet light-scan \
 Behavior:
 
 1. Verify every JSONL line (Schnorr + optional checkpoint agreement).
-2. Require ≥1 valid entry whose weak-subjectivity fields match the post-sync summary at `tip_height`.
-3. Reject when entries exist at the same height but none agree (social consensus disagreement).
-4. Print `checkpoint_log=matched` and `checkpoint_log_signers=` on success.
+2. On a fresh wallet, pin from log max tip via `get_light_snapshot` (prints `checkpoint_log_auto_bootstrap tip=…`), then scan the remaining delta.
+3. Require ≥1 valid entry whose weak-subjectivity fields match the post-sync summary at `tip_height`, **or** soft-pass F45 when tip raced past log max after a verified pin (`checkpoint_log_f45_soft_pass`).
+4. Reject when entries exist at the same height but none agree (social consensus disagreement).
+5. Print `checkpoint_log=matched` and `checkpoint_log_signers=` on exact-tip success.
 
 Phase 1 manual flow (still supported):
 

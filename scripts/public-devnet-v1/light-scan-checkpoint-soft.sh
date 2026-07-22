@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# B-59 / F45: light-scan + optional checkpoint-log cross-check that tolerates tip race.
+# B-59 / B-161 / F45: light-scan + optional checkpoint-log cross-check that tolerates tip race.
 # Exact-tip Schnorr attestation is still required when tip == log entry; if the live tip
 # has moved past the latest signed height, pin+scan remains valid and we soft-pass.
+# B-161: mfn-cli light-scan --checkpoint-log also soft-passes F45 in-process; this wrapper
+# remains for older binaries, rehearsal needles, and explicit soft-path ops. Windows twin:
+# light-scan-checkpoint-soft.ps1.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,9 +41,10 @@ done
 
 if (( PLAN_ONLY )); then
   echo "light-scan-checkpoint-soft: plan"
-  echo "  unit=B-59"
+  echo "  unit=B-59/B-161"
   echo "  f45=soft-pass when tip raced past latest Schnorr attestation"
   echo "  hard=checkpoint-log verify still required; disagreement at attested height still fails"
+  echo "  note=B-161 in-CLI soft-pass; wrapper for older binaries + rehearsal"
   echo "light-scan-checkpoint-soft: PASS plan-only"
   exit 0
 fi
@@ -63,15 +67,17 @@ set +e
 "$MCLI" --rpc "$RPC" --wallet "$WALLET" wallet light-scan --checkpoint-log "$LOG" >"$err_file" 2>&1
 rc=$?
 set -e
+msg="$(cat "$err_file")"
+rm -f "$err_file"
 if (( rc == 0 )); then
-  cat "$err_file"
-  rm -f "$err_file"
+  printf '%s\n' "$msg"
+  if [[ "$msg" == *"checkpoint_log_f45_soft_pass"* ]]; then
+    echo "light-scan-checkpoint-soft: PASS f45-soft (in-cli B-161)"
+    exit 0
+  fi
   echo "light-scan-checkpoint-soft: PASS exact-tip"
   exit 0
 fi
-
-msg="$(cat "$err_file")"
-rm -f "$err_file"
 if [[ "$msg" != *"has no attestation at tip_height"* ]]; then
   printf '%s\n' "$msg" >&2
   exit "$rc"
