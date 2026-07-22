@@ -558,6 +558,17 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 4 — claim B-162** (this commit): early B-24bc settle-reset→eighth dual-slash while **CI `#29881759838`** runs on B-160. Claim base `4b0781a1`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
+1. **2026-07-21 — lane 5 — JOIN F45 doc honesty (B-161/B-165)** (this commit): align JOIN_TESTNET F45 paragraph with in-CLI soft-pass + Windows twin + B-165 CI gate. [skip ci] while **CI #29884711182** runs on B-165. *Observed (not staged):* lane-4 pply_block_proposals.rs, lane-3 JOIN smoke.
+
+1. **2026-07-21 — lane 5 — B-165 F45 soft rehearsal CI gate** (this commit): `light-scan-checkpoint-soft-rehearsal-smoke.sh`/`.ps1` + bootstrap smoke needles + ci-check wire. Local plan-only PASS. Live prove tip=5523 auto-bootstrap + F45 soft. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke.
+1. **2026-07-21 — lane 5 — B-164 privacy-doc honesty + Windows F45 soft twin** (this commit): PRIVACY/CHECKPOINT_LOG document B-161 heavy timeout + in-CLI F45 soft; add `light-scan-checkpoint-soft.ps1`; soft.sh notes B-161. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke.
+
+1. **2026-07-21 — lane 5 — claim B-164** (this commit): privacy-doc honesty for B-161 + Windows `light-scan-checkpoint-soft.ps1` twin while tip **CI `#29882509412`** runs on B-161. Claim base `3113229f`. *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke. `[skip ci]`.
+
+1. **2026-07-21 — lane 5 — B-161 heavy CLI snapshot timeout + F45 soft** (this commit): get_light_snapshot uses 180s/MFN_HEAVY_RPC_TIMEOUT_MS; in-CLI F45 soft-pass; persist pin on mid-scan failure. Fix-forward after 872f1ee1 evidence-only wipe. Full CI (no skip). *Observed (not staged):* lane-4 pply_block_proposals.rs, lane-3 join-testnet-rehearsal-smoke/.
+
+1. **2026-07-21 — lane 4 — claim B-162** (this commit): early B-24bc settle-reset→eighth dual-slash while **CI `#29881759838`** runs on B-160. Claim base `4b0781a1`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
