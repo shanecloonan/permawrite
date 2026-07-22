@@ -242,7 +242,7 @@ fn wallet_to_mempool_to_producer_to_chain_round_trip() {
 fn mempool_evicts_tx_after_block_includes_it_via_remove_mined() {
     // Build a single coinbase block, fund Alice, sign a transfer,
     // admit it to the mempool. Then build block 2 by hand-picking
-    // the tx from the mempool, apply block 2 to the chain WITHOUT
+    // the tx from the mempool, apply block 3 to the chain WITHOUT
     // draining the mempool. Then call `remove_mined(&block2)` and
     // observe the eviction.
     let alice_keys = wallet_from_seed(&[0xa2; 32]);
@@ -269,20 +269,22 @@ fn mempool_evicts_tx_after_block_includes_it_via_remove_mined() {
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
 
-    // Block 1: coinbase to Alice.
-    let inputs = BlockInputs {
-        height: 1,
-        slot: 1,
-        timestamp: 100,
-        txs: vec![coinbase_for(&producer, 1, 0)],
-        bond_ops: Vec::new(),
-        slashings: Vec::new(),
-        storage_proofs: Vec::new(),
-        storage_operator_ops: Vec::new(),
-    };
-    let block1 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
-    chain.apply(&block1).expect("apply");
-    alice.ingest_block(&block1);
+    // Blocks 1..=2: two coinbases so F7 two-input floor can be met.
+    for h in 1u32..=2 {
+        let inputs = BlockInputs {
+            height: h,
+            slot: h,
+            timestamp: u64::from(h) * 100,
+            txs: vec![coinbase_for(&producer, h, 0)],
+            bond_ops: Vec::new(),
+            slashings: Vec::new(),
+            storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
+        };
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
+        chain.apply(&block).expect("apply");
+        alice.ingest_block(&block);
+    }
 
     let mut pool = Mempool::new(MempoolConfig::default());
     let recipients = vec![TransferRecipient {
@@ -305,17 +307,17 @@ fn mempool_evicts_tx_after_block_includes_it_via_remove_mined() {
     let treasury_fee_bps = 9000u64;
     let producer_fee = fee - (fee * treasury_fee_bps / 10_000);
     let inputs = BlockInputs {
-        height: 2,
-        slot: 2,
-        timestamp: 200,
-        txs: vec![coinbase_for(&producer, 2, producer_fee), signed.tx.clone()],
+        height: 3,
+        slot: 3,
+        timestamp: 300,
+        txs: vec![coinbase_for(&producer, 3, producer_fee), signed.tx.clone()],
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
         storage_operator_ops: Vec::new(),
     };
     let block2 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
-    chain.apply(&block2).expect("apply block 2");
+    chain.apply(&block2).expect("apply block 3");
     assert_eq!(pool.len(), 1, "pool still holds the now-mined tx");
 
     // remove_mined must evict it.
@@ -356,22 +358,24 @@ fn mempool_admit_after_chain_advanced_still_works() {
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
 
-    // Block 1 funds Alice.
-    let inputs = BlockInputs {
-        height: 1,
-        slot: 1,
-        timestamp: 100,
-        txs: vec![coinbase_for(&producer, 1, 0)],
-        bond_ops: Vec::new(),
-        slashings: Vec::new(),
-        storage_proofs: Vec::new(),
-        storage_operator_ops: Vec::new(),
-    };
-    let block1 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
-    chain.apply(&block1).expect("apply");
-    alice.ingest_block(&block1);
+    // Blocks 1..=2 fund Alice (F7 two-input floor).
+    for h in 1u32..=2 {
+        let inputs = BlockInputs {
+            height: h,
+            slot: h,
+            timestamp: u64::from(h) * 100,
+            txs: vec![coinbase_for(&producer, h, 0)],
+            bond_ops: Vec::new(),
+            slashings: Vec::new(),
+            storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
+        };
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
+        chain.apply(&block).expect("apply");
+        alice.ingest_block(&block);
+    }
 
-    // Alice signs a tx now (height 1 state).
+    // Alice signs a tx now (height 2 state).
     let recipients = vec![TransferRecipient {
         recipient: mfn_consensus::Recipient {
             view_pub: bob.view_pub,
@@ -388,10 +392,10 @@ fn mempool_admit_after_chain_advanced_still_works() {
     // Now advance the chain by one empty block (coinbase only) without
     // including Alice's tx.
     let inputs = BlockInputs {
-        height: 2,
-        slot: 2,
-        timestamp: 200,
-        txs: vec![coinbase_for(&producer, 2, 0)],
+        height: 3,
+        slot: 3,
+        timestamp: 300,
+        txs: vec![coinbase_for(&producer, 3, 0)],
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
