@@ -401,5 +401,3 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-07-21 — lane 4 — claim B-162** (this commit): early B-24bc settle-reset→eighth dual-slash while **CI `#29881759838`** runs on B-160. Claim base `4b0781a1`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
-1. **2026-07-21 — lane 4 — claim B-162** (this commit): early B-24bc settle-reset→eighth dual-slash while **CI `#29881759838`** runs on B-160. Claim base `4b0781a1`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
-

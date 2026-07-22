@@ -24,7 +24,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **CI `#29888900634` GREEN** on B-166; watching B-169 `#29890640858` | *Idle* — do not cancel B-169 CI | Do not cancel healthy in_progress |
-| **B** Protocol/Privacy | **B-167** covered by `#29888900634` GREEN; **B-166** | **B-169** (lane4 CI); **B-168** WASM F7 floor (lane5) | After B-168: post-B-25 privacy; live **B-32** needs 2nd host |
+| **B** Protocol/Privacy | **B-169** (`5868f68f`, watch CI `#29890640858`); **B-166** | **B-170** eighth→empty both-miss (lane4) | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; **B-146**/**B-145**/**B-144** | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
 
 ### Hard locks (all seats)
