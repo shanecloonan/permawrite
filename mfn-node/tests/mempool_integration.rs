@@ -281,7 +281,8 @@ fn mempool_evicts_tx_after_block_includes_it_via_remove_mined() {
             storage_proofs: Vec::new(),
             storage_operator_ops: Vec::new(),
         };
-        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
+        let block =
+            produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
         chain.apply(&block).expect("apply");
         alice.ingest_block(&block);
     }
@@ -370,7 +371,8 @@ fn mempool_admit_after_chain_advanced_still_works() {
             storage_proofs: Vec::new(),
             storage_operator_ops: Vec::new(),
         };
-        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
+        let block =
+            produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
         chain.apply(&block).expect("apply");
         alice.ingest_block(&block);
     }

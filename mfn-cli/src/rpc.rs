@@ -806,7 +806,9 @@ mod tests {
 
     #[test]
     fn heavy_rpc_io_timeout_defaults_to_180s() {
-        let _guard = HEAVY_RPC_TIMEOUT_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = HEAVY_RPC_TIMEOUT_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         std::env::remove_var(MFN_HEAVY_RPC_TIMEOUT_MS);
         assert_eq!(heavy_rpc_io_timeout(), DEFAULT_HEAVY_RPC_IO_TIMEOUT);
         assert_eq!(DEFAULT_HEAVY_RPC_IO_TIMEOUT, Duration::from_secs(180));
@@ -815,7 +817,9 @@ mod tests {
 
     #[test]
     fn heavy_rpc_io_timeout_env_override_ms() {
-        let _guard = HEAVY_RPC_TIMEOUT_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = HEAVY_RPC_TIMEOUT_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         std::env::set_var(MFN_HEAVY_RPC_TIMEOUT_MS, "120000");
         assert_eq!(heavy_rpc_io_timeout(), Duration::from_millis(120_000));
         std::env::set_var(MFN_HEAVY_RPC_TIMEOUT_MS, "0");
