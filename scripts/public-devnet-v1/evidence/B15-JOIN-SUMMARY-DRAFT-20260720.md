@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–93; moss@6104 PASS; tip~6104 ckpt=5290 lag=805; sixty-seven proxy-proven.
+**Status:** DRAFT — waves 6–94; nash@6113 PASS; tip~6113 ckpt=5290 lag=815; sixty-eight proxy-proven.
+| nash | faucet-F101b | n/a | yes | **6113** (wave94; proxy-prove PASS; F110) |
 | moss | faucet-F101b | n/a | yes | **6104** (wave93; proxy-prove PASS; F110; lag>800) |
 | luna | faucet-F101b | n/a | yes | **6094** (wave92; proxy-prove PASS; F110) |
 | kade | faucet-F101b | n/a | yes | **6083** (wave91; proxy-prove PASS; F110) |
