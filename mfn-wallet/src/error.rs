@@ -108,6 +108,18 @@ pub enum WalletError {
         min: usize,
     },
 
+    /// Caller supplied fewer regular inputs than [`crate::WALLET_MIN_TX_INPUTS`]
+    /// (F7 / input-count uniformity). Never silently pad with fake inputs —
+    /// a one-input plan is an explicit reject so anonymity-set shape cannot
+    /// drift below the production consensus floor at the wallet layer.
+    #[error("tx input count {got} below wallet minimum {min}")]
+    TxInputCountBelowMinimum {
+        /// Number of real inputs supplied.
+        got: usize,
+        /// [`crate::WALLET_MIN_TX_INPUTS`].
+        min: usize,
+    },
+
     /// Caller asked for a ring size that the supplied decoy pool cannot
     /// satisfy even after the gamma sampler's fallback to uniform.
     ///

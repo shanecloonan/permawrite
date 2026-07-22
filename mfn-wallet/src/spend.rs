@@ -106,6 +106,12 @@ where
     if plan.recipients.is_empty() {
         return Err(WalletError::NoRecipients);
     }
+    if plan.inputs.len() < crate::WALLET_MIN_TX_INPUTS {
+        return Err(WalletError::TxInputCountBelowMinimum {
+            got: plan.inputs.len(),
+            min: crate::WALLET_MIN_TX_INPUTS,
+        });
+    }
     if plan.ring_size < crate::WALLET_MIN_RING_SIZE {
         return Err(WalletError::RingSizeBelowMinimum {
             got: plan.ring_size,
@@ -294,9 +300,41 @@ mod tests {
             .collect()
     }
 
-    /// A single-recipient, exact-amount (no-change) transfer must be
-    /// padded up to the two-output privacy floor and still verify under
-    /// the production ring policy. This is the anti-fingerprinting
+    /// B-185: sub-floor input count is typed refuse (F7 / no one-input fingerprint).
+    #[test]
+    fn input_count_below_minimum_is_typed_reject() {
+        let input_a = owned(1_100_000);
+        let refs = [&input_a];
+        let decoys = pool(20);
+        let keys = wallet_from_seed(&[5u8; 32]);
+        let recipient = Recipient {
+            view_pub: keys.view_pub(),
+            spend_pub: keys.spend_pub(),
+        };
+        let recipients = [TransferRecipient {
+            recipient,
+            value: 1_099_000,
+        }];
+        let mut r = mfn_crypto::seeded_rng(0xB185_0001);
+        let plan = TransferPlan {
+            inputs: &refs,
+            recipients: &recipients,
+            fee: 1_000,
+            extra: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &decoys,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_transfer(plan) {
+            Err(WalletError::TxInputCountBelowMinimum { got, min }) => {
+                assert_eq!(got, 1);
+                assert_eq!(min, crate::WALLET_MIN_TX_INPUTS);
+            }
+            other => panic!("expected TxInputCountBelowMinimum, got {other:?}"),
+        }
+    }
+
     /// Sub-floor ring size is a typed refuse — never mislabeled as a
     /// decoy-pool shortage (B-167 / no silent anonymity-set downgrade).
     #[test]

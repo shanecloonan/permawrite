@@ -23,9 +23,9 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch **CI `#29912408521`** on B-181; do not cancel | *Idle* | Do not cancel healthy in_progress |
-| **B** Protocol/Privacy | **B-182** GREEN; **B-181** watching | **B-183** (lane4) + **B-185** (lane5 F7 low-level floor) | After B-25: **B-35**/**B-37**/**B-19** |
-| **C** Testnet/Onboarding | **B-15** wave65+; tip~5787 lag~PathA | Doing per AGENTS | No parallel Hetzner JOIN |
+| **A** RC/CI | **CI `#29912408521` GREEN** on B-181; watch tip after B-185 | *Idle* — do not cancel healthy in_progress | Do not cancel healthy in_progress |
+| **B** Protocol/Privacy | **B-185** F7 low-level floor (lane5 this tip); **B-181** GREEN | **B-183** ninth asymmetric→absentee re-slash (lane4) | After B-25: **B-35**/**B-37**/**B-19** |
+| **C** Testnet/Onboarding | **B-15** wave65+ permanence PASS | Doing per AGENTS | No parallel Hetzner JOIN |
 
 
 ### Hard locks (all seats)

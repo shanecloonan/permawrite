@@ -41,5 +41,15 @@ if ($parseTxt -notmatch [regex]::Escape("default 16, wallet/consensus floor")) {
 if ($parseTxt -match "consensus min") {
   Write-Error "CLI usage still says consensus min (B-182)"
 }
+foreach ($pair in @(
+  @("mfn-wallet/src/error.rs", "TxInputCountBelowMinimum"),
+  @("mfn-wallet/src/spend.rs", "TxInputCountBelowMinimum"),
+  @("mfn-wallet/src/upload.rs", "TxInputCountBelowMinimum")
+)) {
+  $txt = Get-Content -Raw (Join-Path $RepoRoot $pair[0])
+  if ($txt -notmatch [regex]::Escape($pair[1])) {
+    Write-Error "missing needle '$($pair[1])' in $($pair[0]) (B-185)"
+  }
+}
 Write-Output "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
 if (-not $PlanOnly) { exit 0 }

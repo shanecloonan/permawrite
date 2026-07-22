@@ -337,6 +337,12 @@ pub fn build_storage_upload<R>(
 where
     R: FnMut() -> f64,
 {
+    if plan.inputs.len() < crate::WALLET_MIN_TX_INPUTS {
+        return Err(WalletError::TxInputCountBelowMinimum {
+            got: plan.inputs.len(),
+            min: crate::WALLET_MIN_TX_INPUTS,
+        });
+    }
     if plan.ring_size < crate::WALLET_MIN_RING_SIZE {
         return Err(WalletError::RingSizeBelowMinimum {
             got: plan.ring_size,
@@ -585,6 +591,12 @@ mod tests {
         }
     }
 
+    fn two_real_owned_outputs(total: u64) -> (OwnedOutput, OwnedOutput) {
+        let a = total / 2;
+        let b = total - a;
+        (one_real_owned_output(a), one_real_owned_output(b))
+    }
+
     fn decoy_pool(n: usize) -> Vec<DecoyCandidate<RingMember>> {
         let mut out = Vec::with_capacity(n);
         for i in 0..n {
@@ -613,12 +625,51 @@ mod tests {
         (r, keys)
     }
 
+    /// B-185: one-input upload plan is typed refuse (F7).
+    #[test]
+    fn input_count_below_minimum_is_typed_reject() {
+        let (anchor_recipient, _keys) = alice_recipient();
+        let owned = one_real_owned_output(50_000_000_000);
+        let inputs = [&owned];
+        let pool = decoy_pool(20);
+        let mut r = rng();
+        let data = b"one-input-refuse";
+        let plan = StorageUploadPlan {
+            inputs: &inputs,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: 100_000,
+            },
+            data,
+            replication: 3,
+            chunk_size: None,
+            endowment_blinding: None,
+            endowment_params: &DEFAULT_ENDOWMENT_PARAMS,
+            fee_to_treasury_bps: 9000,
+            change_recipients: &[],
+            fee: 1_000_000,
+            extra: &[],
+            authorship_claims: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &pool,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_storage_upload(plan) {
+            Err(crate::WalletError::TxInputCountBelowMinimum { got, min }) => {
+                assert_eq!(got, 1);
+                assert_eq!(min, crate::WALLET_MIN_TX_INPUTS);
+            }
+            other => panic!("expected TxInputCountBelowMinimum, got {other:?}"),
+        }
+    }
+
     /// B-167: sub-floor ring is typed `RingSizeBelowMinimum`, not decoy-pool.
     #[test]
     fn ring_size_below_minimum_is_typed_reject() {
         let (anchor_recipient, _keys) = alice_recipient();
-        let owned = one_real_owned_output(50_000_000_000);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(50_000_000_000);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
         let data = b"ring-floor";
@@ -656,8 +707,8 @@ mod tests {
     fn happy_path_anchors_data_and_returns_artifacts() {
         let (anchor_recipient, _keys) = alice_recipient();
         let input_value = 50_000_000_000u64;
-        let owned = one_real_owned_output(input_value);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(input_value);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
 
@@ -758,8 +809,8 @@ mod tests {
     #[test]
     fn replication_below_min_rejected_with_typed_error() {
         let (anchor_recipient, _keys) = alice_recipient();
-        let owned = one_real_owned_output(1_000_000);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(1_000_000);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
@@ -799,8 +850,8 @@ mod tests {
     #[test]
     fn replication_above_max_rejected_with_typed_error() {
         let (anchor_recipient, _keys) = alice_recipient();
-        let owned = one_real_owned_output(1_000_000);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(1_000_000);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
@@ -839,8 +890,8 @@ mod tests {
     #[test]
     fn fee_below_minimum_rejected_with_actionable_min_fee() {
         let (anchor_recipient, _keys) = alice_recipient();
-        let owned = one_real_owned_output(50_000_000_000);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(50_000_000_000);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
@@ -891,8 +942,8 @@ mod tests {
     #[test]
     fn fee_to_treasury_bps_zero_yields_typed_error_when_burden_positive() {
         let (anchor_recipient, _keys) = alice_recipient();
-        let owned = one_real_owned_output(50_000_000_000);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(50_000_000_000);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
@@ -929,8 +980,8 @@ mod tests {
     fn empty_data_zero_burden_zero_min_fee_is_fine() {
         let (anchor_recipient, _keys) = alice_recipient();
         let input_value = 10_000u64;
-        let owned = one_real_owned_output(input_value);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(input_value);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
@@ -1029,8 +1080,8 @@ mod tests {
     #[test]
     fn insufficient_funds_on_unbalanced_inputs() {
         let (anchor_recipient, _keys) = alice_recipient();
-        let owned = one_real_owned_output(100);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(100);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
@@ -1067,8 +1118,8 @@ mod tests {
         // caller can later open the endowment.
         let (anchor_recipient, _keys) = alice_recipient();
         let input_value = 50_000_000u64;
-        let owned = one_real_owned_output(input_value);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(input_value);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
@@ -1122,8 +1173,8 @@ mod tests {
     fn upload_attaches_mfer_when_range_proof_required() {
         let (anchor_recipient, _keys) = alice_recipient();
         let input_value = 50_000_000u64;
-        let owned = one_real_owned_output(input_value);
-        let inputs = [&owned];
+        let (owned_a, owned_b) = two_real_owned_outputs(input_value);
+        let inputs = [&owned_a, &owned_b];
         let pool = decoy_pool(20);
         let mut r = rng();
         let mut params = DEFAULT_ENDOWMENT_PARAMS;

@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Claiming **B-185** (docs-only while **CI `#29912408521`** runs on B-181). **CI `#29910182810` GREEN** on B-182. Live tip~5787. Lane4 **B-183** claimed. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** Landing **B-185** after **CI `#29912408521` GREEN** on B-181. Lane4 **B-183** claimed. Live tip~5787. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave65** (gwen last_proven=5784; faucet-F101b; F110 x5; lag=486) | **B-15** wave66+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-181** (`9caa7ee4`); **B-179** (CI `#29908001364` GREEN); **B-178**/**B-176** | **B-183** ninth asymmetric→absentee re-slash (claim base: `9caa7ee4`) | After CI: **B-184** op1 twin; live **B-32** needs 2nd host | Lane 1 CI |
-| **5** Privacy | **B-182** (`e7b3e8bf`, CI `#29910182810` GREEN); **B-180**; **B-177** | **B-185** low-level F7 two-input fail-closed (claim base: `31d8f565`) | After land: After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **5** Privacy | **B-185** low-level F7 two-input fail-closed (this commit); **B-182** (`e7b3e8bf`); **B-180** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -245,7 +245,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-165 | CI fail-closed gate for F45 soft twin + B-161 needles | 5 | **Landed** (`0da9cd27`; **CI `#29884711182` GREEN**) — soft rehearsal smoke + ci-check wire; live tip~5523/5524 |
 | B-167 | Ring-size no-silent-downgrade: typed `RingSizeBelowMinimum` + CLI/WASM refuse `< WALLET_MIN_RING_SIZE` | 5 | **Landed** (`894ca63f`; covered by **CI `#29888900634` GREEN** on B-166 tip) |
 | B-172 | CI fail-closed gate for B-167/B-168 privacy floors (`WALLET_MIN_RING_SIZE` + F7 inputs) | 5 | **Landed** (`1ce0ed2e`; covered by tip **CI `#29893569581` GREEN**) |
-| B-185 | Low-level `build_transfer`/`build_storage_upload` fail-closed on `< WALLET_MIN_TX_INPUTS` (F7) | 5 | **Claimed** — claim base `31d8f565` |
+| B-185 | Low-level `build_transfer`/`build_storage_upload` fail-closed on `< WALLET_MIN_TX_INPUTS` (F7) | 5 | **Landed** (this commit) |
 | B-182 | CLI usage: `--ring-size` help says wallet/consensus floor (not bare consensus min) + smoke | 5 | **Landed** (`e7b3e8bf`; **CI `#29910182810` GREEN**) |
 | B-180 | Wallet upload test fixtures use `WALLET_MIN_RING_SIZE` (no magic `ring_size: 16`) + smoke | 5 | **Landed** (`eef017ff`; covered by tip **CI `#29905438517` GREEN**) |
 | B-177 | WASM transfer/upload fixtures use WALLET_MIN_RING_SIZE (no magic ring_size: 16) + smoke | 5 | **Landed** (`fe4bfc05`; **CI `#29903453186` GREEN**) |
@@ -375,6 +375,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 5 — B-185 low-level F7 two-input fail-closed** (this commit): `WalletError::TxInputCountBelowMinimum` on `build_transfer`/`build_storage_upload`; upload fixtures dualized; PRIVACY honesty; privacy-floor smoke. **CI `#29912408521` GREEN** on B-181. Full CI (no skip). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
 
 1. **2026-07-22 — lane 5 — claim B-185** (this commit): low-level F7 two-input fail-closed (`TxInputCountBelowMinimum` on `build_transfer`/`build_storage_upload`) while **CI `#29912408521`** runs on B-181. Claim base `31d8f565`. *Observed (not staged):* lane-4 `apply_block_proposals.rs`. `[skip ci]`.
 

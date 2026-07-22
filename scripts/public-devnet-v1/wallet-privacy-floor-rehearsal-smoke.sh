@@ -70,4 +70,16 @@ if grep -n "consensus min" "$REPO_ROOT/mfn-cli/src/cli/parse.rs" >/dev/null 2>&1
   echo "CLI usage still says consensus min (B-182)" >&2
   exit 1
 fi
+grep -q "TxInputCountBelowMinimum" "$REPO_ROOT/mfn-wallet/src/error.rs" || {
+  echo "missing TxInputCountBelowMinimum (B-185)" >&2
+  exit 1
+}
+grep -q "TxInputCountBelowMinimum" "$REPO_ROOT/mfn-wallet/src/spend.rs" || {
+  echo "missing TxInputCountBelowMinimum in spend.rs (B-185)" >&2
+  exit 1
+}
+grep -q "TxInputCountBelowMinimum" "$REPO_ROOT/mfn-wallet/src/upload.rs" || {
+  echo "missing TxInputCountBelowMinimum in upload.rs (B-185)" >&2
+  exit 1
+}
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
