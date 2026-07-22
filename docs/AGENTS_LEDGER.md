@@ -15,6 +15,16 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
+### Rotation 2026-07-21 B-159-land
+
+1. **2026-07-21 — lane 4 — B-152 sixth-offense asymmetric→absentee re-slash** (this commit): early B-24at `b152_b5_sixth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29870158905` GREEN** on B-151. Elevates B-142. Full CI (no skip). Next: **B-153** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+1. **2026-07-21 — lane 4 — claim B-152** (this commit): early B-24at sixth-offense asymmetric→absentee re-slash (elevates B-142) while **CI `#29870158905`** runs on B-151. Claim base `9d20b008`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — B-151 sixth-slash→empty both-miss** (this commit): early B-24as `b151_b5_sixth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29867968439` GREEN** on B-150. Closes sixth-offense prove matrix {00,01,10,11}. Full CI (no skip). Next: **B-152** sixth-offense asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+
+
 ### Rotation 2026-07-21 B-159-claim
 
 1. **2026-07-21 — lane 4 — claim B-151** (this commit): early B-24as sixth-slash→empty both-miss (closes sixth-offense prove matrix) while **CI `#29867968439`** runs on B-150 tip. Claim base `6a2c779`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
