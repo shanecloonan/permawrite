@@ -554,6 +554,8 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 4 — B-160 seventh-offense op1 asymmetric→absentee re-slash** (this commit): early B-24bb `b160_b5_seventh_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29879940201` GREEN** on B-161 (B-159 `#29879858576` cancelled by concurrency). Elevates B-153; completes seventh-offense re-slash pair with B-159. Full CI (no skip). Next: **B-162** settle-reset→eighth dual-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 JOIN smoke; lane-5 residual if any.
 
+1. **2026-07-21 — lane 4 — claim B-162** (this commit): early B-24bc settle-reset→eighth dual-slash while **CI `#29881759838`** runs on B-160. Claim base `4b0781a1`. *Observed (not staged):* lane-3 smoke. `[skip ci]`.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
