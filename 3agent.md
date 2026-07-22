@@ -24,7 +24,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch B-170 head CI (also re-proves B-168/B-169); **B-15** PASS | *Idle* — watch B-170 | Do not cancel healthy in_progress; fix-forward if B-168 wasm flake recurs |
-| **B** Protocol/Privacy | **B-170** eighth empty both-miss (this commit); **B-169**/**B-166** | *Idle* — next **B-171** eighth asymmetric→absentee re-slash | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **B** Protocol/Privacy | **B-170** (`b40c1ccc`); **B-169**/**B-166** | **B-171** eighth asymmetric→absentee re-slash (claim base: `b40c1ccc`) | After CI: **B-172** op1 twin; live **B-32** needs 2nd host |
 | **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; **B-146**/**B-145**/**B-144** | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
 
 ### Hard locks (all seats)

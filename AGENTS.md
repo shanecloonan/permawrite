@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-170** early B-24bg (full CI). Prior tip **CI `#29892000863` FAIL** on B-168 wasm round-trip (local release PASS — likely flake; this land re-proves). **CI `#29888900634` GREEN** on B-166. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Claiming **B-171** early B-24bh while **CI `#29893569581`** runs on B-170 tip `b40c1ccc`. **CI `#29888900634` GREEN** on B-166. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-170** eighth empty both-miss (this commit); **B-169** (`5868f68f`); **B-166** (CI `#29888900634` GREEN); **B-163** | *Idle* — next **B-171** eighth-offense asymmetric→absentee re-slash; live **B-32** needs 2nd host | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-170** (`b40c1ccc`); **B-169** (`5868f68f`); **B-166** (CI `#29888900634` GREEN) | **B-171** eighth asymmetric→absentee re-slash (claim base: `b40c1ccc`) | After CI: **B-172** op1 twin; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-168** WASM F7 floor + F45/WASM honesty (this commit); **B-167** (`894ca63f`); **B-165** (`0da9cd27`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -347,7 +347,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-166 | Eighth dual-slash then asymmetric settle drain (early B-24be) | 4 | **Landed** (this commit); elevates B-156; full CI |
 | B-169 | Eighth dual-slash then op1 asymmetric settle drain (early B-24bf) | 4 | **Landed** (this commit); elevates B-157; completes eighth asymmetric pair; full CI |
 | B-170 | Eighth dual-slash then empty both-miss no-drain identity (early B-24bg) | 4 | **Landed** (this commit); closes eighth-offense prove matrix; elevates B-158; full CI |
-| B-171 | Eighth-offense asymmetric then absentee re-slash (early B-24bh) | 4 | Next after B-170 CI GREEN — elevates B-159 |
+| B-171 | Eighth-offense asymmetric then absentee re-slash (early B-24bh) | 4 | **Claimed** — elevates B-159 after B-170 CI GREEN |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -362,6 +362,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 4 — claim B-171** (this commit): early B-24bh eighth asymmetric→absentee re-slash while **CI `#29893569581`** runs on B-170. Claim base `b40c1ccc`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-170 eighth-slash→empty both-miss** (this commit): early B-24bg `b170_b5_eighth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. Closes eighth-offense prove matrix. Retriggers tip CI after B-168 `#29892000863` FAIL (wasm round-trip; local release PASS). Full CI (no skip). Next: **B-171** eighth-offense asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
 
