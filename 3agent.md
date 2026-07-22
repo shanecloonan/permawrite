@@ -23,8 +23,8 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#29903453186` GREEN** on B-177; watch B-178 head CI; **B-15** PASS | *Idle* — watch B-178 | Do not cancel healthy in_progress |
-| **B** Protocol/Privacy | **B-178** (`faa97ba7`) | **B-179** ninth op1 asymmetric (claim base: `faa97ba7`) | After CI: ninth empty both-miss; live **B-32** needs 2nd host |
+| **A** RC/CI | **CI `#29905438517` GREEN** on B-178; watch B-179 head CI; **B-15** PASS | *Idle* — watch B-179 | Do not cancel healthy in_progress |
+| **B** Protocol/Privacy | **B-179** ninth op1 asymmetric (this commit); **B-178** GREEN | *Idle* — next **B-181** ninth empty both-miss | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** wave59/60 tall-tip; JOIN PASS tip=5322 | *Idle*/Doing per AGENTS | No parallel Hetzner JOIN |
 
 
