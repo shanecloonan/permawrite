@@ -366,6 +366,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-07-21 — lane 4 — B-169 eighth→op1 asymmetric settle** (this commit): early B-24bf `b169_b5_eighth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29888900634` GREEN** on B-166. Elevates B-157; completes eighth asymmetric pair with B-166. Full CI (no skip). Next: **B-170** eighth→empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 residual if any.
 
+1. **2026-07-21 — lane 5 — B-168 fix-forward** (this commit): round_trip exact-balance (value=1_498_000) after CI #29892000863 wasm32 FAIL. Full CI. *Observed (not staged):* lane-4 pply_block_proposals.rs.
+
 1. **2026-07-21 — lane 5 — B-168 WASM F7 two-input floor + F45 honesty** (this commit): uild_transfer_json/uild_storage_upload_json refuse < WALLET_MIN_TX_INPUTS; PRIVACY/CHECKPOINT_LOG clarify F45 soft is CLI-only. Full CI after B-169 tip clears. *Observed (not staged):* lane-4 pply_block_proposals.rs.
 
 1. **2026-07-21 — lane 5 — pin B-167 + claim B-168** (this commit): B-167 covered by tip **CI #29888900634 GREEN** (B-166 includes 894ca63f). Claiming **B-168** WASM F7 two-input floor + F45/WASM doc honesty while **CI #29890640858** runs on B-169. Claim base $claimBase. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].

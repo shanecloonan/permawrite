@@ -285,6 +285,7 @@ mod tests {
             recipients: vec![RecipientJson {
                 view_pub_hex: hex::encode(me.view_pub().compress().to_bytes()),
                 spend_pub_hex: hex::encode(me.spend_pub().compress().to_bytes()),
+                // Leave headroom for fee on 999_000+500_000 owned inputs (F7 two-input path).
                 value: 1_497_000,
             }],
             fee: 1_000,
