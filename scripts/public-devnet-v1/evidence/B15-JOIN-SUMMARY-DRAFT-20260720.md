@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–58; zion@**4823** faucet-F101b PASS; claims=33; thirty-six proxy-proven wallets. F45 lag=130.
+**Status:** DRAFT — waves 6–59; wave59 aria FUND FAIL (tall-tip faucet/bal timeouts); tip~5700 ckpt=5290 lag=395; claims open=33.
+| aria | faucet stalled + bal TIMEOUT | n/a | **no** | FAIL wave59 (F109/F99 tall-tip) |
 | zion | faucet-F101b | n/a | yes | **4823** (wave58; proxy-prove PASS) |
 | yuki | faucet-F101b | n/a | yes | **4808** (wave57; proxy-prove PASS) |
 | xavier | faucet | n/a | yes | **4794** (wave56; proxy-prove PASS) |
