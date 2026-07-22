@@ -23,8 +23,8 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#29903453186` GREEN** on B-177; watch tip after B-180 | *Idle* — do not cancel healthy in_progress | Do not cancel healthy in_progress |
-| **B** Protocol/Privacy | **B-180** wallet upload ring fixture pin (lane5 this tip); **B-177** GREEN | **B-178** ninth asymmetric (lane4) | After B-25: **B-35**/**B-37**/**B-19** |
+| **A** RC/CI | **CI `#29903453186` GREEN** on B-177; watch B-178 head CI; **B-15** PASS | *Idle* — watch B-178 | Do not cancel healthy in_progress |
+| **B** Protocol/Privacy | **B-178** ninth asymmetric (this commit); **B-176** GREEN | *Idle* — next **B-179** ninth op1 asymmetric | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** wave59/60 tall-tip; JOIN PASS tip=5322 | *Idle*/Doing per AGENTS | No parallel Hetzner JOIN |
 
 
