@@ -24,7 +24,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **CI `#29912408521` GREEN** on B-181; watch B-185 rustfmt tip CI | *Idle* — `#29920853490` rustfmt FAIL (ok to supersede) | Do not cancel healthy in_progress |
-| **B** Protocol/Privacy | **B-185** F7 + mempool/rpc + rustfmt (lane5 this tip); **B-181** GREEN | **B-183** ninth asymmetric→absentee re-slash (lane4) | After B-25: **B-35**/**B-37**/**B-19** |
+| **B** Protocol/Privacy | **B-183** (this tip); **B-181** GREEN | *Idle* — next **B-184** op1 twin | After B-184: settle-reset→tenth; live **B-32** needs 2nd host |
 | **C** Testnet/Onboarding | **B-15** wave70+ permanence PASS | Doing per AGENTS | No parallel Hetzner JOIN |
 
 
