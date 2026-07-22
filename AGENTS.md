@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave69** (kira last_proven=5833; faucet-F101b; F110; lag=530) | **B-15** wave70+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave70** (lena last_proven=5842; faucet-F101b; F110; lag=544) | **B-15** wave71+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-181** (`9caa7ee4`); **B-179** (CI `#29908001364` GREEN); **B-178**/**B-176** | **B-183** ninth asymmetric→absentee re-slash (claim base: `9caa7ee4`) | After CI: **B-184** op1 twin; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-185** low-level F7 two-input fail-closed (this commit); **B-182** (`e7b3e8bf`); **B-180** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -376,7 +376,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-22 — lane 3 — B-15 wave69**: **kira** faucet-F101b permanence **last_proven=5833** (commit `7f6b2496`); F45 lag=530; claims 42->43. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+1. **2026-07-22 — lane 3 — B-15 wave70**: **lena** faucet-F101b permanence **last_proven=5842** (commit `55cee933`); F45 lag=544; claims 43->44. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 3 — B-15 wave69**: **kira** faucet-F101b permanence **last_proven=5833** (commit `7f6b2496`); F45 lag=530; claims 42->43. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 2. **2026-07-22 — lane 5 — B-185 fix-forward** (this commit): dualize caller_supplied_extra_is_verbatim + fund fee-too-low e2e with 2 coinbases so F7 floor does not mask UploadUnderfunded. Local mfn-wallet release suite PASS. Full CI (no skip).
 
 1. **2026-07-22 — lane 3 — B-15 wave68**: **joss** faucet-F101b permanence **last_proven=5819** (commit `775fc539`); F45 lag=521; claims 41->42. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
