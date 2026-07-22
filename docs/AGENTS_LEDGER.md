@@ -591,6 +591,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 4 — claim B-169** (this commit): early B-24bf eighth→op1 asymmetric settle while **CI `#29888900634`** runs on B-166. Claim base `c3f3162b`. *Observed (not staged):* lane-5 B-167/B-168 WIP if any. `[skip ci]`.
 
+1. **2026-07-21 — lane 5 — B-168 fix-forward** (this commit): round_trip exact-balance (value=1_498_000) after CI #29892000863 wasm32 FAIL. Full CI. *Observed (not staged):* lane-4 pply_block_proposals.rs.
+
+1. **2026-07-21 — lane 5 — B-168 WASM F7 two-input floor + F45 honesty** (this commit): uild_transfer_json/uild_storage_upload_json refuse < WALLET_MIN_TX_INPUTS; PRIVACY/CHECKPOINT_LOG clarify F45 soft is CLI-only. Full CI after B-169 tip clears. *Observed (not staged):* lane-4 pply_block_proposals.rs.
+
+1. **2026-07-21 — lane 5 — pin B-167 + claim B-168** (this commit): B-167 covered by tip **CI #29888900634 GREEN** (B-166 includes 894ca63f). Claiming **B-168** WASM F7 two-input floor + F45/WASM doc honesty while **CI #29890640858** runs on B-169. Claim base $claimBase. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
