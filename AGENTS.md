@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Claiming **B-196** eleventh→dual settle while **CI `#29946690265`** runs on B-195 tip `1a83d9d0`. **CI `#29944414883` GREEN** on B-194. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** **B-189** landed (`ecc565a1`); watch tip CI `#29946719956`. Lane4 **B-196** claimed. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave85** (eden last_proven=6017; faucet-retry-F101b; lag=713) | **B-15** wave86+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-195** (`1a83d9d0`); **B-194** (CI `#29944414883` GREEN); **B-193** | **B-196** eleventh→dual settle (claim base: `1a83d9d0`) | After CI: eleventh asymmetric; live **B-32** needs 2nd host | Lane 1 CI |
-| **5** Privacy | **B-186** (`94cbfece`; **CI `#29929300995` GREEN**); **B-185** | **B-189** CLI F7 owned-UTXO preflight (claim base: `4d19b71f`) | Land after tip CI `#29934475574` GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **5** Privacy | **B-189** CLI F7 owned-UTXO preflight (`ecc565a1`; watch CI `#29946719956`); **B-186** (`94cbfece`; CI `#29929300995` GREEN); **B-185** | *Idle* | After tip CI GREEN: pin; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
