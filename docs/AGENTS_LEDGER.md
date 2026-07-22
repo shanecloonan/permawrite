@@ -537,6 +537,13 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 4 — B-154 settle-reset→seventh dual-slash** (this commit): early B-24av `b154_b5_settle_reset_then_seventh_dual_slash_treasury_identity`; local debug PASS. **CI `#29872307794` GREEN** on B-152/B-153. Elevates B-147. Full CI (no skip). Next: **B-155** seventh→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
 
+1. **2026-07-21 — lane 4 — claim B-159** (this commit): early B-24ba seventh asymmetric→absentee re-slash while tip **CI `#29878259419`** runs on B-158/B-50. Claim base `d5dc6f38`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+
+1. **2026-07-21 — lane 4 — B-158 seventh→empty both-miss** (this commit): early B-24az `b158_b5_seventh_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29876590150` GREEN** on B-157. Closes seventh-offense prove matrix {00,01,10,11}. Full CI (no skip). Next: **B-159** seventh-offense asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+1. **2026-07-21 — lane 4 — B-158 seventh-slash→empty both-miss** (this commit): early B-24az `b158_b5_seventh_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29876590150` GREEN** on B-157. Closes seventh-offense prove matrix {00,01,10,11}. Full CI (no skip). Next: **B-159** seventh-offense asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-50 WIP + lane-3 `join-testnet-rehearsal-smoke/`.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
