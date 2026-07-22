@@ -373,6 +373,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-22 — lane 5 — archive B-180 CLI ring-15 refuse prove** (`ba898536`): release `mfn-cli` fail-closed on `--ring-size 15` before RPC. Source already says wallet/consensus floor (stale binary said consensus minimum). No B-181 needed. `[skip ci]`.
+
 1. **2026-07-22 — lane 5 — pin B-180 tip CI GREEN** (this commit): `eef017ff` covered by **CI `#29905438517` GREEN** on B-178. Next: after B-25 **B-35**/**B-37**/**B-19**. `[skip ci]`.
 
 1. **2026-07-22 — lane 3 — B-15 wave62**: **devon** faucet-F101b permanence **last_proven=5751** (commit `f00298cc`); F110 streak (~20 min; 0 TIMEOUT); F45 lag=452; claims 35→36. Honor §6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
