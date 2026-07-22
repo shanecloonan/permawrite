@@ -25,7 +25,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch **CI `#29946719956`** (B-189 tip) | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-189** CLI F7 (`ecc565a1`); **B-195** | **B-196** (lane4) + **B-197** F7 msg parity (lane5) | Lane4 next **B-198+**; after B-25: **B-35**/**B-37**/**B-19** |
-| **C** Testnet/Onboarding | **B-15** wave85 eden@6017 PASS | wave86+ density | No parallel Hetzner JOIN |
+| **C** Testnet/Onboarding | **B-15** wave86 felix@6026 PASS | wave87+ density | No parallel Hetzner JOIN |
 
 
 ### Hard locks (all seats)
