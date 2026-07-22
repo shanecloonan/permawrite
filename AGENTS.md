@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave61** (cleo last_proven=5741; faucet-F101b; F110; F45 lag=441) | **B-15** wave62+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave62** (devon last_proven=5751; faucet-F101b; F110 streak; lag=452) | **B-15** wave63+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-179** (`2afc7302`); **B-178** (CI `#29905438517` GREEN); **B-176** stack | **B-181** ninth empty both-miss (claim base: `2afc7302`) | After CI: ninth-offense re-slash pair; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-180** (`eef017ff`; covered by tip CI `#29905438517` on B-178); **B-177** (`fe4bfc05`, CI `#29903453186` GREEN); **B-174** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -373,7 +373,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-22 — lane 4 — claim B-181** (this commit): early B-24bn ninth empty both-miss while **CI `#29908001364`** runs on B-179. Claim base `2afc7302`. `[skip ci]`.
+1. **2026-07-22 — lane 3 — B-15 wave62**: **devon** faucet-F101b permanence **last_proven=5751** (commit `f00298cc`); F110 streak (~20 min; 0 TIMEOUT); F45 lag=452; claims 35→36. Honor §6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 4 — claim B-181** (this commit): early B-24bn ninth empty both-miss while **CI `#29908001364`** runs on B-179. Claim base `2afc7302`. `[skip ci]`.
 
 1. **2026-07-22 — lane 4 — B-179 ninth-slash→op1 asymmetric settle** (this commit): early B-24bm `b179_b5_ninth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29905438517` GREEN** on B-178. Completes ninth-offense asymmetric settle pair. Full CI (no skip). Next: **B-181** ninth empty both-miss. Still blocked on 2nd host for live **B-32**.
 
