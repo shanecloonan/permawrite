@@ -510,6 +510,10 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 1. **2026-07-21 — lane 4 — claim B-128** (this commit): early B-24ai fifth-slash→dual settle (B-127 is lane1 ops) while **CI `#29847644779`** runs on B-126. Claim base `ba0b69d`. `[skip ci]`.
 
 
+1. **2026-07-21 — lane 4 — claim B-153** (this commit): early B-24au sixth-offense op1 asymmetric→absentee re-slash (B-152 twin) while **CI `#29872307794`** runs on B-152. Claim base `cd3d37ae`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — B-152 sixth-offense asymmetric→absentee re-slash** (this commit): early B-24at `b152_b5_sixth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local release PASS. **CI `#29870158905` GREEN** on B-151. Elevates B-142 to sixth-offense funding. Full CI (no skip). Next: **B-153** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
