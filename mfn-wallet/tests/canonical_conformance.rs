@@ -264,8 +264,10 @@ fn wallet_ring_floor_matches_consensus_uniform_policy() {
 /// preimage) — canonical means "no *silent* bytes", not "no memos".
 #[test]
 fn caller_supplied_extra_is_verbatim() {
-    let input = owned(1_000_000);
-    let refs = [&input];
+    // B-185: two real inputs required (F7 / WALLET_MIN_TX_INPUTS).
+    let input_a = owned(600_000);
+    let input_b = owned(400_000);
+    let refs = [&input_a, &input_b];
     let decoys = pool(40);
     let keys = wallet_from_seed(&[0x53u8; 32]);
     let recipient = Recipient {

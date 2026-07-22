@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Landing **B-185** after **CI `#29912408521` GREEN** on B-181. Lane4 **B-183** claimed. Live tip~5787. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** Fix-forward **B-185** after CI #29914384153 ubuntu/windows FAIL (canonical_conformance + end_to_end one-input fixtures). Full CI re-run.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -375,6 +375,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 5 — B-185 fix-forward** (this commit): dualize caller_supplied_extra_is_verbatim + fund fee-too-low e2e with 2 coinbases so F7 floor does not mask UploadUnderfunded. Local mfn-wallet release suite PASS. Full CI (no skip).
 
 1. **2026-07-22 — lane 3 — B-15 wave68**: **joss** faucet-F101b permanence **last_proven=5819** (commit `775fc539`); F45 lag=521; claims 41->42. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 2. **2026-07-22 — lane 3 — B-15 wave67**: **ivy** faucet-F101b permanence **last_proven=5810** (commit `f1e786b4`); F45 lag=511 (>500); claims 40->41. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.

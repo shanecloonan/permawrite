@@ -581,20 +581,24 @@ fn wallet_storage_upload_rejects_fee_too_low_before_signing() {
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
 
-    // Fund Alice once.
-    let inputs = BlockInputs {
-        height: 1,
-        slot: 1,
-        timestamp: 100,
-        txs: vec![coinbase_for(&producer, 1, 0)],
-        bond_ops: Vec::new(),
-        slashings: Vec::new(),
-        storage_proofs: Vec::new(),
-        storage_operator_ops: Vec::new(),
-    };
-    let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
-    chain.apply(&block).expect("apply");
-    alice.ingest_block(&block);
+    // Fund Alice with two coinbases so F7 input-floor padding can succeed
+    // and the fee check (not TxInputCountBelowMinimum) is what we exercise.
+    for h in 1u32..=2 {
+        let inputs = BlockInputs {
+            height: h,
+            slot: h,
+            timestamp: u64::from(h) * 100,
+            txs: vec![coinbase_for(&producer, h, 0)],
+            bond_ops: Vec::new(),
+            slashings: Vec::new(),
+            storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
+        };
+        let block =
+            produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
+        chain.apply(&block).expect("apply");
+        alice.ingest_block(&block);
+    }
 
     // Build a non-trivial payload so the burden is actually positive.
     let data: Vec<u8> = (0u8..255u8).cycle().take(8 * 1024).collect();
