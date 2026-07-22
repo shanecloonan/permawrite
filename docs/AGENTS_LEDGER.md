@@ -546,6 +546,12 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 5 — claim B-161** (this commit): heavy `get_light_snapshot` CLI I/O timeout (B-52 client twin; live prove saw ~65s snapshot vs 30s CLI abort). Claim base `65e19cbe`. Pin B-50 Done=`3df22fd3`. Watch tip **CI `#29878259419`**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 join-testnet-rehearsal-smoke/. `[skip ci]`.
 
+1. **2026-07-21 — lane 5 — B-161 heavy CLI snapshot timeout + F45 soft** (this commit): `get_light_snapshot` uses 180s/`MFN_HEAVY_RPC_TIMEOUT_MS`; in-CLI F45 soft-pass after Schnorr log verify; persist pin on mid-scan failure. Live needles `checkpoint_log_auto_bootstrap tip=5463` + `checkpoint_log_f45_soft_pass` (tip~5474). Fix-forward: prior `872f1ee1` was evidence-only after concurrent wipe. **CI `#29878259419` GREEN** on B-158/B-50. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 join-testnet-rehearsal-smoke/.
+
+1. **2026-07-21 — lane 4 — claim B-160** (this commit): early B-24bb seventh-offense op1 asymmetric→absentee re-slash (B-159 twin) while **CI `#29879858576`** runs on B-159. Claim base `7ef832a7`. *Observed (not staged):* lane-5 B-161 evidence; lane-3 JOIN smoke. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — B-159 seventh-offense asymmetric→absentee re-slash** (this commit): early B-24ba `b159_b5_seventh_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29878259419` GREEN** on B-158. Elevates B-152. Full CI (no skip). Next: **B-160** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-161 WIP; lane-3 JOIN smoke.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
