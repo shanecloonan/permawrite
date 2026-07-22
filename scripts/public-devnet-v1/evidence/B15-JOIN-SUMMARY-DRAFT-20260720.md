@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–88; haven@6050 PASS; tip~6050 ckpt=5290 lag=751; sixty-two proxy-proven.
+**Status:** DRAFT — waves 6–89; iota@6060 PASS; tip~6060 ckpt=5290 lag=761; sixty-three proxy-proven.
+| iota | faucet-F101b | n/a | yes | **6060** (wave89; proxy-prove PASS; F110) |
 | haven | faucet-F101b | n/a | yes | **6050** (wave88; proxy-prove PASS; F110) |
 | gryph | faucet-retry | n/a | yes | **6040** (wave87; proxy-prove PASS; F95) |
 | felix | faucet-F101b | n/a | yes | **6026** (wave86; proxy-prove PASS; F110) |
