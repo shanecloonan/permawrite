@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave63** (ella last_proven=5761; faucet-F101b; F110 x3; lag=462) | **B-15** wave64+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave64** (finn last_proven=5775; faucet-F101b; F110 x4; lag=472) | **B-15** wave65+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-179** (`2afc7302`); **B-178** (CI `#29905438517` GREEN); **B-176** stack | **B-181** ninth empty both-miss (claim base: `2afc7302`) | After CI: ninth-offense re-slash pair; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-182** CLI ring usage honesty (this commit); **B-180** (`eef017ff`); **B-177** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -374,7 +374,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-22 — lane 5 — B-182 CLI ring usage honesty** (this commit): usage() send/upload/claim `--ring-size` lines say `default 16, wallet/consensus floor`; privacy-floor smoke rejects `consensus min`. **CI `#29908001364` GREEN** on B-179. Live tip~5753. Full CI (no skip). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
+1. **2026-07-22 — lane 3 — B-15 wave64**: **finn** faucet-F101b permanence **last_proven=5775** (commit `da677677`); F110 streak x4; faucet ~280s; F45 lag=472; claims 37->38. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — B-182 CLI ring usage honesty** (this commit): usage() send/upload/claim `--ring-size` lines say `default 16, wallet/consensus floor`; privacy-floor smoke rejects `consensus min`. **CI `#29908001364` GREEN** on B-179. Live tip~5753. Full CI (no skip). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
 
 1. **2026-07-22 — lane 3 — B-15 wave63**: **ella** faucet-F101b permanence **last_proven=5761** (commit `8f9142a9`); F110 streak x3 (~20 min; 0 TIMEOUT); F45 lag=462; claims 36->37. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 2. **2026-07-22 — lane 5 — claim B-182** (this commit): CLI `--ring-size` usage honesty (replace `consensus min` / bare `default 16` help with wallet/consensus floor) while **CI `#29908001364`** runs on B-179. Claim base `96634217`. *Observed (not staged):* lane-4 `apply_block_proposals.rs`. `[skip ci]`.
