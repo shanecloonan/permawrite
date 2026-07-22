@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Claiming **B-173** early B-24bi (docs-only while **CI #1045** runs on B-171 tip `2c6983ea`). **CI `#29893569581` GREEN** on B-170. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** Claiming **B-174** (docs-only while **CI `#29895397723`** runs on B-171 tip `2c6983ea`). **CI `#29893569581` GREEN** on B-170. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
 | **4** Protocol | **B-171** (`2c6983ea`); **B-170** (CI `#29893569581` GREEN); **B-169**/**B-166** | **B-173** eighth op1 asymmetric→absentee re-slash (claim base: `2c6983ea`) | After CI: settle-reset→ninth dual-slash; live **B-32** needs 2nd host | Lane 1 CI |
-| **5** Privacy | **B-172** privacy-floor CI gate (`1ce0ed2e`; tip CI `#29893569581` GREEN on B-170); **B-168** (`ab4dbba1`); **B-167** (`894ca63f`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **5** Privacy | **B-172** privacy-floor CI gate (`1ce0ed2e`; tip CI `#29893569581` GREEN on B-170); **B-168** (`ab4dbba1`); **B-167** (`894ca63f`) | **B-174** DEFAULT_RING_SIZE≡WALLET_MIN_RING_SIZE pin + live F45 soft prove (claim base: `653aa3b1`) | After land: After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -245,6 +245,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-165 | CI fail-closed gate for F45 soft twin + B-161 needles | 5 | **Landed** (`0da9cd27`; **CI `#29884711182` GREEN**) — soft rehearsal smoke + ci-check wire; live tip~5523/5524 |
 | B-167 | Ring-size no-silent-downgrade: typed `RingSizeBelowMinimum` + CLI/WASM refuse `< WALLET_MIN_RING_SIZE` | 5 | **Landed** (`894ca63f`; covered by **CI `#29888900634` GREEN** on B-166 tip) |
 | B-172 | CI fail-closed gate for B-167/B-168 privacy floors (`WALLET_MIN_RING_SIZE` + F7 inputs) | 5 | **Landed** (`1ce0ed2e`; covered by tip **CI `#29893569581` GREEN**) |
+| B-174 | Pin CLI `DEFAULT_RING_SIZE == WALLET_MIN_RING_SIZE` (unit + smoke) + tall-tip F45 soft live prove | 5 | **Claimed** — claim base `653aa3b1`; live tip=5648 / log_max=5290 soft PASS |
 | B-168 | WASM F7 two-input floor + F45/WASM doc honesty | 5 | **Landed** (this commit) — WASM fail-closed `<2` inputs; F45 soft CLI-only doc honesty |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
 | B-52 | Observer proxy heavy RPC timeout + Windows B-50 twin | 7 | **Done** — F54/F56; `PROXY_HEAVY_RPC_TIMEOUT_MS=180000`; `.ps1` twin |
@@ -364,6 +365,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 5 — claim B-174** (this commit): pin `DEFAULT_RING_SIZE≡WALLET_MIN_RING_SIZE` (CLI unit + privacy-floor smoke) + archive tall-tip F45 soft live prove (tip=5648 log_max=5290) while **CI `#29895397723`** runs on B-171. Claim base `653aa3b1`. *Observed (not staged):* lane-4 `apply_block_proposals.rs` / `_b173_backup_*`. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — claim B-173** (this commit): early B-24bi eighth op1 asymmetric→absentee re-slash (B-171 twin) while tip CI on B-171 settles. Claim base `2c6983ea`. *Observed (not staged):* lane-3 smoke/. `[skip ci]`.
 
