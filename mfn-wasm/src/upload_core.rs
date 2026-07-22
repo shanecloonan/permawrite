@@ -14,7 +14,7 @@ use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
     build_decoy_pool_from_sources, build_storage_upload, estimate_minimum_fee_for_upload,
     wallet_from_seed, ClaimingIdentity, StorageUploadPlan, StoredOwnedOutput, TransferRecipient,
-    UtxoDecoySource,
+    UtxoDecoySource, WALLET_MIN_RING_SIZE,
 };
 use serde::{Deserialize, Serialize};
 
@@ -243,6 +243,12 @@ pub fn build_storage_upload_json(
 ) -> Result<String, WasmCoreError> {
     let plan: StorageUploadPlanJson = serde_json::from_str(plan_json)
         .map_err(|e| WasmCoreError::InvalidHex(format!("upload plan json: {e}")))?;
+    if plan.ring_size < WALLET_MIN_RING_SIZE {
+        return Err(WasmCoreError::InvalidHex(format!(
+            "ring size {} below wallet minimum {WALLET_MIN_RING_SIZE}",
+            plan.ring_size
+        )));
+    }
     let endowment_params = merge_endowment_params(&plan.endowment)?;
 
     let mut inputs = Vec::with_capacity(plan.inputs.len());

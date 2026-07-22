@@ -8,7 +8,7 @@ use mfn_crypto::point::point_from_bytes;
 use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
     build_decoy_pool_from_sources, build_transfer, StoredOwnedOutput, TransferPlan,
-    TransferRecipient, UtxoDecoySource,
+    TransferRecipient, UtxoDecoySource, WALLET_MIN_RING_SIZE,
 };
 use serde::{Deserialize, Serialize};
 
@@ -133,6 +133,12 @@ pub fn decoy_pool_preview_json(
 pub fn build_transfer_json(plan_json: &str) -> Result<String, WasmCoreError> {
     let plan: TransferPlanJson = serde_json::from_str(plan_json)
         .map_err(|e| WasmCoreError::InvalidHex(format!("transfer plan json: {e}")))?;
+    if plan.ring_size < WALLET_MIN_RING_SIZE {
+        return Err(WasmCoreError::InvalidHex(format!(
+            "ring size {} below wallet minimum {WALLET_MIN_RING_SIZE}",
+            plan.ring_size
+        )));
+    }
 
     let mut inputs = Vec::with_capacity(plan.inputs.len());
     for stored in &plan.inputs {
@@ -272,6 +278,37 @@ mod tests {
         let out = build_transfer_json(&plan_str).expect("build");
         assert!(out.contains("tx_hex"));
         assert!(out.contains("tx_id"));
+    }
+
+    /// B-167: WASM boundary refuses sub-floor rings with an honest error
+    /// (not a decoy-pool or hex decode mislabel).
+    #[test]
+    fn build_transfer_json_rejects_ring_below_minimum() {
+        let plan = TransferPlanJson {
+            inputs: vec![],
+            recipients: vec![RecipientJson {
+                view_pub_hex: "00".repeat(32),
+                spend_pub_hex: "00".repeat(32),
+                value: 1,
+            }],
+            fee: 1,
+            ring_size: WALLET_MIN_RING_SIZE - 1,
+            current_height: 1,
+            decoy_utxos: vec![],
+            exclude_one_time_addrs_hex: vec![],
+            extra_hex: String::new(),
+        };
+        let plan_str = serde_json::to_string(&plan).expect("plan json");
+        let err = build_transfer_json(&plan_str).expect_err("must reject");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("below wallet minimum"),
+            "unexpected error: {msg}"
+        );
+        assert!(
+            msg.contains(&(WALLET_MIN_RING_SIZE - 1).to_string()),
+            "unexpected error: {msg}"
+        );
     }
 }
 

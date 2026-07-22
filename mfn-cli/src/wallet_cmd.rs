@@ -11,7 +11,7 @@ use mfn_storage_operator::upload_artifact_store::{
     list_upload_artifacts, upload_artifacts_root, UploadArtifactSaveMeta,
 };
 use mfn_wallet::production_tx_rng;
-use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError};
+use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError, WALLET_MIN_RING_SIZE};
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha512};
 
@@ -22,7 +22,7 @@ use crate::wallet_store::{
 };
 
 /// Default CLSAG ring size (including the real input).
-pub const DEFAULT_RING_SIZE: usize = 16;
+pub const DEFAULT_RING_SIZE: usize = WALLET_MIN_RING_SIZE;
 
 /// Default transfer fee (atomic units) when `--fee` is omitted.
 pub const DEFAULT_TRANSFER_FEE: u64 = 10_000;
@@ -79,7 +79,7 @@ pub struct SendParams {
     pub amount: u64,
     /// Transaction fee (atomic units).
     pub fee: u64,
-    /// Ring size (≥ 2, includes real input).
+    /// Ring size (≥ [`WALLET_MIN_RING_SIZE`], includes real input).
     pub ring_size: usize,
     /// Optional `tx.extra` memo bytes (hex).
     pub extra: Vec<u8>,
@@ -98,7 +98,7 @@ pub struct UploadParams {
     pub fee: Option<u64>,
     /// Value paid to the anchor output (excluding fee).
     pub anchor_value: u64,
-    /// Ring size (≥ 2).
+    /// Ring size (≥ [`WALLET_MIN_RING_SIZE`]).
     pub ring_size: usize,
     /// Optional `tx.extra` memo bytes.
     pub extra: Vec<u8>,
@@ -123,7 +123,7 @@ pub struct ClaimParams {
     pub message: Vec<u8>,
     /// Transaction fee (atomic units).
     pub fee: u64,
-    /// Ring size (≥ 2).
+    /// Ring size (≥ [`WALLET_MIN_RING_SIZE`]).
     pub ring_size: usize,
     /// Print a single JSON object instead of key=value lines.
     pub json: bool,
@@ -439,10 +439,10 @@ pub fn wallet_send(
             "amount must be greater than 0".into(),
         ));
     }
-    if params.ring_size < 16 {
-        return Err(WalletCmdError::Usage(
-            "ring-size must be at least 16 (consensus minimum)".into(),
-        ));
+    if params.ring_size < WALLET_MIN_RING_SIZE {
+        return Err(WalletCmdError::Usage(format!(
+            "ring-size must be at least {WALLET_MIN_RING_SIZE} (wallet/consensus floor)"
+        )));
     }
     let recipient = parse_recipient(&params.to_view_hex, &params.to_spend_hex)?;
     let mut file = WalletFile::load(path)?;
@@ -547,10 +547,10 @@ pub fn wallet_upload(
     client: &mut RpcClient,
     params: &UploadParams,
 ) -> Result<(), WalletCmdError> {
-    if params.ring_size < 16 {
-        return Err(WalletCmdError::Usage(
-            "ring-size must be at least 16 (consensus minimum)".into(),
-        ));
+    if params.ring_size < WALLET_MIN_RING_SIZE {
+        return Err(WalletCmdError::Usage(format!(
+            "ring-size must be at least {WALLET_MIN_RING_SIZE} (wallet/consensus floor)"
+        )));
     }
     if params.replication == 0 {
         return Err(WalletCmdError::Usage(

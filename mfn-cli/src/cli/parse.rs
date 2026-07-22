@@ -1569,9 +1569,17 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--ring-size requires a value".into()));
             };
-            ring_size = v
-                .parse()
-                .map_err(|_| CliError::Usage("--ring-size must be an integer ΓëÑ 2".into()))?;
+            ring_size = v.parse().map_err(|_| {
+                CliError::Usage(
+                    "--ring-size must be an integer >= 16 (wallet/consensus floor)".into(),
+                )
+            })?;
+            if ring_size < mfn_wallet::WALLET_MIN_RING_SIZE {
+                return Err(CliError::Usage(format!(
+                    "--ring-size must be at least {} (wallet/consensus floor)",
+                    mfn_wallet::WALLET_MIN_RING_SIZE
+                )));
+            }
             i += 2;
             continue;
         }
@@ -1714,9 +1722,17 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--ring-size requires a value".into()));
             };
-            ring_size = v
-                .parse()
-                .map_err(|_| CliError::Usage("--ring-size must be an integer ΓëÑ 2".into()))?;
+            ring_size = v.parse().map_err(|_| {
+                CliError::Usage(
+                    "--ring-size must be an integer >= 16 (wallet/consensus floor)".into(),
+                )
+            })?;
+            if ring_size < mfn_wallet::WALLET_MIN_RING_SIZE {
+                return Err(CliError::Usage(format!(
+                    "--ring-size must be at least {} (wallet/consensus floor)",
+                    mfn_wallet::WALLET_MIN_RING_SIZE
+                )));
+            }
             i += 2;
             continue;
         }
@@ -1807,9 +1823,17 @@ pub(super) fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliE
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--ring-size requires a value".into()));
             };
-            ring_size = v
-                .parse()
-                .map_err(|_| CliError::Usage("--ring-size must be an integer ΓëÑ 2".into()))?;
+            ring_size = v.parse().map_err(|_| {
+                CliError::Usage(
+                    "--ring-size must be an integer >= 16 (wallet/consensus floor)".into(),
+                )
+            })?;
+            if ring_size < mfn_wallet::WALLET_MIN_RING_SIZE {
+                return Err(CliError::Usage(format!(
+                    "--ring-size must be at least {} (wallet/consensus floor)",
+                    mfn_wallet::WALLET_MIN_RING_SIZE
+                )));
+            }
             i += 2;
             continue;
         }

@@ -96,6 +96,18 @@ pub enum WalletError {
     #[error("unknown owned output: {0}")]
     UnknownOwnedOutput(String),
 
+    /// Caller asked for a ring size below the wallet / consensus floor
+    /// ([`crate::WALLET_MIN_RING_SIZE`]). Never silently upgraded or
+    /// clamped — a sub-floor ring is an explicit reject so anonymity-set
+    /// degradation cannot look like a decoy-pool shortage.
+    #[error("ring size {got} below wallet minimum {min}")]
+    RingSizeBelowMinimum {
+        /// Requested ring size (real + decoys).
+        got: usize,
+        /// [`crate::WALLET_MIN_RING_SIZE`].
+        min: usize,
+    },
+
     /// Caller asked for a ring size that the supplied decoy pool cannot
     /// satisfy even after the gamma sampler's fallback to uniform.
     ///

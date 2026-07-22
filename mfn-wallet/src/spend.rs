@@ -107,9 +107,9 @@ where
         return Err(WalletError::NoRecipients);
     }
     if plan.ring_size < crate::WALLET_MIN_RING_SIZE {
-        return Err(WalletError::DecoyPoolTooSmall {
-            ring_size: plan.ring_size,
-            pool_size: plan.decoy_pool.len(),
+        return Err(WalletError::RingSizeBelowMinimum {
+            got: plan.ring_size,
+            min: crate::WALLET_MIN_RING_SIZE,
         });
     }
     if plan.decoy_pool.len() + 1 < plan.ring_size {
@@ -297,6 +297,43 @@ mod tests {
     /// A single-recipient, exact-amount (no-change) transfer must be
     /// padded up to the two-output privacy floor and still verify under
     /// the production ring policy. This is the anti-fingerprinting
+    /// Sub-floor ring size is a typed refuse — never mislabeled as a
+    /// decoy-pool shortage (B-167 / no silent anonymity-set downgrade).
+    #[test]
+    fn ring_size_below_minimum_is_typed_reject() {
+        let input_a = owned(600_000);
+        let input_b = owned(500_000);
+        let refs = [&input_a, &input_b];
+        let decoys = pool(20);
+        let keys = wallet_from_seed(&[3u8; 32]);
+        let recipient = Recipient {
+            view_pub: keys.view_pub(),
+            spend_pub: keys.spend_pub(),
+        };
+        let recipients = [TransferRecipient {
+            recipient,
+            value: 100_000,
+        }];
+        let mut r = mfn_crypto::seeded_rng(0xB167_0001);
+        let plan = TransferPlan {
+            inputs: &refs,
+            recipients: &recipients,
+            fee: 1_000,
+            extra: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE - 1,
+            decoy_pool: &decoys,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_transfer(plan) {
+            Err(WalletError::RingSizeBelowMinimum { got, min }) => {
+                assert_eq!(got, crate::WALLET_MIN_RING_SIZE - 1);
+                assert_eq!(min, crate::WALLET_MIN_RING_SIZE);
+            }
+            other => panic!("expected RingSizeBelowMinimum, got {other:?}"),
+        }
+    }
+
     /// guarantee: no reference caller ever broadcasts a one-output tx.
     #[test]
     fn single_recipient_transfer_is_padded_to_two_outputs() {

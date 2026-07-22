@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Claiming **B-167** ring-size fail-closed (docs-only while **CI `#29887479996`** runs on B-163). **CI `#29886131086` GREEN** on B-162; **CI `#29884711182` GREEN** on B-165. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Landing **B-167** ring-size fail-closed (full CI). **CI `#29887479996` GREEN** on B-163. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
 | **4** Protocol | **B-163** (`9ae744ce`, watch CI `#29887479996`); **B-162** (CI `#29886131086` GREEN); **B-160** | **B-166** eighth→asymmetric settle (claim base: `9ae744ce`) | After land: eighth op1 asymmetric; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
-| **5** Privacy | **B-165** (`0da9cd27`; CI `#29884711182` GREEN); **B-164** (`07c30df0`); **B-161** (`3113229f`); **B-50** (`3df22fd3`) | **B-167** ring-size fail-closed (claim base: `681cc30d`) | After land: **B-168** WASM F7 floor; after B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **5** Privacy | **B-167** ring-size fail-closed (this commit); **B-165** (`0da9cd27`); **B-164** (`07c30df0`); **B-161** (`3113229f`); **B-50** (`3df22fd3`) | *Idle* | Next: **B-168** WASM F7 floor; after B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -243,7 +243,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-161 | mfn-cli heavy RPC timeout for `get_light_snapshot` (B-52 client twin) | 5 | **Landed** (this commit) — 180s/`MFN_HEAVY_RPC_TIMEOUT_MS` + in-CLI F45 soft; live `checkpoint_log_auto_bootstrap tip=5463` + `checkpoint_log_f45_soft_pass` |
 | B-164 | Privacy-doc honesty for B-50/B-161 + Windows `light-scan-checkpoint-soft.ps1` twin | 5 | **Landed** (`07c30df0`) — PRIVACY/CHECKPOINT_LOG + `.ps1` twin; Schnorr still hard |
 | B-165 | CI fail-closed gate for F45 soft twin + B-161 needles | 5 | **Landed** (`0da9cd27`; **CI `#29884711182` GREEN**) — soft rehearsal smoke + ci-check wire; live tip~5523/5524 |
-| B-167 | Ring-size no-silent-downgrade: typed `RingSizeBelowMinimum` + CLI/WASM refuse `< WALLET_MIN_RING_SIZE` | 5 | **Claimed** (this commit) — honest errors; no DecoyPoolTooSmall mislabel |
+| B-167 | Ring-size no-silent-downgrade: typed `RingSizeBelowMinimum` + CLI/WASM refuse `< WALLET_MIN_RING_SIZE` | 5 | **Landed** (this commit) — wallet/CLI/WASM fail-closed; PRIVACY honesty |
 | B-168 | WASM F7 two-input floor + F45/WASM doc honesty | 5 | Next after B-167 |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
 | B-52 | Observer proxy heavy RPC timeout + Windows B-50 twin | 7 | **Done** — F54/F56; `PROXY_HEAVY_RPC_TIMEOUT_MS=180000`; `.ps1` twin |
@@ -371,6 +371,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-07-21 — lane 4 — claim B-163** (this commit): early B-24bd eighth→dual settle while **CI `#29886131086`** runs on B-162. Claim base `3b0fd892`. *Observed (not staged):* lane-3 JOIN smoke. `[skip ci]`.
 
 1. **2026-07-21 — lane 4 — B-162 settle-reset→eighth dual-slash** (this commit): early B-24bc `b162_b5_settle_reset_then_eighth_dual_slash_treasury_identity`; local debug PASS. **CI `#29884711182` GREEN** on B-165 (B-160 covered in tree). Elevates B-154. Full CI (no skip). Next: **B-163** eighth→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+1. **2026-07-21 — lane 5 — B-167 ring-size fail-closed** (this commit): WalletError::RingSizeBelowMinimum; CLI parse/floor + WASM JSON refuse < WALLET_MIN_RING_SIZE; unit tests. **CI #29887479996 GREEN** on B-163. Full CI (no skip). Next: **B-168**. *Observed (not staged):* lane-4 pply_block_proposals.rs.
 
 1. **2026-07-21 — lane 5 — claim B-167** (this commit): ring-size fail-closed (RingSizeBelowMinimum + CLI/WASM <16 refuse) while **CI #29887479996** runs on B-163. Claim base 681cc30d. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].
 

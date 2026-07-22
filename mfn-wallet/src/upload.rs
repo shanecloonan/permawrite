@@ -338,9 +338,9 @@ where
     R: FnMut() -> f64,
 {
     if plan.ring_size < crate::WALLET_MIN_RING_SIZE {
-        return Err(WalletError::DecoyPoolTooSmall {
-            ring_size: plan.ring_size,
-            pool_size: plan.decoy_pool.len(),
+        return Err(WalletError::RingSizeBelowMinimum {
+            got: plan.ring_size,
+            min: crate::WALLET_MIN_RING_SIZE,
         });
     }
     if plan.decoy_pool.len() + 1 < plan.ring_size {
@@ -611,6 +611,45 @@ mod tests {
             spend_pub: keys.spend_pub(),
         };
         (r, keys)
+    }
+
+    /// B-167: sub-floor ring is typed `RingSizeBelowMinimum`, not decoy-pool.
+    #[test]
+    fn ring_size_below_minimum_is_typed_reject() {
+        let (anchor_recipient, _keys) = alice_recipient();
+        let owned = one_real_owned_output(50_000_000_000);
+        let inputs = [&owned];
+        let pool = decoy_pool(20);
+        let mut r = rng();
+        let data = b"ring-floor";
+        let plan = StorageUploadPlan {
+            inputs: &inputs,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: 100_000,
+            },
+            data,
+            replication: 3,
+            chunk_size: None,
+            endowment_blinding: None,
+            endowment_params: &DEFAULT_ENDOWMENT_PARAMS,
+            fee_to_treasury_bps: 9000,
+            change_recipients: &[],
+            fee: 1_000_000,
+            extra: &[],
+            authorship_claims: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE - 1,
+            decoy_pool: &pool,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_storage_upload(plan) {
+            Err(crate::WalletError::RingSizeBelowMinimum { got, min }) => {
+                assert_eq!(got, crate::WALLET_MIN_RING_SIZE - 1);
+                assert_eq!(min, crate::WALLET_MIN_RING_SIZE);
+            }
+            other => panic!("expected RingSizeBelowMinimum, got {other:?}"),
+        }
     }
 
     #[test]
