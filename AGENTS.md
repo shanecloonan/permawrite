@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave75** (sage last_proven=5901; faucet-retry-F101b; F110; lag=597) | **B-15** wave76+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave76 UPLOAD FAIL** (troy F112 --mestroy; lag=612) | **B-15** fixed-runner wave77+ | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-187** (`e255c8ab`; CI `#29926146314` GREEN); **B-184**; **B-183** | **B-188** tenth→dual settle (claim base: `e255c8ab`) | After CI: tenth asymmetric settle; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-186** high-level F7 select fail-closed (`94cbfece`; watch CI `#29929300995`); **B-185** | **B-189** CLI F7 owned-UTXO preflight (claim base: `0299219f`) | Land after tip CI GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -381,7 +381,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-22 — lane 5 — claim B-189** (this commit): CLI F7 owned-UTXO preflight on send/upload while **CI `#29929300995`** covers B-186. Claim base `0299219f`. Body ready locally (unit PASS). `[skip ci]`.
+1. **2026-07-22 — lane 3 — B-15 wave76 UPLOAD FAIL**: **troy** funded (F101b) but upload died on `unknown option --mestroy` (F112 sage substring in --message). F45 lag=612 (>600). Runners fixed with word-boundary clone. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — claim B-189** (this commit): CLI F7 owned-UTXO preflight on send/upload while **CI `#29929300995`** covers B-186. Claim base `0299219f`. Body ready locally (unit PASS). `[skip ci]`.
 
 1. **2026-07-22 — lane 3 — B-15 wave75**: **sage** faucet-retry-F101b permanence **last_proven=5901** (commit `32e7ab2e`); F95 429+600s; F45 lag=597; claims 47->48. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 2. **2026-07-22 — lane 5 — B-186 high-level F7 select fail-closed** (`94cbfece`): `select_inputs_for_tx` returns `TxInputCountBelowMinimum` when single-UTXO cannot pad; PRIVACY honesty; privacy-floor smoke. Watch **CI `#29929300995`**.

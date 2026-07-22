@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–75; sage@**5901** faucet-retry-F101b PASS; tip~5901 ckpt=5290 lag=597; fifty-one proxy-proven; F107 wipe recovered in wave74.
+**Status:** DRAFT — waves 6–76; wave76 troy UPLOAD FAIL (F112 --mestroy from sage rename); tip~5908 ckpt=5290 lag=612 (>600); fixed runners; retry next.
+| troy | faucet-F101b | n/a | **no** | FAIL wave76 upload (F112 --mestroy tooling) |
 | sage | faucet-retry-F101b | n/a | yes | **5901** (wave75; proxy-prove PASS; F95) |
 | reed | faucet-F101b (post-wipe) | n/a | yes | **5886** (wave74; proxy-prove PASS; F107 recovered) |
 | opal | faucet-F101b | n/a | **no** | FAIL wave73 prove (F107 sticky mem=1 / local_only) |
