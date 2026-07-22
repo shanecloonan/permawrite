@@ -388,6 +388,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-07-22 — lane 4 — claim B-194** (this commit): early B-24bw tenth op1 asymmetric→absentee re-slash while **CI `#29942162752`** runs on B-193. Claim base `2dd978ed`. Lane5 owns **B-189**. `[skip ci]`.
 
+1. **2026-07-22 — lane 4 — claim B-194** (this commit): early B-24bw tenth op1 asymmetric→absentee re-slash while **CI `#29942162752`** runs on B-193. Claim base `2dd978ed`. Lane5 owns **B-189**. `[skip ci]`.
+
 1. **2026-07-22 — lane 4 — B-193 tenth asymmetric→absentee re-slash** (this commit): early B-24bv `b193_b5_tenth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29939450769` GREEN** on B-192. Elevates B-183. Full CI (no skip). Next: **B-194** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-189 CLI F7 WIP.
 
 1. **2026-07-22 — lane 3 — B-15 wave82**: **brynn** faucet-F101b permanence **last_proven=5982** (commit `96804c75`); F45 lag=683; claims 52->53. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
