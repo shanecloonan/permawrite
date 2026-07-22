@@ -298,6 +298,11 @@ if ($bootCkptPlan -notmatch "bootstrap-wallet-from-checkpoint-log-rehearsal-smok
     $bootCkptPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$softCkptPlan = (bash scripts/public-devnet-v1/light-scan-checkpoint-soft-rehearsal-smoke.sh) -join "`n"
+if ($softCkptPlan -notmatch "light-scan-checkpoint-soft-rehearsal-smoke: PASS plan-only") {
+    $softCkptPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $blockLogHealthPlan = (bash scripts/public-devnet-v1/assert-vps-block-log-health-rehearsal-smoke.sh --plan-only) -join "`n"
 if ($blockLogHealthPlan -notmatch "assert-vps-block-log-health-rehearsal-smoke: PASS plan-only") {
     $blockLogHealthPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

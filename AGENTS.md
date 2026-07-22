@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-164** privacy-doc honesty + Windows F45 soft twin (full CI). **B-161** tip `3113229f` (watch `#29882509412`). **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Landing **B-165** F45 soft rehearsal CI gate (full CI). **B-164** tip `07c30df0`. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
 | **4** Protocol | **B-160** (`4b0781a1`); **B-159** (`7ef832a7`); **B-158** (CI `#29878259419` GREEN) | **B-162** settle-reset→eighth dual-slash (claim base: `4b0781a1`) | After CI: **B-163** eighth→dual settle; live **B-32** needs 2nd host | Lane 1 CI |
-| **5** Privacy | **B-164** privacy-doc honesty + `light-scan-checkpoint-soft.ps1` (this commit); **B-161** (`3113229f`); **B-50** (`3df22fd3`); **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **5** Privacy | **B-165** F45 soft rehearsal CI gate (this commit); **B-164** (`07c30df0`); **B-161** (`3113229f`); **B-50** (`3df22fd3`); **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -241,7 +241,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-49 | VPS `vps-roll-mfnd.sh` tooling (hub+voters, no faucet) | 7 | **Done** (`284e803`) — live apply after CI GREEN |
 | B-50 | Checkpoint-log bootstrap honesty + helper | 7+5 | **Done** (docs+script + Rust auto-bootstrap `3df22fd3`) |
 | B-161 | mfn-cli heavy RPC timeout for `get_light_snapshot` (B-52 client twin) | 5 | **Landed** (this commit) — 180s/`MFN_HEAVY_RPC_TIMEOUT_MS` + in-CLI F45 soft; live `checkpoint_log_auto_bootstrap tip=5463` + `checkpoint_log_f45_soft_pass` |
-| B-164 | Privacy-doc honesty for B-50/B-161 + Windows `light-scan-checkpoint-soft.ps1` twin | 5 | **Landed** (this commit) — PRIVACY/CHECKPOINT_LOG + `.ps1` twin; Schnorr still hard |
+| B-164 | Privacy-doc honesty for B-50/B-161 + Windows `light-scan-checkpoint-soft.ps1` twin | 5 | **Landed** (`07c30df0`) — PRIVACY/CHECKPOINT_LOG + `.ps1` twin; Schnorr still hard |
+| B-165 | CI fail-closed gate for F45 soft twin + B-161 needles | 5 | **Landed** (this commit) — soft rehearsal smoke + ci-check wire; live tip~5523/5524 |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
 | B-52 | Observer proxy heavy RPC timeout + Windows B-50 twin | 7 | **Done** — F54/F56; `PROXY_HEAVY_RPC_TIMEOUT_MS=180000`; `.ps1` twin |
 | B-53 | Non-blocking faucet `/health` + VPS block-log assert | 7 | **Done** — F62 VPS cleared |
@@ -355,6 +356,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-21 — lane 5 — B-165 F45 soft rehearsal CI gate** (this commit): `light-scan-checkpoint-soft-rehearsal-smoke.sh`/`.ps1` + bootstrap smoke needles + ci-check wire. Local plan-only PASS. Live prove tip=5523 auto-bootstrap + F45 soft. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke.
 1. **2026-07-21 — lane 5 — B-164 privacy-doc honesty + Windows F45 soft twin** (this commit): PRIVACY/CHECKPOINT_LOG document B-161 heavy timeout + in-CLI F45 soft; add `light-scan-checkpoint-soft.ps1`; soft.sh notes B-161. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke.
 
 1. **2026-07-21 — lane 5 — claim B-164** (this commit): privacy-doc honesty for B-161 + Windows `light-scan-checkpoint-soft.ps1` twin while tip **CI `#29882509412`** runs on B-161. Claim base `3113229f`. *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke. `[skip ci]`.

@@ -23,6 +23,27 @@ grep -q "keepaliveTick" "$SCRIPT_DIR/faucet-http.mjs" || {
   echo "missing keepaliveTick tip-first keepalive in faucet-http.mjs (B-56)" >&2
   exit 1
 }
+
+# B-164/B-165: Windows F45 soft twin + B-161 in-CLI needles must not rot.
+[[ -f "$SCRIPT_DIR/light-scan-checkpoint-soft.ps1" ]] || {
+  echo "missing Windows twin light-scan-checkpoint-soft.ps1 (B-164/F45)" >&2
+  exit 1
+}
+grep -q "B-161" "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" || {
+  echo "missing B-161 note in light-scan-checkpoint-soft.sh" >&2
+  exit 1
+}
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+grep -q "MFN_HEAVY_RPC_TIMEOUT_MS" "$REPO_ROOT/mfn-cli/src/rpc.rs" || {
+  echo "missing MFN_HEAVY_RPC_TIMEOUT_MS in mfn-cli rpc.rs (B-161)" >&2
+  exit 1
+}
+grep -q "checkpoint_log_f45_soft_pass" "$REPO_ROOT/mfn-cli/src/light_wallet.rs" || {
+  echo "missing checkpoint_log_f45_soft_pass in light_wallet.rs (B-161)" >&2
+  exit 1
+}
+soft_plan="$(bash "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" --plan-only)"
+[[ "$soft_plan" == *"light-scan-checkpoint-soft: PASS plan-only"* ]] || { printf '%s\n' "$soft_plan" >&2; exit 1; }
 plan="$(bash "$SCRIPT_DIR/bootstrap-wallet-from-checkpoint-log.sh" --plan-only)"
 [[ "$plan" == *"bootstrap-wallet-from-checkpoint-log: PASS plan-only"* ]] || { printf '%s\n' "$plan" >&2; exit 1; }
 echo "bootstrap-wallet-from-checkpoint-log-rehearsal-smoke: PASS plan-only"
