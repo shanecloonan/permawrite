@@ -23,8 +23,8 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#29895397723` GREEN** on B-171; **B-15** PASS | *Idle* — watch B-173 head CI | Do not cancel healthy in_progress |
-| **B** Protocol/Privacy | **B-173** (`81bf95fe`, watch CI #1046); **B-174** (lane5 claim) | **B-175** settle-reset→ninth dual-slash (lane4) | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **A** RC/CI | **CI `#29895397723` GREEN** on B-171; watching B-173 `#29897006419` | *Idle* — do not cancel B-173 CI | Do not cancel healthy in_progress |
+| **B** Protocol/Privacy | **B-173** (`81bf95fe`, watch CI `#29897006419`); **B-171** | **B-175** settle-reset→ninth dual-slash (lane4) | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; **B-146**/**B-145**/**B-144** | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
 
 ### Hard locks (all seats)

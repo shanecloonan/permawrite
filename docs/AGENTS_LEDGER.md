@@ -585,6 +585,10 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 5 — pin CI #29884711182 GREEN on B-165** (this commit): tip  da9cd27 full matrix GREEN (Nightly dispatched). Lane5 Idle; Next after B-25: **B-35**/**B-37**/**B-19**. [skip ci].
 
+1. **2026-07-21 — lane 4 — B-166 eighth→asymmetric settle** (this commit): early B-24be `b166_b5_eighth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29887479996` GREEN** on B-163. Elevates B-156. Full CI (no skip). Next: **B-169** eighth→op1 asymmetric. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 JOIN smoke if any.
+
+1. **2026-07-21 — lane 4 — claim B-166** (this commit): early B-24be eighth→asymmetric settle while **CI `#29887479996`** runs on B-163. Claim base `9ae744ce`. *Observed (not staged):* lane-3 JOIN smoke if any. `[skip ci]`.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
