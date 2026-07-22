@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave87** (gryph last_proven=6040; faucet-retry; lag=737) | **B-15** wave88+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave88** (haven last_proven=6050; faucet-F101b; lag=751) | **B-15** wave89+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-198** (`ef3488ef`); **B-196** (CI `#29949333319` GREEN); **B-195** | **B-199** eleventh op1 asymmetric settle (claim base: `ef3488ef`) | After CI: eleventh empty both-miss; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-189** CLI F7 owned-UTXO preflight (`ecc565a1`; watch CI `#29946719956`); **B-186** (`94cbfece`; CI `#29929300995` GREEN); **B-185** | **B-197** WASM/CLI F7 faucet dual-send message parity (claim base: `ffb037ce`) | Land after tip CI GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -390,6 +390,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 3 — B-15 wave88**: **haven** faucet-F101b permanence **last_proven=6050** (commit `c6a012ca`); F45 lag=751; claims 58->59; session findings 80-88. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
 1. **2026-07-22 — lane 4 — claim B-199** (this commit): early B-24ca eleventh op1 asymmetric settle while **CI `#29951471550`** runs on B-198. Claim base `ef3488ef`. Lane5 owns **B-197**. `[skip ci]`.
 
