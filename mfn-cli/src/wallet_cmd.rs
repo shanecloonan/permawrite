@@ -11,7 +11,10 @@ use mfn_storage_operator::upload_artifact_store::{
     list_upload_artifacts, upload_artifacts_root, UploadArtifactSaveMeta,
 };
 use mfn_wallet::production_tx_rng;
-use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError, WALLET_MIN_RING_SIZE};
+use mfn_wallet::{
+    ClaimingIdentity, TransferRecipient, Wallet, WalletError, WALLET_MIN_RING_SIZE,
+    WALLET_MIN_TX_INPUTS,
+};
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha512};
 
@@ -428,6 +431,21 @@ pub fn wallet_backup_info(path: &Path, params: BackupInfoParams) -> Result<(), W
     Ok(())
 }
 
+/// Refuse send/upload when the wallet cannot meet the F7 two-input floor (**B-189**).
+///
+/// Surfaces an actionable CLI message (faucet dual-send / second UTXO) instead of
+/// only the low-level `TxInputCountBelowMinimum` string after coin selection.
+fn require_f7_owned_input_floor(wallet: &Wallet) -> Result<(), WalletCmdError> {
+    let owned = wallet.owned_count();
+    if owned < WALLET_MIN_TX_INPUTS {
+        return Err(WalletCmdError::Usage(format!(
+            "owned UTXO count {owned} below F7 privacy floor {WALLET_MIN_TX_INPUTS} \
+             (need a second spendable output; public faucet sends two transfers)"
+        )));
+    }
+    Ok(())
+}
+
 /// `wallet send` — scan, build CLSAG transfer, `submit_tx`, persist pending spends.
 pub fn wallet_send(
     path: &Path,
@@ -449,6 +467,7 @@ pub fn wallet_send(
     let mut wallet = file.to_wallet()?;
     file.apply_pending_spends(&mut wallet)?;
     let stats = sync_wallet_from_node(path, &mut wallet, &mut file, client)?;
+    require_f7_owned_input_floor(&wallet)?;
     let chain_state = fetch_chain_state(client)?;
 
     let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
@@ -600,6 +619,7 @@ pub fn wallet_upload(
     let mut wallet = file.to_wallet()?;
     file.apply_pending_spends(&mut wallet)?;
     let stats = sync_wallet_from_node(path, &mut wallet, &mut file, client)?;
+    require_f7_owned_input_floor(&wallet)?;
     let chain_state = fetch_chain_state(client)?;
 
     let bucket_len = storage_size_bucket(data.len() as u64);
@@ -1070,6 +1090,19 @@ mod tests {
     fn default_ring_size_equals_wallet_min_ring_size() {
         assert_eq!(DEFAULT_RING_SIZE, WALLET_MIN_RING_SIZE);
         assert_eq!(DEFAULT_RING_SIZE, 16);
+    }
+
+    /// B-189: empty / single-UTXO wallets must fail closed before send/upload build.
+    #[test]
+    fn require_f7_owned_input_floor_rejects_below_two() {
+        let wallet = Wallet::from_seed(&[0x42u8; 32]);
+        let err = require_f7_owned_input_floor(&wallet).expect_err("empty wallet");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("F7 privacy floor") && msg.contains("faucet"),
+            "expected actionable F7 message, got {msg}"
+        );
+        assert!(msg.contains(&WALLET_MIN_TX_INPUTS.to_string()));
     }
 
     #[test]

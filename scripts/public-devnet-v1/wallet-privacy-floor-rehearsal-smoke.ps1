@@ -46,11 +46,13 @@ foreach ($pair in @(
   @("mfn-wallet/src/spend.rs", "TxInputCountBelowMinimum"),
   @("mfn-wallet/src/upload.rs", "TxInputCountBelowMinimum"),
   @("mfn-wallet/src/wallet.rs", "TxInputCountBelowMinimum"),
-  @("mfn-wallet/src/wallet.rs", "select_inputs_for_tx_single_utxo_fails_closed")
+  @("mfn-wallet/src/wallet.rs", "select_inputs_for_tx_single_utxo_fails_closed"),
+  @("mfn-cli/src/wallet_cmd.rs", "require_f7_owned_input_floor"),
+  @("mfn-cli/src/wallet_cmd.rs", "require_f7_owned_input_floor_rejects_below_two")
 )) {
   $txt = Get-Content -Raw (Join-Path $RepoRoot $pair[0])
   if ($txt -notmatch [regex]::Escape($pair[1])) {
-    Write-Error "missing needle '$($pair[1])' in $($pair[0]) (B-185/B-186)"
+    Write-Error "missing needle '$($pair[1])' in $($pair[0]) (B-185/B-186/B-189)"
   }
 }
 Write-Output "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"

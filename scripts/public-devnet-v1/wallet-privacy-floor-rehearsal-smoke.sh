@@ -90,4 +90,12 @@ grep -q "select_inputs_for_tx_single_utxo_fails_closed" "$REPO_ROOT/mfn-wallet/s
   echo "missing B-186 single-UTXO fail-closed unit (B-186)" >&2
   exit 1
 }
+grep -q "require_f7_owned_input_floor" "$REPO_ROOT/mfn-cli/src/wallet_cmd.rs" || {
+  echo "missing CLI F7 owned-UTXO preflight (B-189)" >&2
+  exit 1
+}
+grep -q "require_f7_owned_input_floor_rejects_below_two" "$REPO_ROOT/mfn-cli/src/wallet_cmd.rs" || {
+  echo "missing B-189 CLI F7 preflight unit (B-189)" >&2
+  exit 1
+}
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
