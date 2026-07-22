@@ -24,7 +24,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **CI `#29929300995` GREEN** (B-186); watch `#29931611895` (B-188) | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-190** (this tip); **B-188** GREEN | *Idle* — next **B-191** op1 twin | live **B-32** needs 2nd host |
+| **B** Protocol/Privacy | **B-190** (`fdfa6ba6`) | **B-191** tenth op1 asymmetric settle (claim base: `fdfa6ba6`) | After CI: tenth empty; live **B-32** needs 2nd host |
 | **C** Testnet/Onboarding | **B-15** wave76+ (F112 tooling) | Doing per AGENTS | No parallel Hetzner JOIN |
 
 
