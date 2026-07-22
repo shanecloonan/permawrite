@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Lane5 claims **B-189** (CLI F7 owned-UTXO preflight) while **CI `#29929300995`** covers B-186 tip `94cbfece`. No Rust push until tip GREEN. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** Landing **B-188** after **CI `#29926146314` GREEN** on B-187 tip `e255c8ab`. Opens tenth-offense prove matrix. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave76 UPLOAD FAIL** (troy F112 --mestroy; lag=612) | **B-15** fixed-runner wave77+ | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-187** (`e255c8ab`; CI `#29926146314` GREEN); **B-184**; **B-183** | **B-188** tenth→dual settle (claim base: `e255c8ab`) | After CI: tenth asymmetric settle; live **B-32** needs 2nd host | Lane 1 CI |
+| **4** Protocol | **B-188** tenth→dual settle (this commit); **B-187** (`e255c8ab`, CI `#29926146314` GREEN); **B-184** | *Idle* | **B-189** tenth→asymmetric settle; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-186** high-level F7 select fail-closed (`94cbfece`; watch CI `#29929300995`); **B-185** | **B-189** CLI F7 owned-UTXO preflight (claim base: `0299219f`) | Land after tip CI GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -246,7 +246,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-167 | Ring-size no-silent-downgrade: typed `RingSizeBelowMinimum` + CLI/WASM refuse `< WALLET_MIN_RING_SIZE` | 5 | **Landed** (`894ca63f`; covered by **CI `#29888900634` GREEN** on B-166 tip) |
 | B-172 | CI fail-closed gate for B-167/B-168 privacy floors (`WALLET_MIN_RING_SIZE` + F7 inputs) | 5 | **Landed** (`1ce0ed2e`; covered by tip **CI `#29893569581` GREEN**) |
 | B-185 | Low-level `build_transfer`/`build_storage_upload` fail-closed on `< WALLET_MIN_TX_INPUTS` (F7) | 5 | **Landed** (`89089aca`; **CI `#29921156035` GREEN** on B-183 tip) — mempool dual-fund + heavy-RPC env lock |
-| B-188 | Tenth dual-slash then dual settle drain (early B-24br) | 4 | **Claimed** — elevates B-176 after B-187 CI GREEN |
+| B-188 | Tenth dual-slash then dual settle drain (early B-24br) | 4 | **Landed** (this commit); elevates B-176; full CI |
 | B-187 | Settle-reset then tenth dual-slash treasury identity (early B-24bq) | 4 | **Landed** (this commit); elevates B-175; full CI |
 | B-186 | High-level `select_inputs_for_tx` fail-closed on single-UTXO (F7) | 5 | **Landed** (`94cbfece`) — elevates B-185; watch tip CI `#29929300995` |
 | B-189 | CLI `wallet send`/`upload` F7 owned-UTXO preflight (actionable faucet message) | 5 | **Claimed** — elevates B-186 into operator CLI UX |
@@ -380,6 +380,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 4 — B-188 tenth→dual settle** (this commit): early B-24br `b188_b5_tenth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29926146314` GREEN** on B-187. Elevates B-176. Full CI (no skip). Next: **B-189** tenth→asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 F7 wallet WIP.
 
 1. **2026-07-22 — lane 3 — B-15 wave76 UPLOAD FAIL**: **troy** funded (F101b) but upload died on `unknown option --mestroy` (F112 sage substring in --message). F45 lag=612 (>600). Runners fixed with word-boundary clone. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 2. **2026-07-22 — lane 5 — claim B-189** (this commit): CLI F7 owned-UTXO preflight on send/upload while **CI `#29929300995`** covers B-186. Claim base `0299219f`. Body ready locally (unit PASS). `[skip ci]`.
