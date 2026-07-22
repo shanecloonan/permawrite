@@ -518,6 +518,25 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 4 — pin B-153 land on mislabeled tip** (this commit): early B-24au `b153_b5_sixth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles` is in `cd3d37ae` (subject says B-152 re-land). Completes sixth-offense re-slash pair with B-152. Watch **CI `#29872307794`**. Next: **B-154** settle-reset→seventh dual-slash. Still blocked on 2nd host for live **B-32**. `[skip ci]`.
 
+1. **2026-07-21 — lane 5 — B-50 follow-up Rust auto-bootstrap** (this commit): `light-scan --checkpoint-log` pins from log max tip via `get_light_snapshot` when wallet lacks a light checkpoint; prints `checkpoint_log_auto_bootstrap tip=…`; unit tests + JOIN/PRIVACY/CHECKPOINT_LOG honesty. Closes §6 7→5. Prior **CI `#29876590150` GREEN** on B-157. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 join-testnet-rehearsal-smoke/.
+1. **2026-07-21 — lane 4 — claim B-158** (this commit): early B-24az seventh-slash→empty both-miss while **CI `#29876590150`** runs on B-157. Claim base `8d6e8203`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — B-157 seventh-slash→op1 asymmetric settle + B-156 rustfmt fix** (this commit): early B-24ay `b157_b5_seventh_dual_slash_then_op1_asymmetric_settle_drain_identity`; local release PASS. Fix-forward: remove extra blanks after B-156 (CI `#29876274630` rustfmt FAIL). Completes seventh-offense asymmetric settle pair. Full CI (no skip). Next: **B-158** seventh empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+1. **2026-07-21 — lane 4 — claim B-157** (this commit): early B-24ay seventh-slash→op1 asymmetric settle while **CI `#29876274630`** runs on B-155/B-156 tip. Claim base `c3ebb5ab`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — pin B-156 land on mislabeled tip** (this commit): early B-24ax seventh→asymmetric settle is in `c3ebb5ab` (subject says B-155). Elevates B-149. Watch **CI `#29876274630`**. Next: **B-157** op1 twin. Still blocked on 2nd host for live **B-32**. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — claim B-156** (this commit): early B-24ax seventh dual-slash→asymmetric settle while **CI `#29876214263`** runs on B-155. Claim base `7d3ba35d`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — B-155 seventh dual-slash→dual settle** (this commit): early B-24aw `b155_b5_seventh_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29874504154` GREEN** on B-154. Elevates B-148. Full CI (no skip). Next: **B-156** seventh asymmetric. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+1. **2026-07-21 — lane 4 — claim B-155** (this commit): early B-24aw seventh dual-slash→dual settle while **CI `#29874504154`** runs on B-154. Claim base `dd268c1b`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — pin B-153 + CI `#29872307794` GREEN** (this commit): B-153 op1 twin was in B-152 tip `cd3d37ae`; CI GREEN closes sixth-offense re-slash pair. Next: **B-154** settle-reset→seventh dual-slash. Still blocked on 2nd host for live **B-32**. `[skip ci]`.
+
+1. **2026-07-21 — lane 4 — B-154 settle-reset→seventh dual-slash** (this commit): early B-24av `b154_b5_settle_reset_then_seventh_dual_slash_treasury_identity`; local debug PASS. **CI `#29872307794` GREEN** on B-152/B-153. Elevates B-147. Full CI (no skip). Next: **B-155** seventh→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
