@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–60; blake@**5729** faucet-F101b PASS (closes wave59 tall-tip fund fail); tip~5729 ckpt=5290 lag=418; claims=34; thirty-seven proxy-proven.
+**Status:** DRAFT — waves 6–61; cleo@**5741** faucet-F101b PASS (F110 near-tip; 0 bal TIMEOUT); tip~5741 ckpt=5290 lag=441; claims=35; thirty-eight proxy-proven.
+| cleo | faucet-F101b | n/a | yes | **5741** (wave61; proxy-prove PASS; F110) |
 | blake | faucet-F101b | n/a | yes | **5729** (wave60; proxy-prove PASS) |
 | aria | faucet stalled + bal TIMEOUT | n/a | **no** | FAIL wave59 (F109/F99 tall-tip) |
 | zion | faucet-F101b | n/a | yes | **4823** (wave58; proxy-prove PASS) |
@@ -66,7 +67,7 @@
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 | zoe | faucet (post-wipe) | n/a | yes | **4533** (wave34; proxy-prove PASS) |
 
-Thirty-seven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Thirty-eight wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -137,3 +138,5 @@ Thirty-seven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/osc
 7. Do not restart faucet-http / run parallel Hetzner JOIN during evidence windows.
 
 38. **F110 (wave60)** — deep Path A pin+balance (ckpt_max / ckpt−50) still TIMEOUT at 400s on tip~5700; near-tip ladder + early F101b on owned=1 required. F109 poll≥100×5s validated (faucet done ~181s).
+
+39. **F110 validated (wave61)** — near-tip ladder + early F101b on owned=1 cut wall time ~43→~22 min; zero bal TIMEOUTs at tip~5740.

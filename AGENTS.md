@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave60** (blake last_proven=5729; faucet-F101b; F45 lag=418; F109/F110) | **B-15** wave61+ permanence (near-tip pin harden) | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave61** (cleo last_proven=5741; faucet-F101b; F110; F45 lag=441) | **B-15** wave62+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-178** (`faa97ba7`); **B-176** (CI `#29900841536` GREEN); **B-175**/**B-173** | **B-179** ninth op1 asymmetric (claim base: `faa97ba7`) | After CI: ninth empty both-miss; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-180** (`eef017ff`; covered by tip CI `#29905438517` on B-178); **B-177** (`fe4bfc05`, CI `#29903453186` GREEN); **B-174** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -372,7 +372,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-22 — lane 3 — B-15 wave60**: **blake** faucet-F101b permanence **last_proven=5729** (commit `e40023df`); faucet done 181465ms (F109 poll OK); F110 deep-pin TIMEOUT×3; F45 lag=418; claims 33→34. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, lane-4 apply_block if dirty.
+1. **2026-07-22 — lane 3 — B-15 wave61**: **cleo** faucet-F101b permanence **last_proven=5741** (commit `b066b4bd`); F110 validated (0 bal TIMEOUT; ~22 min); F45 lag=441; claims 34→35. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, lane-4 dirty if any.
+2. **2026-07-22 — lane 3 — B-15 wave60**: **blake** faucet-F101b permanence **last_proven=5729** (commit `e40023df`); faucet done 181465ms (F109 poll OK); F110 deep-pin TIMEOUT×3; F45 lag=418; claims 33→34. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, lane-4 apply_block if dirty.
 2. **2026-07-22 — lane 5 — pin B-180 awaiting tip CI** (this commit): `eef017ff` on main; own CI `#29905430493` cancelled by B-178 tip `faa97ba7`. Watch **CI `#29905438517`** for GREEN covering B-180. `[skip ci]`.
 
 1. **2026-07-22 — lane 4 — claim B-179** (this commit): early B-24bm ninth op1 asymmetric while **CI `#29905438517`** runs on B-178. Claim base `faa97ba7`. `[skip ci]`.
