@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-21):** Landing **B-161** Rust body (fix-forward; 872f1ee1 evidence-only). **CI #29879940201 GREEN** on evidence tip. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-21):** Claiming **B-164** privacy-doc honesty + Windows F45 soft twin while **CI `#29882509412`** proves B-161 tip `3113229f`. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
 | **4** Protocol | **B-160** (`4b0781a1`); **B-159** (`7ef832a7`); **B-158** (CI `#29878259419` GREEN) | **B-162** settle-reset→eighth dual-slash (claim base: `4b0781a1`) | After CI: **B-163** eighth→dual settle; live **B-32** needs 2nd host | Lane 1 CI |
-| **5** Privacy | **B-161** heavy get_light_snapshot CLI timeout + F45 soft (this commit); **B-50 follow-up** (3df22fd3); **B-16** (49d28f9) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **5** Privacy | **B-161** heavy CLI snapshot timeout (`3113229f`); **B-50** (`3df22fd3`); **B-16** (`49d28f9`) | **B-164** privacy-doc honesty + `light-scan-checkpoint-soft.ps1` (claim base: `3113229f`) | After land: Idle; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -173,7 +173,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 7 | human | **B-22:** near-tip checkpoint | **Done** (Path A tip **4148** + public seed anchors; seed offline on VPS only) |
 | planning | 1+7 | **B-27:** use ROADMAP work package — TL-5/6 archives insufficient | **Done** (soak tooling+live PASS `9f5ed4d`) |
 | planning | 6 | **Arm B-40 + B-13a** the day TL-9/L4 closes — work packages in ROADMAP; do not stay idle | **Open** (fires on L4) |
-| 3 | 5+7 | **JOIN tall-tip UX:** heidi loop PASS (wave15). F45 soft; F75–F80 (owned≥2, pin hygiene, post-pin tip catch-up). SUMMARY draft next. | **Open** (SUMMARY archive) |
+| 3 | 5+7 | **JOIN tall-tip UX:** heidi loop PASS (wave15). F45 soft (B-161 in-CLI + B-164 Windows twin); F75–F80 (owned≥2, pin hygiene, post-pin tip catch-up). SUMMARY draft next. | **Open** (SUMMARY archive; lane5 F45 soft Done) |
 | 3 | 7+4 | **Wave10 F62/F65:** VPS not F62 (chain.blocks 6.3MiB, get_block PASS). F65 last_proven=4071 needs B-45 mfnd roll after CI+B-51. Evidence `b53-…` + wave10 | **Done** (F62 VPS); **Done** (mfnd roll + B-68) |
 | 7 | 3 | **B-53:** faucet `/health` no longer blocks on keepalive lock; use `assert-vps-block-log-health.sh` for F62 checks | **Done** (B-140: block-log PASS tip=5291; faucet health ok) |
 | 7 | 1+4 | **CI `#29715111633`:** produce-smoke timeout fixed in B-51 (60s); **b3_legacy** flake = **B-60** (`7ab86ad`) | **Done** |
@@ -241,6 +241,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-49 | VPS `vps-roll-mfnd.sh` tooling (hub+voters, no faucet) | 7 | **Done** (`284e803`) — live apply after CI GREEN |
 | B-50 | Checkpoint-log bootstrap honesty + helper | 7+5 | **Done** (docs+script + Rust auto-bootstrap `3df22fd3`) |
 | B-161 | mfn-cli heavy RPC timeout for `get_light_snapshot` (B-52 client twin) | 5 | **Landed** (this commit) — 180s/`MFN_HEAVY_RPC_TIMEOUT_MS` + in-CLI F45 soft; live `checkpoint_log_auto_bootstrap tip=5463` + `checkpoint_log_f45_soft_pass` |
+| B-164 | Privacy-doc honesty for B-50/B-161 + Windows `light-scan-checkpoint-soft.ps1` twin | 5 | **Claimed** — closes JOIN tall-tip F45 soft Windows gap; PRIVACY/CHECKPOINT_LOG sync |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
 | B-52 | Observer proxy heavy RPC timeout + Windows B-50 twin | 7 | **Done** — F54/F56; `PROXY_HEAVY_RPC_TIMEOUT_MS=180000`; `.ps1` twin |
 | B-53 | Non-blocking faucet `/health` + VPS block-log assert | 7 | **Done** — F62 VPS cleared |
@@ -353,6 +354,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-21 — lane 5 — claim B-164** (this commit): privacy-doc honesty for B-161 + Windows `light-scan-checkpoint-soft.ps1` twin while tip **CI `#29882509412`** runs on B-161. Claim base `3113229f`. *Observed (not staged):* lane-4 `apply_block_proposals.rs`, lane-3 JOIN smoke. `[skip ci]`.
 
 1. **2026-07-21 — lane 5 — B-161 heavy CLI snapshot timeout + F45 soft** (this commit): get_light_snapshot uses 180s/MFN_HEAVY_RPC_TIMEOUT_MS; in-CLI F45 soft-pass; persist pin on mid-scan failure. Fix-forward after 872f1ee1 evidence-only wipe. Full CI (no skip). *Observed (not staged):* lane-4 pply_block_proposals.rs, lane-3 join-testnet-rehearsal-smoke/.
 
