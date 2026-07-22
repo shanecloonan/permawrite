@@ -141,7 +141,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-166** eighth→asymmetric settle (this commit); **B-163** (`9ae744ce`, CI `#29887479996` GREEN); **B-162** | *Idle* | Next: **B-168** eighth→op1 asymmetric; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-166** eighth→asymmetric settle (this commit); **B-163** (`9ae744ce`, CI `#29887479996` GREEN); **B-162** | *Idle* | Next: **B-169** eighth→op1 asymmetric; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-167** ring-size fail-closed (this commit); **B-165** (`0da9cd27`); **B-164** (`07c30df0`); **B-161** (`3113229f`); **B-50** (`3df22fd3`) | *Idle* | Next: **B-168** WASM F7 floor; after B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -345,7 +345,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-162 | Settle-reset then eighth dual-slash treasury identity (early B-24bc) | 4 | **Landed** (this commit); elevates B-154; full CI |
 | B-163 | Eighth dual-slash then dual-settle drain (early B-24bd) | 4 | **Landed** (this commit); elevates B-155; full CI |
 | B-166 | Eighth dual-slash then asymmetric settle drain (early B-24be) | 4 | **Landed** (this commit); elevates B-156; full CI |
-| B-168 | Eighth dual-slash then op1 asymmetric settle drain (early B-24bf) | 4 | Next after B-166 — elevates B-157 |
+| B-169 | Eighth dual-slash then op1 asymmetric settle drain (early B-24bf) | 4 | Next after B-166 — elevates B-157 |
 | B-144 | Windows/MSYS JOIN: `lib-python3.sh` + mfn-cli.exe resolve | 3 | **Landed** (`cc79bfe`) — unblocks B-15 bootstrap on hosts without `python3` |
 | B-145 | Tall-tip bootstrap `get_light_snapshot` long timeout (python NDJSON) | 3 | **Landed** (`9ca1124`) — default 300s; unblocks F67 pin at tip~5290 |
 | B-146 | fund-wallet-http wait: plain light-scan after faucet (F101b) | 3 | **Landed** (this commit) — hard checkpoint-log F45 was aborting UTXO discovery |
@@ -361,7 +361,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-21 — lane 4 — B-166 eighth→asymmetric settle** (this commit): early B-24be `b166_b5_eighth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29887479996` GREEN** on B-163. Elevates B-156. Full CI (no skip). Next: **B-168** eighth→op1 asymmetric. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 JOIN smoke if any.
+1. **2026-07-21 — lane 4 — B-166 eighth→asymmetric settle** (this commit): early B-24be `b166_b5_eighth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29887479996` GREEN** on B-163. Elevates B-156. Full CI (no skip). Next: **B-169** eighth→op1 asymmetric. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 JOIN smoke if any.
 
 1. **2026-07-21 — lane 4 — claim B-166** (this commit): early B-24be eighth→asymmetric settle while **CI `#29887479996`** runs on B-163. Claim base `9ae744ce`. *Observed (not staged):* lane-3 JOIN smoke if any. `[skip ci]`.
 
