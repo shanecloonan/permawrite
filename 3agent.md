@@ -23,8 +23,8 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-170 head CI (also re-proves B-168/B-169); **B-15** PASS | *Idle* — watch B-170 | Do not cancel healthy in_progress; fix-forward if B-168 wasm flake recurs |
-| **B** Protocol/Privacy | **B-172** (lane5, this commit); **B-168**; **B-170** | **B-171** (lane4) | After B-25: **B-35**/**B-37**/**B-19**; live **B-32** needs 2nd host |
+| **A** RC/CI | **CI `#29893569581` GREEN** on B-170; watch B-171 tip CI | *Idle* — do not cancel healthy in_progress | Do not cancel healthy in_progress |
+| **B** Protocol/Privacy | **B-171** (this commit); **B-172** (lane5); **B-170** | *Idle* — next **B-173** eighth op1 absentee re-slash | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** JOIN PASS tip=5322; **B-146**/**B-145**/**B-144** | *Idle* | **B-42** invite-load live; Path A republish; human sign-off |
 
 ### Hard locks (all seats)
