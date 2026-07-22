@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Claiming **B-194** tenth op1 asymmetric→absentee re-slash while **CI `#29942162752`** runs on B-193 tip `2dd978ed`. **CI `#29939450769` GREEN** on B-192. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** Landing **B-194** after **CI `#29942162752` GREEN** on B-193 tip `2dd978ed`. Completes tenth-offense re-slash pair. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave83** (coral last_proven=5993; faucet-F101b; lag=693) | **B-15** wave84+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-193** (`2dd978ed`); **B-192** (CI `#29939450769` GREEN); **B-191** | **B-194** tenth op1 asymmetric→absentee re-slash (claim base: `2dd978ed`) | After CI: settle-reset→eleventh; live **B-32** needs 2nd host | Lane 1 CI |
+| **4** Protocol | **B-194** tenth op1 asymmetric→absentee re-slash (this commit); **B-193** (`2dd978ed`, CI `#29942162752` GREEN); **B-192** | *Idle* | settle-reset→eleventh dual-slash; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-186** (`94cbfece`; **CI `#29929300995` GREEN**); **B-185** | **B-189** CLI F7 owned-UTXO preflight (claim base: `4d19b71f`) | Land after tip CI `#29934475574` GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -249,7 +249,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-188 | Tenth dual-slash then dual settle drain (early B-24br) | 4 | **Landed** (this commit); elevates B-176; full CI |
 | B-187 | Settle-reset then tenth dual-slash treasury identity (early B-24bq) | 4 | **Landed** (this commit); elevates B-175; full CI |
 | B-186 | High-level `select_inputs_for_tx` fail-closed on single-UTXO (F7) | 5 | **Landed** (`94cbfece`; **CI `#29929300995` GREEN**) — elevates B-185 |
-| B-194 | Tenth-offense op1 asymmetric then absentee re-slash (early B-24bw) | 4 | **Claimed** — B-193 op1 twin after B-193 CI GREEN |
+| B-194 | Tenth-offense op1 asymmetric then absentee re-slash (early B-24bw) | 4 | **Landed** (this commit); completes tenth re-slash pair with B-193; full CI |
 | B-193 | Tenth-offense asymmetric then absentee re-slash (early B-24bv) | 4 | **Landed** (this commit); elevates B-183; full CI |
 | B-192 | Tenth dual-slash then empty both-miss (early B-24bu) | 4 | **Landed** (this commit); closes tenth prove matrix; elevates B-181; full CI |
 | B-191 | Tenth dual-slash then op1 asymmetric settle drain (early B-24bt) | 4 | **Landed** (this commit); completes tenth asymmetric pair with B-190; full CI |
@@ -385,6 +385,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 4 — B-194 tenth op1 asymmetric→absentee re-slash** (this commit): early B-24bw `b194_b5_tenth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29942162752` GREEN** on B-193. Completes tenth-offense re-slash pair with B-193. Elevates B-184. Full CI (no skip). Next: settle-reset→eleventh dual-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-189 CLI F7 WIP.
 
 1. **2026-07-22 — lane 3 — B-15 wave83**: **coral** faucet-F101b permanence **last_proven=5993** (commit `86de6d8f`); F95 429+600s; F45 lag=693; claims 53->54; session findings waves80-83. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
