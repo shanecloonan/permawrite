@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–72; nico@**5863** faucet-F101b PASS; tip~5863 ckpt=5290 lag=564; claims=46; forty-nine proxy-proven.
+**Status:** DRAFT — waves 6–73; wave73 opal PROVE FAIL (F107 sticky mem=1); tip~5874 ckpt=5290 lag=574; wipe+resync before wave74.
+| opal | faucet-F101b | n/a | **no** | FAIL wave73 prove (F107 sticky mem=1 / local_only) |
 | nico | faucet-F101b | n/a | yes | **5863** (wave72; proxy-prove PASS; F110) |
 | mira | faucet-F101b | n/a | yes | **5853** (wave71; proxy-prove PASS; F110) |
 | lena | faucet-F101b | n/a | yes | **5842** (wave70; proxy-prove PASS; F110) |
@@ -153,3 +154,5 @@ Forty-nine wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar
 39. **F110 validated (wave61)** — near-tip ladder + early F101b on owned=1 cut wall time ~43→~22 min; zero bal TIMEOUTs at tip~5740.
 
 40. **F95 reconfirmed (wave66)** — back-to-back density waves hit faucet 429; 600s wait + faucet-retry-F101b still reaches permanence. Space >=15m or budget the idle.
+
+42. **F107/F111 (wave73)** — Fresh upload can stick `local_only` with local mempool=1 while proxy mem=0; tip_id diverge; wipe observer data dir (not restart-only) before next permanence wave.
