@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–83; coral@5993 PASS; tip~5993 ckpt=5290 lag=693; fifty-seven proxy-proven.
+**Status:** DRAFT — waves 6–84; dante@6002 PASS; tip~6002 ckpt=5290 lag=704; fifty-eight proxy-proven.
+| dante | faucet-F101b | n/a | yes | **6002** (wave84; proxy-prove PASS; F110; lag>700) |
 | coral | faucet-F101b | n/a | yes | **5993** (wave83; proxy-prove PASS; F95) |
 | brynn | faucet-F101b | n/a | yes | **5982** (wave82; proxy-prove PASS; F110) |
 | aster | faucet-F101b | n/a | yes | **5972** (wave81; proxy-prove PASS; post-wipe) |
