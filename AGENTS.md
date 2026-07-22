@@ -244,7 +244,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-164 | Privacy-doc honesty for B-50/B-161 + Windows `light-scan-checkpoint-soft.ps1` twin | 5 | **Landed** (`07c30df0`) — PRIVACY/CHECKPOINT_LOG + `.ps1` twin; Schnorr still hard |
 | B-165 | CI fail-closed gate for F45 soft twin + B-161 needles | 5 | **Landed** (`0da9cd27`; **CI `#29884711182` GREEN**) — soft rehearsal smoke + ci-check wire; live tip~5523/5524 |
 | B-167 | Ring-size no-silent-downgrade: typed `RingSizeBelowMinimum` + CLI/WASM refuse `< WALLET_MIN_RING_SIZE` | 5 | **Landed** (`894ca63f`; covered by **CI `#29888900634` GREEN** on B-166 tip) |
-| B-172 | CI fail-closed gate for B-167/B-168 privacy floors (WALLET_MIN_RING_SIZE + F7 inputs) | 5 | **Claimed** (this commit) — rehearsal smoke + upload twin tests |
+| B-172 | CI fail-closed gate for B-167/B-168 privacy floors (`WALLET_MIN_RING_SIZE` + F7 inputs) | 5 | **Landed** (`1ce0ed2e`; covered by tip **CI `#29893569581` GREEN**) |
 | B-168 | WASM F7 two-input floor + F45/WASM doc honesty | 5 | **Landed** (this commit) — WASM fail-closed `<2` inputs; F45 soft CLI-only doc honesty |
 | B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Landed** — durable-only block/fraud dial; skip quarantine for non-durable peers; GHA smoke budget 60s |
 | B-52 | Observer proxy heavy RPC timeout + Windows B-50 twin | 7 | **Done** — F54/F56; `PROXY_HEAVY_RPC_TIMEOUT_MS=180000`; `.ps1` twin |
