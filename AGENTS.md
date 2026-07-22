@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave78** (wynn last_proven=5932; faucet-F101b; F110; lag=634) | **B-15** wave79+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave79** (yukon last_proven=5947; faucet-retry-F101b; lag=643) | **B-15** wave80+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-190** (`fdfa6ba6`); **B-188** (CI `#29931611895` GREEN); **B-187** | **B-191** tenth op1 asymmetric settle (claim base: `fdfa6ba6`) | After CI: tenth empty both-miss; live **B-32** needs 2nd host | Lane 1 CI |
 | **5** Privacy | **B-186** (`94cbfece`; **CI `#29929300995` GREEN**); **B-185** | **B-189** CLI F7 owned-UTXO preflight (claim base: `4d19b71f`) | Land after tip CI `#29934475574` GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -383,7 +383,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-22 — lane 5 — B-189 hold for tip CI** (this commit): CLI F7 preflight ready; wait for **CI `#29934475574`** on B-190 (do not cancel). Claim base `4d19b71f`. **CI `#29931611895` GREEN** on B-188. `[skip ci]`.
+1. **2026-07-22 — lane 3 — B-15 wave79**: **yukon** faucet-retry-F101b permanence **last_proven=5947** (commit `f27142c1`); F45 lag=643; claims 50->51. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — B-189 hold for tip CI** (this commit): CLI F7 preflight ready; wait for **CI `#29934475574`** on B-190 (do not cancel). Claim base `4d19b71f`. **CI `#29931611895` GREEN** on B-188. `[skip ci]`.
 
 1. **2026-07-22 — lane 4 — claim B-191** (this commit): early B-24bt tenth op1 asymmetric settle while **CI `#29934475574`** runs on B-190. Claim base `fdfa6ba6`. `[skip ci]`.
 
