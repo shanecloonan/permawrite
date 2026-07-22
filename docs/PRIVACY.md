@@ -27,7 +27,8 @@ The chain still verifies:
 > **Ring size is consensus law.** Production [`ConsensusParams`](../mfn-consensus/src/block/state.rs)
 > enforce `min_ring_size = uniform_ring_size = 16` (Monero parity). [`verify_transaction`](../mfn-consensus/src/transaction/verify.rs)
 > rejects any input whose ring is smaller or non-uniform. Reference wallets (`WALLET_MIN_RING_SIZE`),
-> the CLI, and WASM JSON builders default to 16 and **fail closed** on lower values via
+> the CLI (`DEFAULT_RING_SIZE` is an alias of that constant — **B-174**), and WASM JSON builders
+> default to 16 and **fail closed** on lower values via
 > [`WalletError::RingSizeBelowMinimum`](../mfn-wallet/src/error.rs) — never silently clamp and
 > never mislabel a sub-floor ring as a decoy-pool shortage (**B-167**).
 

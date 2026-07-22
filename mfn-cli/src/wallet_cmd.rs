@@ -1064,6 +1064,14 @@ mod tests {
         ))
     }
 
+    /// B-174: CLI default ring must stay locked to the wallet/consensus floor
+    /// (no silent drift of DEFAULT_RING_SIZE off WALLET_MIN_RING_SIZE).
+    #[test]
+    fn default_ring_size_equals_wallet_min_ring_size() {
+        assert_eq!(DEFAULT_RING_SIZE, WALLET_MIN_RING_SIZE);
+        assert_eq!(DEFAULT_RING_SIZE, 16);
+    }
+
     #[test]
     fn wallet_restore_writes_seed_and_respects_force() {
         let path = temp_wallet_path("restore");

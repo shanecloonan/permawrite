@@ -40,6 +40,10 @@ grep -q "F7 privacy floor" "$REPO_ROOT/mfn-wasm/src/transfer_core.rs" || {
   echo "missing F7 privacy floor needle in transfer_core (B-168)" >&2
   exit 1
 }
+grep -q "DEFAULT_RING_SIZE: usize = WALLET_MIN_RING_SIZE" "$REPO_ROOT/mfn-cli/src/wallet_cmd.rs" || {
+  echo "missing DEFAULT_RING_SIZE=WALLET_MIN_RING_SIZE (B-174)" >&2
+  exit 1
+}
 grep -q "CLI-only" "$REPO_ROOT/docs/PRIVACY.md" || {
   echo "missing F45 CLI-only honesty in PRIVACY.md (B-168)" >&2
   exit 1

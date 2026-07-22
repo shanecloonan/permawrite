@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-22):** Landing **B-174** after **CI `#29897006419` GREEN** on B-173. Lane4 **B-175** claimed (docs-only). **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-22):** Fix-forward **B-174** body after evidence-only tip 446c53cb. **CI #29897006419 GREEN** on B-173. **B-175** (8b6da3e8) landed. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15** JOIN archive PASS (`9974828`; tip=5322); **B-146**/**B-145**/**B-144** | *Idle* | Human SUMMARY sign-off; hand **B-42** to lane7/3 | L4 checklist |
-| **4** Protocol | **B-173** (`81bf95fe`, CI `#29897006419` GREEN); **B-171**; **B-170** | **B-175** settle-reset→ninth dual-slash (claim base: `81bf95fe`) | After land: ninth prove matrix; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-175** (8b6da3e8); **B-173** (81bf95fe, CI #29897006419 GREEN); **B-171** | *Idle* or claiming next | After land: ninth prove matrix; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-174** DEFAULT_RING_SIZE≡WALLET_MIN_RING_SIZE pin (this commit; live tip=5648 F45 soft); **B-172** (`1ce0ed2e`); **B-168** (`ab4dbba1`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -367,6 +367,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-22 — lane 5 — B-174 fix-forward body** (this commit): restore CLI unit + privacy-floor smoke + PRIVACY after evidence-only 446c53cb. Full CI (no skip). *Observed (not staged):* lane-4 apply_block if any.
 
 1. **2026-07-22 — lane 5 — B-174 DEFAULT_RING_SIZE pin + tall-tip F45 soft prove** (this commit): CLI unit `default_ring_size_equals_wallet_min_ring_size`; privacy-floor smoke needle; PRIVACY honesty; evidence `b174-tall-tip-f45-soft-live-20260722.md` (tip=5648 log_max=5290). **CI `#29897006419` GREEN** on B-173. Full CI (no skip). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
 

@@ -13,6 +13,7 @@ $needles = @(
   @("mfn-wasm/src/transfer_core.rs", "WALLET_MIN_TX_INPUTS"),
   @("mfn-wasm/src/upload_core.rs", "WALLET_MIN_TX_INPUTS"),
   @("mfn-wasm/src/transfer_core.rs", "F7 privacy floor"),
+  @("mfn-cli/src/wallet_cmd.rs", "DEFAULT_RING_SIZE: usize = WALLET_MIN_RING_SIZE"),
   @("docs/PRIVACY.md", "CLI-only"),
   @("docs/CHECKPOINT_LOG.md", "Honesty (B-168)")
 )
