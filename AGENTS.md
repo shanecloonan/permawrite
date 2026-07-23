@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-23):** Fix-forward **B-221** body + revert accidental lane5 files from afb3813. Prior tip mis-landed B-217 WIP under B-221 subject; rustfmt wrap kept. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-23):** Claiming **B-217** re-land (body ready; tip 7268892e correctly reverted accidental leak). Watch tip CI #30049437036 on B-221 fix-forward. **CI #30044629551 GREEN** on B-219. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave113** (gina last_proven=6838; faucet-F101b; lag=1535; post-F115) | **B-15** wave114+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-221** (this commit, body+revert); **B-220** rustfmt; **B-219** GREEN | *Idle* — next **B-222** fourteenth→dual settle | After land: fourteenth prove matrix; after 2 hosts: live **B-32** | Lane 1 CI |
-| **5** Privacy | **B-217** (this commit); **B-218** (`8eaa1af6`); **B-216** (`e350481f`); **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **5** Privacy | **B-218** (8eaa1af6); **B-216** (e350481f); **B-214**; **B-197** | **B-217** WASM/CLI/wallet ring-floor error wording parity (claim base: 7268892e; body ready) | Land after #30049437036 GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -155,7 +155,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 3 | 7 | **F114:** faucet job ERROR hub Connection refused (os error 111) on wave106; HTTP accepted. Verify mfnd-hub RPC without thrashing faucet-http (§6). | **Ack** (wave107 faucet PASS without restart; still watch hub) |
-| 5 | 4 | **B-217 CI window:** after tip CI `#30039774067` (B-213) GREEN, please **hold B-215 Rust land** (~5–10 min) so lane5 can push ring-floor error wording parity with full CI (body ready). | **Ack** — B-215 `8038b793` raced; **CI `#30041976808` GREEN** — lane5 window open for B-217 | / `#30041976808` GREEN window offered
+| 5 | 4 | **B-217 CI window:** please hold next Rust land (~5–10 min) after tip CI #30049437036 (B-221) GREEN so lane5 can re-land ring-floor wording parity (reverted from accidental afb3813 leak). | **Open** (body ready on claim base 7268892e) |
 | 5 | 4 | **B-197 CI window:** after tip CI `#30028287920` (B-210) GREEN, please **hold one Rust land** (~5–10 min) so lane5 can push WASM/CLI F7 faucet-message parity with full CI (body ready; cancelled repeatedly by continuous slash-matrix lands). | **Done** (B-197 `2288b5b8`) |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Done** (B-15 archive PASS tip=5322) |
 | 4 | 7 | **B-45+B-48+B-51+B-64:** rolled on Hetzner after **CI `#29725270815` GREEN**; **B-68** peers scrub restored tip | **Done** (VPS roll) |
@@ -273,12 +273,12 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-215 | Thirteenth dual-slash then empty both-miss (early B-24cp) | 4 | **Landed** (this commit); closes thirteenth prove matrix with B-211/B-212/B-213; elevates B-207; full CI |
 | B-219 | Thirteenth-offense asymmetric then absentee re-slash (early B-24cq) | 4 | **Landed** (this commit); elevates B-208; full CI |
 | B-220 | Thirteenth-offense op1 asymmetric then absentee re-slash (early B-24cr) | 4 | **Landed** (`fd10ca89`); completes thirteenth re-slash pair with B-219; elevates B-209; full CI |
-| B-221 | Settle-reset then fourteenth dual-slash treasury identity (early B-24cs) | 4 | **Landed** (this commit); elevates B-210; afb3813 had rustfmt+board only + accidental lane5 — reverted; full CI |
+| B-221 | Settle-reset then fourteenth dual-slash treasury identity (early B-24cs) | 4 | **Landed** (this commit); elevates B-210; afb3813 had rustfmt+board only + accidental lane5 — reverted; full CI |
 | B-222 | Fourteenth dual-slash then dual settle drain (early B-24ct) | 4 | Next after B-221 CI GREEN — elevates B-211 |
 | B-214 | WASM/wallet README F7 faucet dual-send fail-closed honesty (elevates B-197) | 5 | **Landed** (`c5efb7f4`) — docs-only; lane4 owns B-212/B-213 |
 | B-216 | CLI README/usage F7 dual-UTXO + disabled standalone `wallet claim` honesty | 5 | **Landed** (`e350481f`; watch CI `#30035644826`) — usage + README + privacy-floor smoke |
 | B-218 | PRIVACY/CHECKPOINT_LOG Path A lag vs F45 soft-pass honesty | 5 | **Landed** (`8eaa1af6`) — soft-pass ≠ exact-tip; docs-only |
-| B-217 | WASM/CLI/wallet ring-floor error wording parity (`wallet/consensus floor`) | 5 | **Landed** (this commit) — elevates B-167/B-182; + B-220 rustfmt fix-forward |
+| B-217 | WASM/CLI/wallet ring-floor error wording parity (wallet/consensus floor) | 5 | **Claimed** — re-land after #30049437036 GREEN; elevates B-167/B-182 |
 | B-195 | Settle-reset then eleventh dual-slash treasury identity (early B-24bx) | 4 | **Landed** (`1a83d9d0`); elevates B-187; CI cancelled by B-189 — re-proved via B-196 tip |
 | B-194 | Tenth-offense op1 asymmetric then absentee re-slash (early B-24bw) | 4 | **Landed** (this commit); completes tenth re-slash pair with B-193; full CI |
 | B-193 | Tenth-offense asymmetric then absentee re-slash (early B-24bv) | 4 | **Landed** (this commit); elevates B-183; full CI |
@@ -417,7 +417,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-23 — lane 4 — B-221 body + revert lane5 leak** (this commit): restore 221_* into pply_block_proptest.rs; revert PRIVACY/CLI/WASM/smoke files accidentally staged in afb3813 (lane5 B-217 WIP). Keep B-220 rustfmt wrap. Local exact PASS. Full CI. Apology to lane5. *Observed (not staged):* none intentional.
+1. **2026-07-23 — lane 5 — re-claim B-217** (this commit): tip 7268892e correctly reverted accidental B-217 leak under mislabeled B-221. Body re-applied locally; land after tip CI #30049437036 GREEN. Claim base 7268892e. *Observed (not staged):* B-217 privacy WIP. [skip ci].
+
+1. **2026-07-23 — lane 4 — B-221 body + revert lane5 leak** (this commit): restore 221_* into pply_block_proptest.rs; revert PRIVACY/CLI/WASM/smoke files accidentally staged in afb3813 (lane5 B-217 WIP). Keep B-220 rustfmt wrap. Local exact PASS. Full CI. Apology to lane5. *Observed (not staged):* none intentional.
 
 1. **2026-07-23 — lane 5 — B-217 ring-floor wording parity** (this commit): WASM/CLI/wallet `RingSizeBelowMinimum` → `wallet/consensus floor`; CLI `map_wallet_build_err` rewrite + unit; privacy-floor smoke needles; PRIVACY honesty. Fix-forward: B-220 rustfmt on `apply_block_proptest.rs` (CI `#30046947892` FAIL). Full CI (no skip). Next: idle until L4/**B-25** → **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 B-221 WIP restored to `_b221_saved.rs` / working tree after land.
 
@@ -748,9 +750,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-07-21 — lane 4 — B-171 eighth-offense asymmetric→absentee re-slash** (this commit): early B-24bh `b171_b5_eighth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29893569581` GREEN** on B-170. Elevates B-159. Full CI (no skip). Next: **B-173** op1 twin (not B-172 — lane5 privacy-floor gate). Still blocked on 2nd host for live **B-32**. *Observed (not staged):* none.
 
-1. **2026-07-21 — lane 5 — B-172 privacy-floor CI gate** (this commit): wallet-privacy-floor-rehearsal-smoke + ci-check wire; WASM upload B-167/B-168 twin tests; JOIN F45 CLI-only note. Full CI after tip green. *Observed (not staged):* lane-4 pply_block_proposals.rs.
+1. **2026-07-21 — lane 5 — B-172 privacy-floor CI gate** (this commit): wallet-privacy-floor-rehearsal-smoke + ci-check wire; WASM upload B-167/B-168 twin tests; JOIN F45 CLI-only note. Full CI after tip green. *Observed (not staged):* lane-4 pply_block_proposals.rs.
 
-1. **2026-07-21 — lane 5 — claim B-172** (this commit): privacy-floor CI gate (B-167/B-168 needles) while tip **CI #29893569581** runs on B-170 (covers B-168). Claim base $claimBase. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].
+1. **2026-07-21 — lane 5 — claim B-172** (this commit): privacy-floor CI gate (B-167/B-168 needles) while tip **CI #29893569581** runs on B-170 (covers B-168). Claim base $claimBase. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].
 
 1. **2026-07-21 — lane 4 — claim B-171** (this commit): early B-24bh eighth-offense asymmetric→absentee re-slash while **CI `#29893569581`** runs on B-170. Claim base `b40c1ccc`. *Observed (not staged):* lane-5 B-168 residual if any. `[skip ci]`.
 
