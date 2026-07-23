@@ -23,8 +23,8 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-212 `#30035715771`; B-216 `#30035644826` cancelled by tip | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-212** (`48aa8ded`); lane5 B-218/B-216 pinned | **B-213** thirteenth→op1 asymmetric (lane4) | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **A** RC/CI | Watch tip CI `#30035715771` (B-212); do not cancel | *Idle* | Pin / Nightly |
+| **B** Protocol/Privacy | **B-218**/**B-216** (lane5); **B-212** | **B-213** (lane4) + **B-217** ring wording (lane5) | Lane4 **B-215** empty; after B-25: **B-35**/**B-37**/**B-19** |
 | **C** Testnet/Onboarding | **B-15** wave106 zeke F114 UNFUNDED | wave107+ if hub healthy; escalate F114 | No parallel Hetzner JOIN |
 
 
