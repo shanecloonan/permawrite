@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-23):** Watch tip CI `#30035715771` on B-212 (may cancel B-216 `#30035644826` — tip re-proves). Pin lane5 **B-218** (`8eaa1af6`) + **B-216** (`e350481f`). Leave **B-215** for lane4 empty both-miss. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-23):** Claiming **B-213** thirteenth→op1 asymmetric settle (docs-only while tip CI `#30035715771` runs on B-212 `48aa8ded`). Lane5 **B-216** CI `#30035644826` cancelled by tip concurrency — tip re-proves. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave106** (zeke F114 faucet hub 111 UNFUNDED; lag=1403) | **B-15** wave107+ after faucet/hub healthy | Human SUMMARY; escalate F114 to lane7; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-212** (`48aa8ded`); **B-211** (CI `#30033021200` GREEN); **B-210** | *Idle* — next **B-213** thirteenth→op1 asymmetric settle | After land: **B-215** empty both-miss (skip B-214/B-216/B-218 — lane5); live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-212** (`48aa8ded`, watch CI `#30035715771`); **B-211** (CI `#30033021200` GREEN) | **B-213** thirteenth→op1 asymmetric settle (claim base: `48aa8ded`) | After land: **B-215** empty both-miss (IDs B-214/B-216/B-218 = lane5); after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-218** Path A lag honesty (`8eaa1af6`); **B-216** (`e350481f`); **B-214**; **B-197** | *Idle* | After tip CI GREEN: **B-217** ring-error wording parity; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -267,6 +267,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-198 | Eleventh dual-slash then asymmetric settle drain (early B-24bz) | 4 | **Landed** (this commit); elevates B-190; full CI |
 | B-196 | Eleventh dual-slash then dual settle drain (early B-24by) | 4 | **Landed** (this commit); elevates B-188; full CI (also re-proves B-195) |
 | B-197 | WASM/CLI F7 faucet dual-send error-message parity (elevates B-189) | 5 | **Landed** (`2288b5b8`; **CI `#30030542686` GREEN**) — WASM + CLI `map_wallet_build_err` faucet dual-send wording |
+| B-212 | Thirteenth dual-slash then asymmetric settle drain (early B-24cn) | 4 | **Landed** (`48aa8ded`); elevates B-205; full CI |
+| B-213 | Thirteenth dual-slash then op1 asymmetric settle drain (early B-24co) | 4 | **Claimed** (this commit) — elevates B-206; full CI after `#30035715771` GREEN |
 | B-214 | WASM/wallet README F7 faucet dual-send fail-closed honesty (elevates B-197) | 5 | **Landed** (`c5efb7f4`) — docs-only; lane4 owns B-212/B-213 |
 | B-216 | CLI README/usage F7 dual-UTXO + disabled standalone `wallet claim` honesty | 5 | **Landed** (`e350481f`; watch CI `#30035644826`) — usage + README + privacy-floor smoke |
 | B-218 | PRIVACY/CHECKPOINT_LOG Path A lag vs F45 soft-pass honesty | 5 | **Landed** (this commit) — soft-pass ≠ exact-tip; docs-only |
@@ -407,6 +409,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-23 — lane 4 — claim B-213** (this commit): early B-24co thirteenth→op1 asymmetric settle while **CI `#30035715771`** runs on B-212 `48aa8ded`. Claim base `48aa8ded`. `[skip ci]`.
 
 1. **2026-07-23 — lane 4 — B-212 thirteenth→asymmetric settle** (this commit): early B-24cn `b212_b5_thirteenth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#30033021200` GREEN** on B-211. Elevates B-205. Full CI (no skip). Next: **B-213** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* none lane4.
 
