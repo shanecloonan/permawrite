@@ -204,7 +204,7 @@ pub(super) fn usage() -> &'static str {
                          options: --json\n\
        wallet backup-info  print wallet/artifact backup inventory (no seed output)\n\
                          options: --json\n\
-wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx\n\
+wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx (F7: need ≥2 owned UTXOs)\n\
 wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
                          options: --fee N --ring-size N (default 16, wallet/consensus floor) --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
@@ -212,7 +212,7 @@ wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
                          --anchor-view HEX --anchor-spend HEX --extra HEX\n\
                          --message TEXT | --message-hex HEX (MFCL claim bound to upload)\n\
                          --json\n\
-       wallet claim DATA_ROOT_HEX         publish MFCL authorship claim + submit_tx\n\
+       wallet claim DATA_ROOT_HEX         disabled - use wallet upload --message (bound claims only)\n\
                          options: --message TEXT | --message-hex HEX --commit-hash HEX\n\
                          --fee N --ring-size N (default 16, wallet/consensus floor) --json\n\
        wallet export-trusted-summary      write weak-subjectivity summary JSON (**M3.14**)\n\

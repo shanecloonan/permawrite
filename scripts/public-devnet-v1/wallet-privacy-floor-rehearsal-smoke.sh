@@ -110,4 +110,20 @@ grep -q "map_wallet_build_err" "$REPO_ROOT/mfn-cli/src/wallet_cmd.rs" || {
   echo "missing CLI map_wallet_build_err F7 rewrite (B-197)" >&2
   exit 1
 }
+grep -q "F7: need" "$REPO_ROOT/mfn-cli/src/cli/parse.rs" || {
+  echo "missing CLI usage F7 owned-UTXO note (B-216)" >&2
+  exit 1
+}
+grep -q "disabled - use wallet upload --message" "$REPO_ROOT/mfn-cli/src/cli/parse.rs" || {
+  echo "missing CLI usage disabled wallet claim honesty (B-216)" >&2
+  exit 1
+}
+grep -q "hard-refuses so operators cannot publish unbound" "$REPO_ROOT/mfn-cli/README.md" || {
+  echo "missing CLI README disabled wallet claim honesty (B-216)" >&2
+  exit 1
+}
+grep -q "faucet dual-send" "$REPO_ROOT/mfn-cli/README.md" || {
+  echo "missing CLI README F7 faucet dual-send honesty (B-216)" >&2
+  exit 1
+}
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"

@@ -51,11 +51,15 @@ foreach ($pair in @(
   @("mfn-cli/src/wallet_cmd.rs", "require_f7_owned_input_floor_rejects_below_two"),
   @("mfn-wasm/src/transfer_core.rs", "faucet dual-send"),
   @("mfn-wasm/src/upload_core.rs", "faucet dual-send"),
-  @("mfn-cli/src/wallet_cmd.rs", "map_wallet_build_err")
+  @("mfn-cli/src/wallet_cmd.rs", "map_wallet_build_err"),
+  @("mfn-cli/src/cli/parse.rs", "F7: need"),
+  @("mfn-cli/src/cli/parse.rs", "disabled - use wallet upload --message"),
+  @("mfn-cli/README.md", "hard-refuses so operators cannot publish unbound"),
+  @("mfn-cli/README.md", "faucet dual-send")
 )) {
   $txt = Get-Content -Raw (Join-Path $RepoRoot $pair[0])
   if ($txt -notmatch [regex]::Escape($pair[1])) {
-    Write-Error "missing needle '$($pair[1])' in $($pair[0]) (B-185/B-186/B-189/B-197)"
+    Write-Error "missing needle '$($pair[1])' in $($pair[0]) (B-185/B-186/B-189/B-197/B-216)"
   }
 }
 Write-Output "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
