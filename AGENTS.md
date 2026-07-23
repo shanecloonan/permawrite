@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave105** (yara F107 FAIL; wipe#2; lag=1389) | **B-15** wave106+ permanence density (post-wipe) | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave106** (zeke F114 faucet hub 111 UNFUNDED; lag=1403) | **B-15** wave107+ after faucet/hub healthy | Human SUMMARY; escalate F114 to lane7; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-211** (`01459669`; CI `#30033021200` GREEN); **B-210** | **B-212** thirteenth→asymmetric settle (claim base: `01459669`) | After land: **B-213** op1; **B-215** empty both-miss (skip B-214/B-216 — lane5); live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-216** CLI F7+claim honesty (this commit); **B-214** (`c5efb7f4`); **B-197** (`2288b5b8`; CI `#30030542686` GREEN) | *Idle* | **B-217** WASM/CLI ring-error wording parity; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 3 | 7 | **F114:** faucet job ERROR hub Connection refused (os error 111) on wave106; HTTP accepted. Verify mfnd-hub RPC without thrashing faucet-http (§6). | **Open** |
 | 5 | 4 | **B-197 CI window:** after tip CI `#30028287920` (B-210) GREEN, please **hold one Rust land** (~5–10 min) so lane5 can push WASM/CLI F7 faucet-message parity with full CI (body ready; cancelled repeatedly by continuous slash-matrix lands). | **Done** (B-197 landing this commit) |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Done** (B-15 archive PASS tip=5322) |
 | 4 | 7 | **B-45+B-48+B-51+B-64:** rolled on Hetzner after **CI `#29725270815` GREEN**; **B-68** peers scrub restored tip | **Done** (VPS roll) |
@@ -406,6 +407,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-23 — lane 3 — B-15 wave106 FAIL F114**: **zeke** unfunded — faucet job hub **Connection refused (111)**; peer nora/kate dry + bal TIMEOUT; F45 lag=1403; no faucet restart (§6). *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
 1. **2026-07-23 — lane 5 — B-216 CLI README/usage F7 + claim-disabled honesty** (this commit): usage notes F7 ≥2 UTXOs; `wallet claim` usage says disabled → upload `--message`; README matches shipped refuse; privacy-floor smoke needles. **CI `#30033021200` GREEN** on B-211. Leave **B-215** for lane4. Full CI (no skip). Next: **B-217** ring-error wording parity. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
 

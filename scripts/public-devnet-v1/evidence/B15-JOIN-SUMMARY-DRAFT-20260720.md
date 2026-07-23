@@ -1,6 +1,6 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–105; wave105 yara F107 FAIL (wipe #2); tip~6689 ckpt=5290 lag=1389; seventy-seven proxy-proven.
+**Status:** DRAFT — waves 6–106; wave106 zeke F114 faucet hub 111 UNFUNDED; tip~6745 ckpt=5290 lag=1403; seventy-seven proxy-proven.
 | tessa | faucet-retry-F101b | n/a | yes | **6621** (wave100 milestone; proxy-prove PASS; F95) |
 | soren | faucet-F101b | n/a | yes | **6607** (wave99; proxy-prove PASS; F110) |
 | riven | faucet-F101b | n/a | yes | **6599** (wave98; proxy-prove PASS; F110) |
@@ -101,6 +101,7 @@
 | sam | peer (+faucet done) | n/a | yes | **4430** (wave27; proxy verified) |
 | tina | faucet | n/a | yes | **4452** (wave28; proxy verified) |
 | uma | faucet | n/a | yes | **4466** (wave29; proxy verified) |
+| zeke | unfunded | n/a | **no** | FAIL wave106 fund (F114 faucet hub Connection refused 111; peer donors dry/TIMEOUT) |
 | yara | faucet-F101b | n/a | **no** | FAIL wave105 prove (F107 sticky mem=1 / local_only; wiped; streak was x3) |
 | xan | faucet-retry-F101b | n/a | yes | **6678** (wave104; proxy-prove PASS; F95; post-wipe) |
 | wade | faucet-F101b | n/a | yes | **6662** (wave103; proxy-prove PASS; post-wipe) |
