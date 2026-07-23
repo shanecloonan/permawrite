@@ -20,7 +20,7 @@ Everything here is **pure, deterministic, and IO-free**. The wallet does not own
 | **View tags** (B9) | Scan path uses v2 view tags when present — faster owned-output detection without weakening stealth |
 | High-tip sync | CLI `wallet light-scan --checkpoint-log FILE` (F12) — preferred over full genesis `wallet scan` on the live testnet; see [`docs/PRIVACY.md`](../docs/PRIVACY.md) and [`docs/CHECKPOINT_LOG.md`](../docs/CHECKPOINT_LOG.md) |
 
-Faucets that fund fresh wallets must deliver **two** UTXOs so the F7 input floor is reachable without a second payment.
+Faucets that fund fresh wallets must deliver **two** UTXOs so the F7 input floor is reachable without a second payment. Reference surfaces **fail closed** on a single spendable UTXO: high-level selection (`select_inputs_for_tx`), low-level `build_transfer` / `build_storage_upload`, CLI `wallet send`/`upload` preflight, and WASM JSON builders all refuse with actionable faucet dual-send guidance rather than broadcasting a one-input shape (**B-185**/**B-186**/**B-189**/**B-197**).
 
 ## Quick start
 

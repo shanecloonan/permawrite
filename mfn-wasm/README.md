@@ -4,7 +4,7 @@ WebAssembly bindings for Permawrite wallet, storage, transfer, scan, and light-v
 
 Network IO stays outside this crate. JavaScript is expected to fetch JSON-RPC data from `mfnd serve`; `mfn-wasm` handles deterministic cryptography, wallet derivation, transaction/upload construction, block scanning, and light-client verification.
 
-Browser demos inherit the same privacy floors as `mfn-wallet` / CLI: uniform ring-16, F7 two-in/two-out shape, view-tag scan path, and (with `wasm-full`) Schnorr checkpoint-log verify/cross-check after light sync. Prefer light-client + checkpoint cross-check over trusting a remote tip alone — see [`docs/PRIVACY.md`](../docs/PRIVACY.md) and [`docs/CHECKPOINT_LOG.md`](../docs/CHECKPOINT_LOG.md). Keep wallet seeds in the browser origin; use the public observer proxy only for read-only tip/header checks.
+Browser demos inherit the same privacy floors as `mfn-wallet` / CLI: uniform ring-16, F7 two-in/two-out shape, view-tag scan path, and (with `wasm-full`) Schnorr checkpoint-log verify/cross-check after light sync. With `wasm-full`, `wasm_build_transfer_json` / `wasm_build_storage_upload` **fail closed** on plans with fewer than `WALLET_MIN_TX_INPUTS` inputs and surface the same faucet dual-send guidance as CLI (**B-197**) — browser wallets must not invent a softer one-input path. Prefer light-client + checkpoint cross-check over trusting a remote tip alone — see [`docs/PRIVACY.md`](../docs/PRIVACY.md) and [`docs/CHECKPOINT_LOG.md`](../docs/CHECKPOINT_LOG.md). Keep wallet seeds in the browser origin; use the public observer proxy only for read-only tip/header checks.
 
 ## Features
 

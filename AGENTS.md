@@ -134,15 +134,15 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-23):** Claiming **B-212** thirteenth→asymmetric settle (docs-only while **CI `#30033021200`** runs on B-211 `01459669`). **CI `#30030542686` GREEN** on B-197; **CI `#30028287920` GREEN** on B-210. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-23):** Pin **B-197** CI `#30030542686` GREEN (`2288b5b8`). Claiming **B-214** WASM/wallet README F7 faucet dual-send honesty (docs-only; lane4 owns **B-212**/**B-213**). Watch **CI `#30033021200`** on B-211. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave105** (yara F107 FAIL; wipe#2; lag=1389) | **B-15** wave106+ permanence density (post-wipe) | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-211** (`01459669`, watch CI `#30033021200`); **B-210** (CI `#30028287920` GREEN) | **B-212** thirteenth→asymmetric settle (claim base: `01459669`) | After land: thirteenth op1 asymmetric; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
-| **5** Privacy | **B-197** WASM/CLI F7 faucet dual-send message parity (this commit); **B-189** (`ecc565a1`; CI `#29946719956` GREEN); **B-186** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **4** Protocol | **B-211** (`01459669`, watch CI `#30033021200`); **B-210** (CI `#30028287920` GREEN) | **B-212** thirteenth→asymmetric settle (claim base: `01459669`) | After land: **B-213** op1 twin; after 2 hosts: live **B-32** | Lane 1 CI |
+| **5** Privacy | **B-214** WASM/wallet README F7 honesty (this commit); **B-197** (`2288b5b8`; CI `#30030542686` GREEN); **B-189** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -266,7 +266,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-199 | Eleventh dual-slash then op1 asymmetric settle drain (early B-24ca) | 4 | **Landed** (this commit); completes eleventh asymmetric pair with B-198; full CI |
 | B-198 | Eleventh dual-slash then asymmetric settle drain (early B-24bz) | 4 | **Landed** (this commit); elevates B-190; full CI |
 | B-196 | Eleventh dual-slash then dual settle drain (early B-24by) | 4 | **Landed** (this commit); elevates B-188; full CI (also re-proves B-195) |
-| B-197 | WASM/CLI F7 faucet dual-send error-message parity (elevates B-189) | 5 | **Landed** (this commit) — WASM + CLI `map_wallet_build_err` faucet dual-send wording; privacy-floor smoke; full CI |
+| B-197 | WASM/CLI F7 faucet dual-send error-message parity (elevates B-189) | 5 | **Landed** (`2288b5b8`; **CI `#30030542686` GREEN**) — WASM + CLI `map_wallet_build_err` faucet dual-send wording |
+| B-214 | WASM/wallet README F7 faucet dual-send fail-closed honesty (elevates B-197) | 5 | **Landed** (this commit) — docs-only; lane4 owns B-212/B-213 |
 | B-195 | Settle-reset then eleventh dual-slash treasury identity (early B-24bx) | 4 | **Landed** (`1a83d9d0`); elevates B-187; CI cancelled by B-189 — re-proved via B-196 tip |
 | B-194 | Tenth-offense op1 asymmetric then absentee re-slash (early B-24bw) | 4 | **Landed** (this commit); completes tenth re-slash pair with B-193; full CI |
 | B-193 | Tenth-offense asymmetric then absentee re-slash (early B-24bv) | 4 | **Landed** (this commit); elevates B-183; full CI |
@@ -404,6 +405,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-23 — lane 5 — pin B-197 GREEN + B-214 README honesty** (this commit): **CI `#30030542686` GREEN** on `2288b5b8`. WASM/wallet README document F7 fail-closed + faucet dual-send (elevates B-197). Lane4 owns **B-212**/**B-213**. Next: after B-25 **B-35**/**B-37**/**B-19**. `[skip ci]`.
 
 1. **2026-07-23 — lane 4 — claim B-212** (this commit): early B-24cn thirteenth→asymmetric settle while **CI `#30033021200`** runs on B-211 `01459669`. Claim base `01459669`. `[skip ci]`.
 
