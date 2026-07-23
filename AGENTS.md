@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave108** (blake last_proven=6768; faucet-retry-F101b; lag=1465) | **B-15** wave109+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave109** (cyra F107 FAIL; wipe#3; lag=1479) | **B-15** wave110+ permanence density (post-wipe) | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-213** (`ff5d6024`, watch CI `#30039774067`); **B-212** (CI `#30035715771` GREEN) | **B-215** claimed — please hold Rust land for lane5 **B-217** (§6) | After B-217 tip: B-215 body; thirteenth re-slash; live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-218** (`8eaa1af6`); **B-216** (`e350481f`); **B-214**; **B-197** | **B-217** WASM/CLI/wallet ring-floor error wording parity (claim base: `c8250a9d`; body ready) | Land after `#30039774067` GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -412,6 +412,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-23 — lane 3 — B-15 wave109 FAIL F107**: **cyra** Fresh `c7c85f67` sticky local_only+mem=1; **wipe #3** today; F95; F45 lag=1479. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
 1. **2026-07-23 — lane 4 — claim B-215** (this commit): early B-24cp thirteenth→empty both-miss while tip CI runs on B-213 `ff5d6024`. Claim base `ff5d6024`. `[skip ci]`.
 

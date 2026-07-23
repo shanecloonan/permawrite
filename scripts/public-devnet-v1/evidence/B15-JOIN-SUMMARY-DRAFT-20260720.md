@@ -1,6 +1,6 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–108; blake@6768 PASS; tip~6768 ckpt=5290 lag=1465; seventy-nine proxy-proven.
+**Status:** DRAFT — waves 6–109; wave109 cyra F107 FAIL (wipe#3); tip~6784 ckpt=5290 lag=1479; seventy-nine proxy-proven.
 | tessa | faucet-retry-F101b | n/a | yes | **6621** (wave100 milestone; proxy-prove PASS; F95) |
 | soren | faucet-F101b | n/a | yes | **6607** (wave99; proxy-prove PASS; F110) |
 | riven | faucet-F101b | n/a | yes | **6599** (wave98; proxy-prove PASS; F110) |
@@ -41,6 +41,7 @@
 | ella | faucet-F101b | n/a | yes | **5761** (wave63; proxy-prove PASS; F110) |
 | devon | faucet-F101b | n/a | yes | **5751** (wave62; proxy-prove PASS; F110) |
 | cleo | faucet-F101b | n/a | yes | **5741** (wave61; proxy-prove PASS; F110) |
+| cyra | faucet-retry-F101b | n/a | **no** | FAIL wave109 prove (F107 sticky mem=1; wipe#3 today) |
 | blake | faucet-F101b | n/a | yes | **5729** (wave60; proxy-prove PASS) |
 | aria | faucet stalled + bal TIMEOUT | n/a | **no** | FAIL wave59 (F109/F99 tall-tip) |
 | zion | faucet-F101b | n/a | yes | **4823** (wave58; proxy-prove PASS) |
