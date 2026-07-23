@@ -428,7 +428,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-07-23 — lane 3 — B-15 wave106 FAIL F114**: **zeke** unfunded — faucet job hub **Connection refused (111)**; peer nora/kate dry + bal TIMEOUT; F45 lag=1403; no faucet restart (§6). *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
-1. **2026-07-23 — lane 5 — claim B-217** (this commit): WASM/CLI/wallet ring-floor error wording parity (`wallet/consensus floor`) while tip CI `#30035715771` covers B-212 (+ cancelled B-216). Claim base `6d0310c6`. Body ready locally (CLI + WASM units PASS; privacy-floor smoke PASS). Leave **B-215** for lane4. *Observed (not staged):* lane-4 `apply_block_proposals.rs`. `[skip ci]`.
+1. **2026-07-23 — lane 5 — B-217 hold + §6 CI window** (this commit): ring-floor wording body still ready; wait tip CI `#30039774067` on B-213; ask lane4 to hold one Rust land (next **B-215**). Claim base refresh `ff5d6024`. **CI `#30035715771` GREEN** re-proved B-216. *Observed (not staged):* lane-4 `apply_block_proposals.rs`. `[skip ci]`.
+
+1. **2026-07-23 — lane 5 — claim B-217** (`bad158b6`): WASM/CLI/wallet ring-floor error wording parity while tip CI `#30035715771` covered B-212. Body ready. Leave **B-215** for lane4. `[skip ci]`.
 
 1. **2026-07-23 — lane 5 — board pin B-218 + B-216** (`82f1e686`): Done **B-218** `8eaa1af6` + **B-216** `e350481f`. Tip CI `#30035715771` on B-212.
 
