@@ -23,8 +23,8 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#30030542686` GREEN** on B-197; **CI `#30028287920` GREEN** on B-210 | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-211** (landing); **B-210** GREEN; **B-197** GREEN | *Idle* — next **B-212** thirteenth→asymmetric | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **A** RC/CI | Watch B-211 `#30033021200`; **CI `#30030542686` GREEN** on B-197 | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-211** (`01459669`); **B-210** GREEN; **B-197** GREEN | **B-212** thirteenth→asymmetric (lane4) | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** wave105 yara F107 FAIL (wipe#2) | wave106+ post-wipe density | No parallel Hetzner JOIN |
 
 
