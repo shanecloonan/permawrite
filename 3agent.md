@@ -23,8 +23,8 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#30044629551` GREEN** on B-219; B-220 `#30046947892` FAIL rustfmt → lane5 fix-forward | Watch B-217 tip CI | Pin / Nightly |
-| **B** Protocol/Privacy | **B-217** ring-floor wording (lane5); **B-220** (`fd10ca89`); **B-219** GREEN | **B-221** settle-reset→fourteenth (lane4) | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **A** RC/CI | Watch B-221 tip CI after leak fix-forward | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-221** body restored; lane5 files reverted | *Idle* — next **B-222** | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** wave113 gina@6838 PASS | wave114+ density | No parallel Hetzner JOIN |
 
 

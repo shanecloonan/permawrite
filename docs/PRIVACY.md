@@ -30,9 +30,7 @@ The chain still verifies:
 > the CLI (`DEFAULT_RING_SIZE` is an alias of that constant — **B-174**), and WASM JSON builders
 > default to 16 and **fail closed** on lower values via
 > [`WalletError::RingSizeBelowMinimum`](../mfn-wallet/src/error.rs) — never silently clamp and
-> never mislabel a sub-floor ring as a decoy-pool shortage (**B-167**). Reject text across
-> wallet / CLI / WASM says **wallet/consensus floor** so browser demos cannot look softer
-> than consensus (**B-217**).
+> never mislabel a sub-floor ring as a decoy-pool shortage (**B-167**).
 
 What's **not** hidden:
 

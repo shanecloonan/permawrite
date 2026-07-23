@@ -244,9 +244,8 @@ pub fn build_storage_upload_json(
     let plan: StorageUploadPlanJson = serde_json::from_str(plan_json)
         .map_err(|e| WasmCoreError::InvalidHex(format!("upload plan json: {e}")))?;
     if plan.ring_size < WALLET_MIN_RING_SIZE {
-        // B-217: parity with CLI refuse text (wallet/consensus floor).
         return Err(WasmCoreError::InvalidHex(format!(
-            "ring size {} below wallet/consensus floor {WALLET_MIN_RING_SIZE}",
+            "ring size {} below wallet minimum {WALLET_MIN_RING_SIZE}",
             plan.ring_size
         )));
     }
@@ -746,7 +745,7 @@ mod tests {
         let seed = [0u8; 32];
         let err = build_storage_upload_json(&seed, b"x", &plan_str).expect_err("must reject");
         let msg = err.to_string();
-        assert!(msg.contains("wallet/consensus floor"), "unexpected: {msg}");
+        assert!(msg.contains("below wallet minimum"), "unexpected: {msg}");
     }
 
     /// B-168/B-172: upload JSON boundary refuses one-input plans (F7).
