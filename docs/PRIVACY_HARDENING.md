@@ -137,12 +137,12 @@ inherits the guarantee:
   [§B1](#b1-consensus-enforced-minimum-output-count-p5--shipped) lifted the
   floor into `verify_transaction`, so under production uniform-ring params a
   one-output transaction is now a consensus reject network-wide.
-- **Input count still leaks when only one UTXO exists.** `tx.inputs.len()` is
-  public. Age-band selection
-  ([§B2](#b2-age-band-coin-selection--shipped)) stops the input *set* from
-  mixing eras; the reference wallet now pads to two inputs when a second
-  UTXO is available ([§B15](#b15-canonical-input-count-floor-f7--shipped)).
-  Consensus enforces `min_input_count = 2` on the uniform-ring tier (**F7 tail shipped**).
+- **Input count would leak when only one UTXO exists** — reference surfaces
+  **fail closed** instead of broadcasting: wallet selection (**B-186**), CLI
+  preflight (**B-189**), WASM JSON (**B-168**/**B-197**), and consensus
+  `min_input_count = 2` on the uniform-ring tier ([§B15](#b15-canonical-input-count-floor-f7--shipped)).
+  Age-band selection ([§B2](#b2-age-band-coin-selection--shipped)) still
+  stops the input *set* from mixing eras when two UTXOs exist.
 - ~~**Output *ordering* and other wallet-chosen bytes are not yet
   canonicalized**~~ Closed:
   [§B3](#b3-canonical-encoding-conformance-p9--shipped).

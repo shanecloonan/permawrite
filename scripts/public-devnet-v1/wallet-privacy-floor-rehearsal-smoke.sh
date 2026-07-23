@@ -98,4 +98,16 @@ grep -q "require_f7_owned_input_floor_rejects_below_two" "$REPO_ROOT/mfn-cli/src
   echo "missing B-189 CLI F7 preflight unit (B-189)" >&2
   exit 1
 }
+grep -q "faucet dual-send" "$REPO_ROOT/mfn-wasm/src/transfer_core.rs" || {
+  echo "missing WASM transfer F7 faucet dual-send message (B-197)" >&2
+  exit 1
+}
+grep -q "faucet dual-send" "$REPO_ROOT/mfn-wasm/src/upload_core.rs" || {
+  echo "missing WASM upload F7 faucet dual-send message (B-197)" >&2
+  exit 1
+}
+grep -q "map_wallet_build_err" "$REPO_ROOT/mfn-cli/src/wallet_cmd.rs" || {
+  echo "missing CLI map_wallet_build_err F7 rewrite (B-197)" >&2
+  exit 1
+}
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"

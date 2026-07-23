@@ -62,6 +62,7 @@ Reference wallets enforce a **two-input floor** (`WALLET_MIN_TX_INPUTS = 2`, Mon
 - Low-level [`build_transfer`](../mfn-wallet/src/spend.rs) / [`build_storage_upload`](../mfn-wallet/src/upload.rs) likewise fail closed on `< WALLET_MIN_TX_INPUTS` (**B-185**), matching WASM JSON builders (**B-168**).
 - Operator faucets and the public HTTP faucet therefore send **two** transfers so a fresh wallet can meet the floor without a second payment from elsewhere.
 - Reference CLI `wallet send` / `wallet upload` **preflight** the owned-UTXO count and refuse with an actionable F7 message when `owned < WALLET_MIN_TX_INPUTS` (**B-189**) — so operators are not left with only the low-level `TxInputCountBelowMinimum` string after coin selection.
+- WASM JSON builders surface the same faucet dual-send guidance on one-input plans (**B-197**), matching CLI wording so browser wallets do not invent a softer path.
 
 ### Light-scan at high tip (default wallet sync)
 

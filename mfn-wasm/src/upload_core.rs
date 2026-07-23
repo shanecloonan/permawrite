@@ -250,8 +250,10 @@ pub fn build_storage_upload_json(
         )));
     }
     if plan.inputs.len() < WALLET_MIN_TX_INPUTS {
+        // B-197: actionable parity with CLI `require_f7_owned_input_floor` (**B-189**).
         return Err(WasmCoreError::InvalidHex(format!(
-            "input count {} below wallet minimum {WALLET_MIN_TX_INPUTS} (F7 privacy floor)",
+            "input count {} below wallet minimum {WALLET_MIN_TX_INPUTS} \
+             (F7 privacy floor; need a second spendable input — faucet dual-send)",
             plan.inputs.len()
         )));
     }
@@ -785,7 +787,7 @@ mod tests {
         let err = build_storage_upload_json(&seed, b"x", &plan_str).expect_err("must reject");
         let msg = err.to_string();
         assert!(
-            msg.contains("input count") && msg.contains("F7"),
+            msg.contains("input count") && msg.contains("F7") && msg.contains("faucet dual-send"),
             "unexpected: {msg}"
         );
     }

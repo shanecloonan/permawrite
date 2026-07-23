@@ -438,12 +438,24 @@ pub fn wallet_backup_info(path: &Path, params: BackupInfoParams) -> Result<(), W
 fn require_f7_owned_input_floor(wallet: &Wallet) -> Result<(), WalletCmdError> {
     let owned = wallet.owned_count();
     if owned < WALLET_MIN_TX_INPUTS {
-        return Err(WalletCmdError::Usage(format!(
-            "owned UTXO count {owned} below F7 privacy floor {WALLET_MIN_TX_INPUTS} \
-             (need a second spendable output; public faucet sends two transfers)"
-        )));
+        return Err(f7_owned_below_floor_usage(owned, WALLET_MIN_TX_INPUTS));
     }
     Ok(())
+}
+
+fn f7_owned_below_floor_usage(got: usize, min: usize) -> WalletCmdError {
+    WalletCmdError::Usage(format!(
+        "owned UTXO count {got} below F7 privacy floor {min} \
+         (need a second spendable output; public faucet sends two transfers)"
+    ))
+}
+
+/// Map wallet build errors; rewrite F7 input-count rejects to the CLI preflight text (**B-197**).
+fn map_wallet_build_err(err: WalletError) -> WalletCmdError {
+    match err {
+        WalletError::TxInputCountBelowMinimum { got, min } => f7_owned_below_floor_usage(got, min),
+        other => WalletCmdError::Wallet(other),
+    }
 }
 
 /// `wallet send` — scan, build CLSAG transfer, `submit_tx`, persist pending spends.
@@ -472,17 +484,19 @@ pub fn wallet_send(
 
     let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
     let mut rng = production_tx_rng;
-    let signed = wallet.build_transfer(
-        &[TransferRecipient {
-            recipient,
-            value: params.amount,
-        }],
-        params.fee,
-        params.ring_size,
-        &chain_state,
-        &params.extra,
-        &mut rng,
-    )?;
+    let signed = wallet
+        .build_transfer(
+            &[TransferRecipient {
+                recipient,
+                value: params.amount,
+            }],
+            params.fee,
+            params.ring_size,
+            &chain_state,
+            &params.extra,
+            &mut rng,
+        )
+        .map_err(map_wallet_build_err)?;
 
     let consumed: Vec<[u8; 32]> = pre_owned
         .into_iter()
@@ -637,32 +651,36 @@ pub fn wallet_upload(
     let art = if let Some(message) = &params.message {
         let seed = file.seed_bytes()?;
         let identity = ClaimingIdentity::from_seed(&seed);
-        wallet.build_storage_upload_with_authorship(
-            &data,
-            params.replication,
-            fee,
-            anchor,
-            params.anchor_value,
-            None,
-            params.ring_size,
-            &chain_state,
-            message,
-            &identity,
-            &mut rng,
-        )?
+        wallet
+            .build_storage_upload_with_authorship(
+                &data,
+                params.replication,
+                fee,
+                anchor,
+                params.anchor_value,
+                None,
+                params.ring_size,
+                &chain_state,
+                message,
+                &identity,
+                &mut rng,
+            )
+            .map_err(map_wallet_build_err)?
     } else {
-        wallet.build_storage_upload(
-            &data,
-            params.replication,
-            fee,
-            anchor,
-            params.anchor_value,
-            None,
-            params.ring_size,
-            &chain_state,
-            &params.extra,
-            &mut rng,
-        )?
+        wallet
+            .build_storage_upload(
+                &data,
+                params.replication,
+                fee,
+                anchor,
+                params.anchor_value,
+                None,
+                params.ring_size,
+                &chain_state,
+                &params.extra,
+                &mut rng,
+            )
+            .map_err(map_wallet_build_err)?
     };
 
     let consumed: Vec<[u8; 32]> = pre_owned
@@ -1103,6 +1121,20 @@ mod tests {
             "expected actionable F7 message, got {msg}"
         );
         assert!(msg.contains(&WALLET_MIN_TX_INPUTS.to_string()));
+    }
+
+    /// B-197: wallet-layer F7 rejects rewrite to the same CLI preflight wording.
+    #[test]
+    fn map_wallet_build_err_rewrites_tx_input_count_below_minimum() {
+        let err = map_wallet_build_err(WalletError::TxInputCountBelowMinimum {
+            got: 1,
+            min: WALLET_MIN_TX_INPUTS,
+        });
+        let msg = err.to_string();
+        assert!(
+            msg.contains("F7 privacy floor") && msg.contains("faucet"),
+            "expected rewritten F7 message, got {msg}"
+        );
     }
 
     #[test]
