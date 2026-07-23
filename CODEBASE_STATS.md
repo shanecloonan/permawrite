@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-07-23T12:58:12.167Z
+**Generated (UTC):** 2026-07-23T22:20:36.235Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -10,12 +10,12 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 
 | Metric | Value |
 | --- | ---: |
-| Source-like files scanned | 1,311 |
-| Total lines (all scanned source-like files) | 246,021 |
-| Non-empty lines | 222,947 |
-| UTF-8 bytes (source-like) | 10,262,740 |
-| Paths visited (before binary/huge skip) | 2,016 |
-| Skipped (binary / non-UTF8 / over 4 MiB) | 297 |
+| Source-like files scanned | 1,391 |
+| Total lines (all scanned source-like files) | 264,267 |
+| Non-empty lines | 240,236 |
+| UTF-8 bytes (source-like) | 11,013,994 |
+| Paths visited (before binary/huge skip) | 2,176 |
+| Skipped (binary / non-UTF8 / over 4 MiB) | 342 |
 
 ## Lines of code by top-level directory
 
@@ -23,11 +23,11 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Directory | Files | Lines | Non-empty lines |
 | --- | ---: | ---: | ---: |
-| `mfn-consensus` | 74 | 79,321 | 75,427 |
-| `scripts` | 868 | 53,906 | 48,017 |
-| `docs` | 79 | 22,181 | 16,225 |
+| `mfn-consensus` | 74 | 93,562 | 89,138 |
+| `scripts` | 941 | 57,696 | 51,443 |
+| `docs` | 79 | 22,185 | 16,227 |
 | `mfn-node` | 41 | 16,014 | 14,847 |
-| `mfn-cli` | 32 | 15,700 | 14,523 |
+| `mfn-cli` | 32 | 15,703 | 14,526 |
 | `mfn-crypto` | 23 | 7,526 | 6,779 |
 | `mfn-net` | 18 | 6,642 | 6,077 |
 | `mfn-wallet` | 16 | 6,423 | 5,935 |
@@ -41,25 +41,29 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | `demo` | 12 | 2,528 | 2,338 |
 | `mfn-store` | 13 | 2,295 | 2,004 |
 | `.github` | 6 | 1,989 | 1,928 |
-| `(root)` | 8 | 1,429 | 1,037 |
+| `(root)` | 8 | 1,572 | 1,119 |
 | `mfn-bls` | 4 | 865 | 757 |
 | `mfn-checkpoint-log` | 4 | 707 | 642 |
-| `live-testnet-data` | 12 | 135 | 135 |
+| `live-testnet-data` | 15 | 165 | 165 |
 | `live-testnet-data-divergent-20260720-113211` | 4 | 39 | 39 |
 | `live-testnet-data-divergent-20260719-234040` | 4 | 38 | 38 |
 | `live-testnet-data-divergent-20260720-033906` | 1 | 9 | 9 |
 | `live-testnet-data-divergent-20260720-124203` | 1 | 9 | 9 |
 | `live-testnet-data-divergent-20260720-131817` | 1 | 9 | 9 |
+| `live-testnet-data-divergent-wave101-20260723-101433` | 1 | 9 | 9 |
+| `live-testnet-data-divergent-wave109-20260723-151109` | 1 | 9 | 9 |
+| `live-testnet-data-divergent-wave110-20260723-153939` | 1 | 9 | 9 |
 | `live-testnet-data-divergent-20260720-154342` | 1 | 8 | 8 |
+| `live-testnet-data-divergent-wave105-20260723-115958` | 1 | 8 | 8 |
 
 ## Lines of code by file extension
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 245 | 156,158 | 146,507 | 5,793,694 |
-| `.md` | 370 | 37,597 | 26,853 | 2,199,850 |
-| `.json` | 472 | 23,669 | 23,400 | 1,210,539 |
-| `.sh` | 160 | 16,425 | 14,893 | 600,152 |
+| `.rs` | 245 | 170,399 | 160,218 | 6,352,448 |
+| `.md` | 402 | 38,872 | 27,717 | 2,265,601 |
+| `.json` | 520 | 26,375 | 26,090 | 1,336,390 |
+| `.sh` | 160 | 16,449 | 14,917 | 601,050 |
 | `.js` | 8 | 3,057 | 2,865 | 101,209 |
 | `.tsx` | 9 | 2,230 | 2,095 | 78,629 |
 | `.mjs` | 8 | 2,021 | 1,852 | 59,922 |
@@ -72,7 +76,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Lines | File |
 | ---: | --- |
-| 44,489 | `mfn-consensus/tests/apply_block_proptest.rs` |
+| 58,730 | `mfn-consensus/tests/apply_block_proptest.rs` |
 | 4,958 | `mfn-consensus/tests/integration.rs` |
 | 3,885 | `mfn-consensus/tests/block_apply.rs` |
 | 3,493 | `mfn-rpc/src/dispatch.rs` |

@@ -56582,7 +56582,11 @@ fn b220_b5_thirteenth_offense_op1_asymmetric_then_absentee_reslash_while_peer_se
         b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b10);
     let settlements =
         storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
-    assert_eq!(settlements.len(), 1, "only op1 settles after thirteenth slash");
+    assert_eq!(
+        settlements.len(),
+        1,
+        "only op1 settles after thirteenth slash"
+    );
     let bonus = settlements[0].1;
     let storage_drain = u128::from(emission.storage_proof_reward).saturating_add(bonus);
     let expected_treasury = st.treasury.saturating_sub(storage_drain.min(st.treasury));
