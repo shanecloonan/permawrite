@@ -1,6 +1,6 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–100; tessa@6621 PASS (**wave100 milestone**); tip~6621 ckpt=5290 lag=1318; seventy-four proxy-proven.
+**Status:** DRAFT — waves 6–101; wave101 uma F107 FAIL (wipe); tip~6638 ckpt=5290 lag=1332; seventy-four proxy-proven.
 | tessa | faucet-retry-F101b | n/a | yes | **6621** (wave100 milestone; proxy-prove PASS; F95) |
 | soren | faucet-F101b | n/a | yes | **6607** (wave99; proxy-prove PASS; F110) |
 | riven | faucet-F101b | n/a | yes | **6599** (wave98; proxy-prove PASS; F110) |
