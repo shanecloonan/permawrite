@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-23):** Landing **B-216** CLI README/usage F7 + disabled-`claim` honesty (full CI). **CI `#30033021200` GREEN** on B-211. Leave **B-215** for lane4. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-23):** Landing **B-212** thirteenth→asymmetric settle. **CI `#30033021200` GREEN** on B-211. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave106** (zeke F114 faucet hub 111 UNFUNDED; lag=1403) | **B-15** wave107+ after faucet/hub healthy | Human SUMMARY; escalate F114 to lane7; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-211** (`01459669`; CI `#30033021200` GREEN); **B-210** | **B-212** thirteenth→asymmetric settle (claim base: `01459669`) | After land: **B-213** op1; **B-215** empty both-miss (skip B-214/B-216 — lane5); live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-212** (this commit); **B-211** (CI `#30033021200` GREEN); **B-210** | *Idle* — next **B-213** thirteenth→op1 asymmetric settle | After land: thirteenth empty both-miss / re-slash pair; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-216** CLI F7+claim honesty (this commit); **B-214** (`c5efb7f4`); **B-197** (`2288b5b8`; CI `#30030542686` GREEN) | *Idle* | **B-217** WASM/CLI ring-error wording parity; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -258,7 +258,6 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-209 | Twelfth-offense op1 asymmetric then absentee re-slash (early B-24ck) | 4 | **Landed** (in `d6e85121` with B-208; CI `#30023674882` GREEN) — completes twelfth re-slash pair |
 | B-210 | Settle-reset then thirteenth dual-slash treasury identity (early B-24cl) | 4 | **Landed** (this commit); elevates B-203; full CI |
 | B-211 | Thirteenth dual-slash then dual settle drain (early B-24cm) | 4 | **Landed** (this commit); elevates B-204; full CI |
-| B-212 | Thirteenth dual-slash then asymmetric settle drain (early B-24cn) | 4 | **Claimed** (this commit) — elevates B-205; full CI after `#30033021200` GREEN |
 | B-205 | Twelfth dual-slash then asymmetric settle drain (early B-24cg) | 4 | **Landed** (this commit); elevates B-198; full CI |
 | B-203 | Settle-reset then twelfth dual-slash treasury identity (early B-24ce) | 4 | **Landed** (this commit); elevates B-195; full CI |
 | B-202 | Eleventh-offense op1 asymmetric then absentee re-slash (early B-24cd) | 4 | **Landed** (this commit); completes eleventh re-slash pair with B-201; full CI |
@@ -408,6 +407,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-23 — lane 4 — B-212 thirteenth→asymmetric settle** (this commit): early B-24cn `b212_b5_thirteenth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#30033021200` GREEN** on B-211. Elevates B-205. Full CI (no skip). Next: **B-213** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* none lane4.
 
 1. **2026-07-23 — lane 3 — B-15 wave106 FAIL F114**: **zeke** unfunded — faucet job hub **Connection refused (111)**; peer nora/kate dry + bal TIMEOUT; F45 lag=1403; no faucet restart (§6). *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
