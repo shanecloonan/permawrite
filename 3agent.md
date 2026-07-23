@@ -23,8 +23,8 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch rustfmt fix-forward tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | B-221 tip rustfmt fix; **B-222** claimed | Land **B-222** after tip GREEN | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **A** RC/CI | Watch B-222 tip CI; do not cancel | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-222** (landing); B-221/rustfmt | Lane4 *Idle* hold for **B-217** | After window: fourteenth asymmetric; live **B-32** |
 | **C** Testnet/Onboarding | **B-15** wave114 hugo@6848 PASS | wave115+ density | No parallel Hetzner JOIN |
 
 
