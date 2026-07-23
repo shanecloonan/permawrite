@@ -1,6 +1,6 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–102; vera@6652 PASS (post-F107 wipe); tip~6652 ckpt=5290 lag=1353; seventy-five proxy-proven.
+**Status:** DRAFT — waves 6–103; wade@6662 PASS; tip~6662 ckpt=5290 lag=1363; seventy-six proxy-proven.
 | tessa | faucet-retry-F101b | n/a | yes | **6621** (wave100 milestone; proxy-prove PASS; F95) |
 | soren | faucet-F101b | n/a | yes | **6607** (wave99; proxy-prove PASS; F110) |
 | riven | faucet-F101b | n/a | yes | **6599** (wave98; proxy-prove PASS; F110) |
@@ -101,6 +101,7 @@
 | sam | peer (+faucet done) | n/a | yes | **4430** (wave27; proxy verified) |
 | tina | faucet | n/a | yes | **4452** (wave28; proxy verified) |
 | uma | faucet | n/a | yes | **4466** (wave29; proxy verified) |
+| wade | faucet-F101b | n/a | yes | **6662** (wave103; proxy-prove PASS; post-wipe) |
 | vera | faucet | n/a | yes | **4479** (wave30; proxy verified) |
 | wendy | peer (after faucet 429) | n/a | yes | **4487** (wave31; proxy verified) |
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
