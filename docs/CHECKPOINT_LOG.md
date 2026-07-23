@@ -89,6 +89,8 @@ WASM exports: `checkpointLogVerify`, `checkpointLogCrossCheck` (`wasm-full` feat
 
 **Honesty (B-168):** WASM applies the same Schnorr verify + tip-height cross-check rules as the CLI. It does **not** implement the CLI's F45 tip-race soft-pass (`checkpoint_log_f45_soft_pass`). When the live tip has moved past the log max, refresh the Path A log or re-pin — do not assume browser soft-pass.
 
+**Honesty (B-218):** CLI F45 soft-pass verifies the Schnorr log at its max tip; a large tip−log lag (stale Path A) still soft-passes after verify, but that is **not** exact-tip attestation. Republish Path A near tip (lane 7) for day-of assurance — see [`PRIVACY.md`](./PRIVACY.md) light-scan section.
+
 ---
 
 ## Light client usage (phase 2)

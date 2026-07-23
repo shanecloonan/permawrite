@@ -269,7 +269,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-196 | Eleventh dual-slash then dual settle drain (early B-24by) | 4 | **Landed** (this commit); elevates B-188; full CI (also re-proves B-195) |
 | B-197 | WASM/CLI F7 faucet dual-send error-message parity (elevates B-189) | 5 | **Landed** (`2288b5b8`; **CI `#30030542686` GREEN**) — WASM + CLI `map_wallet_build_err` faucet dual-send wording |
 | B-214 | WASM/wallet README F7 faucet dual-send fail-closed honesty (elevates B-197) | 5 | **Landed** (`c5efb7f4`) — docs-only; lane4 owns B-212/B-213 |
-| B-216 | CLI README/usage F7 dual-UTXO + disabled standalone `wallet claim` honesty | 5 | **Landed** (this commit) — usage + README + privacy-floor smoke; leave **B-215** for lane4; full CI |
+| B-216 | CLI README/usage F7 dual-UTXO + disabled standalone `wallet claim` honesty | 5 | **Landed** (`e350481f`; watch CI `#30035644826`) — usage + README + privacy-floor smoke |
+| B-218 | PRIVACY/CHECKPOINT_LOG Path A lag vs F45 soft-pass honesty | 5 | **Landed** (this commit) — soft-pass ≠ exact-tip; docs-only |
 | B-195 | Settle-reset then eleventh dual-slash treasury identity (early B-24bx) | 4 | **Landed** (`1a83d9d0`); elevates B-187; CI cancelled by B-189 — re-proved via B-196 tip |
 | B-194 | Tenth-offense op1 asymmetric then absentee re-slash (early B-24bw) | 4 | **Landed** (this commit); completes tenth re-slash pair with B-193; full CI |
 | B-193 | Tenth-offense asymmetric then absentee re-slash (early B-24bv) | 4 | **Landed** (this commit); elevates B-183; full CI |
@@ -410,7 +411,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-07-23 — lane 3 — B-15 wave106 FAIL F114**: **zeke** unfunded — faucet job hub **Connection refused (111)**; peer nora/kate dry + bal TIMEOUT; F45 lag=1403; no faucet restart (§6). *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
-1. **2026-07-23 — lane 5 — B-216 CLI README/usage F7 + claim-disabled honesty** (this commit): usage notes F7 ≥2 UTXOs; `wallet claim` usage says disabled → upload `--message`; README matches shipped refuse; privacy-floor smoke needles. **CI `#30033021200` GREEN** on B-211. Leave **B-215** for lane4. Full CI (no skip). Next: **B-217** ring-error wording parity. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
+1. **2026-07-23 — lane 5 — B-218 Path A lag / F45 soft-pass honesty** (this commit): PRIVACY + CHECKPOINT_LOG — soft-pass verifies Schnorr log max tip, not exact live tip when Path A lags. Privacy-floor smoke needles. Watch **CI `#30035644826`** on B-216 (do not cancel). `[skip ci]`.
+
+1. **2026-07-23 — lane 5 — B-216 CLI README/usage F7 + claim-disabled honesty** (`e350481f`): usage notes F7 ≥2 UTXOs; `wallet claim` disabled → upload `--message`; README refuse honesty; privacy-floor smoke. Full CI `#30035644826`. Next: **B-217** after tip GREEN.
 
 1. **2026-07-23 — lane 5 — claim B-216** (`d8fabc59`): body ready while tip CI covered B-211. Leave **B-215** for lane4. `[skip ci]`.
 

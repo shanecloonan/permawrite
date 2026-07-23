@@ -126,4 +126,12 @@ grep -q "faucet dual-send" "$REPO_ROOT/mfn-cli/README.md" || {
   echo "missing CLI README F7 faucet dual-send honesty (B-216)" >&2
   exit 1
 }
+grep -q "Path A lag honesty" "$REPO_ROOT/docs/PRIVACY.md" || {
+  echo "missing PRIVACY Path A lag honesty (B-218)" >&2
+  exit 1
+}
+grep -q "Honesty (B-218)" "$REPO_ROOT/docs/CHECKPOINT_LOG.md" || {
+  echo "missing CHECKPOINT_LOG B-218 Path A lag honesty (B-218)" >&2
+  exit 1
+}
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"

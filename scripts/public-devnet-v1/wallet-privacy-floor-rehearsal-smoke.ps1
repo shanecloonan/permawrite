@@ -55,7 +55,9 @@ foreach ($pair in @(
   @("mfn-cli/src/cli/parse.rs", "F7: need"),
   @("mfn-cli/src/cli/parse.rs", "disabled - use wallet upload --message"),
   @("mfn-cli/README.md", "hard-refuses so operators cannot publish unbound"),
-  @("mfn-cli/README.md", "faucet dual-send")
+  @("mfn-cli/README.md", "faucet dual-send"),
+  @("docs/PRIVACY.md", "Path A lag honesty"),
+  @("docs/CHECKPOINT_LOG.md", "Honesty (B-218)")
 )) {
   $txt = Get-Content -Raw (Join-Path $RepoRoot $pair[0])
   if ($txt -notmatch [regex]::Escape($pair[1])) {
