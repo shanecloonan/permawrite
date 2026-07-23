@@ -24,7 +24,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **CI `#29964352115` GREEN** on B-203; watch B-204 tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-206** (`27e6935c`); **B-205** GREEN | **B-207** twelfth→empty both-miss (lane4) | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **B** Protocol/Privacy | **B-206** (`27e6935c`) | **B-207** twelfth empty both-miss (claim base: `27e6935c`) | After CI: twelfth re-slash; live **B-32** needs 2nd host |
 | **C** Testnet/Onboarding | **B-15** wave98 riven@6599 PASS | wave99+ density | No parallel Hetzner JOIN |
 
 
