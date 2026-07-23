@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-23):** Claiming **B-209** twelfth op1 asymmetric→absentee re-slash (docs-only while tip CI runs on B-208 `d6e85121`). **CI `#30016615434` GREEN** on B-207. Lane5 owns **B-197**. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-23):** Landing **B-210** settle-reset→thirteenth dual-slash; pin **B-209** (Rust already in `d6e85121`). **CI `#30023674882` GREEN** on B-208/B-209 tip. Lane5 owns **B-197**. **B-15 JOIN PASS**. **B-29 CLOSED**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave105** (yara F107 FAIL; wipe#2; lag=1389) | **B-15** wave106+ permanence density (post-wipe) | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-208** (`d6e85121`, watch tip CI); **B-207** (CI `#30016615434` GREEN); **B-206** | **B-209** twelfth op1 asymmetric→absentee re-slash (claim base: `d6e85121`) | After land: settle-reset→thirteenth; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-210** (this commit); **B-209**/**B-208** (`d6e85121`, CI `#30023674882` GREEN); **B-207** | *Idle* — next **B-211** thirteenth→dual settle | After land: thirteenth prove matrix; after 2 hosts: live **B-32** → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-189** CLI F7 owned-UTXO preflight (`ecc565a1`; watch CI `#29946719956`); **B-186** (`94cbfece`; CI `#29929300995` GREEN); **B-185** | **B-197** WASM/CLI F7 faucet dual-send message parity (claim base: `ffb037ce`) | Land after tip CI GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -253,7 +253,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-206 | Twelfth dual-slash then op1 asymmetric settle drain (early B-24ch) | 4 | **Landed** (this commit); completes twelfth asymmetric pair with B-205; full CI |
 | B-207 | Twelfth dual-slash then empty both-miss (early B-24ci) | 4 | **Landed** (this commit); closes twelfth-offense prove matrix; elevates B-200; full CI |
 | B-208 | Twelfth-offense asymmetric then absentee re-slash (early B-24cj) | 4 | **Landed** (`d6e85121`); elevates B-201; full CI |
-| B-209 | Twelfth-offense op1 asymmetric then absentee re-slash (early B-24ck) | 4 | **Claimed** (this commit) — completes twelfth re-slash pair with B-208; full CI after tip GREEN |
+| B-209 | Twelfth-offense op1 asymmetric then absentee re-slash (early B-24ck) | 4 | **Landed** (in `d6e85121` with B-208; CI `#30023674882` GREEN) — completes twelfth re-slash pair |
+| B-210 | Settle-reset then thirteenth dual-slash treasury identity (early B-24cl) | 4 | **Landed** (this commit); elevates B-203; full CI |
+| B-211 | Thirteenth dual-slash then dual settle drain (early B-24cm) | 4 | Next after B-210 CI GREEN — elevates B-204 |
 | B-205 | Twelfth dual-slash then asymmetric settle drain (early B-24cg) | 4 | **Landed** (this commit); elevates B-198; full CI |
 | B-203 | Settle-reset then twelfth dual-slash treasury identity (early B-24ce) | 4 | **Landed** (this commit); elevates B-195; full CI |
 | B-202 | Eleventh-offense op1 asymmetric then absentee re-slash (early B-24cd) | 4 | **Landed** (this commit); completes eleventh re-slash pair with B-201; full CI |
@@ -401,11 +403,13 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-23 — lane 4 — B-210 settle-reset→thirteenth dual-slash + pin B-209** (this commit): early B-24cl `b210_b5_settle_reset_then_thirteenth_dual_slash_treasury_identity`; local debug PASS. Pins **B-209** op1 twin already in `d6e85121`. **CI `#30023674882` GREEN** on B-208/B-209. Elevates B-203. Full CI (no skip). Next: **B-211** thirteenth→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WIP; lane-3 JOIN docs.
+
 1. **2026-07-23 — lane 3 — B-15 wave105 FAIL F107**: **yara** Fresh `95a0d87a` sticky local_only+mem=1 after only x3 post-wipe PASSes; **wipe #2** today; F45 lag=1389. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
 1. **2026-07-23 — lane 3 — B-15 wave104**: **xan** faucet-retry-F101b permanence **last_proven=6678** (commit `0bc9dd51`); F95; post-wipe x3; F45 lag=1373; claims 73->74. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
-1. **2026-07-23 — lane 4 — claim B-209** (this commit): early B-24ck twelfth op1 asymmetric→absentee re-slash while tip CI runs on B-208 `d6e85121`. Claim base `d6e85121`. Lane5 owns **B-197**. `[skip ci]`.
+1. **2026-07-23 — lane 4 — claim B-209** (prior): early B-24ck twelfth op1 asymmetric→absentee re-slash while tip CI runs on B-208 `d6e85121`. Claim base `d6e85121`. Lane5 owns **B-197**. `[skip ci]`.
 
 1. **2026-07-23 — lane 3 — B-15 wave103**: **wade** faucet-F101b permanence **last_proven=6662** (commit `a27e8adf`); post-wipe x2; F45 lag=1363; claims 72->73; session 100-103. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
 
