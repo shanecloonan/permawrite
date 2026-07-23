@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–98; riven@6599 PASS; tip~6599 ckpt=5290 lag=1297; seventy-two proxy-proven.
+**Status:** DRAFT — waves 6–99; soren@6607 PASS; tip~6607 ckpt=5290 lag=1310; seventy-three proxy-proven.
+| soren | faucet-F101b | n/a | yes | **6607** (wave99; proxy-prove PASS; F110) |
 | riven | faucet-F101b | n/a | yes | **6599** (wave98; proxy-prove PASS; F110) |
 | quill | faucet-F101b | n/a | yes | **6586** (wave97; proxy-prove PASS; F113 resume; lag>1286) |
 | pax | faucet-retry-F101b | n/a | yes | **6141** (wave96; proxy-prove PASS; F95) |
