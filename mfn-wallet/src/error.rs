@@ -100,7 +100,7 @@ pub enum WalletError {
     /// ([`crate::WALLET_MIN_RING_SIZE`]). Never silently upgraded or
     /// clamped — a sub-floor ring is an explicit reject so anonymity-set
     /// degradation cannot look like a decoy-pool shortage.
-    #[error("ring size {got} below wallet minimum {min}")]
+    #[error("ring size {got} below wallet/consensus floor {min}")]
     RingSizeBelowMinimum {
         /// Requested ring size (real + decoys).
         got: usize,

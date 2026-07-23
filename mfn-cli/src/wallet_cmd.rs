@@ -450,10 +450,18 @@ fn f7_owned_below_floor_usage(got: usize, min: usize) -> WalletCmdError {
     ))
 }
 
-/// Map wallet build errors; rewrite F7 input-count rejects to the CLI preflight text (**B-197**).
+fn ring_size_below_floor_usage(min: usize) -> WalletCmdError {
+    WalletCmdError::Usage(format!(
+        "ring-size must be at least {min} (wallet/consensus floor)"
+    ))
+}
+
+/// Map wallet build errors; rewrite F7 input-count and ring-floor rejects to CLI wording
+/// (**B-197** / **B-217**).
 fn map_wallet_build_err(err: WalletError) -> WalletCmdError {
     match err {
         WalletError::TxInputCountBelowMinimum { got, min } => f7_owned_below_floor_usage(got, min),
+        WalletError::RingSizeBelowMinimum { min, .. } => ring_size_below_floor_usage(min),
         other => WalletCmdError::Wallet(other),
     }
 }
@@ -1134,6 +1142,21 @@ mod tests {
         assert!(
             msg.contains("F7 privacy floor") && msg.contains("faucet"),
             "expected rewritten F7 message, got {msg}"
+        );
+    }
+
+    /// B-217: wallet-layer ring-floor rejects rewrite to the CLI refuse wording.
+    #[test]
+    fn map_wallet_build_err_rewrites_ring_size_below_minimum() {
+        let err = map_wallet_build_err(WalletError::RingSizeBelowMinimum {
+            got: WALLET_MIN_RING_SIZE - 1,
+            min: WALLET_MIN_RING_SIZE,
+        });
+        let msg = err.to_string();
+        assert!(
+            msg.contains("wallet/consensus floor")
+                && msg.contains(&WALLET_MIN_RING_SIZE.to_string()),
+            "expected rewritten ring-floor message, got {msg}"
         );
     }
 
