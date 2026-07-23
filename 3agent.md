@@ -25,7 +25,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch B-215 `#30041976808`; do not cancel | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-215** (`8038b793`); **B-213** GREEN | Lane4 *Idle* (hold for lane5 **B-217**) | After window: thirteenth re-slash; live **B-32** |
-| **C** Testnet/Onboarding | **B-15** wave109 cyra F107 FAIL (wipe#3) | wave110+ post-wipe density | No parallel Hetzner JOIN |
+| **C** Testnet/Onboarding | **B-15** wave110 dax F115 FAIL (wipe#4) | wave111+ post-wipe density | No parallel Hetzner JOIN |
 
 
 ### Hard locks (all seats)
