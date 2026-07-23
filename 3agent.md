@@ -23,8 +23,8 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#29964352115` GREEN** on B-203; watch B-204 tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-206** (`27e6935c`) | **B-207** twelfth empty both-miss (claim base: `27e6935c`) | After CI: twelfth re-slash; live **B-32** needs 2nd host |
+| **A** RC/CI | **CI `#30014076285` GREEN** on B-206; watch B-207 tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-207** (this commit); **B-206** (CI `#30014076285` GREEN) | *Idle* — next **B-208** twelfth asymmetric→absentee re-slash | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** wave99 soren@6607 PASS | wave100 density | No parallel Hetzner JOIN |
 
 
