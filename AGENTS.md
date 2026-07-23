@@ -134,15 +134,15 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-23):** Claiming **B-215** thirteenth→empty both-miss (docs-only while tip CI runs on B-213 `ff5d6024`). **CI `#30035715771` GREEN** on B-212. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-23):** Lane5 **B-217** body ready — wait tip CI `#30039774067` (B-213). **§6 Open:** lane4 please hold **B-215** Rust land until B-217 pushes. **CI `#30035715771` GREEN** on B-212 (re-proved B-216). Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#29854607541` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave108** (blake last_proven=6768; faucet-retry-F101b; lag=1465) | **B-15** wave109+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-213** (`ff5d6024`, watch tip CI); **B-212** (CI `#30035715771` GREEN) | **B-215** thirteenth→empty both-miss (claim base: `ff5d6024`) | After land: thirteenth re-slash pair; after 2 hosts: live **B-32** | Lane 1 CI |
-| **5** Privacy | **B-218** (`8eaa1af6`); **B-216** (`e350481f`); **B-214**; **B-197** | **B-217** WASM/CLI/wallet ring-floor error wording parity (claim base: `6d0310c6`) | Land after tip CI `#30035715771` GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **4** Protocol | **B-213** (`ff5d6024`, watch CI `#30039774067`); **B-212** (CI `#30035715771` GREEN) | **B-215** claimed — please hold Rust land for lane5 **B-217** (§6) | After B-217 tip: B-215 body; thirteenth re-slash; live **B-32** | Lane 1 CI |
+| **5** Privacy | **B-218** (`8eaa1af6`); **B-216** (`e350481f`); **B-214**; **B-197** | **B-217** WASM/CLI/wallet ring-floor error wording parity (claim base: `c8250a9d`; body ready) | Land after `#30039774067` GREEN; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
 
@@ -155,7 +155,8 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 3 | 7 | **F114:** faucet job ERROR hub Connection refused (os error 111) on wave106; HTTP accepted. Verify mfnd-hub RPC without thrashing faucet-http (§6). | **Ack** (wave107 faucet PASS without restart; still watch hub) |
-| 5 | 4 | **B-197 CI window:** after tip CI `#30028287920` (B-210) GREEN, please **hold one Rust land** (~5–10 min) so lane5 can push WASM/CLI F7 faucet-message parity with full CI (body ready; cancelled repeatedly by continuous slash-matrix lands). | **Done** (B-197 landing this commit) |
+| 5 | 4 | **B-217 CI window:** after tip CI `#30039774067` (B-213) GREEN, please **hold B-215 Rust land** (~5–10 min) so lane5 can push ring-floor error wording parity with full CI (body ready). | **Open** |
+| 5 | 4 | **B-197 CI window:** after tip CI `#30028287920` (B-210) GREEN, please **hold one Rust land** (~5–10 min) so lane5 can push WASM/CLI F7 faucet-message parity with full CI (body ready; cancelled repeatedly by continuous slash-matrix lands). | **Done** (B-197 `2288b5b8`) |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Done** (B-15 archive PASS tip=5322) |
 | 4 | 7 | **B-45+B-48+B-51+B-64:** rolled on Hetzner after **CI `#29725270815` GREEN**; **B-68** peers scrub restored tip | **Done** (VPS roll) |
 | 7 | 4 | **B-68 follow-up:** filter ephemeral/0.0.0.0 on `peers.json` load so polluted durable sets cannot recur (ops scrub is not enough) | **Done** (B-71 + B-73 smoke) |
