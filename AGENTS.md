@@ -427,6 +427,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 6 — B-33 checklist mirror** (this commit): tick TESTNET_CHECKLIST + ROADMAP telemetry baseline to archived evidence `b13-pre-enable-treasury-20260806T052834Z.md`. Docs-only `[skip ci]`. Watch B-13a CI `#31073720447`. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
+
 1. **2026-08-06 — lane 6 — B-33 pre-enable treasury telemetry** (this commit): archive `b13-pre-enable-treasury-20260806T052834Z.md` from public proxy (`get_chain_params`/`get_tip`); tip 16063; treasury 2909711; subsidy_bps=0; fee_bps=9000. Tick B-33 telemetry row. Docs-only `[skip ci]` (B-13a tip CI `#31073720447` in progress). Next: human B-33 go / pin B-13a CI GREEN; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — B-33 subsidy fork sign-off checklist** (this commit): `docs/B13_SUBSIDY_FORK_SIGNOFF.md` + OPERATORS/ROADMAP/TESTNET_CHECKLIST/FEES wiring. Technical rows filled; human go + pre-enable telemetry still open (B-30-style). No genesis enable. Docs-only `[skip ci]` (B-13a tip CI `#31073720447` in progress). Next: idle until human B-33 go / L4 for **B-40**. *Observed (not staged):* lane4 `apply_block_proptest.rs`; onchain-tx-storm WIP.

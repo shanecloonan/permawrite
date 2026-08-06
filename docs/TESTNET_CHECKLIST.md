@@ -433,7 +433,7 @@ Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permane
 - [x] **B-13a** — Emission/treasury sims at `subsidy_to_treasury_bps=1000` in default CI (`bbd50ce3`; tip CI must GREEN before **B-13c**).
 - [ ] **B-32** — B3 multi-op evidence pack + assert (unblocks honest **B-24**).
 - [ ] **B-44** — PM3 windowed SPoRA lottery work package (after B-32).
-- [x] **B-33** — B-13b human sign-off checklist artifact ([`B13_SUBSIDY_FORK_SIGNOFF.md`](./B13_SUBSIDY_FORK_SIGNOFF.md); human / telemetry cells still open before **B-13c**).
+- [x] **B-33** — B-13b human sign-off checklist artifact ([`B13_SUBSIDY_FORK_SIGNOFF.md`](./B13_SUBSIDY_FORK_SIGNOFF.md); pre-enable telemetry archived `b13-pre-enable-treasury-20260806T052834Z.md`; human go cells still open before **B-13c**).
 - [ ] **B-13c** — Same-chain enable + operator announcement (after B-33 human go).
 - [ ] **B-24** — Multi-op consensus settlement audit + M5 proptests (after B-32 / B-44 path).
 - [ ] **B-38** — Repair/soak evidence + assert.

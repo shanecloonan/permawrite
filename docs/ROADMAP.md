@@ -539,7 +539,7 @@ Before **B-13c** enable on Path A:
 - [x] **B-13a** sims landed (`bbd50ce3`; tip CI must GREEN before enable)
 - [x] **One-lever rule:** only `subsidy_to_treasury_bps` changes; `fee_to_treasury_bps` untouched
 - [x] **Producer security budget:** written note that ~10% of tail moves to treasury (acceptable on Path A toy keys)
-- [ ] **Telemetry baseline:** live `treasury_base_units` + backstop-rate snapshot archived pre-enable
+- [x] **Telemetry baseline:** live `treasury_base_units` snapshot archived pre-enable (`scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-20260806T052834Z.md`; tip 16063 / treasury 2909711 / subsidy_bps=0; backstop rate via FEES §5.4 watch post-enable)
 - [x] **Bond residual named:** `min_storage_operator_bond = 0` remains; PM1 deferred to Path B — not a fork blocker but recorded
 - [x] **Same-chain lean affirmed** (draft; new `genesis_id` reserved for Path B / header v2)
 - [ ] Named human sign-off in OPERATORS / launch packet
