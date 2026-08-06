@@ -437,7 +437,7 @@ Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permane
 - [ ] **B-13c** — Same-chain enable + operator announcement (after B-33 human go).
 - [ ] **B-24** — Multi-op consensus settlement audit + M5 proptests (after B-32 / B-44 path).
 - [ ] **B-38** — Repair/soak evidence + assert.
-- [ ] **B-28** — Treasury watch + numeric OPERATORS alert thresholds (after B-13c; draft thresholds + `assert-b28-treasury-thresholds.*` landed `980ac1ef` — arm live post-enable).
+- [ ] **B-28** — Treasury watch + numeric OPERATORS alert thresholds (after B-13c; draft thresholds + `assert-b28-treasury-thresholds.*` landed `980ac1ef` (**CI `#31096968523` GREEN**) — arm live post-enable).
 - [ ] **B-25** — Phase 1 permanence go/no-go (30d soak + treasury bounds) — gate before Tier 2 / Path B.
 - [ ] **B-23** — F18 privacy/permanence regression gate in `ci-check` (parallel after L4; does not block B-13a).
 - [ ] **B-36** — F10 `f64` CI lint on consensus path (parallel after L4).

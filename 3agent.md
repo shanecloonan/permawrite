@@ -23,8 +23,9 @@ Synced at B-240 claim. Watch tip CI on B-239; body ready for land after GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-239 tip CI #31099524799 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-239** (c12db8e); watch tip CI | **B-240** sixteenth op1 asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | **B-28 assert** **CI `#31096968523` GREEN**; **B-40** runbook | *Idle* (hold for B-239 tip CI) | Human B-33; arm B-40 on L4 |
+| **B** Protocol/Privacy | **B-239** (
+c12db8e); watch tip CI | **B-240** sixteenth op1 asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)

@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Claiming **B-240** sixteenth op1 asymmetric settle (docs-only while tip CI runs on B-239 c12db8e). **CI #31096968523 GREEN** on B-28. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane6 **B-28 assert** **CI `#31096968523` GREEN** on `980ac1ef`. Lane4 **B-239** tip CI `#31099567869` in progress — do not cancel. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-239** (c12db8e, watch tip CI #31099524799); **B-238** | **B-240** sixteenth op1 asymmetric (claim base: c12db8e; body ready) | After tip GREEN: land B-240; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-28 assert** (`980ac1ef`); **B-40** runbook; **B-20** draft; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* — watch B-28 tip CI | Pin tip CI GREEN; human B-33 go; arm **B-40** on L4 | Emission sims |
+| **6** Permanence | **B-28 assert** (`980ac1ef`, **CI `#31096968523` GREEN**); **B-40** runbook; **B-20** draft; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; arm **B-40** on L4; then **B-13c** / arm B-28 live | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -217,7 +217,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak refreshed** tip 5200->5202 (B-125); prior 5146->5148; participant JOIN half = lane-3 SUMMARY / post-B-15 |
-| B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | **Assert helper landed**; draft thresholds in OPERATORS; arm live after B-13c |
+| B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | **Assert landed** (`980ac1ef`; **CI `#31096968523` GREEN**); arm live after B-13c |
 | B-29 | Nightly participant+observer GREEN | 1+3 | **CLOSED** — Nightly #29755942849 GREEN on d248ba2 (B-75 inclusive) |
 | B-75 | Nightly observer mesh tip-stall after h1 (EAGAIN) | 1 | **Landed** (this commit) - production_dial_peers + persistable start-all / produce-smoke ports |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
@@ -437,6 +437,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — pin B-28 assert CI GREEN** (this commit): **CI `#31096968523` GREEN** on `980ac1ef`. Docs-only `[skip ci]` (B-239 tip CI `#31099567869` in progress). Next: human B-33 go; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 4 - claim B-240** (this commit): early B-24dj sixteenth op1 asymmetric settle while tip CI #31099524799 runs on B-239. Claim base c12db8e. Body ready locally. [skip ci].
 
