@@ -18,7 +18,8 @@ test -f "$SCRIPT_DIR/systemd/path-a-near-tip-ckpt.service" || { echo "missing se
 test -f "$SCRIPT_DIR/systemd/path-a-near-tip-ckpt.timer" || { echo "missing timer unit" >&2; exit 1; }
 grep -q 'publish-near-tip-checkpoint-if-lag.sh --apply' "$SCRIPT_DIR/systemd/path-a-near-tip-ckpt.service"
 grep -q 'MFN_CKPT_LAG_THRESHOLD=8' "$SCRIPT_DIR/systemd/path-a-near-tip-ckpt.service"
-grep -q 'OnUnitActiveSec=30min' "$SCRIPT_DIR/systemd/path-a-near-tip-ckpt.timer"
+grep -q 'OnUnitActiveSec=8min' "$SCRIPT_DIR/systemd/path-a-near-tip-ckpt.timer"
 plan="$(bash "$SCRIPT_DIR/vps-install-near-tip-ckpt-timer.sh" --plan-only)"
 [[ "$plan" == *"vps-install-near-tip-ckpt-timer: PASS plan-only"* ]] || { printf '%s\n' "$plan" >&2; exit 1; }
+[[ "$plan" == *"OnUnitActiveSec=8min"* ]] || { echo "plan missing 8min interval" >&2; exit 1; }
 echo "vps-install-near-tip-ckpt-timer-rehearsal-smoke: PASS plan-only"

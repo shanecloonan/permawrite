@@ -23,7 +23,7 @@ $svcText = Get-Content -LiteralPath $svc -Raw
 if ($svcText -notlike "*publish-near-tip-checkpoint-if-lag.sh --apply*") { throw "missing ExecStart apply" }
 if ($svcText -notlike "*MFN_CKPT_LAG_THRESHOLD=8*") { throw "missing B-258 lag threshold=8" }
 $tmrText = Get-Content -LiteralPath $tmr -Raw
-if ($tmrText -notlike "*OnUnitActiveSec=30min*") { throw "missing timer interval" }
+if ($tmrText -notlike "*OnUnitActiveSec=8min*") { throw "missing timer interval (B-269 8min)" }
 $bashPath = $null
 foreach ($candidate in @(
         "C:\msys64\usr\bin\bash.exe",

@@ -10,7 +10,7 @@ usage() {
   cat <<'EOF'
 usage: vps-install-near-tip-ckpt-timer.sh [--plan-only|--apply]
 
-Installs path-a-near-tip-ckpt.service + .timer (every 30m).
+Installs path-a-near-tip-ckpt.service + .timer (every 8m; B-269).
 Never restarts faucet/mfnd. After a publish, commit the updated
 mfn-node/testdata/public_devnet_v1.checkpoints.jsonl from an agent host.
 EOF
@@ -34,7 +34,8 @@ if (( PLAN_ONLY )); then
   echo "vps-install-near-tip-ckpt-timer: plan"
   echo "  unit=B-88"
   echo "  installs=path-a-near-tip-ckpt.service path-a-near-tip-ckpt.timer"
-  echo "  interval=OnUnitActiveSec=30min"
+  echo "  interval=OnUnitActiveSec=8min"
+  echo "  matches_lag_threshold=8"
   echo "  runs=publish-near-tip-checkpoint-if-lag.sh --apply"
   echo "  never=faucet-http mfnd restart join-testnet-rehearsal"
   echo "vps-install-near-tip-ckpt-timer: PASS plan-only"

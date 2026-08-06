@@ -1,11 +1,13 @@
 [Unit]
-Description=Permawrite Path A near-tip checkpoint lag timer (B-88)
+Description=Permawrite Path A near-tip checkpoint lag timer (B-88 / B-269)
 # B-15-safe: never touches faucet/mfnd
+# Cadence matches MFN_CKPT_LAG_THRESHOLD=8 (~1 block/min) so JOIN soft-pin
+# does not flap for most of a 30m window (B-258 threshold vs B-88 timer mismatch).
 
 [Timer]
 OnBootSec=5min
-OnUnitActiveSec=30min
-AccuracySec=2min
+OnUnitActiveSec=8min
+AccuracySec=1min
 Persistent=true
 Unit=path-a-near-tip-ckpt.service
 
