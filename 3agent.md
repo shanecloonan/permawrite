@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path A max=5290, lag≈1 (healthy).
+Synced from `AGENTS.md` §5 at B-217 CLOSE. Body `55c078fe`; watch CI `#31063131464`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#31059769879` GREEN** on B-223; watch B-224 tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-224** tip; **B-223** GREEN | **B-225** fourteenth empty both-miss (lane4) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-15** wave114 hugo@6848 PASS | wave115+ density | No parallel Hetzner JOIN |
+| **A** RC/CI | B-224 CI GREEN; watch B-217 `#31063131464` | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-217** `55c078fe` (landing CI); **B-224** Done | Lane4 **B-225** hold until B-217 tip GREEN | After tip: land B-225; live **B-32** |
+| **C** Testnet/Onboarding | **B-15** wave114 hugo@6848 PASS | wave115+ density | Path A lag republish; no parallel Hetzner JOIN |
 
 
 ### Hard locks (all seats)
