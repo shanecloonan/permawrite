@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced from AGENTS.md §5 at B-227 land. **CI `#31065238354` GREEN** on B-225; B-227 body lands this commit.
+Synced from AGENTS.md §5 at B-231 land. **CI `#31069737973` GREEN** on B-230.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch **CI `#31069737973`** on B-230 | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-230** (`fb2e609d`); **B-228** GREEN | **B-231** fifteenth dual settle (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-229** tall-tip header cache (`10976dda`); wave114 hugo@6848 | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load; no parallel Hetzner JOIN |
+| **A** RC/CI | **CI `#31069737973` GREEN** (B-230); `#31068279807` GREEN (B-228) | Watch tip CI after B-231 — do not cancel | Pin GREEN → Nightly if protocol stack |
+| **B** Protocol/Privacy | **B-231** fifteenth→dual settle (this commit); **B-230** GREEN | *Idle* (lane4) | **B-232** fifteenth→asymmetric settle → close fifteenth prove matrix → live **B-32** (2 hosts) |
+| **C** Testnet/Onboarding | **B-229** tall-tip header cache; wave114 hugo@6848 | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load; no parallel Hetzner JOIN |
 
 ### Hard locks (all seats)
 
@@ -39,7 +39,7 @@ Synced from AGENTS.md §5 at B-227 land. **CI `#31065238354` GREEN** on B-225; B
 ```text
 L4 public testnet harden
   ├─ Seat C: B-15 JOIN SUMMARY + Path A lag close
-  ├─ Seat B: B-228 closes fourteenth re-slash pair → B-32 multi-op (needs 2nd host)
+  ├─ Seat B: fifteenth prove matrix (B-231→B-232→…) → B-32 multi-op (needs 2nd host)
   └─ Seat A: green CI+Nightly pins on heads
 → Phase 1 permanence: B-40 + B-13a → B-25 (seat A/B with lane 6)
 → TL-9 invites: B-42 → B-14 (seat C) after B-15 PASS
@@ -55,8 +55,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done CI #31065238354 GREEN / Doing watch B-227 tip CI / Next pin+Nightly
-3agent — Seat B: Done B-227 fourteenth asymmetric→absentee re-slash / Doing idle / Next B-228 op1 twin
-3agent — Seat C: Done wave114+ / Doing wave115+ / Next Path A lag + SUMMARY
+3agent — Seat A: Done CI #31069737973 GREEN / Doing watch B-231 tip CI / Next pin+Nightly
+3agent — Seat B: Done B-231 fifteenth→dual settle / Doing idle / Next B-232 fifteenth→asymmetric settle
+3agent — Seat C: Done B-229 + wave114 / Doing wave115+ + VPS proxy apply / Next Path A lag + SUMMARY
 (AGENTS.md §5 remains the claim surface)
 ```
