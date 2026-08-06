@@ -164,8 +164,13 @@ if ($treasuryPlan -notmatch "treasury-telemetry-watch: PASS plan-only" -or $trea
 }
 
 $b28Plan = (powershell -NoProfile -File scripts/public-devnet-v1/assert-b28-treasury-thresholds.ps1 -PlanOnly) -join "`n"
-if ($b28Plan -notmatch "assert-b28-treasury-thresholds: PASS plan-only" -or $b28Plan -notmatch "treasury>=1000000") {
+if ($b28Plan -notmatch "assert-b28-treasury-thresholds: PASS plan-only" -or $b28Plan -notmatch "treasury>=1000000" -or $b28Plan -notmatch "post_enable=false") {
     $b28Plan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$b28PostPlan = (powershell -NoProfile -File scripts/public-devnet-v1/assert-b28-treasury-thresholds.ps1 -PlanOnly -Mode post) -join "`n"
+if ($b28PostPlan -notmatch "assert-b28-treasury-thresholds: PASS plan-only" -or $b28PostPlan -notmatch "post_enable=true" -or $b28PostPlan -notmatch "subsidy_bps==1000") {
+    $b28PostPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $b40Plan = (powershell -NoProfile -File scripts/public-devnet-v1/b40-d0-preflight.ps1 -PlanOnly) -join "`n"

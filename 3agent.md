@@ -11,20 +11,20 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | Re-watch B-262 tip CI after full rerun | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-262** landed; tip CI rerun | **B-263** hold (body ready; Ack B-28-post) | After GREEN+lane6: land B-263; after 2 hosts: live **B-32** |
+| **A** RC/CI | **B-28-post** landed; **B-13b** draft; **B-40-d0** | *Idle* — watch tip CI | Human B-33; arm B-40 on L4 |
+| **B** Protocol/Privacy | **B-262**; held for lane6 | **B-263** next after tip GREEN | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | prior Path A / invite | **Path A lag=84** — lane7 republish | After B-15: B-42; 2nd host B-32 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-262 CI partial cancel rerun. Hold B-263 until tip GREEN + lane6 B-28-post.
+Synced at lane6 **B-28-post** CLOSE. Lane4 may land **B-263** after tip GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Re-watch B-262 tip CI after full rerun | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-262** landed; tip CI rerun | **B-263** hold (body ready; Ack B-28-post) | After GREEN+lane6: land B-263; after 2 hosts: live **B-32** |
+| **A** RC/CI | **B-28-post** landed; **B-13b** draft; **B-40-d0** | *Idle* — watch tip CI | Human B-33; arm B-40 on L4 |
+| **B** Protocol/Privacy | **B-262**; held for lane6 | **B-263** next after tip GREEN | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | prior Path A / invite | **Path A lag=84** — lane7 republish | After B-15: B-42; 2nd host B-32 |
 
 ### Hard locks (all seats)

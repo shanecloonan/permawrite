@@ -131,6 +131,11 @@ treasury_plan="$(bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --pla
 b28_plan="$(bash scripts/public-devnet-v1/assert-b28-treasury-thresholds.sh --plan-only)"
 [[ "$b28_plan" == *"assert-b28-treasury-thresholds: PASS plan-only"* ]] || { printf '%s\n' "$b28_plan" >&2; exit 1; }
 [[ "$b28_plan" == *"treasury>=1000000"* ]] || { echo "ci-check: assert-b28-treasury-thresholds missing treasury floor needle" >&2; exit 1; }
+[[ "$b28_plan" == *"post_enable=false"* ]] || { echo "ci-check: assert-b28-treasury-thresholds missing post_enable=false needle" >&2; exit 1; }
+b28_post_plan="$(bash scripts/public-devnet-v1/assert-b28-treasury-thresholds.sh --plan-only --mode post)"
+[[ "$b28_post_plan" == *"assert-b28-treasury-thresholds: PASS plan-only"* ]] || { printf '%s\n' "$b28_post_plan" >&2; exit 1; }
+[[ "$b28_post_plan" == *"post_enable=true"* ]] || { echo "ci-check: assert-b28-treasury-thresholds post mode missing post_enable=true" >&2; exit 1; }
+[[ "$b28_post_plan" == *"subsidy_bps==1000"* ]] || { echo "ci-check: assert-b28-treasury-thresholds post mode missing subsidy_bps==1000" >&2; exit 1; }
 b40_plan="$(bash scripts/public-devnet-v1/b40-d0-preflight.sh --plan-only)"
 [[ "$b40_plan" == *"b40-d0-preflight: PASS plan-only"* ]] || { printf '%s\n' "$b40_plan" >&2; exit 1; }
 [[ "$b40_plan" == *"no_b13c_enable=true"* ]] || { echo "ci-check: b40-d0-preflight missing no_b13c_enable needle" >&2; exit 1; }
