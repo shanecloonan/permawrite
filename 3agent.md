@@ -19,19 +19,19 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-241 claim. Watch tip CI `#31099567869` on B-239/B-240; B-241 body ready after GREEN.
+Synced at B-241 land. Tip CI will prove sixteenth empty both-miss; next **B-242** re-slash.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-28 assert** **CI `#31096968523` GREEN**; **B-40** runbook | *Idle* (hold for B-239 tip CI) | Human B-33; arm B-40 on L4 |
-| **B** Protocol/Privacy | **B-240**/`B-239` tip; watch CI `#31099567869` | **B-241** empty both-miss (lane4; body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | **CI #31100605940 GREEN** on rustfmt tip | *Idle* - do not cancel healthy in_progress | Pin B-241 tip CI / Nightly |
+| **B** Protocol/Privacy | **B-241** (this commit); **B-240**/**B-239** | *Idle* (next **B-242** sixteenth re-slash) | After 2 hosts: live **B-32** |
 c12db8e); watch tip CI | **B-240** sixteenth op1 asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-241 Rust until tip CI `#31099567869` GREEN.**
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-242 Rust until B-241 tip CI GREEN.**
 3. **Foreign WIP:** never stage `onchain-tx-storm*`, `assert-b28-treasury-thresholds*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 
