@@ -21,10 +21,11 @@ if (-not $Mcli) {
 
 if ($PlanOnly) {
   Write-Output "light-scan-checkpoint-soft: plan"
-  Write-Output "  unit=B-59/B-161"
+  Write-Output "  unit=B-59/B-161/B-250"
   Write-Output "  f45=soft-pass when tip raced past latest Schnorr attestation"
   Write-Output "  hard=checkpoint-log verify still required; disagreement at attested height still fails"
   Write-Output "  note=B-161 in-CLI soft-pass; wrapper for older binaries + rehearsal"
+  Write-Output "  b250=unpinned wallet delegates to bootstrap-wallet-from-checkpoint-log (no cold tall-tip hang)"
   Write-Output "light-scan-checkpoint-soft: PASS plan-only"
   exit 0
 }
@@ -35,6 +36,20 @@ if (-not $Rpc -or -not $Wallet -or -not $Log) {
 if (-not (Test-Path $Mcli)) { Write-Error "mfn-cli missing: $Mcli" }
 if (-not (Test-Path $Wallet)) { Write-Error "wallet missing: $Wallet" }
 if (-not (Test-Path $Log)) { Write-Error "log missing: $Log" }
+
+# B-250: refuse cold tall-tip bare light-scan hang — pin first via bootstrap twin.
+$walletObj = Get-Content -LiteralPath $Wallet -Raw | ConvertFrom-Json
+$scanH = 0
+if ($null -ne $walletObj.scan_height) { $scanH = [int]$walletObj.scan_height }
+$ckpt = ""
+if ($null -ne $walletObj.light_checkpoint_hex) { $ckpt = [string]$walletObj.light_checkpoint_hex }
+if ($scanH -le 1 -or [string]::IsNullOrWhiteSpace($ckpt)) {
+  Write-Output "light-scan-checkpoint-soft: B-250 wallet unpinned — delegating to bootstrap-wallet-from-checkpoint-log.ps1 (avoid cold tall-tip hang)"
+  if (-not $env:MFN_HEAVY_RPC_TIMEOUT_MS) { $env:MFN_HEAVY_RPC_TIMEOUT_MS = "300000" }
+  $boot = Join-Path $ScriptDir "bootstrap-wallet-from-checkpoint-log.ps1"
+  & powershell -File $boot -Apply -Wallet $Wallet -Rpc $Rpc -Log $Log
+  exit $LASTEXITCODE
+}
 
 & $Mcli checkpoint-log verify $Log
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

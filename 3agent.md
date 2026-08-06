@@ -13,13 +13,13 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | --- | --- | --- | --- |
 | **A** RC/CI | **B-28** GREEN; **B-40** runbook | B-13a-512 ready — wait B-242 tip CI GREEN | Land 512 sims; human B-33; arm B-40 |
 | **B** Protocol / Privacy | `apply_block`, SPoRA/slash matrix, wallet ring defaults | 4 + 5 | Hetzner mfnd/faucet restarts (C), Nightly dispatch (A) |
-| **C** Testnet/Onboarding | **B-249** soft-repin tip-16309; **B-248**; **B-247** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
+| **C** Testnet/Onboarding | **B-250** tall-tip soft-delegate; **B-249** tip-16309; **B-248** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at lane7 **B-249** CLOSE (soft-repin + Path A tip-16309). Lane6 **B-13a-512**. Lane4 **B-246**. Watch tip CI `#31105745727`.
+Synced at lane7 **B-250** CLOSE (tall-tip soft-delegate). Lane6 **B-13a-512**. Lane4 **B-246**. Watch tip CI `#31105745727`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |

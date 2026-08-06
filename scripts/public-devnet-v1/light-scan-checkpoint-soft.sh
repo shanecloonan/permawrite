@@ -41,10 +41,11 @@ done
 
 if (( PLAN_ONLY )); then
   echo "light-scan-checkpoint-soft: plan"
-  echo "  unit=B-59/B-161"
+  echo "  unit=B-59/B-161/B-250"
   echo "  f45=soft-pass when tip raced past latest Schnorr attestation"
   echo "  hard=checkpoint-log verify still required; disagreement at attested height still fails"
   echo "  note=B-161 in-CLI soft-pass; wrapper for older binaries + rehearsal"
+  echo "  b250=unpinned wallet delegates to bootstrap-wallet-from-checkpoint-log (no cold tall-tip hang)"
   echo "light-scan-checkpoint-soft: PASS plan-only"
   exit 0
 fi
@@ -57,6 +58,24 @@ if [[ ! -x "$MCLI" ]]; then
   if command -v mfn-cli >/dev/null 2>&1; then MCLI="$(command -v mfn-cli)"; else
     echo "light-scan-checkpoint-soft: mfn-cli missing" >&2; exit 1
   fi
+fi
+
+# B-250: bare light-scan on a cold/unpinned wallet hangs at tall tip (~16k+) while reading
+# genesis→tip. Pin via get_light_snapshot first (bootstrap helper), then soft-scan the delta.
+pinned="$(python3 - "$WALLET" <<'PY'
+import json, sys
+from pathlib import Path
+w = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+scan = int(w.get("scan_height") or 0)
+ckpt = (w.get("light_checkpoint_hex") or "").strip()
+print("1" if scan > 1 and ckpt else "0")
+PY
+)"
+if [[ "$pinned" != "1" ]]; then
+  echo "light-scan-checkpoint-soft: B-250 wallet unpinned — delegating to bootstrap-wallet-from-checkpoint-log (avoid cold tall-tip hang)"
+  export MFN_HEAVY_RPC_TIMEOUT_MS="${MFN_HEAVY_RPC_TIMEOUT_MS:-300000}"
+  bash "$SCRIPT_DIR/bootstrap-wallet-from-checkpoint-log.sh" --apply --wallet "$WALLET" --rpc "$RPC" --log "$LOG"
+  exit $?
 fi
 
 "$MCLI" checkpoint-log verify "$LOG" >/dev/null

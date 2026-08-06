@@ -7,6 +7,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [[ -f "$SCRIPT_DIR/light-scan-checkpoint-soft.ps1" ]] || { echo "missing light-scan-checkpoint-soft.ps1 (B-164)" >&2; exit 1; }
 grep -q "B-161" "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" || { echo "missing B-161 in soft.sh" >&2; exit 1; }
 grep -q "B-161" "$SCRIPT_DIR/light-scan-checkpoint-soft.ps1" || { echo "missing B-161 in soft.ps1" >&2; exit 1; }
+grep -q "B-250" "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" || { echo "missing B-250 in soft.sh" >&2; exit 1; }
+grep -q "B-250" "$SCRIPT_DIR/light-scan-checkpoint-soft.ps1" || { echo "missing B-250 in soft.ps1" >&2; exit 1; }
+grep -q "bootstrap-wallet-from-checkpoint-log" "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" || { echo "missing B-250 bootstrap delegate" >&2; exit 1; }
 grep -q "f45-soft" "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" || { echo "missing f45-soft needle" >&2; exit 1; }
 grep -q "MFN_HEAVY_RPC_TIMEOUT_MS" "$REPO_ROOT/mfn-cli/src/rpc.rs" || { echo "missing MFN_HEAVY_RPC_TIMEOUT_MS (B-161)" >&2; exit 1; }
 grep -q "checkpoint_log_f45_soft_pass" "$REPO_ROOT/mfn-cli/src/light_wallet.rs" || { echo "missing f45 soft needle in light_wallet.rs" >&2; exit 1; }

@@ -103,6 +103,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | TL-8 publish seeds rehearsal (CI) | `bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only` |
 | TL-8 invite packet rehearsal (CI) | `bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only` — validates [`TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) |
 | Tall-tip wallet bootstrap (B-50) | `bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.sh --apply --wallet PATH` — pin via `get_light_snapshot` then light-scan; `--checkpoint-log` alone does **not** skip genesis |
+| Tall-tip soft-repin (B-250) | `light-scan-checkpoint-soft.sh` / `.ps1` **auto-delegates** unpinned wallets to the B-50 bootstrap (B-249: cold bare light-scan hangs at tip~16k). Prefer bootstrap explicitly for JOIN F67 pin-before-fund. |
 | Block-log health (B-53 / F62) | `bash scripts/public-devnet-v1/assert-vps-block-log-health.sh --rpc 127.0.0.1:18734 --data-dir .permawrite-devnet-v1/observer` — tip + `get_block(tip)` (+ optional `chain.blocks` size) |
 | Faucet `/health` (B-53) | Non-blocking: never waits on wallet lock; may set `wallet_status_cached` / `wallet_lock_held` during keepalive |
 | Faucet keepalive (B-56) | Tip-first: poll tip without wallet lock when near tip; full sync only when behind > `SYNC_BEHIND` |
