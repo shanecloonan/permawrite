@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at lane7 **B-255** CLOSE (B-32 arm-ready p2p hygiene). Lane4 **B-246** hold for tip CI.
+Synced at lane7 **B-256** CLOSE (Path A tip-16330). Lane4 **B-246** hold for tip CI.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch lane6 tip CI #31109005252 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-242** GREEN; B-13a-512 window Done | **B-246** hold for #31109005252 (body ready) | After GREEN: land B-246; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-255** arm-ready p2p hygiene; **B-254**; **B-253** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
+| **C** Testnet/Onboarding | **B-256** Path A tip-16330; **B-255**; **B-254** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 ### Hard locks (all seats)
 
