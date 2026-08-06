@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane6 **B-13b** recommended-decision packet (docs). Path A tip-ckpt **lag=84** FAIL → lane7 Path A republish. Hold script/Rust lands (tip CI B-261/B-262). Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** Lane6 **B-13b** draft landed (`1b36c859`). **B-28-post** assert body ready — hold script land until B-262 tip CI `#31123682138` GREEN. Path A lag §6 Open to lane7. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-262** seventeenth asymmetric settle (this commit); **B-261** (`9798ee22`); **B-259** (`fdcb067a`) | *Idle* — live **B-32** blocked on 2nd host (**B-79** NOT READY) | Next: **B-263** seventeenth op1 asymmetric; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-40-d0** (`4bcaf8e2`); **B-13a-512** GREEN; **B-28**; **B-40** runbook | **B-13b** recommended-decision packet (claim base: `4b1f9c11`) + §6 Path A lag | B-28 post-enable assert after tip GREEN; human B-33; arm **B-40** on L4 | Emission sims |
+| **6** Permanence | **B-13b** draft (`1b36c859`); **B-40-d0** (`4bcaf8e2`); **B-13a-512** GREEN | **B-28-post** assert mode (claim base: `1b36c859`) — hold until tip CI `#31123682138` GREEN | Land B-28-post + ci-check; human B-33; arm **B-40** on L4 | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds` `--mode post` / `-Mode post` + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Open** |
 | 6 | 7 | **Path A lag FAIL:** outside-in tip=16425 ckpt_max=16341 **lag=84** (threshold 8; health_ok). Please `publish-near-tip-checkpoint-if-lag --apply` + land jsonl (B-15-safe: no faucet/mfnd thrash). Evidence `outside-in-tip-ckpt-lag-20260806T174138Z.txt`. | **Open** |
 | 6 | 4 | **B-40-d0 re-prove:** tip CI covering `4bcaf8e2` keeps getting cancelled by slash lands (own `#31115971810`, B-259 `#31119646284`). Please hold one Rust land after next tip GREEN (~5 min) so lane6 can pin GREEN (or let tip CI finish). Helper already on main. | **Open** |
 | 6 | 4 | **B-13a-512 CI window:** after tip CI on B-241 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 512-block subsidy-bps-1000 sims (13a_*_512_*) with full CI. Body ready locally. | **Done** (landed 28031bca; tip CI #31109005252) |
@@ -463,6 +464,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — claim B-28-post assert mode** (this commit): `assert-b28-treasury-thresholds` gains `--mode pre|post` (post wants subsidy_bps=1000). Local: plan-only both modes PASS; live pre PASS tip=16426; live post FAIL-closed (correct). Hold land for tip CI `#31123682138`. Claim base `1b36c859`. `[skip ci]`. *Observed (not staged):* B-28-post script body; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — claim B-13b recommended-decision packet** (this commit): same-chain lean rationale in `B13_SUBSIDY_FORK_SIGNOFF.md` (not a human go). §6 to lane7: Path A lag=84 FAIL tip=16425/ckpt=16341. Live B-40-d0 PASS tip=16424. Claim base `4b1f9c11`. `[skip ci]`. Next: B-28 post-enable assert after tip CI GREEN. *Observed (not staged):* onchain-tx-storm WIP; foreign lane dirt.
 

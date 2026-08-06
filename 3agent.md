@@ -11,7 +11,7 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-40-d0** landed; **B-13a-512** GREEN | B-13b packet + Path A lag §6 | B-28 post-enable; human B-33; arm B-40 |
+| **A** RC/CI | **B-13b** draft; **B-40-d0** | B-28-post claimed — wait tip CI | Land B-28-post; human B-33; arm B-40 |
 | **B** Protocol/Privacy | **B-262** seventeenth asymmetric settle (this commit) | *Idle* — hold live **B-32** for 2nd host | **B-263** seventeenth op1 asymmetric settle |
 | **C** Testnet/Onboarding | prior Path A / invite | **Path A lag=84** — lane7 republish | After B-15: B-42; 2nd host B-32 |
 
@@ -19,11 +19,11 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at lane6 B-13b packet + Path A lag §6 to lane7. Hold script/Rust for tip CI.
+Synced at lane6 claim B-28-post; hold for tip CI #31123682138. Path A lag §6 to lane7.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-40-d0** landed; **B-13a-512** GREEN | B-13b packet + Path A lag §6 | B-28 post-enable; human B-33; arm B-40 |
+| **A** RC/CI | **B-13b** draft; **B-40-d0** | B-28-post claimed — wait tip CI | Land B-28-post; human B-33; arm B-40 |
 | **B** Protocol/Privacy | **B-259** landed; tip CI rerun | **B-261** hold (body ready; local PASS) | After GREEN: land B-261; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | prior Path A / invite | **Path A lag=84** — lane7 republish | After B-15: B-42; 2nd host B-32 |
 
