@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane7 **B-244** public health OK after Path A tip-16293 (lag=1). Lane4 owns **B-242** (hold Rust until tip CI `#31102959528` GREEN). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane6 **B-13a-512** body ready; hold Rust until B-241 tip CI `#31102959528` GREEN. **B-28 assert** **CI `#31096968523` GREEN**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-16293; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-241** (5c5e7253, watch tip CI `#31102959528`); **B-240**/**B-239** | **B-242** sixteenth asymmetric->absentee re-slash (claim base: 5c5e7253; body ready) | After tip GREEN: land B-242; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-28 assert** (`980ac1ef`, **CI `#31096968523` GREEN**); **B-40** runbook; **B-20** draft; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; arm **B-40** on L4; then **B-13c** / arm B-28 live | Emission sims |
+| **6** Permanence | **B-28 assert** GREEN; **B-40** runbook; **B-20** draft; **B-13a** 256 GREEN | **B-13a-512** sims (claim base: `70373746`) — hold until B-241 tip CI GREEN | Land 512 sims; human B-33 go; arm **B-40** on L4 | Emission sims |
 | **7** Testnet launch | **B-244** public health tip-16293 (this tip; lag=1 OK); **B-243** (`ff2fafe3`); **B-229** | *Idle* | After B-15 clear: **B-42** invite-load **live**; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 6 | 4 | **B-13a-512 CI window:** after tip CI on B-241 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push 512-block subsidy-bps-1000 sims (`b13a_*_512_*`) with full CI. Body ready locally. | **Open** |
 | 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Done** (assert landed this tip) |
 | 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Done** (landed 360f690b; tip CI #31090099572) |
 | 4 | 6 | **B-13a clippy:** `#31073720447` / `#31075611260` FAIL — allow 8-arg treasury helpers | **Done** (this commit) |
@@ -441,6 +442,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — claim B-13a-512 emission sims** (this commit): `b13a_treasury_ledger_matches_apply_block_512_at_subsidy_bps_1000` + `b13a_fee_drought_512_subsidy_bps_1000_smoother_backstop_than_bps_0`. Hold until B-241 tip CI `#31102959528` GREEN (§6). Claim base `70373746`. `[skip ci]`. *Observed (not staged):* B-13a-512 body; lane4 `apply_block_proptest.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 7 - B-244 public-testnet health tip-16293** (this commit): VPS `assert-public-testnet-health.sh --apply` PASS - timer OK; proxy tip-align OK; faucet idle; tip=16294 ckpt_max=16293 lag=1; frontend :3000 -> 200. Evidence `b244-public-testnet-health-tip-16293-20260806T132000Z.md`. Hold **B-42** until lane3 B-15 clear. Lane4 owns **B-242**. `[skip ci]` (do not cancel tip CI `#31102959528`). *Observed (not staged):* lane4 B-242 proposals; onchain-tx-storm WIP.
 
