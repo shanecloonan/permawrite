@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane7 **B-252** Path A tip-16321 (this commit; `[skip ci]`). Lane6 **B-13a-512** tip CI `#31109005252` in_progress (do not cancel). Lane4 holds **B-246**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane7 **B-253** scrub failed p2p-forward@ templates (this commit; `[skip ci]`). Lane6 tip CI `#31109005252` in_progress (do not cancel). Lane4 holds **B-246**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-242** GREEN #31105745727 | **B-246** body ready - hold until lane6 tip CI #31109005252 GREEN | After GREEN: land B-246; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-13a-512** (this commit; elevates 256); **B-28 assert** GREEN; **B-40** runbook; **B-20** draft | *Idle* | Human B-33 go → arm **B-40** on L4 → **B-13c** only after go | Emission sims |
-| **7** Testnet launch | **B-252** Path A tip-16321 (this commit); **B-251**; **B-250**; **B-249** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
+| **7** Testnet launch | **B-253** scrub p2p-forward@ (this commit); **B-252** tip-16321; **B-251**; **B-250** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
 
@@ -158,7 +158,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Done** (assert landed this tip) |
 | 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Done** (landed 360f690b; tip CI #31090099572) |
 | 4 | 6 | **B-13a clippy:** `#31073720447` / `#31075611260` FAIL — allow 8-arg treasury helpers | **Done** (this commit) |
-| 3 | 7 | **F114:** faucet job ERROR hub Connection refused (os error 111) on wave106; HTTP accepted. Verify mfnd-hub RPC without thrashing faucet-http (§6). | **Ack** (wave107 faucet PASS without restart; still watch hub) |
+| 3 | 7 | **F114:** faucet job ERROR hub Connection refused (os error 111) on wave106; HTTP accepted. Verify mfnd-hub RPC without thrashing faucet-http (§6). | **Done** (B-253: hub_tip prove + failed template scrub; faucet idle) |
 | 5 | 4 | **B-217 CI window:** please hold next Rust land (~5–10 min) after tip CI #30049437036 (B-221) GREEN so lane5 can re-land ring-floor wording parity (reverted from accidental fafb3813 / B-223 leaks). | **Done** (B-217 `55c078fe`; tip CI `#31063344773` GREEN) |
 | 5 | 4 | **B-197 CI window:** after tip CI `#30028287920` (B-210) GREEN, please **hold one Rust land** (~5–10 min) so lane5 can push WASM/CLI F7 faucet-message parity with full CI (body ready; cancelled repeatedly by continuous slash-matrix lands). | **Done** (B-197 `2288b5b8`) |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Done** (B-15 archive PASS tip=5322) |
@@ -300,6 +300,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-246 | Sixteenth-offense op1 asymmetric then absentee re-slash (early B-24dm) | 4 | **Next** after lane6 B-13a-512; elevates B-236; completes sixteenth re-slash pair (ID remapped; B-243=lane7 Path A) |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
+| B-253 | Scrub failed mfn-p2p-forward@ templates + F114 hub prove | 7 | **Landed** (this commit; evidence `b253-scrub-p2p-forward-templates-20260806T141800Z.md`) |
 | B-252 | Path A tip-16321 republish + public-testnet health PASS | 7 | **Landed** (this commit; entries=51; evidence `b252-path-a-tip-16321-health-20260806T141100Z.md`) |
 | B-251 | Observer index get_tip timeout under tall-tip snapshot load | 7 | **Landed** (this commit; VPS proxy apply; evidence `b251-index-tip-timeout-20260806T140500Z.md`) |
 | B-250 | Tall-tip soft-scan auto-delegates unpinned wallets (no cold hang) | 7 | **Landed** (this commit; VPS prove PASS tip~16311; evidence `b250-tall-tip-soft-delegate-20260806T135300Z.md`) |
@@ -449,6 +450,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 7 - B-253 scrub p2p-forward@ + F114** (this commit): remove broken same-port `mfn-p2p-forward@` template; reset failed units; dedicated 1900x->1910x stays up. Hub tip prove (F114); seeds OPEN; faucet idle. B-15-safe (no mfnd/faucet restart). Do not cancel lane6 CI `#31109005252`. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* lane4 proposals; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 7 - B-252 Path A tip-16321 + health** (this commit): lag 12>=8 proactive publish (signer path-a-2); land jsonl entries=51; public-testnet-health OK lag=0; timer OK; faucet idle. Lane3: re-pin soft tip-16321. Do not cancel lane6 CI `#31109005252`. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* lane4 proposals; onchain-tx-storm WIP.
 

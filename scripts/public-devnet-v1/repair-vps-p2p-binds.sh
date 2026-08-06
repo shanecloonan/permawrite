@@ -52,6 +52,8 @@ if (( PLAN_ONLY )); then
   echo "  rpc_unchanged=127.0.0.1"
   echo "  faucet=not restarted"
   echo "  note=do not bind mfnd on 0.0.0.0 (startup hang); do not socat same port as mfnd loopback"
+  echo "  note=B-253: remove broken mfn-p2p-forward@.service (same-port template); use dedicated units"
+  echo "  b15_safe_scrub=scrub-failed-p2p-forward-templates.sh (no mfnd restart)"
   echo "  docs=scripts/public-devnet-v1/vps-bind.env.example"
   echo "repair-vps-p2p-binds: PASS plan-only"
   exit 0
@@ -125,6 +127,17 @@ systemctl disable --now \
   mfn-p2p-forward@19002.service \
   mfn-p2p-forward@19003.service \
   mfn-p2p-forward@19004.service 2>/dev/null || true
+systemctl reset-failed \
+  mfn-p2p-forward@19001.service \
+  mfn-p2p-forward@19002.service \
+  mfn-p2p-forward@19003.service \
+  mfn-p2p-forward@19004.service 2>/dev/null || true
+# B-253: same-port template (%i->%i) must not remain enabled beside dedicated 1900x->1910x units.
+if [[ -f /etc/systemd/system/mfn-p2p-forward@.service ]]; then
+  mv -f /etc/systemd/system/mfn-p2p-forward@.service \
+    "/etc/systemd/system/mfn-p2p-forward@.service.bak.b253-$(date -u +%Y%m%d%H%M%S)"
+  systemctl daemon-reload
+fi
 
 # B-46: keep quoted MFN_P2P_DIAL_EXTRA on hub (avoids 300s voter quarantine after remap).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
