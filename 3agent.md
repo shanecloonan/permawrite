@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-237 land. Lane6 HTTP **CI `#31090099572` GREEN**; B-237 full CI landing (opens 16th offense arc).
+Synced at B-238 claim. Watch tip CI on B-237 `b7203e1a`; body ready for land after GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **HTTP telemetry** `360f690b`; **B-28** draft | Watch HTTP tip CI `#31090099572` | Pin GREEN; human B-33; **B-40** day-of L4 |
-| **B** Protocol/Privacy | **B-237** sixteenth settle-reset slash (this commit) | *Idle* — hold live **B-32** for 2nd host | **B-238** sixteenth dual settle |
+| **B** Protocol/Privacy | **B-237** (b7203e1a); watch tip CI | **B-238** sixteenth dual settle (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is `in_progress` on `main`, prefer `[skip ci]` for docs/ops; never cancel a healthy run. **B-237 landing** — do not cancel its full CI; next claim **B-238** only after in_progress or GREEN.
+2. **CI concurrency:** if GitHub CI is `in_progress` on `main`, prefer `[skip ci]` for docs/ops; never cancel a healthy run. **Hold B-238 Rust until B-237 tip CI GREEN.**
 3. **Foreign WIP:** never stage `onchain-tx-storm*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 
@@ -56,7 +56,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done B-231 GREEN / Doing watch B-232 #31075611260 / Next pin+Nightly
-3agent — Seat B: Done B-237 sixteenth settle-reset slash / Doing Idle / Next B-238 sixteenth dual settle
+3agent — Seat B: Done B-237 sixteenth settle-reset slash / Doing B-238 dual settle (body ready) / Next land after GREEN
 3agent — Seat C: Done B-229 + B-33 telemetry / Doing wave115+ + VPS proxy / Next Path A lag + SUMMARY
 (AGENTS.md §5 remains the claim surface)
 ```
