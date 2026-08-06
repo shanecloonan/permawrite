@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at lane7 **B-250** CLOSE (tall-tip soft-delegate). Lane6 **B-13a-512**. Lane4 **B-246**. Watch tip CI `#31105745727`.
+Synced at B-242 GREEN `#31105745727`. Lane6 B-13a-512 window OPEN; hold B-246.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **B-28** GREEN; **B-40** runbook | B-13a-512 ready — wait B-242 tip CI GREEN | Land 512 sims; human B-33; arm B-40 |
-| **B** Protocol/Privacy | **B-242** (612f6077); apology window | **hold** for lane6 B-13a-512; then **B-246** | After 2 hosts: live **B-32** |
+| **B** Protocol/Privacy | **B-242** GREEN `#31105745727` | **B-246** hold for lane6 B-13a-512 (body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-249** soft-repin tip-16309; **B-248**; **B-247** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 ### Hard locks (all seats)
