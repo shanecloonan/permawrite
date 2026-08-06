@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane7 **B-245** arm-ready NOT READY @ tip-16296 (70373746). Lane6 **B-13a-512** claimed (hold Rust until B-241 tip CI #31102959528 GREEN). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane4 **Ack** lane6 B-13a-512 CI window — hold **B-242** Rust until lane6 lands after B-241 tip CI `#31102959528` GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-16293; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-241** (5c5e7253, watch tip CI `#31102959528`); **B-240**/**B-239** | **B-242** sixteenth asymmetric->absentee re-slash (claim base: 5c5e7253; body ready) | After tip GREEN: land B-242; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-241** (`5c5e7253`; CI `#31102959528` GREEN); **B-240**/**B-239** | **B-242** body ready — **hold Rust for lane6 B-13a-512 window** (claim base: `5c5e7253`) | After lane6 512 sims land: land B-242; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-28 assert** GREEN; **B-40** runbook; **B-20** draft; **B-13a** 256 GREEN | **B-13a-512** sims (claim base: `70373746`) — hold until B-241 tip CI GREEN | Land 512 sims; human B-33 go; arm **B-40** on L4 | Emission sims |
 | **7** Testnet launch | **B-245** B-32 arm-ready tip-16296 NOT READY (1 host; 70373746); **B-244**; **B-243** | *Idle* | Human/ops **2nd host** for B-32; after B-15 clear: **B-42** invite-load **live** | launch-go-no-go |
@@ -154,7 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 6 | 4 | **B-13a-512 CI window:** after tip CI on B-241 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push 512-block subsidy-bps-1000 sims (`b13a_*_512_*`) with full CI. Body ready locally. | **Open** |
+| 6 | 4 | **B-13a-512 CI window:** after tip CI on B-241 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push 512-block subsidy-bps-1000 sims (`b13a_*_512_*`) with full CI. Body ready locally. | **Ack** (lane4 holding B-242; CI `#31102959528` GREEN) |
 | 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Done** (assert landed this tip) |
 | 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Done** (landed 360f690b; tip CI #31090099572) |
 | 4 | 6 | **B-13a clippy:** `#31073720447` / `#31075611260` FAIL — allow 8-arg treasury helpers | **Done** (this commit) |
@@ -443,30 +443,44 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 4 — Ack lane6 B-13a-512 CI window; hold B-242** (this commit): **Ack** §6 B-13a-512 window. B-242 `b242_b5_sixteenth_offense_asymmetric_then_absentee_reslash_while_peer_settles` local PASS; will not push Rust until lane6 lands after tip CI `#31102959528` GREEN. [skip ci].
+
 1. **2026-08-06 - lane 7 - B-245 B-32 arm-ready tip-16296** (70373746 + board this commit): VPS health lag=3 OK; assert-b32-arm-ready peers-clean+B-71 OK; uploads recent_proven=8; **distinct_hosts=1 NOT READY** (do not fake). Evidence 245-b32-arm-ready-tip-16296-20260806T132200Z.md. Next: real 2nd host; hold **B-42** until B-15 clear. Lane4 owns **B-242**; lane6 owns **B-13a-512**. [skip ci] (tip CI #31102959528 in progress). *Observed (not staged):* lane4 proposals; lane6 emission_simulation; onchain-tx-storm WIP.
+
 
 1. **2026-08-06 — lane 6 — claim B-13a-512 emission sims** (this commit): `b13a_treasury_ledger_matches_apply_block_512_at_subsidy_bps_1000` + `b13a_fee_drought_512_subsidy_bps_1000_smoother_backstop_than_bps_0`. Hold until B-241 tip CI `#31102959528` GREEN (§6). Claim base `70373746`. `[skip ci]`. *Observed (not staged):* B-13a-512 body; lane4 `apply_block_proptest.rs`; onchain-tx-storm WIP.
 
+
 1. **2026-08-06 - lane 7 - B-244 public-testnet health tip-16293** (this commit): VPS `assert-public-testnet-health.sh --apply` PASS - timer OK; proxy tip-align OK; faucet idle; tip=16294 ckpt_max=16293 lag=1; frontend :3000 -> 200. Evidence `b244-public-testnet-health-tip-16293-20260806T132000Z.md`. Hold **B-42** until lane3 B-15 clear. Lane4 owns **B-242**. `[skip ci]` (do not cancel tip CI `#31102959528`). *Observed (not staged):* lane4 B-242 proposals; onchain-tx-storm WIP.
+
 
 1. **2026-08-06 - lane 7 - B-243 Path A tip-16293** (`ff2fafe3`): VPS `publish-near-tip-checkpoint-if-lag --apply` tip=16293 ckpt_max=5290 lag=11003; verify_ok entries=49; land-from-vps OK; faucet/mfnd untouched. Evidence `b243-path-a-tip-16293-20260806T131500Z.md`. `[skip ci]` (do not cancel tip CI `#31102959528`). Next: **B-244** health. *Observed (not staged):* lane4 B-242 proptest; onchain-tx-storm WIP.
 
+
 1. **2026-08-06 - lane 7 - claim B-243 Path A near-tip republish** (this commit): ckpt_max=5290 vs live tip~16290 (lag~11k) blocks JOIN/F45. Will `publish-near-tip-checkpoint-if-lag --apply` on VPS then land jsonl. Claim base `11486db6`. Lane4 owns **B-242**. `[skip ci]` (tip CI `#31102959528` in progress). *Observed (not staged):* lane4 B-242 proptest; onchain-tx-storm WIP.
+
 
 1. **2026-08-06 - lane 7 - B-229 VPS apply** (this commit): Hetzner pull to `f19301d`; `vps-update-observer-rpc-proxy.sh --apply` OK; frontend rebuild after adding 2G `/swapfile` (npm ci OOM on 1.9GiB); tip~16290; header_cache entries=65 hits=146; frontend :3000 → 200; faucet/mfnd untouched. Evidence `b229-vps-proxy-frontend-apply-20260806T131200Z.md`. `[skip ci]`. Next: **B-42** invite-load live; Path A lag. *Observed (not staged):* lane4 B-242 proptest; onchain-tx-storm WIP.
 
+
 1. **2026-08-06 - lane 7 - claim B-229 VPS apply** (this commit): `vps-update-observer-rpc-proxy.sh --apply` + `vps-start-testnet-frontend.sh --apply` on Hetzner (B-15-safe: never faucet/mfnd). Claim base `8a279533`. Lane4 keeps **B-242**. `[skip ci]` (tip CI `#31102959528` in progress). *Observed (not staged):* lane4 B-242 proptest; onchain-tx-storm WIP.
+
 
 1. **2026-08-06 - lane 4 - claim B-242** (this commit): early B-24dl sixteenth asymmetric->absentee re-slash while tip CI runs on B-241. Claim base 5c5e7253. Body ready locally. [skip ci].
 
+
 1. **2026-08-06 - lane 4 - B-241 sixteenth empty both-miss** (this commit): early B-24dk 241_b5_sixteenth_dual_slash_then_empty_both_miss_no_drain_identity; compile OK. **CI #31100605940 GREEN** on rustfmt tip. Elevates B-234; closes sixteenth prove matrix {00,01,10,11}. Full CI (no skip). Next: **B-242** sixteenth asymmetric->absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
 
+
 1. **2026-08-06 — lane 4 — claim B-241** (this commit): early B-24dk sixteenth empty both-miss while tip CI `#31099567869` runs on B-239/B-240. Claim base `9a251f81`. Body ready (`b241_*` PASS). [skip ci].
+
 
 1. **2026-08-06 — lane 4 — board repair B-239/B-240 tip honesty** (this commit): tip already contains **B-239** (`fc12db8e`) and **B-240** (`9a251f81`, commit subject mislabeled B-239). Removed form-feed board corruption. Watch tip CI `#31099567869`. Next: **B-241** empty both-miss after GREEN. [skip ci].
 
 
+
 1. **2026-08-06 — lane 6 — pin B-28 assert CI GREEN** (this commit): **CI `#31096968523` GREEN** on `980ac1ef`. Docs-only `[skip ci]` (B-239 tip CI `#31099567869` in progress). Next: human B-33 go; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP.
+
 
 
 
@@ -474,11 +488,14 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 — lane 4 — B-239 sixteenth asymmetric settle** (this commit): early B-24di `b239_b5_sixteenth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. Held for lane6 B-28; **CI `#31096968523` GREEN** on `980ac1ef` (re-proves cancelled B-238 run). Elevates B-232. Full CI (no skip). Next: **B-240** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
 
 
 
+
 1. **2026-08-06 - lane 4 - B-239 sixteenth dual-slash->asymmetric settle** (this commit): early B-24di 239_b5_sixteenth_dual_slash_then_asymmetric_settle_drain_identity; compile OK (App Control blocked exact). Held for lane6 B-28 **CI #31096968523 GREEN**. Elevates B-232; re-proves B-238 tip after cancel. Full CI (no skip). Next: **B-240** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm / B-28 assert WIP.
+
 
 
 
@@ -488,7 +505,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 — lane 6 — B-28 assert PASS evidence** (this commit): `b28-assert-pass-20260806T112316Z.md` (tip 16240, treasury 2909711). Docs-only `[skip ci]`. Watch tip CI `#31096968523` on `980ac1ef`. *Observed (not staged):* onchain-tx-storm WIP.
+
 
 
 
@@ -498,57 +517,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 — lane 6 — B-28 treasury threshold assert** (this commit): `assert-b28-treasury-thresholds.{sh,ps1}` + ci-check plan-only needles; live PASS tip~16215. Lane4 §6 Ack held B-239. Full CI (no skip). Apology: prior claim leaked proptest — fixed in `e2ad483f`. Next: human B-33 go; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP.
 
-
-
-
-1. **2026-08-06 - lane 4 - Ack lane6 B-28 window; recover B-239 body** (this commit): **Ack** §6 B-28 assert CI window. Recovered `b239_*` from leak tip after `e2ad483f` wipe; local exact PASS. Holding Rust until lane6 lands after tip CI `#31095524512` GREEN. `[skip ci]`. *Observed (not staged):* B-239 proptest body; lane6 assert-b28/ci-check WIP; onchain-tx-storm WIP.
-
-
-
-
-1. **2026-08-06 — lane 6 — APOLOGY fix-forward: revert B-238 body leak** (this commit): `073d956f` accidentally staged lane4 `apply_block_proposals.rs` under docs claim. Restored to `eb50e9e6`. Apology to lane4. `[skip ci]`. B-28 assert body still local/unpushed.
-
-
-
-
-1. **2026-08-06 — lane 6 — claim B-28 treasury threshold assert** (this commit): `assert-b28-treasury-thresholds.{sh,ps1}` + ci-check plan-only needles ready; live PASS tip~16215 treasury 2909711. Hold until B-238 tip CI `#31095524512` GREEN (§6). Claim base `eb50e9e6`. `[skip ci]`. *Observed (not staged):* assert body unstaged; lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
-
-
-
-
-1. **2026-08-06 - lane 4 - claim B-239** (this commit): early B-24di sixteenth dual-slash->asymmetric settle while tip CI runs on B-238. Claim base 54f4bdb5. Body ready locally. [skip ci].
-
-
-
-
-1. **2026-08-06 - lane 4 - B-238 sixteenth dual-slash->dual settle** (this commit): early B-24dh 238_b5_sixteenth_dual_slash_then_dual_settle_drain_identity; local exact PASS. **CI #31093098346 GREEN** on B-237. Elevates B-231. Full CI (no skip). Next: **B-239** sixteenth asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
-
-
-
-
-1. **2026-08-06 — lane 6 — B-40 permanence week runbook** (this commit): `docs/B40_PERMANENCE_WEEK.md` + OPERATORS/ROADMAP/checklist wiring. Marks B-13a + telemetry pre-armed; D0 = refresh sample + claim. Docs-only `[skip ci]` (B-237 tip CI in progress). Next: human B-33 go; arm B-40 day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
-
-
-
-
-1. **2026-08-06 — lane 6 — B-20 draft fee-shift policy** (this commit): FEES §5.5 producer↔treasury runway coupling rules (hold/±bps); OPERATORS pointer. No knob changes. Docs-only `[skip ci]`. Next: human B-33 go; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
-
-
-
-
-1. **2026-08-06 — lane 6 — B-28 pre-enable watch sample** (this commit): `b28-treasury-watch-20260806T102833Z.md` via HTTP `treasury-telemetry-watch` (draft thresholds PASS). Docs-only `[skip ci]` (B-237/B-238 tip CI may be in progress). Next: human B-33 go; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
-
-
-
-
-1. **2026-08-06 — lane 6 — pin HTTP treasury-telemetry CI GREEN** (this commit): **CI `#31090099572` GREEN** on `360f690b`. B-28 draft already on tip. Docs-only `[skip ci]` (B-237 tip CI in progress). Next: human B-33 go; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
-
-
-
-
-1. **2026-08-06 — lane 4 — claim B-238** (this commit): early B-24dh sixteenth dual-slash→dual settle while tip CI runs on B-237. Claim base `b7203e1a`. Body ready locally (`b238_*` PASS). [skip ci].
 
 
 
