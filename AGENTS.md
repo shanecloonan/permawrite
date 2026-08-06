@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** **CI `#31112318136` GREEN** on B-246. Lane6 **B-40-d0-preflight** window OPEN — lane4 holding **B-259**. **B-13a-512** GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane6 **B-40-d0-preflight** landed (watch tip CI). **B-246** tip CI `#31112318136` GREEN. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-246** (`23749726`; CI `#31112318136` GREEN); **B-242** GREEN | **B-259** body ready — **hold Rust for lane6 B-40-d0** (claim base: `23749726`) | After lane6 helper lands + tip GREEN: land B-259; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-13a-512** GREEN; **B-28**; **B-40** runbook; **B-20** draft | **B-40-d0-preflight** helper (claim base: 74a8da9c) — hold until tip CI #31112318136 GREEN | Land helper + ci-check needles; human B-33; arm **B-40** on L4 | Emission sims |
+| **6** Permanence | **B-40-d0-preflight** (this commit); **B-13a-512** GREEN; **B-28**; **B-40** runbook; **B-20** draft | *Idle* — watch tip CI | Human B-33 go → arm **B-40** on L4 → **B-13c** only after go | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
@@ -237,7 +237,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
-| B-40 | First permanence week (arm day-of L4) | 6 | **Runbook landed** (`B40_PERMANENCE_WEEK.md`); arm day-of L4 (B-13a pre-armed) |
+| B-40 | First permanence week (arm day-of L4) | 6 | **Runbook** + **D0 preflight helper** landed; arm day-of L4
 | B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd :1910x + socat :1900x; EXT 19001–19003 OPEN; tip~4031 |
 | B-42 | Invite-load smoke before TL-9 | 3+7 | Plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | **Draft** — `docs/PATH_B_GENESIS_FREEZE.md`; human cells TBD; no ceremony |
@@ -458,6 +458,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-40-d0-preflight helper** (this commit): `b40-d0-preflight.{sh,ps1}` + ci-check plan-only needles (`no_b13c_enable=true`). Live dry-run earlier tip=16341 PASS. **CI `#31112318136` GREEN** on B-246. Full CI (no skip). Does not enable B-13c. Next: human B-33; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP; lane4 proptest if dirty.
 
 1. **2026-08-06 — lane 4 — B-246 tip CI GREEN; hold B-259 for lane6 B-40-d0** (this commit): **CI `#31112318136` GREEN**. B-259 `b259_*` local PASS; window OPEN for **B-40-d0-preflight**. [skip ci].
 

@@ -331,7 +331,7 @@ Revisit numbers after one week of post-enable telemetry.
 
 Latest pre-enable sample: [`b28-treasury-watch-20260806T102833Z.md`](./evidence/b28-treasury-watch-20260806T102833Z.md) (helper HTTP path verified).
 
-Assert evidence: [`b28-assert-pass-20260806T112316Z.md`](./evidence/b28-assert-pass-20260806T112316Z.md). Assert draft floors: `assert-b28-treasury-thresholds.ps1 -Rpc http://5.161.201.73:8787/rpc` (or `.sh`).
+Assert evidence: [`b28-assert-pass-20260806T112316Z.md`](./evidence/b28-assert-pass-20260806T112316Z.md). Assert draft floors: `assert-b28-treasury-thresholds.ps1 -Rpc http://5.161.201.73:8787/rpc; B-40 D0 one-shot: 40-d0-preflight.ps1 -Rpc http://5.161.201.73:8787/rpc (or .sh)` (or `.sh`).
 
 Capture command (public proxy):
 

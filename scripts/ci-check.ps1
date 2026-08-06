@@ -168,6 +168,11 @@ if ($b28Plan -notmatch "assert-b28-treasury-thresholds: PASS plan-only" -or $b28
     $b28Plan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$b40Plan = (powershell -NoProfile -File scripts/public-devnet-v1/b40-d0-preflight.ps1 -PlanOnly) -join "`n"
+if ($b40Plan -notmatch "b40-d0-preflight: PASS plan-only" -or $b40Plan -notmatch "no_b13c_enable=true") {
+    $b40Plan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $vpsChecklistPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($vpsChecklistPlan -notmatch "vps-execution-checklist-rehearsal-smoke: PASS plan-only" -or $vpsChecklistPlan -notmatch "vps-execution-checklist.v2") {
     $vpsChecklistPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
@@ -1114,7 +1119,7 @@ cargo build -p mfn-storage-operator --bin mfn-storage-operator --release
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "==> test (release)"
-# M2.4.89 / M2.4.90: heavy M5.36–M5.39 proptest + emission sims OOM at threads=4 on Windows.
+# M2.4.89 / M2.4.90: heavy M5.36â€“M5.39 proptest + emission sims OOM at threads=4 on Windows.
 # Match GHA: one retry after 15s on contended runners (M2.4.89).
 $testOk = $false
 for ($attempt = 1; $attempt -le 2; $attempt++) {

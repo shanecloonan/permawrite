@@ -131,6 +131,9 @@ treasury_plan="$(bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --pla
 b28_plan="$(bash scripts/public-devnet-v1/assert-b28-treasury-thresholds.sh --plan-only)"
 [[ "$b28_plan" == *"assert-b28-treasury-thresholds: PASS plan-only"* ]] || { printf '%s\n' "$b28_plan" >&2; exit 1; }
 [[ "$b28_plan" == *"treasury>=1000000"* ]] || { echo "ci-check: assert-b28-treasury-thresholds missing treasury floor needle" >&2; exit 1; }
+b40_plan="$(bash scripts/public-devnet-v1/b40-d0-preflight.sh --plan-only)"
+[[ "$b40_plan" == *"b40-d0-preflight: PASS plan-only"* ]] || { printf '%s\n' "$b40_plan" >&2; exit 1; }
+[[ "$b40_plan" == *"no_b13c_enable=true"* ]] || { echo "ci-check: b40-d0-preflight missing no_b13c_enable needle" >&2; exit 1; }
 vps_checklist_plan="$(bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_checklist_plan" == *"vps-execution-checklist-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_checklist_plan" >&2; exit 1; }
 [[ "$vps_checklist_plan" == *"vps-execution-checklist.v2"* ]] || { printf '%s\n' "$vps_checklist_plan" >&2; exit 1; }
