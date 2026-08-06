@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Tip CI `#31126560747` still progressing on B-265 `14f6b177` (do not cancel). **B-267** Path A tip-16468 Done; **B-268** activation-height WP landed (design only). Lane4 hold **B-266**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** Tip CI `#31126560747` progressing (macos+windows in_progress; scripts-win SUCCESS). **B-268** call-site inventory appended. Path A lag=4 OK tip=16472. Lane4 hold **B-266**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-263** (ddd7528d); **B-262**; watch tip CI #31126560747 | **B-266** seventeenth empty both-miss (claim base: tip; body ready) | After tip GREEN: land B-266; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-267** Path A tip-16468 (this commit); **B-268** activation WP; **B-265** (`14f6b177`); **B-264**; **B-28-post** | *Idle* — watch tip CI; no B-13c; no B-268b until tip GREEN | Human **B-33**; **B-268b** impl after tip CI + lane4 clear; arm **B-40** day-of L4 | Emission sims |
+| **6** Permanence | **B-268** WP+call-sites (this tip); **B-267** tip-16468; **B-265** (`14f6b177`); **B-264**; **B-28-post** | *Idle* — watch `#31126560747`; no B-268b / no B-13c | After tip GREEN + lane4 Ack: **B-268b**; human **B-33**; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
@@ -156,7 +156,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | --- | --- | --- | --- |
 | 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push ssert-b28-treasury-thresholds --mode post / -Mode post + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Done** (landed this commit; tip CI watch) |
 | 6 | 7 | **Path A lag FAIL:** outside-in tip=16453 ckpt_max=16341 **lag=112**. Closed by **B-264** tip-16456 land (assert OK lag=-1; evidence `outside-in-tip-ckpt-lag-20260806T184223Z.txt`). | **Done** (B-264) |
-| 6 | 4 | **B-268 design review:** please skim [`docs/B13_ACTIVATION_HEIGHT.md`](docs/B13_ACTIVATION_HEIGHT.md) (effective_emission_params + ckpt v12; no enable). Ack before **B-268b** Rust. | **Open** |
+| 6 | 4 | **B-268 design review:** please skim [`docs/B13_ACTIVATION_HEIGHT.md`](docs/B13_ACTIVATION_HEIGHT.md) (now includes call-site inventory for apply_block/fraud/producer). Ack before **B-268b** Rust. | **Open** |
 | 6 | 4 | **B-265 CI window:** genesis `emission` JSON merge + Path A subsidy=0 pin (no enable). | **Done** (landing this commit) |
 | 6 | 7 | **Path A lag FAIL tip=16467** ckpt=16456 **lag=11**. Closed by **B-267** tip-16468 (assert OK lag=0; evidence `outside-in-tip-ckpt-lag-20260806T190853Z.txt`). | **Done** (B-267) |
 | 6 | 1 | **CI zombie `#31123682138`:** cleared (cancelled/completed). Tip CI `#31126560747` on B-265 `14f6b177`. | **Done** |
@@ -470,6 +470,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-268 call-site inventory + live pin** (this commit): append apply_block/fraud/producer seal sites to `B13_ACTIVATION_HEIGHT.md`. Live Path A lag=4 OK tip=16472; B-28-pre PASS subsidy=0. Tip CI `#31126560747` progressing — `[skip ci]`. No B-268b until GREEN + lane4 Ack. *Observed (not staged):* onchain-tx-storm; lane4 proptest.
 
 1. **2026-08-06 — lane 6 — B-267 Path A tip-16468 + B-268 activation WP** (this commit): VPS publish+land tip=16468 (was lag=11); outside-in OK lag=0. Design `docs/B13_ACTIVATION_HEIGHT.md` (effective_emission_params + ckpt v12; no enable). Tip CI `#31126560747` must not cancel — `[skip ci]`. Next: idle until tip GREEN; then **B-268b** after lane4 Ack. *Observed (not staged):* onchain-tx-storm; lane4 proptest.
 

@@ -123,6 +123,48 @@ In `mfn-consensus/tests/emission_simulation.rs` (plus a small `apply_block` unit
 | Human **B-13b** | human | affirm same-chain + activation |
 | **B-13c** | 7 + human | set Path A table `H_act` above tip; roll mfnd; announce; B-28 `--mode post` |
 
+## Call-site inventory (for lane 4 Ack / B-268b)
+
+Exact sites that must use `effective_emission_params(state, height)` (or an
+equivalent height-aware `&EmissionParams`) once the helper exists. Surveyed
+2026-08-06 against tip `463b556d`.
+
+### Consensus — must switch
+
+| File | Site | Notes |
+| --- | --- | --- |
+| `mfn-consensus/src/block/apply.rs` | ~478, ~485 | fee→treasury using `next.emission_params.fee_to_treasury_bps` |
+| `mfn-consensus/src/block/apply.rs` | ~740 | emission passed into slash/evidence path |
+| `mfn-consensus/src/block/apply.rs` | ~1069–1115 | settlement: `treasury_fee`, `subsidy_treasury_credit`, `block_coinbase_specs` |
+| `mfn-consensus/src/fraud_proof.rs` | `verify_coinbase_amount_fraud_proof` / interactive verify | callers must pass **effective** params for `proof.block.header.height` |
+
+### Producer seal — must mirror apply_block
+
+| File | Site | Notes |
+| --- | --- | --- |
+| `mfn-node/src/runner.rs` | ~176–212 | `chain.state().emission_params` → `block_coinbase_specs` |
+| `mfn-node/src/mfnd_cli.rs` | ~255–291 | same pattern for CLI produce path |
+
+Mismatch between seal and `apply_block` → `CoinbaseInvalid` after `H_act`.
+
+### State / checkpoint — B-268b scaffold
+
+| File | Change |
+| --- | --- |
+| `mfn-consensus/src/block/state.rs` | add `subsidy_bps_activation_height` / `subsidy_bps_activation_value` (default `0`) |
+| `mfn-consensus/src/emission.rs` | add `effective_emission_params` + unit tests (boundary at `H_act`) |
+| `mfn-consensus/src/chain_checkpoint/mod.rs` | `CHAIN_CHECKPOINT_VERSION` 11 → 12 |
+| `mfn-consensus/src/chain_checkpoint/{encode,decode}.rs` | write/read schedule; v≤11 → `(0,0)` |
+| `mfn-consensus/tests/emission_simulation.rs` | boundary + fee-drought-across-activation cases |
+
+### Explicitly out of scope for first land
+
+- Mutating `DEFAULT_EMISSION_PARAMS`
+- Arming Path A `PATH_A_SUBSIDY_ACTIVATION` table (**B-13c**)
+- Changing `fee_to_treasury_bps`
+- `p2p_fanout` / `p2p_gossip` / `archive_export` test fixtures that hardcode
+  `DEFAULT_EMISSION_PARAMS` (fine until a test needs post-`H_act` economics)
+
 ## One-line summary
 
 Same-chain enable = keep base `emission_params` at bps=0, add checkpointed (v12)
