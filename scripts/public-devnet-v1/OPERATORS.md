@@ -321,6 +321,9 @@ Revisit numbers after one week of post-enable telemetry.
 | `treasury_base_units` stall | alert if unchanged for ≥ 500 tips while proofs settle | Suggests fee drought + no subsidy credit (or RPC stuck) |
 | Helper | `treasury-telemetry-watch.* --rpc` (NDJSON or HTTP proxy) | HTTP land `360f690b`; evidence under `evidence/b13-pre-enable-treasury-*.md` |
 
+
+Latest pre-enable sample: [`b28-treasury-watch-20260806T102833Z.md`](./evidence/b28-treasury-watch-20260806T102833Z.md) (helper HTTP path verified).
+
 Capture command (public proxy):
 
 ```powershell
