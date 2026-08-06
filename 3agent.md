@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at lane4 Ack of lane6 B-28 window. B-239 body recovered post leak-revert; hold Rust.
+Synced at B-238 CI cancelled by B-28. Hold B-239 until #31096968523 GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-28 assert** `980ac1ef`; **B-40** runbook | Watch tip CI (gh rate-limited) | Pin GREEN; human B-33; arm B-40 on L4 |
-| **B** Protocol/Privacy | **B-238** (54f4bdb5); watch tip CI | **B-239** recovered + PASS — **hold for lane6 B-28 window** | Land B-239 after lane6; after 2 hosts: live **B-32** |
+| **A** RC/CI | Watch lane6 B-28 tip CI #31096968523 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-238** landed (CI cancelled) | **B-239** hold for #31096968523 (body ready) | After GREEN: land B-239; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
