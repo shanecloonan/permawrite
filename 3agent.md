@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-259 remap (B-247=lane7). Watch B-246 tip CI; body ready.
+Synced at lane7 **B-260** Path A tip-16341. Lane4 **B-259** hold for B-246 tip CI.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch B-246 tip CI #31112318136 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-246** (23749726); watch tip CI | **B-259** seventeenth settle-reset (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-258** Path A lag=8 body; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
+| **C** Testnet/Onboarding | **B-260** Path A tip-16341; **B-258**; **B-257** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 ### Hard locks (all seats)
 
