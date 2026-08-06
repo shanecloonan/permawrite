@@ -302,7 +302,8 @@ Single Hetzner IP (hub+v1+v2) is **not** multi-op diversity. `assert-b32-arm-rea
 ### B-13 subsidy fork sign-off (**B-33**)
 
 **B-265:** genesis JSON may set `emission.subsidy_to_treasury_bps` (optional merge).
-Path A omits it today (`0`). Live same-chain enable still needs activation-height
+Path A omits it today (`0`). Live same-chain enable needs activation-height
+(**B-268** design: [`B13_ACTIVATION_HEIGHT.md`](../../docs/B13_ACTIVATION_HEIGHT.md))
 or wipe — see [`B13_SUBSIDY_FORK_SIGNOFF.md`](../../docs/B13_SUBSIDY_FORK_SIGNOFF.md).
 
 Before enabling `subsidy_to_treasury_bps = 1000` on Path A (**B-13c**), complete

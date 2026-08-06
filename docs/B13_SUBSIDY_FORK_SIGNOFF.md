@@ -153,6 +153,7 @@ Only when every box above is ticked:
 
 ## Cross-references
 
+- [`B13_ACTIVATION_HEIGHT.md`](./B13_ACTIVATION_HEIGHT.md) — **B-268** same-chain activation-height work package (design; not enable)
 - [`FEES.md` §5.4](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury)
 - [`ECONOMICS.md`](./ECONOMICS.md) — drought / permanence durability
 - [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md) — Phase 1 gate ticks

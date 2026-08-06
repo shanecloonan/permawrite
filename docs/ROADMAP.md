@@ -488,7 +488,8 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **M7.10** | One-command `push-all-chunks` replication to manifest peers | 3 | ✓ **Shipped** (`c1e0373`) — document in JOIN/OPERATORS onboarding |
 | **B-13a** | Emission/treasury sims at `subsidy_to_treasury_bps = 1000` in default CI | 6 | See **B-13a work package** below — claim on L4 close |
 | **B-13b** | Fork policy: enable `1000` on live devnet vs new `genesis_id` chain | 6+7+human | **Lean same-chain**; human gate = **B-33** checklist (not sims alone) |
-| **B-13c** | Enable `emission.subsidy_to_treasury_bps: 1000` (B-265 loader) + ops announce; same-chain needs activation-height (not JSON-only on live tip) | 7 | After B-13a green + **B-33** + **B-265**; no DEFAULT_EMISSION change |
+| **B-268** | Same-chain activation-height design (`effective_emission_params` + ckpt v12) | 6 | **Design landed** — [`B13_ACTIVATION_HEIGHT.md`](./B13_ACTIVATION_HEIGHT.md); impl = **B-268b** |
+| **B-13c** | Enable Path A schedule `H_act` + ops announce (B-265 loader for wipe path only) | 7 | After B-13a + **B-33** + **B-265** + **B-268b**; no DEFAULT_EMISSION change |
 | **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
 | **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
 | **B-24** | Multi-op **consensus** settlement audit + M5 proptests (ledger compose, not only ops evidence) | 4 | After B3 multi-op internet evidence; [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) Part B |

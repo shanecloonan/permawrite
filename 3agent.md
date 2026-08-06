@@ -11,21 +11,21 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-265**; **B-264** | **B-267** Path A + **B-268** activation WP | Watch tip CI; human B-33 |
+| **A** RC/CI | **B-267** tip-16468; **B-268** WP; **B-265** | *Idle* watch tip CI | B-268b after Ack; human B-33 |
 | **B** Protocol/Privacy | **B-263** (ddd7528d); tip CI watch | **B-266** empty both-miss (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | prior | Path A lag — lane6 B-267 apply | After B-15: B-42; 2nd host B-32 |
+| **C** Testnet/Onboarding | Path A lag closed (B-267) | *Idle* | After B-15: B-42; 2nd host B-32 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at lane6 B-267 Path A republish (lag=11); tip CI #31126560747 progressing.
+Synced at lane6 B-267 tip-16468 + B-268 activation WP Done; tip CI #31126560747 progressing.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-265**; **B-264** | **B-267** Path A + **B-268** activation WP | Watch tip CI; human B-33 |
+| **A** RC/CI | **B-267** tip-16468; **B-268** WP; **B-265** | *Idle* watch tip CI | B-268b after Ack; human B-33 |
 | **B** Protocol/Privacy | **B-263** (ddd7528d); tip CI watch | **B-266** empty both-miss (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | prior | Path A lag — lane6 B-267 apply | After B-15: B-42; 2nd host B-32 |
+| **C** Testnet/Onboarding | Path A lag closed (B-267) | *Idle* | After B-15: B-42; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
