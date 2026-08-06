@@ -12,14 +12,14 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch lane6 tip CI #31115971810 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-259** seventeenth settle-reset slash (this commit) | *Idle* — hold live **B-32** for 2nd host | **B-261** seventeenth dual settle |
+| **B** Protocol/Privacy | **B-259** (`fdcb067a`); watch tip CI | **B-261** seventeenth dual settle (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | VPS / Path A / invite / B-32 arm ops (lanes 3+7) | 3 + 7 | Protocol Rust (B), CI/Nightly cancel (A) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-259 land. Opens seventeenth offense arc; full CI on tip.
+Synced at B-261 claim. Watch tip CI on B-259 `fdcb067a`; body ready for land after GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done watch / Doing idle / Next pin+Nightly
-3agent — Seat B: Done B-241 GREEN / Doing hold B-242 for lane6 B-13a-512 / Next land after lane6
+3agent — Seat B: Done B-259 seventeenth settle-reset / Doing B-261 dual settle (body ready) / Next land after GREEN
 3agent — Seat C: Done B-244 health + B-243 Path A / Doing idle / Next B-42 after B-15 clear
 (AGENTS.md §5 remains the claim surface)
 ```
