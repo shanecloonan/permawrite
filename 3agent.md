@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-233 claim. Watch **CI `#31075611260`** on B-232 (also re-proves B-13a clippy fix `23c675dc`).
+Synced at B-235 land. **CI `#31082254127` GREEN** on B-234; B-235 full CI landing.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch B-234 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-234** (9fc53f42); **B-233** GREEN | **B-235** fifteenth re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
+| **B** Protocol/Privacy | **B-235** fifteenth asymmetric→absentee (this commit) | *Idle* — hold live **B-32** for 2nd host | **B-236** fifteenth op1 re-slash twin |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is `in_progress` on `main`, prefer `[skip ci]` for docs/ops; never cancel a healthy run. **Hold B-233 Rust until `#31075611260` GREEN.**
+2. **CI concurrency:** if GitHub CI is `in_progress` on `main`, prefer `[skip ci]` for docs/ops; never cancel a healthy run. **B-235 landing** — do not cancel its full CI; next claim **B-236** only after in_progress or GREEN.
 3. **Foreign WIP:** never stage `onchain-tx-storm*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 
@@ -56,7 +56,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done B-231 GREEN / Doing watch B-232 #31075611260 / Next pin+Nightly
-3agent — Seat B: Done B-232 fifteenth asymmetric settle / Doing B-233 op1 twin (body ready) / Next B-234 empty both-miss
+3agent — Seat B: Done B-235 fifteenth asymmetric→absentee / Doing Idle / Next B-236 op1 twin
 3agent — Seat C: Done B-229 + B-33 telemetry / Doing wave115+ + VPS proxy / Next Path A lag + SUMMARY
 (AGENTS.md §5 remains the claim surface)
 ```

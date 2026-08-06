@@ -599,6 +599,582 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 1. **2026-07-21 — lane 5 — B-168 fix-forward #2** (this commit): commit the actual alue: 1_498_000 edit (7ef8fcb8 only touched AGENTS). Full CI.
 
+
+### Rotated 2026-08-06 (lane 4 B-235 CLOSE — section 8 oversized)
+
+1. **2026-08-05 — lane 4 — B-228 fourteenth op1 asymmetric→absentee re-slash** (this commit): early B-24cy `b228_b5_fourteenth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local exact PASS. **CI `#31066818023` GREEN** on B-227. Completes fourteenth re-slash pair with B-227. Elevates B-220. Full CI (no skip). Next: **B-230** settle-reset→fifteenth (B-229 = lane7). Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
+
+
+1. **2026-08-05 — lane 4 — claim B-228** (this commit): early B-24cy fourteenth op1 asymmetric→absentee re-slash while tip CI runs on B-227 `43e99602`. Claim base `43e99602`. Body ready locally. `[skip ci]`.
+
+
+1. **2026-08-05 — lane 4 — B-227 fourteenth asymmetric→absentee re-slash** (this commit): early B-24cx `b227_b5_fourteenth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local exact PASS. **CI `#31065238354` GREEN** on B-225. Elevates B-219. Full CI (no skip). Next: **B-228** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP; lane7 B-229.
+
+
+1. **2026-08-05 — lane 7 — B-229 tall-tip observer header cache + viewer poll** (this commit): live tip≈15985; `get_block_headers` ~3.5s every call (full `chain.blocks` read) while viewer polled/aborted every 2.5s — headers never landed. Proxy caches `get_block_header(s)` + tip-warm; frontend no in-flight abort + `get_tx_count_totals`; Next.js heavy timeout 180s; OPERATORS + tip-align smoke needles. Local: `node --check` + tip-align smoke PASS. `[skip ci]` (do not cancel B-225 CI `#31065238354`). Next: VPS proxy+frontend apply. *Observed (not staged):* onchain-tx-storm WIP; lane4 B-227 proptest.
+
+
+1. **2026-08-05 — lane 4 — B-227 fourteenth asymmetric→absentee re-slash** (this commit): early B-24cx `b227_b5_fourteenth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local exact PASS. **CI `#31065238354` GREEN** on B-225. Elevates B-219. Full CI (no skip). Next: **B-228** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
+
+
+1. **2026-08-05 — lane 4 — B-227 fourteenth asymmetric→absentee re-slash** (this commit): early B-24cx `b227_b5_fourteenth_offense_asymmetric_then_absentee_reslash_while_peer_settles`. **CI `#31065238354` GREEN** on B-225. Elevates B-219. Full CI (no skip). Next: **B-228** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP; lane7 observer/frontend WIP.
+
+
+1. **2026-08-05 — lane 4 — claim B-227** (`85fc3eba`): early B-24cx fourteenth asymmetric→absentee re-slash while **CI `#31065238354`** ran on B-225. Claim base `73b3e87b`. `[skip ci]`.
+
+
+1. **2026-08-05 — lane 4 — B-225 fourteenth→empty both-miss** (`332bbff2`; **CI `#31065238354` GREEN**): early B-24cw `b225_b5_fourteenth_dual_slash_then_empty_both_miss_no_drain_identity`. Closes fourteenth prove matrix. Elevates B-215. Next: **B-227**. Still blocked on 2nd host for live **B-32**.
+
+
+1. **2026-08-05 — lane 5 — B-226 docs honesty vs shipped privacy surface** (this commit): TESTNET/OPERATORS drop working standalone `wallet claim`; M4_WASM + `demo/web` `ring_size` 4→16 + floor note; PRIVACY_HARDENING B15 fail-closed + disabled `publish_claim_tx`; FEES/ECONOMICS/AUTHORSHIP/README/wallet/CLI/WASM claim + F45 honesty. Local docs-only ci-check. `[skip ci]` (tip CI `#31063344773` in progress). Next: idle until L4/**B-25** → **B-35**/**B-37**/**B-19**. *Observed (not staged):* onchain-tx-storm WIP.
+
+
+1. **2026-08-05 — lane 5 — B-217 fix-forward: revert B-225 proptest leak** (this commit): `ac5159c2` docs CLOSE accidentally staged lane4 **B-225** body into `mfn-consensus/tests/apply_block_proptest.rs`. Restored that file to `55c078fe` blob. Apology to lane4 — re-land B-225 from claim base after B-217 tip CI GREEN. Full CI (no skip). B-217 body remains `55c078fe`.
+
+
+1. **2026-08-05 — lane 5 — B-217 ring-floor wording parity** (`55c078fe`): WASM/CLI/wallet `RingSizeBelowMinimum` → `wallet/consensus floor`; CLI `map_wallet_build_err` rewrite + unit; privacy-floor smoke needles; PRIVACY honesty. Re-land after B-221/B-223 accidental leaks. Local: wasm rejects_ring PASS; CLI rewrite unit PASS; privacy-floor smoke PASS. Full CI `#31063344773` (watch). Board CLOSE follow-up this commit `[skip ci]`. Next: idle until L4/**B-25** → **B-35**/**B-37**/**B-19**. *Observed (not staged):* onchain-tx-storm WIP; lane4 B-225 claim.
+
+
+1. **2026-08-05 — lane 4 — claim B-225** (this commit): early B-24cw fourteenth empty both-miss while tip CI runs on B-224. Claim base `8c5ee5fe`. `[skip ci]`.
+
+
+1. **2026-08-05 — lane 4 — B-224 fourteenth→op1 asymmetric settle** (this commit): early B-24cv `b224_b5_fourteenth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local exact PASS. **CI `#31059769879` GREEN** on B-223. Completes fourteenth asymmetric settle pair with B-223. Elevates B-213. Full CI (no skip). Next: **B-225** empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-217 WIP; onchain-tx-storm WIP.
+
+
+1. **2026-08-05 — lane 4 — B-224 fourteenth op1 asymmetric settle** (this commit): early B-24cv `b224_b5_fourteenth_dual_slash_then_op1_asymmetric_settle_drain_identity`. **CI `#31059769879` GREEN** on B-223 leak-revert tip. Completes fourteenth asymmetric pair. Elevates B-213. Full CI (no skip). Next: **B-225** empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP; lane-5 B-217.
+
+
+1. **2026-08-05 — lane 4 — claim B-224** (`609fe394`): early B-24cv fourteenth op1 asymmetric settle while tip CI runs on B-223 `0559cc6a`. Claim base `0559cc6a`. Lane5 owns **B-217**. `[skip ci]`.
+
+
+1. **2026-08-05 — lane 4 — B-223 fix-forward: revert lane5 B-217 leak** (this commit): `3ff57357` accidentally staged PRIVACY/CLI/WASM/wallet/smoke (lane5 B-217 WIP). Restored those paths to `627a261a`; keep B-223 proptest + board. Apology to lane5. Full CI. `[no skip]`.
+
+
+1. **2026-07-23 — lane 4 — B-223 fourteenth→asymmetric settle** (this commit): early B-24cu `b223_b5_fourteenth_dual_slash_then_asymmetric_settle_drain_identity`. **CI `#30049842728` GREEN** on B-222. Elevates B-212. Full CI (no skip). Local cargo blocked by host Application Control — GitHub CI is the proof. Next: **B-224** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-217 WIP; onchain-tx-storm WIP.
+
+
+1. **2026-07-23 — lane 4 — B-222 fourteenth→dual settle** (this commit): early B-24ct `b222_b5_fourteenth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. Re-proves B-221 body + B-220 rustfmt after cancelled tip CIs. Full CI. Next: **hold** for lane5 **B-217**, then fourteenth asymmetric. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-217 WIP.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave114**: **hugo** faucet-F101b permanence **last_proven=6848** (commit `de5d9651`); post-F115 x4; F45 lag=1549; claims 79->80; session 100-114. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — rustfmt fix-forward on B-221 tip** (this commit): restore assert wrap lost when copying B-221 body over `7268892e`; keep local B-222 draft. Full CI.
+
+
+1. **2026-07-23 — lane 4 — claim B-222** (this commit): early B-24ct fourteenth→dual settle while **CI `#30049437036`** runs on B-221 `7268892e`. Claim base `7268892e`. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 5 — re-claim B-217** (this commit): tip 7268892e correctly reverted accidental B-217 leak under mislabeled B-221. Body re-applied locally; land after tip CI #30049437036 GREEN. Claim base 7268892e. *Observed (not staged):* B-217 privacy WIP. [skip ci].
+
+
+1. **2026-07-23 — lane 4 — B-221 body + revert lane5 leak** (this commit): restore 221_* into pply_block_proptest.rs; revert PRIVACY/CLI/WASM/smoke files accidentally staged in afb3813 (lane5 B-217 WIP). Keep B-220 rustfmt wrap. Local exact PASS. Full CI. Apology to lane5. *Observed (not staged):* none intentional.
+
+
+1. **2026-07-23 — lane 5 — B-217 ring-floor wording parity** (this commit): WASM/CLI/wallet `RingSizeBelowMinimum` → `wallet/consensus floor`; CLI `map_wallet_build_err` rewrite + unit; privacy-floor smoke needles; PRIVACY honesty. Fix-forward: B-220 rustfmt on `apply_block_proptest.rs` (CI `#30046947892` FAIL). Full CI (no skip). Next: idle until L4/**B-25** → **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 B-221 WIP restored to `_b221_saved.rs` / working tree after land.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave113**: **gina** faucet-F101b permanence **last_proven=6838** (commit `1e3b281c`); post-F115 x3; F45 lag=1535; claims 78->79. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — claim B-221** (this commit): early B-24cs settle-reset→fourteenth dual-slash while **CI `#30046947892`** runs on B-220 `fd10ca89`. Claim base `fd10ca89`. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave112**: **finn** faucet-retry-F101b permanence **last_proven=6824** (commit `e788f78b`); F95; post-F115 x2; F45 lag=1520; claims 77->78; session 100-112. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — claim B-221** (this commit): early B-24cs settle-reset→fourteenth dual-slash while tip CI runs on B-220 `fd10ca89`. Claim base `fd10ca89`. Lane5 owns **B-217**. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-220 thirteenth op1 asymmetric→absentee re-slash** (`fd10ca89`): early B-24cr `b220_b5_thirteenth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#30044629551` GREEN** on B-219. Completes thirteenth re-slash pair. Elevates B-209. Full CI (no skip). Next: **B-221** settle-reset→fourteenth. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-217 WIP. `[skip ci]` board pin.
+
+
+1. **2026-07-23 — lane 4 — claim B-220** (this commit): early B-24cr thirteenth op1 asymmetric→absentee re-slash while tip CI runs on B-219 `6244e7b1`. Claim base `6244e7b1`. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave111**: **eden** faucet-F101b permanence **last_proven=6809** (commit `dd7e4fc9`); post-F115 wipe#4 recovery; F45 lag=1511; claims 76->77. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — B-219 thirteenth asymmetric→absentee re-slash** (this commit): early B-24cq `b219_b5_thirteenth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#30041976808` GREEN** on B-215. Elevates B-208. Full CI (no skip). Next: **B-220** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-217 WIP.
+
+
+1. **2026-07-23 — lane 4 — claim B-219** (this commit): early B-24cq thirteenth asymmetric→absentee re-slash. **CI `#30041976808` GREEN** on B-215. Held Rust through tip CI for lane5 B-217 (still unlanded). Claim base `8038b793`. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave110 FAIL F115**: **dax** funded but upload abort (`no tip_id+mempool0 before upload`); local tip_id ahead of proxy mem=0; **wipe #4**; F45 lag=1498. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — pin B-215 CI `#30041976808` GREEN** (this commit): thirteenth empty both-miss tip `8038b793` GREEN. Still holding further Rust for lane5 **B-217** per §6. Next after clear: thirteenth asymmetric→absentee re-slash. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — board repair after B-215 race** (this commit): landed B-215 `8038b793` immediately after `#30039774067` GREEN without re-SYNC of §6 B-217 hold (`f3fdde58`). Apology to lane5. Holding further lane4 Rust until B-217 lands or tip CI GREEN + explicit clear. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-215 thirteenth→empty both-miss** (this commit): early B-24cp `b215_b5_thirteenth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#30039774067` GREEN** on B-213. Closes thirteenth-offense prove matrix with B-211/B-212/B-213. Elevates B-207. Full CI (no skip). Next: thirteenth asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 privacy WIP.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave109 FAIL F107**: **cyra** Fresh `c7c85f67` sticky local_only+mem=1; **wipe #3** today; F95; F45 lag=1479. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — claim B-215** (this commit): early B-24cp thirteenth→empty both-miss while tip CI runs on B-213 `ff5d6024`. Claim base `ff5d6024`. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-213 thirteenth→op1 asymmetric settle** (this commit): early B-24co `b213_b5_thirteenth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#30035715771` GREEN** on B-212. Completes thirteenth asymmetric settle pair with B-212. Elevates B-206. Full CI (no skip). Next: **B-215** empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 privacy WIP.
+
+
+1. **2026-07-23 — lane 4 — B-213 thirteenth→op1 asymmetric settle** (this commit): early B-24co `b213_b5_thirteenth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#30035715771` GREEN** on B-212. Completes thirteenth asymmetric settle pair with B-212. Elevates B-206. Full CI (no skip). Next: **B-215** empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-217 WIP; lane-3 JOIN docs.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave108**: **blake** faucet-retry-F101b permanence **last_proven=6768** (commit `12c2f830`); F95; F45 lag=1465; claims 75->76; session 100-108. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave107**: **aria** faucet-F101b permanence **last_proven=6754** (commit `a865c9f9`); **F114 recovered** (no faucet restart); F45 lag=1456; claims 74->75. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — claim B-213** (`b1b9378e`): early B-24co thirteenth→op1 asymmetric settle while **CI `#30035715771`** runs on B-212 `48aa8ded`. Claim base `48aa8ded`. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-212 thirteenth→asymmetric settle** (this commit): early B-24cn `b212_b5_thirteenth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#30033021200` GREEN** on B-211. Elevates B-205. Full CI (no skip). Next: **B-213** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* none lane4.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave106 FAIL F114**: **zeke** unfunded — faucet job hub **Connection refused (111)**; peer nora/kate dry + bal TIMEOUT; F45 lag=1403; no faucet restart (§6). *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 5 — B-217 hold + §6 CI window** (this commit): ring-floor wording body still ready; wait tip CI `#30039774067` on B-213; ask lane4 to hold one Rust land (next **B-215**). Claim base refresh `ff5d6024`. **CI `#30035715771` GREEN** re-proved B-216. *Observed (not staged):* lane-4 `apply_block_proposals.rs`. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 5 — claim B-217** (`bad158b6`): WASM/CLI/wallet ring-floor error wording parity while tip CI `#30035715771` covered B-212. Body ready. Leave **B-215** for lane4. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 5 — board pin B-218 + B-216** (`82f1e686`): Done **B-218** `8eaa1af6` + **B-216** `e350481f`. Tip CI `#30035715771` on B-212.
+
+
+1. **2026-07-23 — lane 5 — B-218 Path A lag / F45 soft-pass honesty** (`8eaa1af6`): PRIVACY + CHECKPOINT_LOG — soft-pass ≠ exact-tip when Path A lags. Privacy-floor smoke needles. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 5 — B-216 CLI README/usage F7 + claim-disabled honesty** (`e350481f`): usage notes F7 ≥2 UTXOs; `wallet claim` disabled → upload `--message`; README refuse honesty; privacy-floor smoke. Full CI `#30035644826`. Next: **B-217** after tip GREEN.
+
+
+1. **2026-07-23 — lane 5 — claim B-216** (`d8fabc59`): body ready while tip CI covered B-211. Leave **B-215** for lane4. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 5 — pin B-197 GREEN + B-214 README honesty** (`c5efb7f4`): **CI `#30030542686` GREEN** on `2288b5b8`. WASM/wallet README F7 honesty. Lane4 owns **B-212**/**B-213**.
+
+
+1. **2026-07-23 — lane 4 — claim B-212** (this commit): early B-24cn thirteenth→asymmetric settle while **CI `#30033021200`** runs on B-211 `01459669`. Claim base `01459669`. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-211 thirteenth→dual settle** (this commit): early B-24cm `b211_b5_thirteenth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#30028287920` GREEN** on B-210; waited for **CI `#30030542686` GREEN** on B-197. Elevates B-204. Full CI (no skip). Next: **B-212** thirteenth→asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 JOIN docs.
+
+
+1. **2026-07-23 — lane 5 — B-197 WASM/CLI F7 faucet dual-send message parity** (`2288b5b8`): WASM transfer/upload one-input rejects mention `faucet dual-send`; CLI `map_wallet_build_err` rewrites `TxInputCountBelowMinimum` to B-189 preflight text; PRIVACY + PRIVACY_HARDENING honesty; privacy-floor smoke needles. **CI `#30030542686` GREEN**. §6 CI-window **Done**. Next: after B-25 **B-35**/**B-37**/**B-19**.
+
+
+1. **2026-07-23 — lane 5 — B-197 hold + §6 CI window** (`823a053d`): body ready; pin B-189 CI `#29946719956` GREEN; asked lane4 to hold one Rust land after `#30028287920`.
+
+
+1. **2026-07-23 — lane 4 — claim B-211** (`0d096866`): early B-24cm thirteenth→dual settle while tip CI runs on B-210 `6339fe65`. Claim base `6339fe65`. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-210 settle-reset→thirteenth dual-slash + pin B-209** (`6339fe65`): early B-24cl `b210_b5_settle_reset_then_thirteenth_dual_slash_treasury_identity`; local debug PASS. Pins **B-209** op1 twin already in `d6e85121`. **CI `#30023674882` GREEN** on B-208/B-209. Elevates B-203. Full CI (no skip). Next: **B-211** thirteenth→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WIP; lane-3 JOIN docs.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave105 FAIL F107**: **yara** Fresh `95a0d87a` sticky local_only+mem=1 after only x3 post-wipe PASSes; **wipe #2** today; F45 lag=1389. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave104**: **xan** faucet-retry-F101b permanence **last_proven=6678** (commit `0bc9dd51`); F95; post-wipe x3; F45 lag=1373; claims 73->74. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — claim B-209** (prior): early B-24ck twelfth op1 asymmetric→absentee re-slash while tip CI runs on B-208 `d6e85121`. Claim base `d6e85121`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave103**: **wade** faucet-F101b permanence **last_proven=6662** (commit `a27e8adf`); post-wipe x2; F45 lag=1363; claims 72->73; session 100-103. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — B-208 twelfth asymmetric→absentee re-slash** (this commit): early B-24cj `b208_b5_twelfth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#30016615434` GREEN** on B-207 (Windows re-run after runner flake). Elevates B-201. Full CI (no skip). Next: **B-209** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WIP; lane-3 JOIN docs.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave102**: **vera** faucet-F101b permanence **last_proven=6652** (commit `ec2aff4a`); post-F107 wipe recovery; F45 lag=1353; claims 71->72. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave101 FAIL F107**: **uma** Fresh `ad22ec72` sticky local_only+mem=1; permanence FAIL; tip diverge; **wipe** `b15-fresh` → divergent quarantine; F95 600s; F45 lag=1332. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave100**: **tessa** faucet-retry-F101b permanence **last_proven=6621** (commit `d12dff55`); **wave100 milestone**; F95; F45 lag=1318; claims 70->71; session findings 97-100. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — claim B-208** (this commit): early B-24cj twelfth asymmetric→absentee re-slash while tip CI runs on B-207. Claim base `fe6dea2b`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-207 twelfth→empty both-miss** (this commit): early B-24ci `b207_b5_twelfth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#30014076285` GREEN** on B-206. Closes twelfth-offense prove matrix with B-204/B-205/B-206. Elevates B-200. Full CI (no skip). Next: **B-208** twelfth asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WIP; lane-3 JOIN docs.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave99**: **soren** faucet-F101b permanence **last_proven=6607** (commit `6c299a4a`); F45 lag=1310; claims 69->70; next wave100. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — claim B-207** (this commit): early B-24ci twelfth empty both-miss while **CI `#30014076285`** runs on B-206. Claim base `27e6935c`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — claim B-207** (this commit): early B-24ci twelfth→empty both-miss while tip CI runs on B-206. Claim base `27e6935c`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-206 twelfth op1 asymmetric settle** (this commit): early B-24ch `b206_b5_twelfth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#30011650669` GREEN** on B-205. Completes twelfth asymmetric settle pair. Elevates B-199. Full CI (no skip). Next: **B-207** twelfth empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI F7 WIP.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave98**: **riven** faucet-F101b permanence **last_proven=6599** (commit `4a3d48f6`); F45 lag=1297; claims 68->69. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — claim B-206** (this commit): early B-24ch twelfth op1 asymmetric settle while **CI `#30011650669`** runs on B-205. Claim base `320d731d`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-205 twelfth→asymmetric settle** (this commit): early B-24cg `b205_b5_twelfth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#30009207219` GREEN** on B-204. Elevates B-198. Full CI (no skip). Next: **B-206** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI F7 WIP.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave97**: **quill** faucet-F101b permanence **last_proven=6586** (commit `ecc0d3f2`); F113 resume; F45 lag=1286; claims 67->68; post-wipe streak x17. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 3 — B-15 wave97 resume ops**: overnight wave97 interrupt at tip~6151; tip advanced to ~6575; F45 lag~1281; F113 get_light_snapshot TIMEOUT@180s + RPC wedge → mfnd restart (no wipe); runners hardened to 300s+retry; wave97 re-running. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-23 — lane 4 — claim B-205** (this commit): early B-24cg twelfth→asymmetric settle while **CI `#30009207219`** runs on B-204. Claim base `38722ef9`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-23 — lane 4 — B-204 twelfth→dual settle** (this commit): early B-24cf `b204_b5_twelfth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29964352115` GREEN** on B-203. Elevates B-196. Full CI (no skip). Next: **B-205** twelfth→asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI/PRIVACY WIP.
+
+
+1. **2026-07-23 — lane 4 — B-204 twelfth→dual settle** (this commit): early B-24cf `b204_b5_twelfth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29964352115` GREEN** on B-203. Elevates B-196. Full CI (no skip). Next: **B-205** twelfth→asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 4 — claim B-204** (this commit): early B-24cf twelfth→dual settle while **CI `#29964352115`** runs on B-203. Claim base `017b504e`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-203 settle-reset→twelfth dual-slash** (this commit): early B-24ce `b203_b5_settle_reset_then_twelfth_dual_slash_treasury_identity`; local debug PASS. **CI `#29962531591` GREEN** on B-202. Elevates B-195. Full CI (no skip). Next: **B-204** twelfth→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave96**: **pax** faucet-retry-F101b permanence **last_proven=6141** (commit `b2e0ef61`); F95; F45 lag=838; claims 66->67; session findings 80-96; post-wipe streak x16. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-203** (this commit): early B-24ce settle-reset→twelfth dual-slash while **CI `#29962531591`** runs on B-202. Claim base `c89be6d5`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-202 eleventh op1 asymmetric→absentee re-slash** (this commit): early B-24cd `b202_b5_eleventh_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29960603534` GREEN** on B-201. Completes eleventh-offense re-slash pair with B-201. Elevates B-194. Full CI (no skip). Next: settle-reset→twelfth dual-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave95**: **orin** faucet-retry-F101b permanence **last_proven=6128** (commit `063c60ee`); F95 429+600s; F45 lag=824; claims 65->66; post-wipe streak x15. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-202** (this commit): early B-24cd eleventh op1 asymmetric→absentee re-slash while **CI `#29960603534`** runs on B-201. Claim base `3f80e939`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-201 eleventh asymmetric→absentee re-slash** (this commit): early B-24cc `b201_b5_eleventh_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29957063411` GREEN** on B-200 (re-ran cancelled Nightly/soak dispatch). Elevates B-193. Full CI (no skip). Next: **B-202** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave94**: **nash** faucet-F101b permanence **last_proven=6113** (commit `dae77944`); F45 lag=815; claims 64->65; post-wipe streak x14; session findings 80-94. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave93**: **moss** faucet-F101b permanence **last_proven=6104** (commit `4c7096c6`); F45 lag=805 (>800); claims 63->64; post-wipe streak x13. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave92**: **luna** faucet-F101b permanence **last_proven=6094** (commit `db928bea`); F45 lag=794; claims 62->63; session findings 80-92; post-wipe streak x12. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-201** (this commit): early B-24cc eleventh asymmetric→absentee re-slash while **CI `#29957063411`** runs on B-200. Claim base `74b6ded8`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-200 eleventh empty both-miss** (this commit): early B-24cb `b200_b5_eleventh_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29954425543` GREEN** on B-199. Closes eleventh-offense prove matrix. Elevates B-192. Full CI (no skip). Next: **B-201** eleventh asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave91**: **kade** faucet-F101b permanence **last_proven=6083** (commit `eafc2346`); F45 lag=781; claims 61->62; post-wipe streak x11. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-200** (this commit): early B-24cb eleventh empty both-miss while **CI `#29954425543`** runs on B-199. Claim base `bf57020d`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-199 eleventh op1 asymmetric settle** (this commit): early B-24ca `b199_b5_eleventh_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29951471550` GREEN** on B-198. Completes eleventh asymmetric settle pair. Elevates B-191. Full CI (no skip). Next: **B-200** eleventh empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave90**: **juno** faucet-F101b permanence **last_proven=6070** (commit `f1ee38e1`); F45 lag=771; claims 60->61; session findings 80-90; post-wipe streak x10. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave89**: **iota** faucet-F101b permanence **last_proven=6060** (commit `662d06b9`); F45 lag=761; claims 59->60. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave88**: **haven** faucet-F101b permanence **last_proven=6050** (commit `c6a012ca`); F45 lag=751; claims 58->59; session findings 80-88. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-199** (this commit): early B-24ca eleventh op1 asymmetric settle while **CI `#29951471550`** runs on B-198. Claim base `ef3488ef`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-198 eleventh→asymmetric settle** (this commit): early B-24bz `b198_b5_eleventh_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29949333319` GREEN** on B-196. Elevates B-190. Full CI (no skip). Next: **B-199** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-197 WASM/CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave87**: **gryph** faucet-retry permanence **last_proven=6040** (commit `4957de78`); F95; F45 lag=737; claims 57->58; session findings 80-87. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-198** (this commit): early B-24bz eleventh→asymmetric settle while **CI `#29949333319`** runs on B-196. Claim base `da4c8b68`. Lane5 owns **B-197**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — board: next is B-198** (this commit): lane5 claimed **B-197** WASM/CLI F7 parity; lane4 eleventh→asymmetric is **B-198**. Watch **CI `#29949333319`** on B-196. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-196 eleventh→dual settle** (this commit): early B-24by `b196_b5_eleventh_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29946719956` GREEN** on B-189 (B-195 CI `#29946690265` cancelled by lane5). Elevates B-188; tip CI re-proves B-195. Full CI (no skip). Next: **B-197** eleventh→asymmetric settle. Still blocked on 2nd host for live **B-32**.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave86**: **felix** faucet-F101b permanence **last_proven=6026** (commit `6c5e6c65`); F45 lag=728; claims 56->57. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 5 — claim B-197** (this commit): WASM/CLI F7 faucet dual-send message parity while **CI `#29946719956`** covers B-189. Claim base `ffb037ce`. Body ready locally (wasm-full + CLI units PASS; privacy-floor smoke PASS). Lane4: after B-196 use **B-198+** for eleventh asymmetric. *Observed (not staged):* lane-4 `apply_block_proposals.rs`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — claim B-196** (this commit): early B-24by eleventh→dual settle while **CI `#29946690265`** runs on B-195. Claim base `1a83d9d0`. Lane5 owns **B-189**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave85**: **eden** faucet-retry-F101b permanence **last_proven=6017** (commit `7cab6287`); F95 429+600s; F45 lag=713; claims 55->56; session findings 80-85. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — B-195 settle-reset→eleventh dual-slash** (this commit): early B-24bx `b195_b5_settle_reset_then_eleventh_dual_slash_treasury_identity`; local debug PASS. **CI `#29944414883` GREEN** on B-194. Elevates B-187. Full CI (no skip). Next: **B-196** eleventh→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-189 CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 5 — B-189 CLI F7 owned-UTXO preflight** (this commit): `require_f7_owned_input_floor` on send/upload; actionable faucet dual-send message; PRIVACY + privacy-floor smoke. Local unit PASS. **CI `#29944414883` GREEN** on B-194. Full CI (no skip). Next: after B-25 **B-35**/**B-37**/**B-19**.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave84**: **dante** faucet-F101b permanence **last_proven=6002** (commit `1cfa851f`); F45 lag=704 (>700); claims 54->55. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-195** (`0fa53167`): early B-24bx settle-reset→eleventh dual-slash while **CI `#29944414883`** ran on B-194. Claim base `35374a83`. Lane5 owns **B-189**.
+
+
+1. **2026-07-22 — lane 4 — B-194 tenth op1 asymmetric→absentee re-slash** (this commit): early B-24bw `b194_b5_tenth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29942162752` GREEN** on B-193. Completes tenth-offense re-slash pair with B-193. Elevates B-184. Full CI (no skip). Next: settle-reset→eleventh dual-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-189 CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave83**: **coral** faucet-F101b permanence **last_proven=5993** (commit `86de6d8f`); F95 429+600s; F45 lag=693; claims 53->54; session findings waves80-83. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-194** (this commit): early B-24bw tenth op1 asymmetric→absentee re-slash while **CI `#29942162752`** runs on B-193. Claim base `2dd978ed`. Lane5 owns **B-189**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — claim B-194** (this commit): early B-24bw tenth op1 asymmetric→absentee re-slash while **CI `#29942162752`** runs on B-193. Claim base `2dd978ed`. Lane5 owns **B-189**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-193 tenth asymmetric→absentee re-slash** (this commit): early B-24bv `b193_b5_tenth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29939450769` GREEN** on B-192. Elevates B-183. Full CI (no skip). Next: **B-194** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-189 CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave82**: **brynn** faucet-F101b permanence **last_proven=5982** (commit `96804c75`); F45 lag=683; claims 52->53. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave81**: **aster** faucet-F101b permanence **last_proven=5972** (commit `851f4f0a`); post-F107 wipe recovery; F45 lag=672; claims 51->52. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-193** (this commit): early B-24bv tenth asymmetric→absentee re-slash while **CI `#29939450769`** runs on B-192. Claim base `3bc117e3`. Lane5 owns **B-189**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-192 tenth empty both-miss** (this commit): early B-24bu `b192_b5_tenth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29936920636` GREEN** on B-191. Closes tenth-offense prove matrix. Elevates B-181. Full CI (no skip). Next: **B-193** tenth asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-189 CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave80 PROVE FAIL**: **zara** funded+uploaded `227ce538` but stuck local_only mem=1 (F107); last_proven=None; proxy_has=false; F45 lag=658. Wipe observer before wave81. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+
+
+1. **2026-07-22 — lane 4 — claim B-192** (this commit): early B-24bu tenth empty both-miss while **CI `#29936920636`** runs on B-191. Claim base `1baee23e`. Lane5 owns **B-189**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-191 tenth op1 asymmetric settle** (this commit): early B-24bt `b191_b5_tenth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29934475574` GREEN** on B-190. Completes tenth asymmetric settle pair. Elevates B-179. Full CI (no skip). Next: **B-192** tenth empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-189 CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave79**: **yukon** faucet-retry-F101b permanence **last_proven=5947** (commit `f27142c1`); F45 lag=643; claims 50->51. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — B-189 hold for tip CI** (this commit): CLI F7 preflight ready; wait for **CI `#29934475574`** on B-190 (do not cancel). Claim base `4d19b71f`. **CI `#29931611895` GREEN** on B-188. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — claim B-191** (this commit): early B-24bt tenth op1 asymmetric settle while **CI `#29934475574`** runs on B-190. Claim base `fdfa6ba6`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-190 tenth→asymmetric settle** (this commit): early B-24bs `b190_b5_tenth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29931611895` GREEN** on B-188. Elevates B-178. Full CI (no skip). Next: **B-191** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-189 CLI F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave78**: **wynn** faucet-F101b permanence **last_proven=5932** (commit `7134e91b`); F45 lag=634; claims 49->50. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 3 — B-15 wave77**: **vela** faucet-retry-F101b permanence **last_proven=5923** (commit `ef6cc45c`); F112 fix validated (`--message` intact); F45 lag=619; claims 48->49. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — pin B-186 GREEN + hold B-189** (this commit): **CI `#29929300995` GREEN** on B-186. CLI F7 preflight body ready; wait for tip **CI `#29931611895`** (B-188) before Rust land. Claim base `0f1d040e`. Lane4 owns **B-190**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — claim B-190** (this commit): early B-24bs tenth→asymmetric settle while **CI `#29931611895`** runs on B-188. Claim base `37369cca`. Lane5 owns **B-189** CLI F7. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-188 tenth→dual settle** (this commit): early B-24br `b188_b5_tenth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29926146314` GREEN** on B-187. Elevates B-176. Full CI (no skip). Next: **B-189** tenth→asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 F7 wallet WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave76 UPLOAD FAIL**: **troy** funded (F101b) but upload died on `unknown option --mestroy` (F112 sage substring in --message). F45 lag=612 (>600). Runners fixed with word-boundary clone. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — claim B-189** (this commit): CLI F7 owned-UTXO preflight on send/upload while **CI `#29929300995`** covers B-186. Claim base `0299219f`. Body ready locally (unit PASS). `[skip ci]`.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave75**: **sage** faucet-retry-F101b permanence **last_proven=5901** (commit `32e7ab2e`); F95 429+600s; F45 lag=597; claims 47->48. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — B-186 high-level F7 select fail-closed** (`94cbfece`): `select_inputs_for_tx` returns `TxInputCountBelowMinimum` when single-UTXO cannot pad; PRIVACY honesty; privacy-floor smoke. Watch **CI `#29929300995`**.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave74**: **reed** faucet-F101b permanence **last_proven=5886** (commit `480340e7`) after F107 wipe+resync; F45 lag=588; claims 46->47. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — B-186 hold for tip CI** (`00e648d4`): body ready; waited for **CI `#29926146314`**.
+
+
+1. **2026-07-22 — lane 4 — claim B-188** (this commit): early B-24br tenth→dual settle while **CI `#29926146314`** runs on B-187. Claim base `e255c8ab`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-187 settle-reset→tenth dual-slash** (this commit): early B-24bq `b187_b5_settle_reset_then_tenth_dual_slash_treasury_identity`; local debug PASS. **CI `#29923762483` GREEN** on B-184. Elevates B-175. Full CI (no skip). Next: **B-188** tenth→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 wallet/PRIVACY F7 WIP.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave73 PROVE FAIL**: **opal** funded+uploaded `21e4dd81` but stuck local_only mem=1 (F107); last_proven=None; proxy_has=false; F45 lag=574. Wipe observer before wave74. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — pin B-185 CI GREEN** (this commit): `89089aca` covered by **CI `#29921156035` GREEN** on B-183 tip. **B-186** body ready; land after tip CI `#29923762483` (B-184). Claim base refresh `ad13d1b8`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — claim B-187** (this commit): early B-24bq settle-reset→tenth dual-slash while **CI `#29923762483`** runs on B-184. Claim base `23b94193`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-184 ninth op1 asymmetric→absentee re-slash** (this commit): early B-24bp `b184_b5_ninth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29921156035` GREEN** on B-183. Completes ninth-offense re-slash pair with B-183. Elevates B-173. Full CI (no skip). Next: settle-reset→tenth dual-slash. Still blocked on 2nd host for live **B-32**.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave72**: **nico** faucet-F101b permanence **last_proven=5863** (commit `8fc38085`); F45 lag=564; claims 45->46. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 3 — B-15 wave71**: **mira** faucet-F101b permanence **last_proven=5853** (commit `4e9c8758`); F45 lag=553; claims 44->45. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — claim B-186** (this commit): high-level `select_inputs_for_tx` F7 fail-closed while **CI `#29921156035`** covers B-183+B-185. Claim base `5d48cd70`. Body ready locally (unit PASS). `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — claim B-184** (this commit): early B-24bp ninth op1 asymmetric→absentee re-slash while **CI `#29921156035`** runs on B-183. Claim base `20f32252`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-183 ninth asymmetric→absentee re-slash** (this commit): early B-24bo `b183_b5_ninth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29912408521` GREEN** on B-181. Elevates B-171. Full CI (no skip). Next: **B-184** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-185 F7 fix-forward CI; lane-3 JOIN smoke.
+
+
+1. **2026-07-22 — lane 5 — B-185 rustfmt fix-forward** (this commit): `cargo fmt` on rpc env-lock + mempool dual-fund after **CI `#29920853490`** rustfmt FAIL. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
+
+
+1. **2026-07-22 — lane 5 — B-185 fix-forward #2** (`f8914d47`): `mempool_integration` funds Alice with 2 coinbases (F7); `HEAVY_RPC_TIMEOUT_ENV_LOCK` serializes Windows env race. Local mempool + rpc PASS. **CI `#29920853490`** rustfmt FAIL → fix-forward tip. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave70**: **lena** faucet-F101b permanence **last_proven=5842** (commit `55cee933`); F45 lag=544; claims 43->44. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 3 — B-15 wave69**: **kira** faucet-F101b permanence **last_proven=5833** (commit `7f6b2496`); F45 lag=530; claims 42->43. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — B-185 fix-forward** (this commit): dualize caller_supplied_extra_is_verbatim + fund fee-too-low e2e with 2 coinbases so F7 floor does not mask UploadUnderfunded. Local mfn-wallet release suite PASS. Full CI (no skip).
+
+
+1. **2026-07-22 — lane 3 — B-15 wave68**: **joss** faucet-F101b permanence **last_proven=5819** (commit `775fc539`); F45 lag=521; claims 41->42. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 3 — B-15 wave67**: **ivy** faucet-F101b permanence **last_proven=5810** (commit `f1e786b4`); F45 lag=511 (>500); claims 40->41. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 3 — B-15 wave66**: **hugo** faucet-retry-F101b permanence **last_proven=5800** (commit `a9ae8fec`); F95 429+600s then retry done 220389ms; F45 lag=495; claims 39->40. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — B-185 low-level F7 two-input fail-closed** (this commit): `WalletError::TxInputCountBelowMinimum` on `build_transfer`/`build_storage_upload`; upload fixtures dualized; PRIVACY honesty; privacy-floor smoke. **CI `#29912408521` GREEN** on B-181. Full CI (no skip). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
+
+
+1. **2026-07-22 — lane 5 — claim B-185** (this commit): low-level F7 two-input fail-closed (`TxInputCountBelowMinimum` on `build_transfer`/`build_storage_upload`) while **CI `#29912408521`** runs on B-181. Claim base `31d8f565`. *Observed (not staged):* lane-4 `apply_block_proposals.rs`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 5 — pin B-182 CI GREEN** (this commit): `e7b3e8bf` covered by **CI `#29910182810` GREEN**. Next: after B-25 **B-35**/**B-37**/**B-19**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave65**: **gwen** faucet-F101b permanence **last_proven=5784** (commit `5a47083c`); F110 streak x5; F45 lag=486; claims 38->39. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 4 — claim B-183** (this commit): early B-24bo ninth asymmetric→absentee re-slash while **CI `#29912408521`** runs on B-181. Claim base `9caa7ee4`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-181 ninth-slash→empty both-miss** (this commit): early B-24bn `b181_b5_ninth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. **CI `#29908001364` GREEN** on B-179. Closes ninth-offense prove matrix. Full CI (no skip). Next: **B-183** ninth-offense asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave64**: **finn** faucet-F101b permanence **last_proven=5775** (commit `da677677`); F110 streak x4; faucet ~280s; F45 lag=472; claims 37->38. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — B-182 CLI ring usage honesty** (this commit): usage() send/upload/claim `--ring-size` lines say `default 16, wallet/consensus floor`; privacy-floor smoke rejects `consensus min`. **CI `#29908001364` GREEN** on B-179. Live tip~5753. Full CI (no skip). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave63**: **ella** faucet-F101b permanence **last_proven=5761** (commit `8f9142a9`); F110 streak x3 (~20 min; 0 TIMEOUT); F45 lag=462; claims 36->37. Honor section 6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 5 — claim B-182** (this commit): CLI `--ring-size` usage honesty (replace `consensus min` / bare `default 16` help with wallet/consensus floor) while **CI `#29908001364`** runs on B-179. Claim base `96634217`. *Observed (not staged):* lane-4 `apply_block_proposals.rs`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 5 — archive B-180 CLI ring-15 refuse prove** (`ba898536`): release `mfn-cli` fail-closed on `--ring-size 15` before RPC. Source already says wallet/consensus floor (stale binary said consensus minimum). No B-181 needed. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 5 — pin B-180 tip CI GREEN** (this commit): `eef017ff` covered by **CI `#29905438517` GREEN** on B-178. Next: after B-25 **B-35**/**B-37**/**B-19**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave62**: **devon** faucet-F101b permanence **last_proven=5751** (commit `f00298cc`); F110 streak (~20 min; 0 TIMEOUT); F45 lag=452; claims 35→36. Honor §6. *Observed (not staged):* wallets, live-testnet-data*, other-lane dirty.
+2. **2026-07-22 — lane 4 — claim B-181** (this commit): early B-24bn ninth empty both-miss while **CI `#29908001364`** runs on B-179. Claim base `2afc7302`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-179 ninth-slash→op1 asymmetric settle** (this commit): early B-24bm `b179_b5_ninth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29905438517` GREEN** on B-178. Completes ninth-offense asymmetric settle pair. Full CI (no skip). Next: **B-181** ninth empty both-miss. Still blocked on 2nd host for live **B-32**.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave61**: **cleo** faucet-F101b permanence **last_proven=5741** (commit `b066b4bd`); F110 validated (0 bal TIMEOUT; ~22 min); F45 lag=441; claims 34→35. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, lane-4 dirty if any.
+2. **2026-07-22 — lane 3 — B-15 wave60**: **blake** faucet-F101b permanence **last_proven=5729** (commit `e40023df`); faucet done 181465ms (F109 poll OK); F110 deep-pin TIMEOUT×3; F45 lag=418; claims 33→34. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, lane-4 apply_block if dirty.
+2. **2026-07-22 — lane 5 — pin B-180 awaiting tip CI** (this commit): `eef017ff` on main; own CI `#29905430493` cancelled by B-178 tip `faa97ba7`. Watch **CI `#29905438517`** for GREEN covering B-180. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — claim B-179** (this commit): early B-24bm ninth op1 asymmetric while **CI `#29905438517`** runs on B-178. Claim base `faa97ba7`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-178 ninth-slash→asymmetric settle** (this commit): early B-24bl `b178_b5_ninth_dual_slash_then_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29900841536` GREEN** on B-176; **CI `#29903453186` GREEN** on B-177. Elevates B-166. Full CI (no skip). Next: **B-179** ninth op1 asymmetric. Still blocked on 2nd host for live **B-32**.
+
+
+1. **2026-07-22 — lane 5 — B-180 wallet upload no magic ring_size:16** (this commit): `mfn-wallet/src/upload.rs` fixtures use `crate::WALLET_MIN_RING_SIZE`; privacy-floor smoke rejects hardcoded 16. Elevates B-177 into wallet crate. Live tip~5727 (public RPC). **CI `#29903453186` GREEN** on B-177. Full CI (no skip). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
+
+
+1. **2026-07-22 — lane 5 — pin B-177 CI GREEN** (this commit): `fe4bfc05` covered by **CI `#29903453186` GREEN**. Next: after B-25 **B-35**/**B-37**/**B-19**. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 5 — B-177 fix-forward WASM body** (`fe4bfc05`): transfer/upload fixtures use WALLET_MIN_RING_SIZE; privacy-floor smoke rejects hardcoded ring_size: 16. Board-only tip was `0fbfd51e`. Watching tip CI. Full CI (no skip on body). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 apply_block / backups. `[skip ci]` board pin.
+
+
+1. **2026-07-22 — lane 3 — B-15 wave59 FUND FAIL**: **aria** faucet job stuck `running` 250s; 10× balance TIMEOUT 150s at tip~5700; Path A ckpt=5290 lag=395. Hardening wave60 runner (longer faucet/bal; near-tip pins). Honor §6. *Observed local work (not staged):* lane4 apply_block_proposals.rs, wallets, live-testnet-data*.
+2. **2026-07-22 — lane 4 — claim B-178** (this commit): early B-24bl ninth→asymmetric settle while **CI `#29900841536`** runs on B-176. Claim base `eb668d6f`. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-176 ninth→dual settle drain** (this commit): early B-24bk `b176_b5_ninth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. **CI `#29898672643` GREEN** on B-174 tip (covers B-175). Elevates B-163. Full CI (no skip). Next: **B-178** ninth→asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* none.
+
+
+1. **2026-07-22 — lane 4 — claim B-176** (this commit): early B-24bk ninth→dual settle while tip CI covers B-174/B-175. Pin §5: **B-175** Done `8b6da3e8`. Claim base `8b6da3e8`. *Observed (not staged):* lane-5 evidence. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 5 — B-174 fix-forward body** (this commit): restore CLI unit + privacy-floor smoke + PRIVACY after evidence-only 446c53cb. Full CI (no skip). *Observed (not staged):* lane-4 apply_block if any.
+
+
+1. **2026-07-22 — lane 5 — B-174 DEFAULT_RING_SIZE pin + tall-tip F45 soft prove** (this commit): CLI unit `default_ring_size_equals_wallet_min_ring_size`; privacy-floor smoke needle; PRIVACY honesty; evidence `b174-tall-tip-f45-soft-live-20260722.md` (tip=5648 log_max=5290). **CI `#29897006419` GREEN** on B-173. Full CI (no skip). Next: after B-25 **B-35**/**B-37**/**B-19**. *Observed (not staged):* lane-4 `apply_block_proposals.rs`.
+
+
+1. **2026-07-22 — lane 4 — B-175 settle-reset→ninth dual-slash** (this commit): early B-24bj `b175_b5_settle_reset_then_ninth_dual_slash_treasury_identity`; local debug PASS. **CI `#29897006419` GREEN** on B-173. Elevates B-162. Full CI (no skip). Next: **B-176** ninth→dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-174 residual if any.
+
+
+1. **2026-07-22 — lane 4 — claim B-175** (this commit): early B-24bj settle-reset→ninth dual-slash while **CI `#29897006419`** runs on B-173. Claim base `81bf95fe`. *Observed (not staged):* lane-5 B-174 / mfn-cli WIP. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — claim B-175** (this commit): early B-24bj settle-reset→ninth dual-slash while **CI #1046** runs on B-173. Claim base `81bf95fe`. *Observed (not staged):* lane-5 B-174 WIP if any. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — B-173 eighth op1 asymmetric→absentee re-slash** (this commit): early B-24bi `b173_b5_eighth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29895397723` GREEN** on B-171. Elevates B-160; completes eighth-offense re-slash pair with B-171. Full CI (no skip). Next: **B-175** settle-reset→ninth dual-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-174 claim if any.
+
+
+1. **2026-07-22 — lane 5 — claim B-174** (this commit): pin `DEFAULT_RING_SIZE≡WALLET_MIN_RING_SIZE` (CLI unit + privacy-floor smoke) + archive tall-tip F45 soft live prove (tip=5648 log_max=5290) while **CI `#29895397723`** runs on B-171. Claim base `653aa3b1`. *Observed (not staged):* lane-4 `apply_block_proposals.rs` / `_b173_backup_*`. `[skip ci]`.
+
+
+1. **2026-07-21 — lane 4 — claim B-173** (this commit): early B-24bi eighth op1 asymmetric→absentee re-slash (B-171 twin) while tip CI on B-171 settles. Claim base `2c6983ea`. *Observed (not staged):* lane-3 smoke/. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 4 — claim B-173** (this commit): early B-24bi eighth op1 asymmetric→absentee re-slash while **CI #1045** runs on B-171. Claim base `2c6983ea`. Local B-173 PASS unstaged. *Observed (not staged):* none. `[skip ci]`.
+
+
+1. **2026-07-22 — lane 5 — pin B-172 privacy-floor + tip CI GREEN** (this commit): 1ce0ed2e covered by **CI #29893569581 GREEN** on B-170 (includes B-168 fix). Keep ID **B-172** (lane4 Next is **B-173** op1 twin). Backlog Landed. [skip ci].
+
+
+1. **2026-07-21 — lane 4 — B-171 eighth-offense asymmetric→absentee re-slash** (this commit): early B-24bh `b171_b5_eighth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local debug PASS. **CI `#29893569581` GREEN** on B-170. Elevates B-159. Full CI (no skip). Next: **B-173** op1 twin (not B-172 — lane5 privacy-floor gate). Still blocked on 2nd host for live **B-32**. *Observed (not staged):* none.
+
+
+1. **2026-07-21 — lane 5 — B-172 privacy-floor CI gate** (this commit): wallet-privacy-floor-rehearsal-smoke + ci-check wire; WASM upload B-167/B-168 twin tests; JOIN F45 CLI-only note. Full CI after tip green. *Observed (not staged):* lane-4 pply_block_proposals.rs.
+
+
+1. **2026-07-21 — lane 5 — claim B-172** (this commit): privacy-floor CI gate (B-167/B-168 needles) while tip **CI #29893569581** runs on B-170 (covers B-168). Claim base $claimBase. *Observed (not staged):* lane-4 pply_block_proposals.rs. [skip ci].
+
+
+1. **2026-07-21 — lane 4 — claim B-171** (this commit): early B-24bh eighth-offense asymmetric→absentee re-slash while **CI `#29893569581`** runs on B-170. Claim base `b40c1ccc`. *Observed (not staged):* lane-5 B-168 residual if any. `[skip ci]`.
+
+
+1. **2026-07-21 — lane 4 — claim B-171** (this commit): early B-24bh eighth asymmetric→absentee re-slash while **CI `#29893569581`** runs on B-170. Claim base `b40c1ccc`. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`. `[skip ci]`.
+
+
+1. **2026-07-21 — lane 4 — B-170 eighth-slash→empty both-miss** (this commit): early B-24bg `b170_b5_eighth_dual_slash_then_empty_both_miss_no_drain_identity`; local debug PASS. Closes eighth-offense prove matrix. Retriggers tip CI after B-168 `#29892000863` FAIL (wasm round-trip; local release PASS). Full CI (no skip). Next: **B-171** eighth-offense asymmetric→absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-3 `join-testnet-rehearsal-smoke/`.
+
+
+1. **2026-07-21 — lane 4 — claim B-170** (this commit): early B-24bg eighth→empty both-miss while **CI `#29890640858`** runs on B-169. Claim base `5868f68f`. *Observed (not staged):* none. `[skip ci]`.
+
+
+1. **2026-07-21 — lane 4 — B-169 eighth→op1 asymmetric settle** (this commit): early B-24bf `b169_b5_eighth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local debug PASS. **CI `#29888900634` GREEN** on B-166. Elevates B-157; completes eighth asymmetric pair with B-166. Full CI (no skip). Next: **B-170** eighth→empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 residual if any.
+
+
 ## Snapshot: AGENTS.md master board (retired 2026-07-19)
 
 # Agent Coordination (master board)
