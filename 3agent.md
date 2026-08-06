@@ -12,14 +12,14 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
 | **A** RC/CI | Re-watch B-259 tip CI after rerun | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-261** seventeenth dual settle (`9798ee22`) | **B-262** seventeenth asymmetric settle (claim base: `9798ee22`) | After B-261 CI GREEN: land B-262; then **B-263** op1 twin |
+| **B** Protocol/Privacy | **B-262** seventeenth asymmetric settle (this commit) | *Idle* — hold live **B-32** for 2nd host | **B-263** seventeenth op1 asymmetric settle |
 | **C** Testnet/Onboarding | VPS / Path A / invite / B-32 arm ops (lanes 3+7) | 3 + 7 | Protocol Rust (B), CI/Nightly cancel (A) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-262 claim; waiting B-261 CI `#31121260560`.
+Synced at B-262 land. Full CI re-proves B-261 after hung tip CI.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |

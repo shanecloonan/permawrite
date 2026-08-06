@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Landing **B-261** seventeenth dual settle (full CI). B-259 tip CI `#31119646284` FAIL = GitHub Actions infra (action download timeout); tip CI re-proves. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Landing **B-262** seventeenth asymmetric settle (full CI). B-261 tip CI `#31121260560` hung (matrix cancelled; rustfmt stuck) — tip CI re-proves B-261+B-262. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-261** seventeenth dual settle (`9798ee22`); **B-259** (`fdcb067a`); **B-246** GREEN | **B-262** seventeenth asymmetric settle (claim base: `9798ee22`) | After land: **B-263** op1 twin; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-262** seventeenth asymmetric settle (this commit); **B-261** (`9798ee22`); **B-259** (`fdcb067a`) | *Idle* — live **B-32** blocked on 2nd host (**B-79** NOT READY) | Next: **B-263** seventeenth op1 asymmetric; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-40-d0-preflight** (`4bcaf8e2`; tip CI `#31115971810` cancelled — re-prove `#31119646284`); **B-13a-512** GREEN; **B-28**; **B-40** runbook | *Idle* — watch tip CI `#31119646284` | Pin GREEN on tip; human B-33 → arm **B-40** on L4 | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
@@ -302,7 +302,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-260 | Path A tip-16341 republish + public-testnet health PASS | 7 | **Landed** (this commit; entries=53; lag 11→0; evidence `b260-path-a-tip-16341-health-20260806T145200Z.md`) |
 | B-259 | Settle-reset then seventeenth dual-slash treasury identity (early B-24dn) | 4 | **Landed** (this commit); elevates B-237; opens seventeenth-offense arc; full CI |
 | B-261 | Seventeenth dual-slash then dual settle drain (early B-24do) | 4 | **Landed** (this commit); elevates B-238; opens seventeenth prove matrix; full CI |
-| B-262 | Seventeenth dual-slash then asymmetric settle drain (early B-24dp) | 4 | Next after B-261 — elevates B-239; continues seventeenth prove matrix |
+| B-262 | Seventeenth dual-slash then asymmetric settle drain (early B-24dp) | 4 | **Landed** (this commit); elevates B-239; continues seventeenth prove matrix; full CI |
+| B-263 | Seventeenth dual-slash then op1 asymmetric settle drain (early B-24dq) | 4 | Next after B-262 — elevates B-240; completes seventeenth asymmetric settle pair |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
 | B-258 | Path A near-tip timer/default lag threshold 16→8 (JOIN soft-pin) | 7 | **Landed** (this commit; board text raced into B-246 `23749726`; VPS timer env=8; health tip=16336 lag=6; evidence `b258-path-a-lag-threshold-8-20260806T144200Z.md`) |
@@ -461,12 +462,17 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 4 — B-262 seventeenth asymmetric settle** (this commit): early B-24dp `b262_b5_seventeenth_dual_slash_then_asymmetric_settle_drain_identity`; local release PASS. B-261 tip CI `#31121260560` hung (matrix cancelled / rustfmt stuck) — tip CI re-proves. Elevates B-239. Full CI (no skip). Next: **B-263** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
+
 1. **2026-08-06 — lane 4 — claim B-262** (this commit): early B-24dp seventeenth dual-slash then asymmetric settle (elevates B-239) while **CI `#31121260560`** runs on B-261 tip. Claim base `9798ee22`. `[skip ci]`. *Observed (not staged):* onchain-tx-storm WIP; B-262 body local until tip GREEN.
+
 
 1. **2026-08-06 — lane 4 — B-261 seventeenth dual settle** (this commit): early B-24do `b261_b5_seventeenth_dual_slash_then_dual_settle_drain_identity`; local debug PASS. B-259 tip CI `#31119646284` FAIL = Actions infra (not code). Elevates B-238. Full CI (no skip). Next: **B-262** asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
 
 
+
 1. **2026-08-06 - lane 4 - B-259 tip CI infra FAIL; re-dispatch** (this commit): #31119646284 failed at ubuntu setup (action download timeout). gh run rerun --failed. Holding **B-261** (local exact PASS). Also re-proves cancelled B-40-d0 on ancestor tip. [skip ci].
+
 
 
 
@@ -474,7 +480,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 — lane 4 — claim B-261** (this commit): early B-24do seventeenth dual-slash→dual settle while tip CI runs on B-259. Claim base `fdcb067a`. Body ready locally (`b261_*` PASS). [skip ci].
+
 
 
 
@@ -483,7 +491,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 — lane 6 — B-40-d0 dry-run tip-16379** (this commit): evidence `b40-d0-preflight-dry-run-20260806T161058Z.md`; treasury flat / subsidy_bps=0. Watch tip CI `#31115971810`. `[skip ci]`.
+
 
 
 
@@ -495,7 +505,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 - lane 4 - B-40-d0 landed; hold B-259 for tip CI** (this commit): window **Done** (4bcaf8e2). Holding B-259 Rust until **CI #31115971810 GREEN**. Body ready; local exact PASS. [skip ci].
+
 
 
 
@@ -507,13 +519,16 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 — lane 4 — B-246 tip CI GREEN; hold B-259 for lane6 B-40-d0** (this commit): **CI `#31112318136` GREEN**. B-259 `b259_*` local PASS; window OPEN for **B-40-d0-preflight**. [skip ci].
 
 
 
 
 
+
 1. **2026-08-06 - lane 4 - B-246 CI GREEN; courtesy hold B-259 for B-40-d0** (this commit): pin **CI #31112318136 GREEN**. Holding B-259 briefly for lane6 B-40-d0-preflight. Body ready; local exact PASS. [skip ci].
+
 
 
 
@@ -527,7 +542,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 - lane 7 - B-260 Path A tip-16341 + health** (this commit): lag 11>=8 publish (signer path-a-2); land jsonl entries=53 tip=16341; public-testnet-health OK lag=0 threshold=8. Lane3: re-pin soft tip-16341. ID **B-260** (lane4 owns **B-259**). Do not cancel B-246 tip CI `#31112318136`. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* lane4 proposals; onchain-tx-storm WIP.
+
 
 
 
@@ -541,7 +558,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 — lane 6 — FEES/ROADMAP cite B-13a-512 GREEN** (this commit): mirror **CI `#31109005252` GREEN** into FEES §5.4 + ROADMAP B-33 checklist. `[skip ci]`.
+
 
 
 
@@ -555,7 +574,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+
 1. **2026-08-06 - lane 4 - claim B-247** (this commit): early B-24dn settle-reset->seventeenth dual-slash while tip CI runs on B-246. Claim base 23749726. Body ready locally. [skip ci].
+
 
 
 
@@ -564,12 +585,6 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-08-06 - lane 4 - B-246 sixteenth op1 asymmetric->absentee re-slash** (this commit): early B-24dm 246_b5_sixteenth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles; compile OK. Held for lane6 B-13a-512 **CI #31109005252 GREEN**. Elevates B-236; completes sixteenth re-slash pair with B-242. Full CI (no skip). Next: **B-247** settle-reset->seventeenth dual-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
 
-
-
-
-
-
-1. **2026-08-06 - lane 7 - B-258 Path A lag threshold 8** (this commit): timer+publish+health/outside-in defaults 16→8 for tall-tip JOIN soft-pin. VPS install timer env=8; health OK tip=16336 lag=6. Board text briefly raced into B-246 `23749726`; body+evidence this commit. Do not cancel B-246 tip CI `#31112318136`. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* onchain-tx-storm WIP.
 
 
 
