@@ -85,7 +85,7 @@ Pick the lightest role that matches what you want to test:
 | Role | Start here | You should be able to |
 |------|------------|-----------------------|
 | Observer | Run `start-all` locally or start `mfnd serve` with no validator env | Verify the public `genesis_id`, follow tips, query RPC, and report divergence. |
-| Wallet user | Connect `mfn-cli --rpc <RPC>` to a synced node | Create a wallet, scan/balance, upload data, publish claims, and retrieve local artifacts. |
+| Wallet user | Connect `mfn-cli --rpc <RPC>` to a synced node | Create a wallet, scan/balance, upload data (optional bound claim via `--message`), and retrieve local artifacts. |
 | Storage operator | `mfn-storage-operator`, [`start-storage-operator`](../scripts/public-devnet-v1/start-storage-operator.sh) / `mfn-cli operator ...` against **any** synced RPC (your own `mfnd` observer or a public one) | Replicate chunks, assemble artifacts, submit SPoRA proofs, and restore payload bytes. See [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md) and [`DECENTRALIZATION.md`](./DECENTRALIZATION.md) (hardware roles + RPC-only path). |
 | Validator candidate | Follow the operator invite list and [replace every public test seed](../scripts/public-devnet-v1/OPERATORS.md#replacing-public-test-keys) before real deployments | Produce or vote on devnet blocks while keeping RPC private and P2P reachable. |
 
@@ -203,11 +203,9 @@ mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet send <VIEW_HEX> <SPEND_HEX> <AMOUNT> -
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --replication 3 --json
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> uploads list --include-claims --json
 
-# Upload + bind authorship to commitment (same tx)
+# Upload + bind authorship to commitment (same tx; only indexed claim path)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --message "attribution" --json
-
-# Authorship claim over a data root (discover via get_claims_for after mining)
-mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet claim <DATA_ROOT_HEX> --message "attribution" --json
+# Standalone `wallet claim` is disabled — use upload `--message` above.
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> claims for <DATA_ROOT_HEX> --json
 
 # Cached balance vs tip (no block download)

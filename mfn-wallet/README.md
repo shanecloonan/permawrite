@@ -175,7 +175,7 @@ Any output that **decrypts** but does **not** Pedersen-open is dropped. The test
 ## Downstream Surfaces And Remaining Wallet Work
 
 - **Persistent storage** — `mfn-cli` persists wallet files, scan/cache state, trusted light summaries, pending spends, and upload artifacts around this crate's pure wallet logic.
-- **CLI / desktop binary** — `mfn-cli wallet` consumes this crate for address display, scan/balance, send, upload, claim, backup, and light-client flows.
+- **CLI / desktop binary** — `mfn-cli wallet` consumes this crate for address display, scan/balance, send, upload (optional bound authorship via `--message`; standalone `wallet claim` disabled), backup, and light-client flows.
 - **WASM bindings** — `mfn-wasm` consumes this crate for browser-facing wallet address, storage preview/upload, scan, transfer, and light-verification helpers.
 - **Knapsack coin selection** — current path is greedy largest-first (privacy-conservative). A Knapsack-style selector that prefers same-age inputs would improve plausible deniability when spending older holdings.
 - **Subaddresses / richer account UX** — Monero-style sub-account derivation remains future work for receiving multiple parallel streams from one wallet seed.

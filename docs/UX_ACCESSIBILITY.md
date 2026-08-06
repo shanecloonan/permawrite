@@ -2,7 +2,7 @@
 
 **Question:** How easy or hard will Permawrite be for ordinary users when it becomes a mature mainnet L1 - and what can be improved without trading away privacy or permanence?
 
-**Short answer:** The **protocol layer** is designed for Monero-grade privacy and Arweave-grade permanence in one chain. The **product layer** is still **devnet-grade** (~**3/10** normie-friendliness today). A capable developer can complete send, upload, claim, and storage flows end-to-end; a non-technical user cannot yet do so without hand-holding. The gap is packaging, guided flows, human-readable presentation, and unified permanence backup - **not** the core cryptography or consensus rules, which the codebase deliberately refuses to weaken.
+**Short answer:** The **protocol layer** is designed for Monero-grade privacy and Arweave-grade permanence in one chain. The **product layer** is still **devnet-grade** (~**3/10** normie-friendliness today). A capable developer can complete send, upload (optional bound authorship via `--message`), and storage flows end-to-end; a non-technical user cannot yet do so without hand-holding. The gap is packaging, guided flows, human-readable presentation, and unified permanence backup - **not** the core cryptography or consensus rules, which the codebase deliberately refuses to weaken.
 
 **Priority doctrine (non-negotiable):** Permanence and privacy absolutism come first. UX must never sacrifice ring size, endowment enforcement, SPoRA verification, claiming-key separation, or deterministic consensus checks. Every improvement below is a **wrapper, presentation, or packaging** layer on top of existing protocol rules.
 
@@ -55,7 +55,7 @@ That difficulty is **intrinsic to the value proposition**, not a bug. UX work mu
 | Surface | Role | Normie readiness |
 |---|---|---|
 | **`mfn-cli`** | Primary wallet + operator CLI over JSON-RPC | Functional for power users; cryptic for normies |
-| **`mfn-wallet`** | Library: scan, send, upload, claim | Strong internals; no UI |
+| **`mfn-wallet`** | Library: scan, send, upload (+ optional bound authorship) | Strong internals; no UI |
 | **`mfnd`** | Daemon: RPC, P2P, block production | Required infrastructure; invisible to normies if hosted |
 | **`mfn-wasm`** | Browser bindings (upload, scan, transfer build) | Devnet demo; half the wallet story |
 | **`demo/web/`** | WASM demo + RPC proxy | Developer harness, not a consumer app |

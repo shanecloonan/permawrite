@@ -53,8 +53,7 @@ Two important caveats:
 | You do | You pay (default) | Enforced by | Where it goes |
 |---|---|---|---|
 | Private transfer | 0.0001 MFN flat | Wallet convention only | 90% treasury / 10% producer |
-| Authorship claim | 0.0001 MFN flat | Wallet convention only | 90% treasury / 10% producer |
-| Storage upload | `ceil(required_endowment × 10000/9000)` + 0.00001 MFN tip | **Consensus** (`UploadUnderfunded` reject) | 90% treasury / 10% producer |
+| Storage upload (optional bound authorship via `--message`) | `ceil(required_endowment × 10000/9000)` + 0.00001 MFN tip | **Consensus** (`UploadUnderfunded` reject) | 90% treasury / 10% producer |
 | Validator bond | your full stake | **Consensus** | 100% treasury (one-way; see [`ECONOMICS.md § 9`](./ECONOMICS.md#9-validator-bond-economics-m1-closed-loop)) |
 | Slashing (equivocation / liveness / missed audits) | forfeited stake or bond share | **Consensus** | 100% treasury |
 

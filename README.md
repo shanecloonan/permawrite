@@ -115,7 +115,7 @@ High-level crate status:
 | Node runtime and persistence | `mfn-runtime`, `mfn-store`, `mfn-node` | `Chain`, `Mempool`, producer helpers, filesystem/`redb` persistence, JSON genesis, `step`, and `serve` are live. |
 | RPC and operations | `mfn-rpc`, `mfn-cli`, `scripts/public-devnet-v1` | JSON-RPC method classification, optional API-key enforcement, status diagnostics, RPC DoS guards, testnet health checks, CI/preflight helpers, and operator runbooks are live. |
 | Networking and light clients | `mfn-net`, `mfn-light` | P2P handshake, gossip, block/light-follow sync hardening, peer hygiene, and light-client verification are live. |
-| Wallet, storage, and browser clients | `mfn-wallet`, `mfn-cli`, `mfn-storage-operator`, `mfn-wasm` | Wallet scan/send/upload/claim flows, permanence artifacts, storage-operator proof flows, JSON support records, and WASM packaging are active; UX remains testnet-grade. |
+| Wallet, storage, and browser clients | `mfn-wallet`, `mfn-cli`, `mfn-storage-operator`, `mfn-wasm` | Wallet scan/send/upload flows (optional bound authorship via upload `--message`; standalone `wallet claim` disabled), permanence artifacts, storage-operator proof flows, JSON support records, and WASM packaging are active; UX remains testnet-grade. |
 
 Detailed module-level implementation status lives in [`IMPLEMENTATION_STATUS.md`](./IMPLEMENTATION_STATUS.md). New participants start at [`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md); operators use [`docs/TESTNET.md`](./docs/TESTNET.md) and [`scripts/public-devnet-v1/OPERATORS.md`](./scripts/public-devnet-v1/OPERATORS.md#launch-gono-go-checklist).
 

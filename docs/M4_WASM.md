@@ -53,7 +53,7 @@ Transfer plan shape:
   "inputs": [ /* StoredOwnedOutput from scan */ ],
   "recipients": [{ "view_pub_hex": "…", "spend_pub_hex": "…", "value": 1000 }],
   "fee": 100,
-  "ring_size": 4,
+  "ring_size": 16,
   "current_height": 12,
   "decoy_utxos": [{ "height": 1, "one_time_addr_hex": "…", "commit_hex": "…" }],
   "exclude_one_time_addrs_hex": [],
@@ -61,7 +61,7 @@ Transfer plan shape:
 }
 ```
 
-`Σ inputs.value` must equal `Σ recipients.value + fee`. Supply decoys from chain UTXOs (checkpoint export, future RPC); exclude your own one-time addresses.
+`Σ inputs.value` must equal `Σ recipients.value + fee`. `ring_size` must be ≥ `WALLET_MIN_RING_SIZE` (16); WASM refuses below the wallet/consensus floor (no silent clamp). Plans need ≥ `WALLET_MIN_TX_INPUTS` (2) real inputs or they fail closed with faucet dual-send guidance. Supply decoys from chain UTXOs (`list_utxos` / checkpoint export); exclude your own one-time addresses.
 
 Seed format matches `wallet.json` (32 bytes, hex-encoded).
 
@@ -118,7 +118,7 @@ Upload plan shape (same decoy / input conventions as transfer):
   "anchor": { "view_pub_hex": "…", "spend_pub_hex": "…", "value": 1000 },
   "replication": 3,
   "fee": 50000,
-  "ring_size": 4,
+  "ring_size": 16,
   "current_height": 12,
   "decoy_utxos": [ /* … */ ],
   "fee_to_treasury_bps": 9000,

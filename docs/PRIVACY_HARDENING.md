@@ -94,8 +94,9 @@ inherits the guarantee:
    This path knows the sender's own keys, so it pads to **self** (a
    change-like output) rather than to the recipient, producing the nicer
    "payment + change" shape. This runs before the backstop, so the backstop is
-   a no-op for this path. `Wallet::publish_claim_tx` routes through
-   `build_transfer`, so authorship claims are covered too.
+   a no-op for this path. Standalone `Wallet::publish_claim_tx` is
+   **disabled** (`StandaloneAuthorshipClaimDisabled`); bound authorship
+   rides on `build_storage_upload_with_authorship` / CLI `upload --message`.
 
 3. **Storage-upload builder** — `build_storage_upload`
    ([`mfn-wallet/src/upload.rs`](../mfn-wallet/src/upload.rs), ~line 458). An
@@ -125,8 +126,8 @@ inherits the guarantee:
 | Caller | Path | Pads to | Covered |
 |---|---|---|---|
 | `Wallet::build_transfer` | `wallet.rs` → `spend::build_transfer` | self (change-like) | ✅ |
-| `Wallet::publish_claim_tx` | → `build_transfer` | self | ✅ |
-| `Wallet::build_storage_upload*` | `upload.rs` | anchor recipient | ✅ |
+| `Wallet::publish_claim_tx` | hard-refuse (`StandaloneAuthorshipClaimDisabled`) | — | n/a (disabled) |
+| `Wallet::build_storage_upload*` | `upload.rs` (+ optional authorship) | anchor recipient | ✅ |
 | WASM `build_transfer_json` | `mfn-wasm` → `spend::build_transfer` | recipient[0] | ✅ |
 | WASM `build_storage_upload_json` | `mfn-wasm` → `build_storage_upload` | anchor recipient | ✅ |
 | CLI `wallet send` / `wallet upload` | `mfn-cli` → wallet API | as above | ✅ |
@@ -442,11 +443,11 @@ activity to a stable public label.
 2. **Closed constructor** — `ClaimingIdentity`'s only public constructor is
    `from_seed`, which delegates to (1); wallet code *cannot* wrap view/spend
    key material in a claiming identity.
-3. **Signing-time rejection** — `Wallet::publish_claim_tx` and
-   `build_storage_upload_with_authorship` refuse
-   (`WalletError::ClaimKeyReusesWalletKey`) any claiming pubkey equal to the
-   wallet's view or spend pubkey, as defense in depth against future
-   constructors or foreign frontends.
+3. **Signing-time rejection** — `build_storage_upload_with_authorship`
+   refuses (`WalletError::ClaimKeyReusesWalletKey`) any claiming pubkey equal
+   to the wallet's view or spend pubkey, as defense in depth against future
+   constructors or foreign frontends. (Standalone `publish_claim_tx` is
+   disabled and never reaches this check.)
 
 Tests: cross-domain independence over sample seeds (crypto + wallet layers),
 byte-compatibility with the legacy derivation, firewall rejection of
@@ -517,10 +518,11 @@ selection after [`select_inputs`](../mfn-wallet/src/wallet.rs): when a
 second spendable UTXO exists, the wallet merges it into the spend and
 returns the excess as change. Pad selection prefers the same age band as
 the newest chosen input; ties break on smallest value. Applies to
-[`build_transfer`](../mfn-wallet/src/wallet.rs),
-[`build_storage_upload*`](../mfn-wallet/src/wallet.rs), and
-[`publish_claim_tx`](../mfn-wallet/src/wallet.rs) (via `build_transfer`).
-Wallets with only one UTXO stay at one input.
+[`build_transfer`](../mfn-wallet/src/wallet.rs) and
+[`build_storage_upload*`](../mfn-wallet/src/wallet.rs). Single-UTXO
+wallets **fail closed** (`TxInputCountBelowMinimum`) — they do **not**
+broadcast a one-input fingerprint. Standalone `publish_claim_tx` is
+disabled; bound authorship uses the upload path.
 
 **Remaining.** ~~Consensus enforcement of allowed `(inputs, outputs)` shapes
 (F7 tail) — network-wide reject or mandatory dummy inputs at
@@ -528,10 +530,10 @@ Wallets with only one UTXO stay at one input.
 (`MIN_TX_INPUTS_UNIFORM_TIER = 2`) enforced in `verify_transaction`
 whenever the uniform-ring tier is active, mirroring the output floor.
 Wallets with only one spendable UTXO cannot broadcast until they hold a
-second (fund with multi-output faucet or receive a second payment).
+second (fund with faucet dual-send or receive a second payment).
 
 **Tests.** `select_inputs_for_tx_pads_to_two_when_second_utxo_exists`,
-`select_inputs_for_tx_single_utxo_cannot_pad`,
+`select_inputs_for_tx_single_utxo_fails_closed`,
 `single_input_tx_rejected_when_input_floor_active`,
 `two_input_tx_passes_input_floor`,
 `ring_policy_derivation_ties_shape_floors_to_uniform_tier`.

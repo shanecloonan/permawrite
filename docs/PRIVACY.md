@@ -52,7 +52,7 @@ Reference wallets close this gap by enforcing a **two-output floor** (`WALLET_MI
 
 This is a wallet-layer privacy default (like ring-16 selection), complementing the consensus-enforced ring policy above.
 
-### Input-count uniformity (two-input floor when possible)
+### Input-count uniformity (two-input floor, fail-closed)
 
 Input *count* is also public (`tx.inputs.len()`). A **one-input** transaction advertises that the sender had a single UTXO large enough to cover the payment — distinct from the common two-input shape where one input likely funded the payment and another supplied change.
 

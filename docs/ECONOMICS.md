@@ -179,8 +179,8 @@ Consensus carries a single scalar `tx.fee` per transaction — there is no
 
 | Tx type | Fee rule | Enforced by |
 |---|---|---|
-| Plain transfer / claim | Wallet default `0.0001 MFN`; any value accepted | Wallet convention; mempool priority only |
-| Storage upload | `min_fee = ceil(required_endowment × 10_000 / fee_to_treasury_bps)` | **Consensus** (`UploadUnderfunded` reject) |
+| Plain transfer | Wallet default `0.0001 MFN`; any value accepted | Wallet convention; mempool priority only |
+| Storage upload (optional bound authorship via `--message`; no standalone claim fee) | `min_fee = ceil(required_endowment × 10_000 / fee_to_treasury_bps)` | **Consensus** (`UploadUnderfunded` reject) |
 
 For uploads, the treasury share of the fee must cover the protocol-required
 endowment (`fee × fee_to_treasury_bps / 10_000 ≥ Σ required_endowment`). The

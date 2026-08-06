@@ -200,7 +200,7 @@ Total **28 new tests**, **0 failures**, **0 regressions**. Workspace total **488
 
 ## What this unlocks
 
-1. **`mfn-cli wallet`** — the live command-line wallet surface now wraps `Wallet` for address display, scan/balance, send, upload, claims, backup inventory, and light-client flows.
+1. **`mfn-cli wallet`** — the live command-line wallet surface now wraps `Wallet` for address display, scan/balance, send, upload (optional bound authorship via `--message`; standalone `wallet claim` disabled), backup inventory, and light-client flows.
 2. **Single-node demo with a real user** — combine `mfnd serve` + `mfn-cli wallet` and you have a working *node + wallet* pair on one machine.
 3. **WASM browser wallet bindings** — `mfn-wasm` now exposes wallet address derivation, storage preview/upload, scan, transfer, and light-verification helpers behind `wasm-keys` / `wasm-full`.
 4. **Mempool design** — having a real wallet that produces `TransactionWire`s forced the later mempool admit/relay path to deal with a concrete tx supply, not a hypothetical one.
@@ -208,7 +208,7 @@ Total **28 new tests**, **0 failures**, **0 regressions**. Workspace total **488
 ## Open items / follow-ups
 
 - [x] Persistent wallet files in `mfn-cli` so a wallet survives restarts.
-- [x] JSON support records in the CLI for scan, balance, status, send, upload, claims, backups, and operator flows.
+- [x] JSON support records in the CLI for scan, balance, status, send, upload, backups, and operator flows (bound authorship attaches at upload; standalone claim disabled).
 - [x] WASM browser bindings in `mfn-wasm` with `wasm-keys` and `wasm-full` feature sets.
 - [ ] Knapsack coin selection that prefers same-age inputs.
 - [ ] Subaddress support (Monero-style sub-account derivation for receiving multiple parallel streams).
