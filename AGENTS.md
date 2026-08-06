@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane6 **B-13a-512** body ready; hold Rust until B-241 tip CI `#31102959528` GREEN. **B-28 assert** **CI `#31096968523` GREEN**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** Lane7 **B-245** arm-ready NOT READY @ tip-16296 (70373746). Lane6 **B-13a-512** claimed (hold Rust until B-241 tip CI #31102959528 GREEN). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-241** (5c5e7253, watch tip CI `#31102959528`); **B-240**/**B-239** | **B-242** sixteenth asymmetric->absentee re-slash (claim base: 5c5e7253; body ready) | After tip GREEN: land B-242; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-28 assert** GREEN; **B-40** runbook; **B-20** draft; **B-13a** 256 GREEN | **B-13a-512** sims (claim base: `70373746`) — hold until B-241 tip CI GREEN | Land 512 sims; human B-33 go; arm **B-40** on L4 | Emission sims |
-| **7** Testnet launch | **B-244** public health tip-16293 (this tip; lag=1 OK); **B-243** (`ff2fafe3`); **B-229** | *Idle* | After B-15 clear: **B-42** invite-load **live**; 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-245** B-32 arm-ready tip-16296 NOT READY (1 host; 70373746); **B-244**; **B-243** | *Idle* | Human/ops **2nd host** for B-32; after B-15 clear: **B-42** invite-load **live** | launch-go-no-go |
 
 ---
 
@@ -164,7 +164,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Done** (B-15 archive PASS tip=5322) |
 | 4 | 7 | **B-45+B-48+B-51+B-64:** rolled on Hetzner after **CI `#29725270815` GREEN**; **B-68** peers scrub restored tip | **Done** (VPS roll) |
 | 7 | 4 | **B-68 follow-up:** filter ephemeral/0.0.0.0 on `peers.json` load so polluted durable sets cannot recur (ops scrub is not enough) | **Done** (B-71 + B-73 smoke) |
-| 4 | 7 | **B-32:** mfnd re-roll with B-71/B-73 binary; then help arm ≥2 distinct-host operators for live multi-op pack (after B-15 JOIN window) | **Ack** — **B-77** rolled; **B-79** arm-ready NOT READY (1 host); need real `MFN_B32_OPERATOR_HOSTS` >=2 |
+| 4 | 7 | **B-32:** mfnd re-roll with B-71/B-73 binary; then help arm >=2 distinct-host operators for live multi-op pack (after B-15 JOIN window) | **Ack** - **B-245** tip=16296 peers-clean OK still **distinct_hosts=1** NOT READY; need real MFN_B32_OPERATOR_HOSTS >=2 |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
@@ -442,6 +442,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 7 - B-245 B-32 arm-ready tip-16296** (70373746 + board this commit): VPS health lag=3 OK; assert-b32-arm-ready peers-clean+B-71 OK; uploads recent_proven=8; **distinct_hosts=1 NOT READY** (do not fake). Evidence 245-b32-arm-ready-tip-16296-20260806T132200Z.md. Next: real 2nd host; hold **B-42** until B-15 clear. Lane4 owns **B-242**; lane6 owns **B-13a-512**. [skip ci] (tip CI #31102959528 in progress). *Observed (not staged):* lane4 proposals; lane6 emission_simulation; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — claim B-13a-512 emission sims** (this commit): `b13a_treasury_ledger_matches_apply_block_512_at_subsidy_bps_1000` + `b13a_fee_drought_512_subsidy_bps_1000_smoother_backstop_than_bps_0`. Hold until B-241 tip CI `#31102959528` GREEN (§6). Claim base `70373746`. `[skip ci]`. *Observed (not staged):* B-13a-512 body; lane4 `apply_block_proptest.rs`; onchain-tx-storm WIP.
 

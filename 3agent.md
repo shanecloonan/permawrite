@@ -13,7 +13,7 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | --- | --- | --- | --- |
 | **A** RC/CI | **B-28** GREEN; **B-40** runbook | B-13a-512 claimed — hold for B-241 tip CI | Land 512 sims; human B-33; arm B-40 |
 | **B** Protocol / Privacy | `apply_block`, SPoRA/slash matrix, wallet ring defaults | 4 + 5 | Hetzner mfnd/faucet restarts (C), Nightly dispatch (A) |
-| **C** Testnet / Onboarding | JOIN evidence, Path A, faucet/observer/VPS, invite-load | 3 + 7 | Consensus proptest edits (B), board-encoding guards alone (A) |
+| **C** Testnet/Onboarding | **B-245** arm-ready NOT READY; **B-244**; **B-243** | *Idle* | Human **2nd host** for B-32; after B-15: **B-42** |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
@@ -25,7 +25,7 @@ Synced at lane7 **B-244** CLOSE (health OK lag=1). Lane4 keeps B-242. Watch tip 
 | --- | --- | --- | --- |
 | **A** RC/CI | **B-28** GREEN; **B-40** runbook | B-13a-512 claimed — hold for B-241 tip CI | Land 512 sims; human B-33; arm B-40 |
 | **B** Protocol/Privacy | **B-241** (5c5e7253); watch tip CI | **B-242** sixteenth re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-244** health tip-16293; **B-243** Path A; **B-229** | *Idle* / lane3 re-pin | After B-15 clear: **B-42**; 2nd host B-32 |
+| **C** Testnet/Onboarding | **B-245** arm-ready NOT READY; **B-244**; **B-243** | *Idle* | Human **2nd host** for B-32; after B-15: **B-42** |
 
 ### Hard locks (all seats)
 
