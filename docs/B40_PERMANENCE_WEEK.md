@@ -13,7 +13,7 @@ no `subsidy_to_treasury_bps` enable until **B-33** human go ([`B13_SUBSIDY_FORK_
 
 | Item | Status | Evidence |
 | --- | --- | --- |
-| **B-13a** sims @ `subsidy_to_treasury_bps=1000` | **Done** | 256 `bbd50ce3` (**CI `#31077911423` GREEN**); 512 `28031bca` (watch `#31109005252`) |
+| **B-13a** sims @ `subsidy_to_treasury_bps=1000` | **Done** | 256 `bbd50ce3` (**CI `#31077911423` GREEN**); 512 `28031bca` (**CI `#31109005252` GREEN**) |
 | Pre-enable treasury telemetry | **Done** | [`b13-pre-enable-treasury-20260806T052834Z.md`](../scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-20260806T052834Z.md) |
 | HTTP `treasury-telemetry-watch` | **Done** | `360f690b`; **CI `#31090099572` GREEN** |
 | **B-28** draft thresholds + assert | **Draft** / helper landed | OPERATORS § B-28; `assert-b28-treasury-thresholds.*` (`980ac1ef`); sample [`b28-treasury-watch-20260806T102833Z.md`](../scripts/public-devnet-v1/evidence/b28-treasury-watch-20260806T102833Z.md) |
@@ -55,7 +55,7 @@ Archive under `scripts/public-devnet-v1/evidence/b40-d0-treasury-<UTC>.md`.
 
 ### D1–D5
 
-- [x] B-13a 512-block follow-up landed (`28031bca`); cite only after tip CI `#31109005252` GREEN.
+- [x] B-13a 512-block follow-up landed (`28031bca`); tip CI `#31109005252` GREEN.
 - [ ] Daily (or denser) `treasury-telemetry-watch` sample → evidence/`b40-dN-*.md`.
 - [ ] Board Next cells stay Phase-1 permanence (no Tier-2 / Path-B value PRs).
 

@@ -22,7 +22,7 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
   `subsidy_to_treasury_bps = 1000` plus fee-drought backstop comparison vs
   `bps = 0` (`mfn-consensus` `emission_simulation` tests; 256 `bbd50ce3`;
   512 `28031bca`). Tip CI must be GREEN on a head that contains these sims
-  before B-13c (watch `#31109005252` on `28031bca` / successor).
+  before B-13c (**CI `#31109005252` GREEN** on `28031bca` / successor).
 - [x] **One-lever rule recorded** — enable changes **only**
   `subsidy_to_treasury_bps` (`0` → `1000`). `fee_to_treasury_bps` remains
   `9000` ([`FEES.md` §5.4](./FEES.md)).
@@ -68,7 +68,7 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
 - Remote `mfnd` release pin not exposed on public-safe proxy (record at VPS roll if needed).
 
 - [x] **B-13a tip CI GREEN** (**CI `#31077911423` GREEN** on `4860a8d1`; body `bbd50ce3`;
-  **B-13a-512** body `28031bca` — watch tip CI `#31109005252`) — confirm GitHub CI on a
+  **B-13a-512** body `28031bca` — **CI `#31109005252` GREEN**) — confirm GitHub CI on a
   head that still contains the sims is GREEN before enable.
 
 ### Human decision (**B-13b**)
