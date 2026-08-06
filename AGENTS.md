@@ -451,6 +451,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 6 — B-33 telemetry refresh** (this commit): tip=16319 treasury=2909711 subsidy_bps=0 (flat vs prior). Evidence `b13-pre-enable-treasury-20260806T141944Z.md`. Watch B-13a-512 tip CI `#31109005252` (gh rate-limited locally). `[skip ci]`. *Observed (not staged):* lane4 proptest; onchain-tx-storm WIP.
+
 1. **2026-08-06 - lane 7 - B-253 scrub p2p-forward@ + F114** (this commit): remove broken same-port `mfn-p2p-forward@` template; reset failed units; dedicated 1900x->1910x stays up. Hub tip prove (F114); seeds OPEN; faucet idle. B-15-safe (no mfnd/faucet restart). Do not cancel lane6 CI `#31109005252`. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* lane4 proposals; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 7 - B-252 Path A tip-16321 + health** (this commit): lag 12>=8 proactive publish (signer path-a-2); land jsonl entries=51; public-testnet-health OK lag=0; timer OK; faucet idle. Lane3: re-pin soft tip-16321. Do not cancel lane6 CI `#31109005252`. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* lane4 proposals; onchain-tx-storm WIP.
