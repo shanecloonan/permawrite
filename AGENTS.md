@@ -465,6 +465,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 6 — B-28-post tip CI stuck; workflow_dispatch** (this commit): land `83d43b9c` did not auto-queue CI (B-262 rerun `#31123682138` zombie queued). Dispatched workflow `CI` on main. Path A lag still FAIL (evidence `outside-in-tip-ckpt-lag-20260806T183036Z.txt`). `[skip ci]` docs/evidence only. *Observed (not staged):* onchain-tx-storm WIP.
+
 1. **2026-08-06 - lane 4 - B-262 tip CI partial cancel; full rerun** (this commit): #31123682138 ubuntu/windows tests SUCCESS; rustfmt/clippy/wasm cancelled. gh run rerun. Holding **B-263**. [skip ci].
 
 1. **2026-08-06 - lane 4 - claim B-263; Ack lane6 B-28-post + B-40-d0 holds** (this commit): early B-24dq op1 asymmetric settle body ready (263_* PASS). Will not push Rust until tip CI #31123682138 GREEN and lane6 lands B-28-post (B-40-d0 re-prove covered by tip CI ancestry). [skip ci].
