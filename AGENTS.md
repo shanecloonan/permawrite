@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Tip CI `#31126560747` progressing (do not cancel). **B-269** Path A timer 30m→8m (match lag threshold). Lane4 hold **B-266**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** Landing **B-266** seventeenth empty both-miss (closes seventeenth prove matrix). Tip CI #31126560747 FAIL = cancelled ubuntu scripts only (rustfmt/clippy/tests GREEN). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-263** (ddd7528d); **B-262**; watch tip CI #31126560747 | **B-266** seventeenth empty both-miss (claim base: tip; body ready) | After tip GREEN: land B-266; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-266** (this commit); **B-263** (ddd7528d); tip #31126560747 tests GREEN | *Idle* | Seventeenth re-slash pair / next prove unit; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m (this commit); **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | *Idle* — watch tip CI; no B-268b / no B-13c | After tip GREEN + lane4 Ack: **B-268b**; human **B-33**; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
@@ -312,7 +312,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-261 | Seventeenth dual-slash then dual settle drain (early B-24do) | 4 | **Landed** (this commit); elevates B-238; opens seventeenth prove matrix; full CI |
 | B-262 | Seventeenth dual-slash then asymmetric settle drain (early B-24dp) | 4 | **Landed** (this commit); elevates B-239; continues seventeenth prove matrix; full CI |
 | B-263 | Seventeenth dual-slash then op1 asymmetric settle drain (early B-24dq) | 4 | **Landed** (this commit); elevates B-240; completes seventeenth asymmetric settle pair; full CI |
-| B-266 | Seventeenth dual-slash then empty both-miss (early B-24dr) | 4 | **Claimed** (this commit) - elevates B-241; closes seventeenth prove matrix; full CI after tip GREEN |
+| B-266 | Seventeenth dual-slash then empty both-miss (early B-24dr) | 4 | **Landed** (this commit); elevates B-241; closes seventeenth prove matrix; full CI |
+| B-270 | Seventeenth-offense asymmetric then absentee re-slash (early B-24ds) | 4 | **Next** after B-266; elevates B-242 |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
 | B-258 | Path A near-tip timer/default lag threshold 16→8 (JOIN soft-pin) | 7 | **Landed** (this commit; board text raced into B-246 `23749726`; VPS timer env=8; health tip=16336 lag=6; evidence `b258-path-a-lag-threshold-8-20260806T144200Z.md`) |
@@ -471,6 +472,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 - lane 4 - B-266 seventeenth empty both-miss** (this commit): early B-24dr 266_b5_seventeenth_dual_slash_then_empty_both_miss_no_drain_identity; local exact PASS. Tip CI #31126560747 FAIL was cancelled ubuntu-scripts only (matrix otherwise GREEN). Elevates B-241; closes seventeenth prove matrix. Full CI (no skip). Next: **B-270** seventeenth asymmetric->absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
+
 1. **2026-08-06 — lane 6 — B-269 Path A timer 8m** (this commit): `OnUnitActiveSec=30min`→`8min` to match `MFN_CKPT_LAG_THRESHOLD=8` (JOIN soft-pin was flapping most of each 30m window). Smoke + OPERATORS; VPS `vps-install-near-tip-ckpt-timer --apply`. Tip CI `#31126560747` must not cancel — `[skip ci]`. Next: idle — B-268b after GREEN+Ack. *Observed (not staged):* onchain-tx-storm; lane4 proptest.
 
 1. **2026-08-06 — lane 6 — B-268 call-site inventory + live pin** (this commit): append apply_block/fraud/producer seal sites to `B13_ACTIVATION_HEIGHT.md`. Live Path A lag=4 OK tip=16472; B-28-pre PASS subsidy=0. Tip CI `#31126560747` progressing — `[skip ci]`. No B-268b until GREEN + lane4 Ack. *Observed (not staged):* onchain-tx-storm; lane4 proptest.
@@ -581,4 +584,5 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 | B-268b | Implement effective_emission_params + ckpt v12 + boundary sims | 6+4 | After tip CI GREEN + lane4 Ack; no B-13c enable |
-| B-269 | Path A near-tip timer 30m→8m (match lag threshold=8) | 6+7 | **Landed** (3f97603); VPS timer active 8m |
+| B-269 | Path A near-tip timer 30m→8m (match lag threshold=8) | 6+7 | **Landed** (
+3f97603); VPS timer active 8m |
