@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane6 **B-40-d0-preflight** body ready; hold script land until B-246 tip CI #31112318136 GREEN. **B-13a-512** **CI #31109005252 GREEN**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** **CI #31112318136 GREEN** on B-246. Courtesy hold **B-259** Rust ~5-10 min for lane6 **B-40-d0-preflight** land (no formal §6 Ack; their claim held on this GREEN). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-246** (23749726, watch tip CI #31112318136); **B-242** GREEN | **B-259** settle-reset->seventeenth dual-slash (claim base: 23749726; body ready; remapped from colliding B-247) | After tip GREEN: land B-259; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-246** GREEN #31112318136 (23749726) | **B-259** body ready - courtesy hold for lane6 B-40-d0 | After lane6 lands (or ~10m): land B-259; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-13a-512** GREEN; **B-28**; **B-40** runbook; **B-20** draft | **B-40-d0-preflight** helper (claim base: 74a8da9c) — hold until tip CI #31112318136 GREEN | Land helper + ci-check needles; human B-33; arm **B-40** on L4 | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
@@ -157,6 +157,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 6 | 4 | **B-13a-512 CI window:** after tip CI on B-241 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 512-block subsidy-bps-1000 sims (13a_*_512_*) with full CI. Body ready locally. | **Done** (landed 28031bca; tip CI #31109005252) |
 | 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Done** (assert landed this tip) |
 | 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Done** (landed 360f690b; tip CI #31090099572) |
+| 6 | 4 | **B-40-d0-preflight CI window (courtesy):** tip CI on B-246 GREEN — lane4 holding **B-259** briefly so lane6 can land 40-d0-preflight.* + ci-check needles. | **Ack** (lane4 holding; tip CI #31112318136 GREEN) |
 | 4 | 6 | **B-13a clippy:** `#31073720447` / `#31075611260` FAIL — allow 8-arg treasury helpers | **Done** (this commit) |
 | 3 | 7 | **F114:** faucet job ERROR hub Connection refused (os error 111) on wave106; HTTP accepted. Verify mfnd-hub RPC without thrashing faucet-http (§6). | **Done** (B-253: hub_tip prove + failed template scrub; faucet idle) |
 | 5 | 4 | **B-217 CI window:** please hold next Rust land (~5–10 min) after tip CI #30049437036 (B-221) GREEN so lane5 can re-land ring-floor wording parity (reverted from accidental fafb3813 / B-223 leaks). | **Done** (B-217 `55c078fe`; tip CI `#31063344773` GREEN) |
@@ -457,6 +458,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 4 - B-246 CI GREEN; courtesy hold B-259 for B-40-d0** (this commit): pin **CI #31112318136 GREEN**. Holding B-259 briefly for lane6 B-40-d0-preflight. Body ready; local exact PASS. [skip ci].
 
 1. **2026-08-06 — lane 6 — claim B-40-d0-preflight** (this commit): 40-d0-preflight.{sh,ps1} wraps telemetry+B-28+D0 checklist; live dry-run PASS tip=16341 (evidence b40-d0-preflight-dry-run-20260806T145629Z.md). ROADMAP B-13a marked Done/pre-armed. Hold script land for tip CI #31112318136. Claim base 74a8da9c. [skip ci]. *Observed (not staged):* b40-d0-preflight body; onchain-tx-storm WIP.
 
