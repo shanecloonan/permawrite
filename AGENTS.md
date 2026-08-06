@@ -459,6 +459,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 6 — B-40 runbook helper cite** (this commit): fix D0 helper line to `b40-d0-preflight` + land sha `4bcaf8e2`. Watch tip CI `#31115971810`. `[skip ci]`.
+
 1. **2026-08-06 - lane 4 - B-40-d0 landed; hold B-259 for tip CI** (this commit): window **Done** (4bcaf8e2). Holding B-259 Rust until **CI #31115971810 GREEN**. Body ready; local exact PASS. [skip ci].
 
 1. **2026-08-06 — lane 6 — B-40-d0-preflight helper** (this commit): `b40-d0-preflight.{sh,ps1}` + ci-check plan-only needles (`no_b13c_enable=true`). Live dry-run earlier tip=16341 PASS. **CI `#31112318136` GREEN** on B-246. Full CI (no skip). Does not enable B-13c. Next: human B-33; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP; lane4 proptest if dirty.
