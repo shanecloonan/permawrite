@@ -517,9 +517,9 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 
 **Parallel after L4 (do not block B-13a):** **B-21** Dandelion soak (lane 1), **B-18** VRF docs (lane 4), **B-36** F10 lint (lane 4), **B-23** F18 gate (lane 2). (**B-31** is Phase 0 — finish before TL-9, not here.)
 
-#### B-13a work package (lane 6 — arm on L4 close)
+#### B-13a work package (lane 6 — **Done** / pre-armed before L4)
 
-Do not leave lane 6 idle after TL-9. Claim **B-13a** the same day L4 gates.
+**Landed** before TL-9/L4: 256+512 sims (bd50ce3 / 28031bca; **CI #31109005252 GREEN**). Day-of L4 lane 6 focus is **B-40** (not re-doing B-13a).
 
 | Step | Detail |
 |---|---|
@@ -554,7 +554,7 @@ Before **B-13c** enable on Path A:
 | **After B-15 window** | **B-41** P2P bind repair; then **B-26** R-4 VPS faucet deploy | 7+2 / 2+7 | B-15 capture done |
 | **Before TL-9** | **B-27** (work package); **B-22**; **B-31** (work package); **B-42** invite-load smoke; L1 evidence **go** | 1+2+3+7 | CI + Nightly GREEN; B-30 docs ✓; B-41 |
 | **TL-9** | Named watchers + `launch-go-no-go` (= **L4**) | 7+human | Above rows |
-| **Day of L4 close** | Lane 6 **B-40** + **B-13a**; lane 4+7 **B-32** (work package) | 6 / 4+7 | TL-9 **go** |
+| **Day of L4 close** | Lane 6 **B-40** (B-13a already GREEN); lane 4+7 **B-32** (work package) | 6 / 4+7 | TL-9 **go** |
 | **Week after L4** | **B-40** ∥ **B-13a** ∥ **B-32** → **B-44** ∥ **B-36** ∥ **B-23** (never block B-13a) | 6 / 4+7 / 4 / 2 | L4 gate |
 | **~30d after L4** | **B-38** repair soak + treasury watch prep → **B-25** go/no-go | 1+7+human | B-13c + B-24 path advancing |
 | **Before L5 / Path B** | **B-43** Path B genesis freeze inventory | 7+human | After B-25 (or explicit waiver) |

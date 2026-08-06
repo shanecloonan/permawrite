@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane7 **B-260** Path A tip-16341 (this commit; `[skip ci]` — do not cancel B-246 tip CI `#31112318136`). Lane4 **B-259** hold for tip GREEN. **CI #31109005252 GREEN** on B-13a-512. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane6 **B-40-d0-preflight** body ready; hold script land until B-246 tip CI #31112318136 GREEN. **B-13a-512** **CI #31109005252 GREEN**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-246** (23749726, watch tip CI #31112318136); **B-242** GREEN | **B-259** settle-reset->seventeenth dual-slash (claim base: 23749726; body ready; remapped from colliding B-247) | After tip GREEN: land B-259; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-13a-512** (`28031bca`; **CI `#31109005252` GREEN**); **B-28 assert** GREEN; **B-40** runbook; **B-20** draft | *Idle* | Human B-33 go → arm **B-40** on L4 → **B-13c** only after go | Emission sims |
+| **6** Permanence | **B-13a-512** GREEN; **B-28**; **B-40** runbook; **B-20** draft | **B-40-d0-preflight** helper (claim base: 74a8da9c) — hold until tip CI #31112318136 GREEN | Land helper + ci-check needles; human B-33; arm **B-40** on L4 | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
@@ -457,6 +457,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — claim B-40-d0-preflight** (this commit): 40-d0-preflight.{sh,ps1} wraps telemetry+B-28+D0 checklist; live dry-run PASS tip=16341 (evidence b40-d0-preflight-dry-run-20260806T145629Z.md). ROADMAP B-13a marked Done/pre-armed. Hold script land for tip CI #31112318136. Claim base 74a8da9c. [skip ci]. *Observed (not staged):* b40-d0-preflight body; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 7 - B-260 Path A tip-16341 + health** (this commit): lag 11>=8 publish (signer path-a-2); land jsonl entries=53 tip=16341; public-testnet-health OK lag=0 threshold=8. Lane3: re-pin soft tip-16341. ID **B-260** (lane4 owns **B-259**). Do not cancel B-246 tip CI `#31112318136`. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* lane4 proposals; onchain-tx-storm WIP.
 

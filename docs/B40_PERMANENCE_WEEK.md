@@ -41,6 +41,8 @@ Archive under `scripts/public-devnet-v1/evidence/b40-d0-treasury-<UTC>.md`.
 
 ### D0 — L4 close day
 
+One-shot helper (when landed): 40-d0-preflight.{sh,ps1} --rpc … runs telemetry + B-28 + prints this checklist.
+
 - [ ] Claim **B-40** in `AGENTS.md` §5 (lane 6 Doing); claim base = L4 tip SHA.
 - [ ] Refresh treasury sample (command above); confirm `subsidy_to_treasury_bps=0`.
 - [ ] Run `assert-b28-treasury-thresholds.* --rpc …` (pre-enable floors PASS).
