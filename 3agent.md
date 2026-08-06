@@ -24,7 +24,7 @@ Synced from `AGENTS.md` §5 at B-141 land. Tip/ckpt outside-in: tip≈5291, Path
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **CI `#30049842728` GREEN** on B-222; watch B-223 tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-223** (landing); **B-222** GREEN | *Idle* — next **B-224** fourteenth op1 asymmetric; lane5 **B-217** still open | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **B** Protocol/Privacy | **B-223** (`0559cc6a`); **B-222** GREEN | **B-224** fourteenth op1 asymmetric (lane4) | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
 | **C** Testnet/Onboarding | **B-15** wave114 hugo@6848 PASS | wave115+ density | No parallel Hetzner JOIN |
 
 
