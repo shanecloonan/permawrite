@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-23):** Landing **B-223** fourteenth→asymmetric settle. **CI `#30049842728` GREEN** on B-222 tip `8faa69c1`. B-217 §6 window offered after B-222 GREEN; lane5 still unlanded — proceeding (privacy WIP not staged). Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-05):** Fix-forward **B-223** tip — revert lane5 leak from `3ff57357`; keep fourteenth asymmetric proptest. Watch full CI. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -418,6 +418,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-05 — lane 4 — B-223 fix-forward: revert lane5 B-217 leak** (this commit): `3ff57357` accidentally staged PRIVACY/CLI/WASM/wallet/smoke (lane5 B-217 WIP). Restored those paths to `627a261a`; keep B-223 proptest + board. Apology to lane5. Full CI. `[no skip]`.
 
 1. **2026-07-23 — lane 4 — B-223 fourteenth→asymmetric settle** (this commit): early B-24cu `b223_b5_fourteenth_dual_slash_then_asymmetric_settle_drain_identity`. **CI `#30049842728` GREEN** on B-222. Elevates B-212. Full CI (no skip). Local cargo blocked by host Application Control — GitHub CI is the proof. Next: **B-224** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* lane-5 B-217 WIP; onchain-tx-storm WIP.
 

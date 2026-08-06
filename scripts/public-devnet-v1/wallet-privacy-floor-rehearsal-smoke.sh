@@ -134,20 +134,4 @@ grep -q "Honesty (B-218)" "$REPO_ROOT/docs/CHECKPOINT_LOG.md" || {
   echo "missing CHECKPOINT_LOG B-218 Path A lag honesty (B-218)" >&2
   exit 1
 }
-grep -q "wallet/consensus floor" "$REPO_ROOT/mfn-wallet/src/error.rs" || {
-  echo "missing wallet RingSizeBelowMinimum wallet/consensus floor Display (B-217)" >&2
-  exit 1
-}
-grep -q "wallet/consensus floor" "$REPO_ROOT/mfn-wasm/src/transfer_core.rs" || {
-  echo "missing WASM transfer ring-floor wallet/consensus floor (B-217)" >&2
-  exit 1
-}
-grep -q "wallet/consensus floor" "$REPO_ROOT/mfn-wasm/src/upload_core.rs" || {
-  echo "missing WASM upload ring-floor wallet/consensus floor (B-217)" >&2
-  exit 1
-}
-grep -q "map_wallet_build_err_rewrites_ring_size_below_minimum" "$REPO_ROOT/mfn-cli/src/wallet_cmd.rs" || {
-  echo "missing CLI map_wallet_build_err ring rewrite unit (B-217)" >&2
-  exit 1
-}
 echo "wallet-privacy-floor-rehearsal-smoke: PASS plan-only"
