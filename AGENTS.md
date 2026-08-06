@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane6 HTTP treasury-telemetry landed (360f690b); watch tip CI #31090099572. Lane4 holding **B-237** Rust until that GREEN (do not cancel). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Watch lane6 HTTP tip CI `#31090099572` on `360f690b`. Landing **B-28 draft** thresholds (docs-only; `[skip ci]`). Lane4 holding **B-237** until HTTP tip GREEN. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-236** GREEN #31087058289 | **B-237** body ready - hold until lane6 tip CI #31090099572 GREEN (claim base: 360f690b) | After GREEN: land B-237; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **HTTP treasury-telemetry** (this commit); **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; **B-40** day-of L4; then **B-13c** | Emission sims |
+| **6** Permanence | **HTTP treasury-telemetry** (`360f690b`); **B-13a** GREEN; **B-33** telemetry | **B-28** draft OPERATORS thresholds (docs; claim base: `24150c01`) | Pin HTTP tip CI GREEN; human B-33 go; **B-40** day-of L4; then **B-13c** / arm B-28 | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -216,7 +216,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak refreshed** tip 5200->5202 (B-125); prior 5146->5148; participant JOIN half = lane-3 SUMMARY / post-B-15 |
-| B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
+| B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | **Draft** thresholds in OPERATORS (this tip); arm after B-13c |
 | B-29 | Nightly participant+observer GREEN | 1+3 | **CLOSED** — Nightly #29755942849 GREEN on d248ba2 (B-75 inclusive) |
 | B-75 | Nightly observer mesh tip-stall after h1 (EAGAIN) | 1 | **Landed** (this commit) - production_dial_peers + persistable start-all / produce-smoke ports |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
@@ -433,6 +433,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-28 draft treasury alert thresholds** (this commit): OPERATORS draft floors from B-33 baseline (~2.91e6) + one-lever knobs; tick B-13a CI GREEN in B-33 signoff; HTTP watch examples. Docs-only `[skip ci]` (HTTP tip CI `#31090099572` in progress). Not armed until B-13c. Next: pin HTTP CI GREEN; human B-33 go. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 4 - lane6 telemetry landed; hold B-237 for tip CI** (this commit): window **Done** (360f690b). Holding B-237 Rust until **CI #31090099572 GREEN** (cancel-in-progress). Body ready; local exact PASS. [skip ci].
 

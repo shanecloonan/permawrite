@@ -53,6 +53,12 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
     | tee scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-$(date -u +%Y%m%dT%H%M%SZ).txt
   ```
 
+  ```powershell
+  # Public observer proxy (HTTP JSON-RPC) or VPS NDJSON HOST:PORT
+  powershell -File scripts/public-devnet-v1/treasury-telemetry-watch.ps1 `
+    -Rpc http://5.161.201.73:8787/rpc
+  ```
+
   Record at minimum: tip height, `treasury_base_units`,
   `subsidy_to_treasury_bps` (expect `0`), backstop-related fields the helper
   prints, and the git SHA of the running `mfnd` / release pin.
@@ -61,7 +67,7 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
 - public proxy `http://5.161.201.73:8787/rpc`; tip **16063**; `treasury_base_units` **2909711**; `subsidy_to_treasury_bps` **0**; `fee_to_treasury_bps` **9000**; docs SHA `c22e4277` / B-13a `bbd50ce3`.
 - Remote `mfnd` release pin not exposed on public-safe proxy (record at VPS roll if needed).
 
-- [ ] **B-13a tip CI GREEN** — confirm GitHub CI on the B-13a head (or a
+- [x] **B-13a tip CI GREEN** (**CI `#31077911423` GREEN** on `4860a8d1`; body `bbd50ce3`) — confirm GitHub CI on the B-13a head (or a
   successor that still contains the sims) is GREEN before enable.
 
 ### Human decision (**B-13b**)

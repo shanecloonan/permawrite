@@ -111,7 +111,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Launch posture | `bash scripts/public-devnet-v1/launch-status.sh` / `launch-status.ps1 -Json` — TL phase + checkpoint log tracking (`launch-status.v7`) |
 | VPS preflight checklist | `bash scripts/public-devnet-v1/vps-execution-checklist.sh` — before TL-5/TL-6 (`v2` schema; use `--strict` when CI must be green) |
 | VPS checklist rehearsal | `bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only` — ci-check gate |
-| Treasury telemetry (F6) | `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc HOST:PORT` — FEES.md §5 revisit triggers |
+| Treasury telemetry (F6) | `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc HOST:PORT` or `--rpc http(s)://…/rpc` / `treasury-telemetry-watch.ps1 -Rpc http://5.161.201.73:8787/rpc` — FEES.md §5 |
 | B-13 subsidy fork sign-off (**B-33**) | [`docs/B13_SUBSIDY_FORK_SIGNOFF.md`](../../docs/B13_SUBSIDY_FORK_SIGNOFF.md) — human gate before enabling `subsidy_to_treasury_bps=1000` (**B-13c**); archive pre-enable telemetry first |
 | P32 / PM23 rehearsal | `bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only` — role env separation gate |
 | TL-9 go/no-go | `bash scripts/public-devnet-v1/launch-go-no-go.sh` — before outside invites |
@@ -299,11 +299,33 @@ Before enabling `subsidy_to_treasury_bps = 1000` on Path A (**B-13c**), complete
 Technical rows (B-13a sims, one-lever rule, producer budget, bond residual,
 same-chain lean draft) are filled in that doc. Still required before enable:
 
-1. Archive pre-enable `treasury-telemetry-watch` evidence (tip, `treasury_base_units`, SHA).
-2. Confirm B-13a tip CI GREEN.
-3. Named human go/hold in the sign-off table (permanence + launch/ops).
+1. Archive pre-enable `treasury-telemetry-watch` evidence (tip, `treasury_base_units`, SHA) — **done** [`b13-pre-enable-treasury-20260806T052834Z.md`](./evidence/b13-pre-enable-treasury-20260806T052834Z.md).
+2. Confirm B-13a tip CI GREEN — **done** (**CI `#31077911423` GREEN**).
+3. Named human go/hold in the sign-off table (permanence + launch/ops) — **still open**.
 
 Do **not** edit `public_devnet_v1.json` emission knobs until that checklist is fully ticked.
+
+
+### B-28 — Treasury watch alert thresholds (**draft** — arm after **B-13c**)
+
+Lane 6 proposes numeric floors from the B-33 Path A baseline + B-13a sims.
+**Do not treat as armed alerts until B-13c enable + lane 2/7 wire into VPS cron.**
+Revisit numbers after one week of post-enable telemetry.
+
+| Signal | Draft threshold | Source / rationale |
+| --- | --- | --- |
+| `subsidy_to_treasury_bps` (pre-enable) | must be `0` | Live Path A genesis; B-33 baseline 2026-08-06 |
+| `subsidy_to_treasury_bps` (post-enable) | must be `1000` | B-13c one-lever enable |
+| `fee_to_treasury_bps` | must stay `9000` | One-lever rule (FEES §5.4); never change in same fork |
+| `treasury_base_units` floor (Path A) | alert if `< 1_000_000` while tip advancing | Baseline ~2.91e6 at tip 16063; leave headroom before empty-treasury drought |
+| `treasury_base_units` stall | alert if unchanged for ≥ 500 tips while proofs settle | Suggests fee drought + no subsidy credit (or RPC stuck) |
+| Helper | `treasury-telemetry-watch.* --rpc` (NDJSON or HTTP proxy) | HTTP land `360f690b`; evidence under `evidence/b13-pre-enable-treasury-*.md` |
+
+Capture command (public proxy):
+
+```powershell
+powershell -File scripts/public-devnet-v1/treasury-telemetry-watch.ps1 -Rpc http://5.161.201.73:8787/rpc
+```
 
 ### Residual-risk owners and halt authority (**B-30**)
 

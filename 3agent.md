@@ -23,7 +23,7 @@ Synced at lane6 telemetry land. Hold B-237 until CI #31090099572 GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch lane6 tip CI #31090099572 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **A** RC/CI | **HTTP telemetry** `360f690b`; **B-28** draft | Watch HTTP tip CI `#31090099572` | Pin GREEN; human B-33; **B-40** day-of L4 |
 | **B** Protocol/Privacy | **B-236** GREEN; lane6 window Done | **B-237** hold for #31090099572 (body ready) | After GREEN: land B-237; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
