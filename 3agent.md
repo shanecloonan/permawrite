@@ -11,21 +11,21 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-28-post** landed | B-264 Path A republish | Pin CI; human B-33; arm B-40 |
-| **B** Protocol/Privacy | **B-262**; held for lane6 | **B-263** next after tip GREEN | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | prior | **Path A lag** — lane6 B-264 apply | After B-15: B-42; 2nd host B-32 |
+| **A** RC/CI | lanes 1–2 + permanence (6) when claimed | Nightly, release-evidence, board integrity, B-13/B-28/B-40 | Protocol prove matrix (4), JOIN waves (3), VPS ceremony (7) |
+| **B** Protocol/Privacy | lanes 4–5 | `apply_block` / ring / SPoRA / wallet privacy floors | RC Nightly (1), VPS publish (7), emission enable (6) |
+| **C** Testnet/Onboarding | lanes 3 + 7 | JOIN evidence, faucet/observer UX, Path A / seed ops | Consensus proptest (4), WASM privacy floors (5) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at lane6 B-264 Path A republish (close lag §6). Lane4 hold B-263.
+Synced at lane6 B-264 Path A tip-16456 Done (lag OK). Lane4 hold B-263 for tip CI.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-28-post** landed | B-264 Path A republish | Pin CI; human B-33; arm B-40 |
+| **A** RC/CI | **B-264** Path A tip-16456; **B-28-post** | *Idle* await tip CI | Human B-33; arm B-40 day-of L4 |
 | **B** Protocol/Privacy | **B-262**; held for lane6 | **B-263** next after tip GREEN | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | prior | **Path A lag** — lane6 B-264 apply | After B-15: B-42; 2nd host B-32 |
+| **C** Testnet/Onboarding | Path A lag closed (B-264) | *Idle* | After B-15: B-42; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
