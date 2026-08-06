@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at lane6 B-13a-512 land. Hold B-246 until CI #31109005252 GREEN.
+Synced at lane7 **B-252** CLOSE (Path A tip-16321). Lane6 tip CI in_progress. Lane4 **B-246** hold.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch lane6 tip CI #31109005252 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-242** GREEN; B-13a-512 window Done | **B-246** hold for #31109005252 (body ready) | After GREEN: land B-246; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-251** index tip timeout; **B-250**; **B-249** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
+| **C** Testnet/Onboarding | **B-252** Path A tip-16321; **B-251**; **B-250** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 ### Hard locks (all seats)
 
