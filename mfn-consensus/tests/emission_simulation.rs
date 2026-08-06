@@ -15,11 +15,11 @@ use mfn_consensus::{
     build_unsealed_header, cast_vote, cumulative_emission, emission_at_height,
     encode_finality_proof, finalize, header_signing_hash, producer_coinbase_amount,
     producer_portion_amount, seal_block, sign_transaction, storage_proof_coinbase_bonus,
-    try_produce_slot, validate_emission_params, ApplyOutcome, ChainState, ConsensusParams,
-    EmissionParams, EquivocationEvidence, FinalityProof, GenesisConfig, GenesisOutput, InputSpec,
-    OutputSpec, PayoutAddress, SignedTransaction, SlashEvidence, SlotContext, TransactionWire,
-    Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_CONSENSUS_PARAMS,
-    DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
+    subsidy_treasury_credit, try_produce_slot, validate_emission_params, ApplyOutcome, ChainState,
+    ConsensusParams, EmissionParams, EquivocationEvidence, FinalityProof, GenesisConfig,
+    GenesisOutput, InputSpec, OutputSpec, PayoutAddress, SignedTransaction, SlashEvidence,
+    SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
+    DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::encrypted_amount::decrypt_output_amount;
@@ -98,15 +98,20 @@ fn treasury_after_legacy_block(
 }
 
 /// Step the same treasury arithmetic as `apply_block` settlement (validator mode).
+/// Includes F6 `subsidy_treasury_credit(height)` (no-op when `subsidy_to_treasury_bps = 0`).
 fn treasury_after_block(
     treasury: u128,
     fee_sum: u128,
     proofs: u128,
+    height: u64,
     params: &EmissionParams,
 ) -> u128 {
     let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+    let subsidy_credit = subsidy_treasury_credit(height, params);
     let storage_reward_total = params.storage_proof_reward as u128 * proofs;
-    let mut pending = treasury.saturating_add(treasury_fee);
+    let mut pending = treasury
+        .saturating_add(treasury_fee)
+        .saturating_add(subsidy_credit);
     let from_treasury = pending.min(storage_reward_total);
     pending -= from_treasury;
     pending
@@ -117,9 +122,10 @@ fn treasury_after_liveness_block(
     liveness_credit: u128,
     fee_sum: u128,
     proofs: u128,
+    height: u64,
     params: &EmissionParams,
 ) -> u128 {
-    treasury_after_block(treasury + liveness_credit, fee_sum, proofs, params)
+    treasury_after_block(treasury + liveness_credit, fee_sum, proofs, height, params)
 }
 
 fn treasury_after_combined_inflow_block(
@@ -128,12 +134,14 @@ fn treasury_after_combined_inflow_block(
     liveness_credit: u128,
     fee_sum: u128,
     proofs: u128,
+    height: u64,
     params: &EmissionParams,
 ) -> u128 {
     treasury_after_block(
         treasury + bond_burn + liveness_credit,
         fee_sum,
         proofs,
+        height,
         params,
     )
 }
@@ -145,6 +153,7 @@ fn treasury_after_equivocation_combined_inflow_block(
     liveness_credit: u128,
     fee_sum: u128,
     proofs: u128,
+    height: u64,
     params: &EmissionParams,
 ) -> u128 {
     treasury_after_block(
@@ -154,6 +163,7 @@ fn treasury_after_equivocation_combined_inflow_block(
             .saturating_add(liveness_credit),
         fee_sum,
         proofs,
+        height,
         params,
     )
 }
@@ -163,11 +173,15 @@ fn treasury_after_settlement_with_ppb_bonus(
     fee_sum: u128,
     accepted_proofs: u128,
     ppb_bonus: u128,
+    height: u64,
     params: &EmissionParams,
 ) -> u128 {
     let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+    let subsidy_credit = subsidy_treasury_credit(height, params);
     let storage_reward = u128::from(params.storage_proof_reward) * accepted_proofs + ppb_bonus;
-    let mut pending = treasury.saturating_add(treasury_fee);
+    let mut pending = treasury
+        .saturating_add(treasury_fee)
+        .saturating_add(subsidy_credit);
     let from_treasury = pending.min(storage_reward);
     pending -= from_treasury;
     pending
@@ -180,6 +194,7 @@ fn treasury_after_combined_inflow_block_with_ppb_bonus(
     fee_sum: u128,
     proofs: u128,
     ppb_bonus: u128,
+    height: u64,
     params: &EmissionParams,
 ) -> u128 {
     treasury_after_settlement_with_ppb_bonus(
@@ -189,6 +204,7 @@ fn treasury_after_combined_inflow_block_with_ppb_bonus(
         fee_sum,
         proofs,
         ppb_bonus,
+        height,
         params,
     )
 }
@@ -202,6 +218,7 @@ fn treasury_after_equivocation_combined_inflow_block_with_ppb_bonus(
     fee_sum: u128,
     proofs: u128,
     ppb_bonus: u128,
+    height: u64,
     params: &EmissionParams,
 ) -> u128 {
     treasury_after_settlement_with_ppb_bonus(
@@ -212,6 +229,7 @@ fn treasury_after_equivocation_combined_inflow_block_with_ppb_bonus(
         fee_sum,
         proofs,
         ppb_bonus,
+        height,
         params,
     )
 }
@@ -613,7 +631,7 @@ fn run_validator_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
         assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];
         st = apply_validator_block(&fixture, &st, h, txs, Vec::new());
-        model_treasury = treasury_after_block(model_treasury, fee_sum, 0, &emission);
+        model_treasury = treasury_after_block(model_treasury, fee_sum, 0, u64::from(h), &emission);
         assert_eq!(
             st.treasury, model_treasury,
             "treasury mismatch at height {h} (fee {fee})"
@@ -988,7 +1006,7 @@ fn run_validator_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) 
         assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];
         st = apply_validator_block(&fixture, &st, h, txs, vec![proof]);
-        model_treasury = treasury_after_block(model_treasury, fee_sum, 1, &emission);
+        model_treasury = treasury_after_block(model_treasury, fee_sum, 1, u64::from(h), &emission);
         assert_eq!(
             st.treasury, model_treasury,
             "treasury mismatch at height {h} (fee {fee}, 1 proof)"
@@ -1090,6 +1108,107 @@ fn treasury_ledger_matches_apply_block_over_validator_mixed_fee_and_proof_blocks
 #[test]
 fn treasury_ledger_matches_apply_block_over_sixty_four_validator_mixed_blocks() {
     run_validator_mixed_fee_and_proof_sim(64, SIM_EMISSION);
+}
+
+/// **B-13a:** 256-block validator mixed fee+proof ledger at `subsidy_to_treasury_bps = 1000`.
+/// Live Path A genesis stays at `0`; this is sim-only. Keeps `fee_to_treasury_bps = 9000`.
+#[test]
+fn b13a_treasury_ledger_matches_apply_block_256_at_subsidy_bps_1000() {
+    let emission = EmissionParams {
+        subsidy_to_treasury_bps: 1000,
+        ..SIM_EMISSION
+    };
+    assert_eq!(emission.fee_to_treasury_bps, 9000);
+    run_validator_mixed_fee_and_proof_sim(256, emission);
+}
+
+/// Fee-drought schedule: near-zero fees + one SPoRA proof per block from empty treasury.
+/// Returns cumulative emission backstop (`storage_reward − from_treasury`).
+fn run_fee_drought_backstop_total(blocks: u32, emission: EmissionParams) -> u128 {
+    let fixture = ValidatorFixture::three_validators();
+    let storage = StorageFixture::sample_4k();
+    let initial = 50_000_000_000u64;
+    let (mut st, mut spend, mut input_pad) = genesis_validator_with_funded_utxo(
+        emission,
+        initial,
+        &fixture,
+        vec![storage.built.commit.clone()],
+        DEFAULT_ENDOWMENT_PARAMS,
+        None,
+    );
+    let mut model_treasury = 0u128;
+    let mut backstop_total = 0u128;
+
+    for h in 1..=blocks {
+        // Near-zero fee: treasury fee share floors to 0 at fee_to_treasury_bps=9000.
+        let fee = 1u64;
+        let (signed, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee);
+        spend = next_spend;
+        input_pad = next_pad;
+        let fee_sum = u128::from(fee);
+        let prev = *st.tip_id().expect("tip");
+        let proof = build_test_storage_proof(
+            &storage.built.commit,
+            &prev,
+            h,
+            &storage.payload,
+            &storage.built.tree,
+        );
+        let coinbase = build_validator_coinbase(
+            u64::from(h),
+            &emission,
+            fee_sum,
+            &fixture.payout,
+            &st,
+            h,
+            std::slice::from_ref(&proof),
+        );
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
+        let txs = vec![coinbase, signed.tx];
+        let treasury_before = model_treasury;
+        st = apply_validator_block(&fixture, &st, h, txs, vec![proof]);
+        model_treasury = treasury_after_block(model_treasury, fee_sum, 1, u64::from(h), &emission);
+        assert_eq!(
+            st.treasury, model_treasury,
+            "fee-drought treasury mismatch at height {h}"
+        );
+        let treasury_fee = fee_sum * u128::from(emission.fee_to_treasury_bps) / 10_000;
+        let subsidy_credit = subsidy_treasury_credit(u64::from(h), &emission);
+        let pending_before_drain = treasury_before
+            .saturating_add(treasury_fee)
+            .saturating_add(subsidy_credit);
+        let storage_reward = u128::from(emission.storage_proof_reward);
+        let from_treasury = pending_before_drain.min(storage_reward);
+        backstop_total = backstop_total.saturating_add(storage_reward - from_treasury);
+    }
+    backstop_total
+}
+
+/// **B-13a:** fee-drought@1000 accumulates strictly less emission backstop than bps=0
+/// (subsidy tail buffers the permanence treasury under near-zero fees).
+#[test]
+fn b13a_fee_drought_subsidy_bps_1000_smoother_backstop_than_bps_0() {
+    let drought_0 = EmissionParams {
+        subsidy_to_treasury_bps: 0,
+        ..SIM_EMISSION
+    };
+    let drought_1000 = EmissionParams {
+        subsidy_to_treasury_bps: 1000,
+        ..SIM_EMISSION
+    };
+    assert_eq!(drought_0.fee_to_treasury_bps, 9000);
+    assert_eq!(drought_1000.fee_to_treasury_bps, 9000);
+
+    let backstop_0 = run_fee_drought_backstop_total(256, drought_0);
+    let backstop_1000 = run_fee_drought_backstop_total(256, drought_1000);
+    assert!(
+        backstop_1000 < backstop_0,
+        "bps=1000 backstop {backstop_1000} must be strictly below bps=0 backstop {backstop_0}"
+    );
+    // With SIM storage_proof_reward=25 and near-zero fees, bps=0 backstops every block.
+    assert_eq!(backstop_0, 25u128 * 256);
+    // Subsidy credit (≥ initial_reward/10 = 100) covers each 25-unit proof drain.
+    assert_eq!(backstop_1000, 0);
 }
 
 /// CLSAG self-transfers in legacy mode credit the **full fee** to the
@@ -1252,10 +1371,12 @@ fn run_liveness_slash_mixed_treasury_sim(emission: EmissionParams) {
                 liveness_forfeit,
                 fee_sum,
                 1,
+                u64::from(h),
                 &emission,
             );
         } else {
-            model_treasury = treasury_after_block(model_treasury, fee_sum, proofs, &emission);
+            model_treasury =
+                treasury_after_block(model_treasury, fee_sum, proofs, u64::from(h), &emission);
         }
         assert_eq!(
             st.treasury, model_treasury,
@@ -1377,6 +1498,7 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams, initi
             liveness_credit,
             fee_sum,
             proofs,
+            u64::from(h),
             &emission,
         );
         assert_eq!(
@@ -1539,6 +1661,7 @@ fn run_combined_inflow_ppb_treasury_sim(
             fee_sum,
             proofs,
             ppb_bonus,
+            u64::from(h),
             &emission,
         );
         assert_eq!(
@@ -1847,6 +1970,7 @@ fn run_equivocation_combined_inflow_treasury_sim(
             liveness_credit,
             fee_sum,
             proofs,
+            u64::from(h),
             &emission,
         );
         assert_eq!(
@@ -2038,6 +2162,7 @@ fn run_equivocation_combined_inflow_ppb_treasury_sim(
             fee_sum,
             proofs,
             ppb_bonus,
+            u64::from(h),
             &emission,
         );
         assert_eq!(
