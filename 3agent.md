@@ -11,36 +11,36 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A — RC / CI** | Mesh, CI/Nightly, board integrity, release evidence | 1 + 2 | Protocol tests (B), VPS JOIN / Path A live apply (C) |
-| **B — Protocol / Privacy** | `apply_block`, SPoRA/slash matrix, wallet ring defaults | 4 + 5 | Hetzner mfnd/faucet restarts (C), Nightly dispatch (A) |
-| **C — Testnet / Onboarding** | JOIN evidence, Path A, faucet/observer/VPS, invite-load | 3 + 7 | Consensus proptest edits (B), board-encoding guards alone (A) |
+| **A** RC/CI | Mesh, CI/Nightly, board integrity, release evidence | 1 + 2 | Protocol tests (B), VPS JOIN / Path A live apply (C) |
+| **B** Protocol / Privacy | `apply_block`, SPoRA/slash matrix, wallet ring defaults | 4 + 5 | Hetzner mfnd/faucet restarts (C), Nightly dispatch (A) |
+| **C** Testnet / Onboarding | JOIN evidence, Path A, faucet/observer/VPS, invite-load | 3 + 7 | Consensus proptest edits (B), board-encoding guards alone (A) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-242 claim. Watch tip CI on B-241; body ready for land after GREEN.
+Synced at lane7 B-229 VPS apply claim. Lane4 keeps B-242. Watch tip CI `#31102959528` on B-241.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch B-241 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-241** (5c5e7253); watch tip CI | **B-242** sixteenth re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
-c12db8e); watch tip CI | **B-240** sixteenth op1 asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
+| **C** Testnet/Onboarding | **B-229** code; **B-33** telemetry | **B-229 VPS apply** proxy+frontend (lane7) | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
 2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-242 Rust until B-241 tip CI GREEN.**
-3. **Foreign WIP:** never stage `onchain-tx-storm*`, `assert-b28-treasury-thresholds*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
+3. **Foreign WIP:** never stage `onchain-tx-storm*`, lane4 `apply_block_proptest.rs`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
+5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
 
 ## Critical path (shared)
 
 ```text
 L4 public testnet harden
-  ├─ Seat C: B-15 JOIN SUMMARY + Path A lag close
-  ├─ Seat B: fifteenth prove matrix (B-232→B-233→B-234…) → B-32 (needs 2nd host)
+  ├─ Seat C: B-15 JOIN SUMMARY + Path A lag close + B-229 VPS apply
+  ├─ Seat B: sixteenth prove matrix (B-241→B-242…) → B-32 (needs 2nd host)
   ├─ Seat A/B+lane6: B-13a GREEN pin → B-40 / B-25 permanence gate
   └─ Seat A: green CI+Nightly pins on heads
 → TL-9 invites: B-42 → B-14 (seat C) after B-15 PASS
@@ -56,8 +56,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done B-231 GREEN / Doing watch B-232 #31075611260 / Next pin+Nightly
-3agent — Seat B: Done B-239+B-240 on tip / Doing B-241 empty both-miss (body ready) / Next land after GREEN
-3agent — Seat C: Done B-229 + B-33 telemetry / Doing wave115+ + VPS proxy / Next Path A lag + SUMMARY
+3agent — Seat A: Done watch / Doing idle / Next pin+Nightly
+3agent — Seat B: Done B-241 / Doing B-242 re-slash (body ready) / Next B-32 (2 hosts)
+3agent — Seat C: Done B-229 code / Doing B-229 VPS proxy+frontend apply / Next Path A + B-42
 (AGENTS.md §5 remains the claim surface)
 ```
