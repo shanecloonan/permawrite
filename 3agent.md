@@ -23,8 +23,8 @@ Synced from AGENTS.md §5 at B-231 land. **CI `#31069737973` GREEN** on B-230.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#31069737973` GREEN** (B-230); `#31068279807` GREEN (B-228) | Watch tip CI after B-231 — do not cancel | Pin GREEN → Nightly if protocol stack |
-| **B** Protocol/Privacy | **B-231** fifteenth→dual settle (this commit); **B-230** GREEN | *Idle* (lane4) | **B-232** fifteenth→asymmetric settle → close fifteenth prove matrix → live **B-32** (2 hosts) |
+| **A** RC/CI | Watch **CI #31071345155** on B-231 | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-231** (b0e260c); **B-230** GREEN | **B-232** fifteenth asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; wave114 hugo@6848 | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load; no parallel Hetzner JOIN |
 
 ### Hard locks (all seats)
