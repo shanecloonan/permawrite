@@ -11,20 +11,20 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-273 tip CI `#31129198022` | *Idle* - do not cancel | Pin / Nightly |
-| **B** Protocol/Privacy | **B-273** (`eea604c9`); **B-272** | **B-274** eighteenth asymmetric (claim base `eea604c9`) | After land: **B-275** op1 twin; after 2 hosts: live **B-32** |
+| **A** RC/CI | Tip CI `#31129713995` GREEN | *Idle* | Pin / Nightly |
+| **B** Protocol/Privacy | **B-274** (this commit); **B-273** GREEN `#31129713995` | *Idle* (next **B-275** op1 asymmetric) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | *Idle* | After B-15: B-42; 2nd host B-32 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-274 claim. Body ready; land after tip CI `#31129198022` GREEN.
+Synced at B-274 land. Tip CI `#31129713995` GREEN; next **B-275** op1 twin.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-273 tip CI `#31129198022` | *Idle* - do not cancel | Pin / Nightly |
-| **B** Protocol/Privacy | **B-273** (`eea604c9`); **B-272** | **B-274** eighteenth asymmetric (claim base `eea604c9`) | After land: **B-275** op1 twin; after 2 hosts: live **B-32** |
+| **A** RC/CI | Tip CI `#31129713995` GREEN | *Idle* | Pin / Nightly |
+| **B** Protocol/Privacy | **B-274** (this commit); **B-273** GREEN `#31129713995` | *Idle* (next **B-275** op1 asymmetric) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | *Idle* | After B-15: B-42; 2nd host B-32 |
 
 ### Hard locks (all seats)
