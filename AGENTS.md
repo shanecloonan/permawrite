@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Fix-forward B-13a clippy allows on emission treasury helpers (prior `23c675dc` was board-only). Re-proves B-232 tip. Hold **B-233** until GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Fix-forward duplicate clippy allow on B-13a emission helpers. Hold **B-233** until GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -428,6 +428,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 4 - fix-forward duplicate clippy allow** (this commit): remove duplicated `#[allow(clippy::too_many_arguments)]` on `treasury_after_combined_inflow_block_with_ppb_bonus` (`clippy::duplicated_attributes`). Full CI. Hold **B-233**.
 
 1. **2026-08-06 - lane 4 - fix-forward B-13a clippy allows** (this commit): `#[allow(clippy::too_many_arguments)]` on `treasury_after_equivocation_combined_inflow_block` + `treasury_after_combined_inflow_block_with_ppb_bonus`. Prior `23c675dc` claimed the fix but only touched the board. Triggered by B-232 tip CI `#31075611260` clippy FAIL. Full CI. Hold **B-233**. *Observed (not staged):* B-233 proptest draft; onchain-tx-storm WIP.
 

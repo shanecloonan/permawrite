@@ -189,7 +189,6 @@ fn treasury_after_settlement_with_ppb_bonus(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 fn treasury_after_combined_inflow_block_with_ppb_bonus(
     treasury: u128,
     bond_burn: u128,
