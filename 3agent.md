@@ -23,8 +23,8 @@ Synced from AGENTS.md §5 at B-217 CI GREEN pin. Body 55c078fe + leak revert 95
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI #31063344773 GREEN** on B-217 tip | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-226** docs honesty; **B-217** `55c078fe`; **B-224** Done | Lane4 **B-225** hold until B-217 tip GREEN | After tip: land B-225; live **B-32** |
+| **A** RC/CI | **CI `#31063344773` GREEN** (B-217 tip); watch B-225 tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-225** (this commit); **B-224**/**B-217** GREEN | *Idle* (lane4) | **B-227** fourteenth re-slash; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-15** wave114 hugo@6848 PASS | wave115+ density | Path A lag republish; no parallel Hetzner JOIN |
 
 
