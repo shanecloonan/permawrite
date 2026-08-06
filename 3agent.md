@@ -23,8 +23,8 @@ Synced from AGENTS.md §5 at B-227 land. **CI `#31065238354` GREEN** on B-225; B
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#31065238354` GREEN** on B-225; watch B-227 tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-227** (`43e99602`); **B-225** GREEN | **B-228** fourteenth op1 re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | **CI `#31066818023` GREEN** on B-227; watch B-228 tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-228** (this commit); **B-227** GREEN | *Idle* (lane4) | **B-230** fifteenth dual-slash; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache (`10976dda`); wave114 hugo@6848 | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load; no parallel Hetzner JOIN |
 
 ### Hard locks (all seats)
