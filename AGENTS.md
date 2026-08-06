@@ -452,6 +452,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 6 — B-28 assert refresh PASS** (this commit): tip=16326 treasury=2909711 subsidy_bps=0. Evidence `b28-assert-pass-20260806T142323Z.md`. Watch B-13a-512 CI `#31109005252`. `[skip ci]`. *Observed (not staged):* lane4 proptest; onchain-tx-storm WIP.
+
 1. **2026-08-06 - lane 7 - B-254 public-health p2p-forward hygiene** (this commit): `assert-public-testnet-health` fails closed on failed `mfn-p2p-forward@` templates and requires dedicated 1900x->1910x units (B-253 class). VPS prove OK tip~16326 lag=5. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* lane4 proposals; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — B-33 telemetry refresh** (this commit): tip=16319 treasury=2909711 subsidy_bps=0 (flat vs prior). Evidence `b13-pre-enable-treasury-20260806T141944Z.md`. Watch B-13a-512 tip CI `#31109005252` (gh rate-limited locally). `[skip ci]`. *Observed (not staged):* lane4 proptest; onchain-tx-storm WIP.
