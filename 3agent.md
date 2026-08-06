@@ -23,8 +23,8 @@ Synced from AGENTS.md §5 at B-13a clippy fix-forward. Watch tip CI after `#3107
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-33** telemetry + checklist; **B-13a** `bbd50ce3` | B-13a clippy fix-forward — watch tip CI | Pin GREEN / Nightly; human B-33 go; **B-40** day-of L4 |
-| **B** Protocol/Privacy | **B-231** GREEN; **B-13a** (lane6) | **B-232** fifteenth asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | **CI `#31071345155` GREEN** on B-231; watch B-232 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-232** (this commit); **B-231** GREEN | *Idle* (lane4) | **B-233** op1 asymmetric; lane6 fix B-13a clippy | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; wave114 hugo@6848 | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load; no parallel Hetzner JOIN |
 
 ### Hard locks (all seats)
