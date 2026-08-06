@@ -11,21 +11,21 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-13a-512** landed; **B-28** GREEN; **B-40** runbook | *Idle* — watch tip CI | Human B-33; arm B-40 on L4 |
-| **B** Protocol/Privacy | **B-242** GREEN; held for lane6 | **B-246** next (op1 re-slash) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-250** tall-tip soft-delegate; **B-249** tip-16309; **B-248** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
+| **A** RC/CI | Watch lane6 tip CI #31109005252 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-242** GREEN; B-13a-512 window Done | **B-246** hold for #31109005252 (body ready) | After GREEN: land B-246; after 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | VPS / Path A / invite ops (lanes 3+7) | 3 + 7 | Protocol Rust (B), CI/Nightly cancel (A) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at lane6 **B-13a-512** CLOSE. Lane4 may land **B-246**. Watch new tip CI.
+Synced at lane6 B-13a-512 land. Hold B-246 until CI #31109005252 GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-13a-512** landed; **B-28** GREEN; **B-40** runbook | *Idle* — watch tip CI | Human B-33; arm B-40 on L4 |
-| **B** Protocol/Privacy | **B-242** GREEN; held for lane6 | **B-246** next (op1 re-slash) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-249** soft-repin tip-16309; **B-248**; **B-247** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
+| **A** RC/CI | Watch lane6 tip CI #31109005252 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-242** GREEN; B-13a-512 window Done | **B-246** hold for #31109005252 (body ready) | After GREEN: land B-246; after 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | **B-251** index tip timeout; **B-250**; **B-249** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 ### Hard locks (all seats)
 
