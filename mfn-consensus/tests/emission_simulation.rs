@@ -1124,6 +1124,18 @@ fn b13a_treasury_ledger_matches_apply_block_256_at_subsidy_bps_1000() {
     run_validator_mixed_fee_and_proof_sim(256, emission);
 }
 
+/// **B-13a follow-up:** 512-block validator mixed fee+proof ledger at `subsidy_to_treasury_bps = 1000`.
+/// Elevates the 256-block sim; still sim-only (Path A genesis stays `0`).
+#[test]
+fn b13a_treasury_ledger_matches_apply_block_512_at_subsidy_bps_1000() {
+    let emission = EmissionParams {
+        subsidy_to_treasury_bps: 1000,
+        ..SIM_EMISSION
+    };
+    assert_eq!(emission.fee_to_treasury_bps, 9000);
+    run_validator_mixed_fee_and_proof_sim(512, emission);
+}
+
 /// Fee-drought schedule: near-zero fees + one SPoRA proof per block from empty treasury.
 /// Returns cumulative emission backstop (`storage_reward − from_treasury`).
 fn run_fee_drought_backstop_total(blocks: u32, emission: EmissionParams) -> u128 {
@@ -1210,6 +1222,30 @@ fn b13a_fee_drought_subsidy_bps_1000_smoother_backstop_than_bps_0() {
     // With SIM storage_proof_reward=25 and near-zero fees, bps=0 backstops every block.
     assert_eq!(backstop_0, 25u128 * 256);
     // Subsidy credit (≥ initial_reward/10 = 100) covers each 25-unit proof drain.
+    assert_eq!(backstop_1000, 0);
+}
+
+/// **B-13a follow-up:** fee-drought@1000 over 512 blocks — same inequality + zero backstop.
+#[test]
+fn b13a_fee_drought_512_subsidy_bps_1000_smoother_backstop_than_bps_0() {
+    let drought_0 = EmissionParams {
+        subsidy_to_treasury_bps: 0,
+        ..SIM_EMISSION
+    };
+    let drought_1000 = EmissionParams {
+        subsidy_to_treasury_bps: 1000,
+        ..SIM_EMISSION
+    };
+    assert_eq!(drought_0.fee_to_treasury_bps, 9000);
+    assert_eq!(drought_1000.fee_to_treasury_bps, 9000);
+
+    let backstop_0 = run_fee_drought_backstop_total(512, drought_0);
+    let backstop_1000 = run_fee_drought_backstop_total(512, drought_1000);
+    assert!(
+        backstop_1000 < backstop_0,
+        "bps=1000 backstop {backstop_1000} must be strictly below bps=0 backstop {backstop_0}"
+    );
+    assert_eq!(backstop_0, 25u128 * 512);
     assert_eq!(backstop_1000, 0);
 }
 

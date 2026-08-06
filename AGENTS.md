@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** **CI `#31105745727` GREEN** on B-242. Lane6 **B-13a-512** window OPEN — lane4 holding **B-246**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane6 **B-13a-512** landed (watch tip CI). **B-242** tip CI `#31105745727` GREEN. Lane4 may land **B-246**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16309** (B-249); no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-242** (`612f6077`; CI `#31105745727` GREEN); **B-241** GREEN | **B-246** body ready — **hold Rust for lane6 B-13a-512** (claim base: `612f6077`) | After lane6 512 sims land + tip GREEN: land B-246; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-28 assert** GREEN; **B-40** runbook; **B-20** draft; **B-13a** 256 GREEN | **B-13a-512** sims (claim base: `5d941e07`) — hold Rust until B-242 tip CI `#31105745727` GREEN | Land 512 sims on GREEN; human B-33 go; arm **B-40** on L4 | Emission sims |
+| **6** Permanence | **B-13a-512** (this commit; elevates 256); **B-28 assert** GREEN; **B-40** runbook; **B-20** draft | *Idle* | Human B-33 go → arm **B-40** on L4 → **B-13c** only after go | Emission sims |
 | **7** Testnet launch | **B-250** tall-tip soft-delegate (this commit); **B-249** tip-16309; **B-248**; **B-247** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
@@ -202,7 +202,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | --- | --- | --- | --- |
 | B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | Follows `6377812`; defer until L4 unless fix-forward |
 | B-13 | Parameter fork umbrella: `subsidy_to_treasury_bps = 1000` | 6 | Split into **B-13a** (sims) → **B-13b** (fork policy) → **B-13c** (enable + ops comms). **Not** TL Path B genesis. [`ROADMAP.md` Phase 1](docs/ROADMAP.md#phase-1--permanence-depth-on-the-live-chain-permanence-first) |
-| B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** (`bbd50ce3` + clippy allows; **CI `#31077911423` GREEN**) — genesis stays `0` |
+| B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** 256+512 sims (this commit elevates 256); genesis stays 0; human B-33 still open
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | After B-13a green |
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) — windows evidence tip=5322 assert OK; SUMMARY `B15-JOIN-SUMMARY-20260721.md` |
