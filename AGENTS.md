@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Landing **B-273** eighteenth dual settle. Tip CI `#31128755182` **GREEN** on B-272 `d8ff06cf`. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Claiming **B-274** eighteenth asymmetric settle (docs-only while tip CI `#31129198022` runs on B-273 `eea604c9`). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-273** (this commit); **B-272** GREEN `#31128755182`; **B-271** | *Idle* | **B-274** eighteenth asymmetric settle; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-273** (`eea604c9`); **B-272** GREEN `#31128755182` | **B-274** eighteenth asymmetric settle (claim base: `eea604c9`) | After land: op1 twin **B-275**; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m (this commit); **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | *Idle* — watch tip CI; no B-268b / no B-13c | After tip GREEN + lane4 Ack: **B-268b**; human **B-33**; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
@@ -317,7 +317,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-271 | Seventeenth-offense op1 asymmetric then absentee re-slash (early B-24dt) | 4 | **Landed** (this commit); elevates B-246; completes seventeenth re-slash pair with B-270; full CI |
 | B-272 | Settle-reset then eighteenth dual-slash treasury identity (early B-24du) | 4 | **Landed** (this commit); elevates B-259; opens eighteenth-offense arc; full CI |
 | B-273 | Eighteenth dual-slash then dual settle drain (early B-24dv) | 4 | **Landed** (this commit); elevates B-261; opens eighteenth prove matrix; full CI |
-| B-274 | Eighteenth dual-slash then asymmetric settle drain (early B-24dw) | 4 | **Next** after B-273; elevates B-262 |
+| B-274 | Eighteenth dual-slash then asymmetric settle drain (early B-24dw) | 4 | **Claimed** (this commit) — elevates B-262; full CI after `#31129198022` GREEN |
+| B-275 | Eighteenth dual-slash then op1 asymmetric settle drain (early B-24dx) | 4 | **Next** after B-274; elevates B-263 |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
 | B-258 | Path A near-tip timer/default lag threshold 16→8 (JOIN soft-pin) | 7 | **Landed** (this commit; board text raced into B-246 `23749726`; VPS timer env=8; health tip=16336 lag=6; evidence `b258-path-a-lag-threshold-8-20260806T144200Z.md`) |
@@ -475,6 +476,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 4 - claim B-274** (this commit): early B-24dw eighteenth dual-slash->asymmetric settle while tip CI `#31129198022` runs on B-273. Claim base `eea604c9`. Body ready (`b274_*` PASS). *Observed (not staged):* onchain-tx-storm WIP. `[skip ci]`.
 
 1. **2026-08-06 - lane 4 - B-273 eighteenth dual-slash->dual settle** (this commit): early B-24dv `b273_b5_eighteenth_dual_slash_then_dual_settle_drain_identity`; local exact PASS. Tip CI `#31128755182` **GREEN** on B-272. Elevates B-261. Full CI (no skip). Next: **B-274** eighteenth asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
 
