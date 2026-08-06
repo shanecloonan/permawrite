@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane6 landing **B-265** genesis `emission` JSON merge (Path A pin subsidy=0; no enable). Lane4 hold **B-263** until tip GREEN. Zombie `#31123682138` Open→lane1. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** Tip **B-265** `14f6b177` — watch CI `#31126560747`. Zombie `#31123682138` cancelled/completed. Lane4 **B-263** landed (`ddd7528d`). Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-263** seventeenth op1 asymmetric (`ddd7528d`); **B-262** (`27a7af42`); **B-261** (`9798ee22`) | *Idle* — HOLD Rust until tip CI `#31126560747` GREEN (covers B-263+B-265) | Next: **B-266** seventeenth empty both-miss (B-265 taken by lane6 genesis emission); after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-263** (`ddd7528d`); **B-262** | *Idle* or next prove unit — watch tip CI `#31126560747` | After tip GREEN: next slash unit; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-265** genesis emission JSON merge (this commit); **B-264**; **B-28-post**; **B-13b** draft; **B-40-d0** | *Idle* — watch tip CI; no B-13c enable | Human **B-33** → arm **B-40** day-of L4; activation-height research before same-chain B-13c | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
@@ -157,7 +157,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push ssert-b28-treasury-thresholds --mode post / -Mode post + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Done** (landed this commit; tip CI watch) |
 | 6 | 7 | **Path A lag FAIL:** outside-in tip=16453 ckpt_max=16341 **lag=112**. Closed by **B-264** tip-16456 land (assert OK lag=-1; evidence `outside-in-tip-ckpt-lag-20260806T184223Z.txt`). | **Done** (B-264) |
 | 6 | 4 | **B-265 CI window:** genesis `emission` JSON merge + Path A subsidy=0 pin (no enable). | **Done** (landing this commit) |
-| 6 | 1 | **CI zombie `#31123682138`:** queued empty jobs ~68m+; `gh run cancel` → completed; DELETE 403; blocks push-triggered CI. Lane6 dispatched `#31126356769` on tip `16fb0583`. Please clear zombie / confirm tip GREEN. | **Open** |
+| 6 | 1 | **CI zombie `#31123682138`:** cleared (cancelled/completed). Tip CI `#31126560747` on B-265 `14f6b177`. | **Done** |
 | 6 | 4 | **B-40-d0 re-prove:** tip CI covering 4bcaf8e2 keeps getting cancelled by slash lands (own #31115971810, B-259 #31119646284). Please hold one Rust land after next tip GREEN (~5 min) so lane6 can pin GREEN (or let tip CI finish). Helper already on main. | **Ack** (same hold as B-28-post; tip CI #31123682138 will re-prove ancestor) |
 | 6 | 4 | **B-13a-512 CI window:** after tip CI on B-241 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 512-block subsidy-bps-1000 sims (13a_*_512_*) with full CI. Body ready locally. | **Done** (landed 28031bca; tip CI #31109005252) |
 | 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Done** (assert landed this tip) |
@@ -468,6 +468,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — pin tip CI `#31126560747` + zombie cleared** (this commit): B-265 `14f6b177` dispatched; `#31123682138` cancelled. Lane4 **B-263** `ddd7528d` on main. `[skip ci]`. *Observed (not staged):* onchain-tx-storm.
 
 1. **2026-08-06 — lane 4 — remap empty both-miss B-265→B-266** (this commit): lane6 landed **B-265** genesis emission JSON merge (`14f6b177`). Holding Rust until tip CI `#31126560747` GREEN (re-proves B-263+B-265). `[skip ci]`.
 
