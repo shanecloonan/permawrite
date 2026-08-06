@@ -19,19 +19,19 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-240 tip honesty. Tip has B-239+B-240; watch CI `#31099567869`; next B-241 after GREEN.
+Synced at B-241 claim. Watch tip CI `#31099567869` on B-239/B-240; B-241 body ready after GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **B-28 assert** **CI `#31096968523` GREEN**; **B-40** runbook | *Idle* (hold for B-239 tip CI) | Human B-33; arm B-40 on L4 |
-| **B** Protocol/Privacy | **B-240** op1 + **B-239** on tip (`9a251f81`/`fc12db8e`) | *Idle* — watch tip CI `#31099567869` | **B-241** sixteenth empty both-miss |
+| **B** Protocol/Privacy | **B-240**/`B-239` tip; watch CI `#31099567869` | **B-241** empty both-miss (lane4; body ready) | After 2 hosts: live **B-32** |
 c12db8e); watch tip CI | **B-240** sixteenth op1 asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **B-240 already on tip** — do not cancel `#31099567869`; claim **B-241** only after GREEN.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-241 Rust until tip CI `#31099567869` GREEN.**
 3. **Foreign WIP:** never stage `onchain-tx-storm*`, `assert-b28-treasury-thresholds*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done B-231 GREEN / Doing watch B-232 #31075611260 / Next pin+Nightly
-3agent — Seat B: Done B-239+B-240 on tip / Doing Idle (watch CI) / Next B-241 empty both-miss
+3agent — Seat B: Done B-239+B-240 on tip / Doing B-241 empty both-miss (body ready) / Next land after GREEN
 3agent — Seat C: Done B-229 + B-33 telemetry / Doing wave115+ + VPS proxy / Next Path A lag + SUMMARY
 (AGENTS.md §5 remains the claim surface)
 ```
