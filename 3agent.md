@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-238 CI cancelled by B-28. Hold B-239 until #31096968523 GREEN.
+Synced at B-239 land. Tip CI will prove B-239 (+B-238); next **B-240** op1 asymmetric.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch lane6 B-28 tip CI #31096968523 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-238** landed (CI cancelled) | **B-239** hold for #31096968523 (body ready) | After GREEN: land B-239; after 2 hosts: live **B-32** |
+| **A** RC/CI | **CI #31096968523 GREEN** on B-28 | *Idle* - do not cancel healthy in_progress | Pin B-239 tip CI / Nightly |
+| **B** Protocol/Privacy | **B-239** (this commit); **B-238** | *Idle* (next **B-240** op1 asymmetric) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-239 Rust until lane6 B-28 assert lands after tip CI `#31095524512` GREEN.**
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-240 Rust until B-239 tip CI GREEN.**
 3. **Foreign WIP:** never stage `onchain-tx-storm*`, `assert-b28-treasury-thresholds*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 

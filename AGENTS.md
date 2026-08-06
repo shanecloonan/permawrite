@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** B-238 tip CI #31095524512 **cancelled** by lane6 B-28 land. Holding **B-239** Rust until tip CI #31096968523 GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Landing **B-239** sixteenth dual-slash->asymmetric settle (re-proves B-238 after cancel). **CI #31096968523 GREEN** on B-28. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-238** (54f4bdb5; tip CI cancelled by B-28) | **B-239** body ready - hold for lane6 tip CI #31096968523 (claim base: tip) | After GREEN: land B-239 (re-proves B-238); after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-239** (this commit); **B-238** (54f4bdb5); B-28 GREEN #31096968523 | *Idle* | **B-240** sixteenth op1 asymmetric settle; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-28 assert** (`980ac1ef`); **B-40** runbook; **B-20** draft; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* — watch B-28 tip CI | Pin tip CI GREEN; human B-33 go; arm **B-40** on L4 | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
@@ -292,7 +292,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-236 | Fifteenth-offense op1 asymmetric then absentee re-slash (early B-24df) | 4 | **Landed** (this commit); completes fifteenth re-slash pair with B-235; elevates B-228; full CI |
 | B-237 | Settle-reset then sixteenth dual-slash treasury identity (early B-24dg) | 4 | **Landed** (this commit); elevates B-230; opens sixteenth-offense arc; full CI |
 | B-238 | Sixteenth dual-slash then dual settle drain (early B-24dh) | 4 | **Landed** (this commit); elevates B-231; full CI |
-| B-239 | Sixteenth dual-slash then asymmetric settle drain (early B-24di) | 4 | **Claimed** (this commit) - elevates B-232; full CI after B-238 tip GREEN |
+| B-239 | Sixteenth dual-slash then asymmetric settle drain (early B-24di) | 4 | **Landed** (this commit); elevates B-232; full CI |
+| B-240 | Sixteenth dual-slash then op1 asymmetric settle drain (early B-24dj) | 4 | **Next** after B-239; elevates B-233; completes sixteenth asymmetric pair |
 | B-229 | Tall-tip observer proxy header cache + viewer poll abort fix | 7 | **Landed** (this commit; `[skip ci]`) — mfnd `get_block_headers` re-reads full `chain.blocks` (~3.5s @ tip≈16k); proxy caches rows + tip-warm; frontend skips in-flight abort + uses `get_tx_count_totals`; Next.js heavy RPC 180s. Deploy proxy on VPS after land |
 | B-214 | WASM/wallet README F7 faucet dual-send fail-closed honesty (elevates B-197) | 5 | **Landed** (`c5efb7f4`) — docs-only; lane4 owns B-212/B-213 |
 | B-216 | CLI README/usage F7 dual-UTXO + disabled standalone `wallet claim` honesty | 5 | **Landed** (`e350481f`; watch CI `#30035644826`) — usage + README + privacy-floor smoke |
@@ -436,6 +437,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 4 - B-239 sixteenth dual-slash->asymmetric settle** (this commit): early B-24di 239_b5_sixteenth_dual_slash_then_asymmetric_settle_drain_identity; compile OK (App Control blocked exact). Held for lane6 B-28 **CI #31096968523 GREEN**. Elevates B-232; re-proves B-238 tip after cancel. Full CI (no skip). Next: **B-240** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm / B-28 assert WIP.
 
 1. **2026-08-06 - lane 4 - hold B-239 for lane6 B-28 tip CI** (this commit): B-238 CI #31095524512 cancelled by B-28. Holding B-239 Rust until **CI #31096968523 GREEN**. Bodies B-239+B-240 ready locally. [skip ci].
 
