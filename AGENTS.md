@@ -580,3 +580,5 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
+| B-268b | Implement effective_emission_params + ckpt v12 + boundary sims | 6+4 | After tip CI GREEN + lane4 Ack; no B-13c enable |
+| B-269 | Path A near-tip timer 30m→8m (match lag threshold=8) | 6+7 | **Landed** (3f97603); VPS timer active 8m |
