@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Claiming **B-238** sixteenth dual-slash->dual settle (docs-only while tip CI runs on B-237 7203e1a). **CI #31090099572 GREEN** on lane6. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane6 HTTP treasury-telemetry **CI `#31090099572` GREEN** on `360f690b`. B-28 draft thresholds in OPERATORS. Lane4 **B-237** tip CI `#31093098346` in progress — do not cancel. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-237** (7203e1a, watch tip CI #31093098346); **B-236** GREEN | **B-238** sixteenth dual settle (claim base: 7203e1a; body ready) | After tip GREEN: land B-238; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **HTTP treasury-telemetry** (`360f690b`); **B-13a** GREEN; **B-33** telemetry | **B-28** draft OPERATORS thresholds (docs; claim base: `24150c01`) | Pin HTTP tip CI GREEN; human B-33 go; **B-40** day-of L4; then **B-13c** / arm B-28 | Emission sims |
+| **6** Permanence | **HTTP treasury-telemetry** (`360f690b`, **CI `#31090099572` GREEN**); **B-28** draft thresholds; **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; **B-40** day-of L4; then **B-13c** / arm B-28 | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -434,6 +434,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — pin HTTP treasury-telemetry CI GREEN** (this commit): **CI `#31090099572` GREEN** on `360f690b`. B-28 draft already on tip. Docs-only `[skip ci]` (B-237 tip CI in progress). Next: human B-33 go; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 4 — claim B-238** (this commit): early B-24dh sixteenth dual-slash→dual settle while tip CI runs on B-237. Claim base `b7203e1a`. Body ready locally (`b238_*` PASS). [skip ci].
 

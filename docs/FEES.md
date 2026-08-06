@@ -252,7 +252,7 @@ behavior are the telemetry inputs. Read-only helper:
 [`b13-pre-enable-treasury-20260806T052834Z.md`](../scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-20260806T052834Z.md)
 (public observer proxy `get_chain_params`; tip 16063; treasury 2909711;
 `subsidy_to_treasury_bps=0`). **B-13a** sims + clippy fix-forward tip
-**CI `#31077911423` GREEN** on `4860a8d1` (body `bbd50ce3`).
+**CI `#31077911423` GREEN** on `4860a8d1` (body `bbd50ce3`). HTTP watch tip **CI `#31090099572` GREEN** on `360f690b`.
 
 ---
 
