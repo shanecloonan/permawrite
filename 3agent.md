@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at lane7 **B-243** Path A claim. Lane4 keeps B-242. Watch tip CI `#31102959528` on B-241.
+Synced at lane7 **B-243** Path A tip-16293 CLOSE. Lane4 keeps B-242. Watch tip CI `#31102959528`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch B-241 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-241** (5c5e7253); watch tip CI | **B-242** sixteenth re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-229 VPS apply** | **B-243** Path A tip~16290 republish (lag~11k) | Land jsonl; then **B-42** invite-load |
+| **C** Testnet/Onboarding | **B-243** Path A tip-16293 (lag 11003->0); **B-229** | *Idle* / wave115+ re-pin | **B-42** invite-load live |
 
 ### Hard locks (all seats)
 

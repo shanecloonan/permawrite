@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane7 **B-243** Path A near-tip republish (ckpt=5290 lag~11k). Lane4 owns **B-242** (hold Rust until tip CI `#31102959528` GREEN). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane7 **B-243** Path A tip-16293 landed (lag 11003->0). Lane4 owns **B-242** (hold Rust until tip CI `#31102959528` GREEN). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-16293; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-241** (5c5e7253, watch tip CI `#31102959528`); **B-240**/**B-239** | **B-242** sixteenth asymmetric->absentee re-slash (claim base: 5c5e7253; body ready) | After tip GREEN: land B-242; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-28 assert** (`980ac1ef`, **CI `#31096968523` GREEN**); **B-40** runbook; **B-20** draft; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; arm **B-40** on L4; then **B-13c** / arm B-28 live | Emission sims |
-| **7** Testnet launch | **B-229 VPS apply** (`11486db6`); **B-140** | **B-243** Path A near-tip republish (claim base: `11486db6`; ckpt=5290 lag~11k) | Land tip~16290 jsonl; then **B-42** invite-load **live**; 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-243** Path A tip-16293 (this tip; entries=49; lag 11003->0); **B-229 VPS apply** | *Idle* | **B-42** invite-load **live**; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -296,7 +296,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-240 | Sixteenth dual-slash then op1 asymmetric settle drain (early B-24dj) | 4 | **Landed** (`9a251f81`, subject mislabeled B-239); completes sixteenth asymmetric pair with B-239; elevates B-233; full CI |
 | B-241 | Sixteenth dual-slash then empty both-miss (early B-24dk) | 4 | **Landed** (this commit); elevates B-234; closes sixteenth prove matrix; full CI |
 | B-242 | Sixteenth-offense asymmetric then absentee re-slash (early B-24dl) | 4 | **Claimed** (this commit) - elevates B-235; full CI after B-241 tip GREEN |
-| B-243 | Path A near-tip checkpoint republish (close F45 lag ~11k) | 7 | **Claimed** (this commit) - B-85 fire; land jsonl tip~16290; B-15-safe |
+| B-243 | Path A near-tip checkpoint republish (close F45 lag ~11k) | 7 | **Landed** (this tip; tip=16293 entries=49; evidence `b243-path-a-tip-16293-20260806T131500Z.md`) |
 | B-229 | Tall-tip observer proxy header cache + viewer poll abort fix | 7 | **Landed** (this commit; `[skip ci]`) — mfnd `get_block_headers` re-reads full `chain.blocks` (~3.5s @ tip≈16k); proxy caches rows + tip-warm; frontend skips in-flight abort + uses `get_tx_count_totals`; Next.js heavy RPC 180s. Deploy proxy on VPS after land |
 | B-214 | WASM/wallet README F7 faucet dual-send fail-closed honesty (elevates B-197) | 5 | **Landed** (`c5efb7f4`) — docs-only; lane4 owns B-212/B-213 |
 | B-216 | CLI README/usage F7 dual-UTXO + disabled standalone `wallet claim` honesty | 5 | **Landed** (`e350481f`; watch CI `#30035644826`) — usage + README + privacy-floor smoke |
@@ -440,6 +440,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 7 - B-243 Path A tip-16293** (this commit): VPS `publish-near-tip-checkpoint-if-lag --apply` tip=16293 ckpt_max=5290 lag=11003; verify_ok entries=49; land-from-vps OK; faucet/mfnd untouched. Evidence `b243-path-a-tip-16293-20260806T131500Z.md`. `[skip ci]` (do not cancel tip CI `#31102959528`). Next: **B-42** invite-load live. *Observed (not staged):* lane4 B-242 proptest; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 7 - claim B-243 Path A near-tip republish** (this commit): ckpt_max=5290 vs live tip~16290 (lag~11k) blocks JOIN/F45. Will `publish-near-tip-checkpoint-if-lag --apply` on VPS then land jsonl. Claim base `11486db6`. Lane4 owns **B-242**. `[skip ci]` (tip CI `#31102959528` in progress). *Observed (not staged):* lane4 B-242 proptest; onchain-tx-storm WIP.
 
