@@ -112,6 +112,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | VPS preflight checklist | `bash scripts/public-devnet-v1/vps-execution-checklist.sh` — before TL-5/TL-6 (`v2` schema; use `--strict` when CI must be green) |
 | VPS checklist rehearsal | `bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only` — ci-check gate |
 | Treasury telemetry (F6) | `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc HOST:PORT` or `--rpc http(s)://…/rpc` / `treasury-telemetry-watch.ps1 -Rpc http://5.161.201.73:8787/rpc` — FEES.md §5 |
+| B-40 permanence week | [`docs/B40_PERMANENCE_WEEK.md`](../../docs/B40_PERMANENCE_WEEK.md) — arm day-of L4; B-13a/telemetry pre-armed |
 | B-13 subsidy fork sign-off (**B-33**) | [`docs/B13_SUBSIDY_FORK_SIGNOFF.md`](../../docs/B13_SUBSIDY_FORK_SIGNOFF.md) — human gate before enabling `subsidy_to_treasury_bps=1000` (**B-13c**); archive pre-enable telemetry first |
 | P32 / PM23 rehearsal | `bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only` — role env separation gate |
 | TL-9 go/no-go | `bash scripts/public-devnet-v1/launch-go-no-go.sh` — before outside invites |
@@ -336,6 +337,14 @@ powershell -File scripts/public-devnet-v1/treasury-telemetry-watch.ps1 -Rpc http
 See [`docs/FEES.md`](../../docs/FEES.md) §5.5. Do **not** change
 `fee_to_treasury_bps` in the same fork as **B-13c**. Arm only after permanence
 week evidence.
+
+
+### B-40 — First permanence week (arm day-of L4)
+
+Runbook: [`docs/B40_PERMANENCE_WEEK.md`](../../docs/B40_PERMANENCE_WEEK.md).
+**B-13a** + pre-enable telemetry are pre-armed; on L4 close refresh a live
+`treasury-telemetry-watch` sample and follow D0–week-close checkboxes.
+Do **not** enable **B-13c** until **B-33** human go.
 
 ### Residual-risk owners and halt authority (**B-30**)
 

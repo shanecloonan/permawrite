@@ -561,11 +561,13 @@ Before **B-13c** enable on Path A:
 
 #### B-40 — First permanence week (lane 6 — arm day-of L4)
 
+Checklist artifact: [`B40_PERMANENCE_WEEK.md`](./B40_PERMANENCE_WEEK.md) (B-13a + telemetry **pre-armed**).
+
 Calendar week zero after TL-9 / L4 closes. **Permanence first** — do not start Tier 2 privacy or Path B economic value.
 
 | Day | Must finish | Owner | Pass when |
 |---|---|---|---|
-| **D0 (L4 close)** | Claim **B-13a**; archive pre-enable treasury telemetry snapshot (`treasury_base_units`, backstop rate, tip height, SHA) | 6 | §5 Doing = B-13a; snapshot path in §8 |
+| **D0 (L4 close)** | Claim **B-40**; **refresh** treasury sample (B-13a + baseline already landed); follow [`B40_PERMANENCE_WEEK.md`](./B40_PERMANENCE_WEEK.md) | 6 | §5 Doing = B-40; D0 evidence path in §8 |
 | **D0–D2** | Kick **B-32** multi-op evidence (lane 4+7) without blocking B-13a | 4+7 | Operators identified; evidence pack started |
 | **D1–D5** | Land **B-13a** sims in default CI (256–512 blocks @ `subsidy_to_treasury_bps=1000`) | 6 | CI GREEN; identity + fee-drought cases pass |
 | **D3–D7** | Confirm no Tier-2 / hidden-fee / Path-B value PRs opened; permanence regressions stay in **B-23** / **B-36** lanes only | all | Board Next cells stay Phase-1 units |

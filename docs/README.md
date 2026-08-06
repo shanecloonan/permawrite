@@ -35,6 +35,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model, [§ 12 Arweave durability comparison](./ECONOMICS.md#12-permanence-durability-vs-arweave--is-this-model-more-likely-to-break) (incl. [§ 12.6 hardware deflation + zero privacy demand](./ECONOMICS.md#126-hardware-deflation-and-zero-privacy-demand)).
 - 💸 [**FEES.md**](./FEES.md) — plain-language transaction fees: what you pay, where it goes (90/10 split), upload endowment pricing, and the 2026-07 parameter review.
 - ✅ [**B13_SUBSIDY_FORK_SIGNOFF.md**](./B13_SUBSIDY_FORK_SIGNOFF.md) — **B-33** human gate before enabling `subsidy_to_treasury_bps=1000` on Path A (**B-13c**).
+- ✅ [**B40_PERMANENCE_WEEK.md**](./B40_PERMANENCE_WEEK.md) — **B-40** first permanence week runbook (arm day-of L4; B-13a pre-armed).
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
 - 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.
 - ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — honest inventory of real economic, incentive, architectural, and protocol/security-model weaknesses (no invented problems).

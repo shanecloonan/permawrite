@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane6 HTTP treasury-telemetry **CI `#31090099572` GREEN** on `360f690b`. B-28 draft thresholds in OPERATORS. Lane4 **B-237** tip CI `#31093098346` in progress — do not cancel. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** Landing **B-40** runbook artifact (docs-only; `[skip ci]`). HTTP tip **CI `#31090099572` GREEN**. Lane4 **B-237** tip CI `#31093098346` — do not cancel. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-237** (7203e1a, watch tip CI #31093098346); **B-236** GREEN | **B-238** sixteenth dual settle (claim base: 7203e1a; body ready) | After tip GREEN: land B-238; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-20** draft (FEES §5.5); **HTTP telemetry** GREEN; **B-28** draft+sample; **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; **B-40** day-of L4; then **B-13c** / arm B-28 | Emission sims |
+| **6** Permanence | **B-40** runbook ([`docs/B40_PERMANENCE_WEEK.md`](docs/B40_PERMANENCE_WEEK.md)); **B-20**/**B-28** drafts; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* — arm B-40 day-of L4 | Human B-33 go; arm **B-40** on L4 close; then **B-13c** / arm B-28 | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -234,7 +234,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
-| B-40 | First permanence week (arm day-of L4) | 6 | Phase 1; [work package](docs/ROADMAP.md#b-40--first-permanence-week-lane-6--arm-day-of-l4); with **B-13a** |
+| B-40 | First permanence week (arm day-of L4) | 6 | **Runbook landed** (`B40_PERMANENCE_WEEK.md`); arm day-of L4 (B-13a pre-armed) |
 | B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd :1910x + socat :1900x; EXT 19001–19003 OPEN; tip~4031 |
 | B-42 | Invite-load smoke before TL-9 | 3+7 | Plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | **Draft** — `docs/PATH_B_GENESIS_FREEZE.md`; human cells TBD; no ceremony |
@@ -434,6 +434,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-40 permanence week runbook** (this commit): `docs/B40_PERMANENCE_WEEK.md` + OPERATORS/ROADMAP/checklist wiring. Marks B-13a + telemetry pre-armed; D0 = refresh sample + claim. Docs-only `[skip ci]` (B-237 tip CI in progress). Next: human B-33 go; arm B-40 day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — B-20 draft fee-shift policy** (this commit): FEES §5.5 producer↔treasury runway coupling rules (hold/±bps); OPERATORS pointer. No knob changes. Docs-only `[skip ci]`. Next: human B-33 go; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 

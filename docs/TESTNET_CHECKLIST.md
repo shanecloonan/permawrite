@@ -429,7 +429,7 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 
 Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permanence-playbook-acceptance-criteria). **Hard rule:** permanence (**B-13** / **B3** / **B-25**) before Tier 2 privacy or Path B value.
 
-- [ ] **B-40** — First permanence week (arm day-of L4; with **B-13a**).
+- [ ] **B-40** — First permanence week (arm day-of L4; runbook [`B40_PERMANENCE_WEEK.md`](./B40_PERMANENCE_WEEK.md); **B-13a**/telemetry pre-armed).
 - [x] **B-13a** — Emission/treasury sims at `subsidy_to_treasury_bps=1000` in default CI (`bbd50ce3` + clippy allows; tip **CI `#31077911423` GREEN** on `4860a8d1`).
 - [ ] **B-32** — B3 multi-op evidence pack + assert (unblocks honest **B-24**).
 - [ ] **B-44** — PM3 windowed SPoRA lottery work package (after B-32).
