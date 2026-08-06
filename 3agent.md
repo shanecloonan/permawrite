@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-236 land. **CI `#31084733657` GREEN** on B-235; B-236 full CI landing (closes 15th re-slash pair).
+Synced at B-236 land. Tip CI will prove B-236; next **B-237** sixteenth settle-reset.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-234 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-236** fifteenth op1 re-slash (this commit) | *Idle* — hold live **B-32** for 2nd host | **B-237** settle-reset→sixteenth dual-slash |
+| **A** RC/CI | **CI #31084733657 GREEN** on B-235 | *Idle* - do not cancel healthy in_progress | Pin B-236 tip CI / Nightly |
+| **B** Protocol/Privacy | **B-236** (this commit); **B-235** GREEN | *Idle* (next **B-237** sixteenth settle-reset) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
