@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** **B-33** sign-off checklist artifact landing (docs-only; `[skip ci]`). Watch **B-13a** tip CI `#31073720447` on `bbd50ce3`. Lane4 **B-232** may land next. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** **B-33** telemetry baseline archived (docs-only; `[skip ci]`). Watch **B-13a** tip CI `#31073720447` on `bbd50ce3`. Lane4 **B-232** holds until that GREEN. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-231** (`fb0e260c`, **CI `#31071345155` GREEN**); **B-230** GREEN | **B-232** fifteenth->asymmetric settle (claim base: `fb0e260c`; body ready) - hold Rust until B-13a tip CI GREEN | After B-13a tip GREEN: land B-232; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-33** checklist artifact ([`docs/B13_SUBSIDY_FORK_SIGNOFF.md`](docs/B13_SUBSIDY_FORK_SIGNOFF.md)); **B-13a** (`bbd50ce3`) | *Idle* — watch B-13a CI `#31073720447` | Human B-33 go cells + telemetry baseline; **B-40** day-of L4; then **B-13c** | Emission sims |
+| **6** Permanence | **B-33** telemetry baseline (`b13-pre-enable-treasury-20260806T052834Z.md`); checklist artifact; **B-13a** (`bbd50ce3`) | *Idle* — watch B-13a CI `#31073720447` | Human B-33 go cells + B-13a CI GREEN pin; **B-40** day-of L4; then **B-13c** | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -221,7 +221,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-31 | Live RPC/faucet threat posture verify | 2+7 | **P2P+RPC PASS** after B-41/B-46; close after **B-26** R-4 deploy confirm |
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling + ci-check gate (B-74)**; live pack day-of L4 |
 | B-74 | Wire B-32 plan smoke + fixture assert into ci-check | 4 | **Landed** (this commit) — `.sh`/`.ps1` twins; closes ROADMAP CI row for B-32 tooling |
-| B-33 | B-13b human sign-off checklist | 6+7+human | **Landed** (this commit) — checklist artifact; human/telemetry cells open before B-13c |
+| B-33 | B-13b human sign-off checklist | 6+7+human | **Landed** — checklist + pre-enable telemetry archived; human go cells still open before B-13c |
 | B-34 | CI queue/stall watch + cancel/re-dispatch | 1 | **Landed** (this commit) — `scripts/watch-ci-stall.py` + ci-check plan gate (gate was prematurely wired in B-90; scripts complete it); `--cancel-if-stalled` only when zero progress |
 | B-93 | Post-push CI stall watch wrapper (B-34 follow-up) | 1 | **Landed** (this commit) — `scripts/post-push-ci-watch.py` + ci-check plan gate; wired into after-push agent rule |
 | B-96 | Soak evidence requires Nightly+CI pins (assert + soak fail-closed) | 1 | **Landed** (this commit) — assert `# nnightly_run=`/`# ci_run=`; soak fail-closed; tip 4820->4822 evidence |
@@ -426,6 +426,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-33 pre-enable treasury telemetry** (this commit): archive `b13-pre-enable-treasury-20260806T052834Z.md` from public proxy (`get_chain_params`/`get_tip`); tip 16063; treasury 2909711; subsidy_bps=0; fee_bps=9000. Tick B-33 telemetry row. Docs-only `[skip ci]` (B-13a tip CI `#31073720447` in progress). Next: human B-33 go / pin B-13a CI GREEN; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — B-33 subsidy fork sign-off checklist** (this commit): `docs/B13_SUBSIDY_FORK_SIGNOFF.md` + OPERATORS/ROADMAP/TESTNET_CHECKLIST/FEES wiring. Technical rows filled; human go + pre-enable telemetry still open (B-30-style). No genesis enable. Docs-only `[skip ci]` (B-13a tip CI `#31073720447` in progress). Next: idle until human B-33 go / L4 for **B-40**. *Observed (not staged):* lane4 `apply_block_proptest.rs`; onchain-tx-storm WIP.
 

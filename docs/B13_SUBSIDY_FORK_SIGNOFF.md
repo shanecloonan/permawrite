@@ -44,7 +44,7 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
 
 ### Ops preconditions (lane 7 + human — open until archived)
 
-- [ ] **Telemetry baseline archived** — before B-13c enable, capture and commit
+- [x] **Telemetry baseline archived** — before B-13c enable, capture and commit
   (or attach under `scripts/public-devnet-v1/evidence/`) a pre-enable snapshot:
 
   ```bash
@@ -56,6 +56,10 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
   Record at minimum: tip height, `treasury_base_units`,
   `subsidy_to_treasury_bps` (expect `0`), backstop-related fields the helper
   prints, and the git SHA of the running `mfnd` / release pin.
+
+**Archived (lane 6, 2026-08-06):** [`scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-20260806T052834Z.md`](../scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-20260806T052834Z.md)
+- public proxy `http://5.161.201.73:8787/rpc`; tip **16063**; `treasury_base_units` **2909711**; `subsidy_to_treasury_bps` **0**; `fee_to_treasury_bps` **9000**; docs SHA `c22e4277` / B-13a `bbd50ce3`.
+- Remote `mfnd` release pin not exposed on public-safe proxy (record at VPS roll if needed).
 
 - [ ] **B-13a tip CI GREEN** — confirm GitHub CI on the B-13a head (or a
   successor that still contains the sims) is GREEN before enable.
