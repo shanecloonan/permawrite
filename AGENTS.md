@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** **B-33** telemetry baseline archived (docs-only; `[skip ci]`). Watch **B-13a** tip CI `#31073720447` on `bbd50ce3`. Lane4 **B-232** holds until that GREEN. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** **B-13a** clippy fix-forward after CI `#31073720447` FAIL (`too_many_arguments` on emission helpers). Full CI on tip. Lane4 **B-232** holds until GREEN. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-231** (`fb0e260c`, **CI `#31071345155` GREEN**); **B-230** GREEN | **B-232** fifteenth->asymmetric settle (claim base: `fb0e260c`; body ready) - hold Rust until B-13a tip CI GREEN | After B-13a tip GREEN: land B-232; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-33** telemetry baseline (`b13-pre-enable-treasury-20260806T052834Z.md`); checklist artifact; **B-13a** (`bbd50ce3`) | *Idle* — watch B-13a CI `#31073720447` | Human B-33 go cells + B-13a CI GREEN pin; **B-40** day-of L4; then **B-13c** | Emission sims |
+| **6** Permanence | **B-33** telemetry baseline; checklist; **B-13a** (`bbd50ce3`) | **B-13a** clippy fix-forward (claim base: `160ccba0`) | Pin B-13a CI GREEN; human B-33 go; **B-40** day-of L4; then **B-13c** | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -198,7 +198,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | --- | --- | --- | --- |
 | B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | Follows `6377812`; defer until L4 unless fix-forward |
 | B-13 | Parameter fork umbrella: `subsidy_to_treasury_bps = 1000` | 6 | Split into **B-13a** (sims) → **B-13b** (fork policy) → **B-13c** (enable + ops comms). **Not** TL Path B genesis. [`ROADMAP.md` Phase 1](docs/ROADMAP.md#phase-1--permanence-depth-on-the-live-chain-permanence-first) |
-| B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** (`bbd50ce3`; watch CI `#31073720447`) — genesis stays `0` |
+| B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** (`bbd50ce3`; CI `#31073720447` FAIL clippy — fix-forward this tip) — genesis stays `0` |
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | After B-13a green |
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) — windows evidence tip=5322 assert OK; SUMMARY `B15-JOIN-SUMMARY-20260721.md` |
@@ -426,6 +426,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-13a clippy fix-forward** (this commit): `#[allow(clippy::too_many_arguments)]` on `treasury_after_equivocation_combined_inflow_block` + `treasury_after_combined_inflow_block_with_ppb_bonus` after height param pushed arity to 8 (CI `#31073720447` FAIL). Full CI (no skip). Next: pin GREEN; human B-33 go; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — B-33 checklist mirror** (this commit): tick TESTNET_CHECKLIST + ROADMAP telemetry baseline to archived evidence `b13-pre-enable-treasury-20260806T052834Z.md`. Docs-only `[skip ci]`. Watch B-13a CI `#31073720447`. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
