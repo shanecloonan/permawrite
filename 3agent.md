@@ -12,14 +12,14 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
 | **A** RC/CI | lanes 1–2 + permanence (6) when claimed | Nightly, release-evidence, board integrity, B-13/B-28/B-40 | Protocol prove matrix (4), JOIN waves (3), VPS ceremony (7) |
-| **B** Protocol/Privacy | **B-263** seventeenth op1 asymmetric (this commit) | *Idle* — hold live **B-32** for 2nd host | **B-265** seventeenth empty both-miss |
+| **B** Protocol/Privacy | **B-263** seventeenth op1 asymmetric (`ddd7528d`) | *Idle* — HOLD for tip CI `#31126560747` GREEN | **B-266** seventeenth empty both-miss |
 | **C** Testnet/Onboarding | lanes 3 + 7 | JOIN evidence, faucet/observer UX, Path A / seed ops | Consensus proptest (4), WASM privacy floors (5) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at lane6 B-265 genesis emission merge Done (Path A subsidy=0; no enable).
+Synced at B-265→B-266 remap; hold for tip CI `#31126560747`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
