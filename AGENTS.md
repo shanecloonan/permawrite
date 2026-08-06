@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Landing **B-266** seventeenth empty both-miss (closes seventeenth prove matrix). Tip CI #31126560747 FAIL = cancelled ubuntu scripts only (rustfmt/clippy/tests GREEN). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Claiming **B-270** seventeenth asymmetric->absentee re-slash (docs-only while tip CI `#31127479415` on B-266). **Ack** §6 B-268 design (effective_emission_params; no base mutate; fraud/producer mirror; ckpt v12). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-266** (this commit); **B-263** (ddd7528d); tip #31126560747 tests GREEN | *Idle* | Seventeenth re-slash pair / next prove unit; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-266** (`038ad629`, watch tip CI `#31127479415`); **B-263** | **B-270** seventeenth re-slash (claim base: `038ad629`; body ready) | After tip GREEN: land B-270; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m (this commit); **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | *Idle* — watch tip CI; no B-268b / no B-13c | After tip GREEN + lane4 Ack: **B-268b**; human **B-33**; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
@@ -156,7 +156,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | --- | --- | --- | --- |
 | 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push ssert-b28-treasury-thresholds --mode post / -Mode post + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Done** (landed this commit; tip CI watch) |
 | 6 | 7 | **Path A lag FAIL:** outside-in tip=16453 ckpt_max=16341 **lag=112**. Closed by **B-264** tip-16456 land (assert OK lag=-1; evidence `outside-in-tip-ckpt-lag-20260806T184223Z.txt`). | **Done** (B-264) |
-| 6 | 4 | **B-268 design review:** please skim [`docs/B13_ACTIVATION_HEIGHT.md`](docs/B13_ACTIVATION_HEIGHT.md) (now includes call-site inventory for apply_block/fraud/producer). Ack before **B-268b** Rust. | **Open** |
+| 6 | 4 | **B-268 design review:** please skim [`docs/B13_ACTIVATION_HEIGHT.md`](docs/B13_ACTIVATION_HEIGHT.md) (now includes call-site inventory for apply_block/fraud/producer). Ack before **B-268b** Rust. | **Ack** (lane4: agree effective_emission_params + no base mutate at H_act; fraud/producer must mirror; ckpt v12 schedule fields OK) |
 | 6 | 4 | **B-265 CI window:** genesis `emission` JSON merge + Path A subsidy=0 pin (no enable). | **Done** (landing this commit) |
 | 6 | 7 | **Path A lag FAIL tip=16467** ckpt=16456 **lag=11**. Closed by **B-267** tip-16468 (assert OK lag=0; evidence `outside-in-tip-ckpt-lag-20260806T190853Z.txt`). | **Done** (B-267) |
 | 6 | 1 | **CI zombie `#31123682138`:** cleared (cancelled/completed). Tip CI `#31126560747` on B-265 `14f6b177`. | **Done** |
@@ -313,7 +313,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-262 | Seventeenth dual-slash then asymmetric settle drain (early B-24dp) | 4 | **Landed** (this commit); elevates B-239; continues seventeenth prove matrix; full CI |
 | B-263 | Seventeenth dual-slash then op1 asymmetric settle drain (early B-24dq) | 4 | **Landed** (this commit); elevates B-240; completes seventeenth asymmetric settle pair; full CI |
 | B-266 | Seventeenth dual-slash then empty both-miss (early B-24dr) | 4 | **Landed** (this commit); elevates B-241; closes seventeenth prove matrix; full CI |
-| B-270 | Seventeenth-offense asymmetric then absentee re-slash (early B-24ds) | 4 | **Next** after B-266; elevates B-242 |
+| B-270 | Seventeenth-offense asymmetric then absentee re-slash (early B-24ds) | 4 | **Claimed** (this commit) - elevates B-242; full CI after B-266 tip GREEN |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
 | B-258 | Path A near-tip timer/default lag threshold 16→8 (JOIN soft-pin) | 7 | **Landed** (this commit; board text raced into B-246 `23749726`; VPS timer env=8; health tip=16336 lag=6; evidence `b258-path-a-lag-threshold-8-20260806T144200Z.md`) |
@@ -471,6 +471,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 4 - claim B-270 + Ack B-268 design** (this commit): early B-24ds seventeenth asymmetric->absentee re-slash body ready (`b270_*` PASS). **Ack** B-268: `effective_emission_params` overlay; reject mutating base `emission_params` at H_act; fraud/producer must use effective params; checkpoint v12 schedule OK. Watch tip CI `#31127479415`. `[skip ci]`.
 
 1. **2026-08-06 - lane 4 - B-266 seventeenth empty both-miss** (this commit): early B-24dr 266_b5_seventeenth_dual_slash_then_empty_both_miss_no_drain_identity; local exact PASS. Tip CI #31126560747 FAIL was cancelled ubuntu-scripts only (matrix otherwise GREEN). Elevates B-241; closes seventeenth prove matrix. Full CI (no skip). Next: **B-270** seventeenth asymmetric->absentee re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
 

@@ -11,20 +11,20 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-266 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-266** (this commit); **B-263** | *Idle* (next **B-270** seventeenth re-slash) | After 2 hosts: live **B-32** |
+| **A** RC/CI | Watch B-266 tip CI `#31127479415` | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-266** (`038ad629`); B-268 design Ack | **B-270** seventeenth re-slash (body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | *Idle* | After B-15: B-42; 2nd host B-32 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-266 land. Closes seventeenth prove matrix; next **B-270** re-slash.
+Synced at B-270 claim + B-268 Ack. Watch B-266 tip CI; body ready.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-266 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-266** (this commit); **B-263** | *Idle* (next **B-270** seventeenth re-slash) | After 2 hosts: live **B-32** |
+| **A** RC/CI | Watch B-266 tip CI `#31127479415` | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-266** (`038ad629`); B-268 design Ack | **B-270** seventeenth re-slash (body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | *Idle* | After B-15: B-42; 2nd host B-32 |
 
 ### Hard locks (all seats)
