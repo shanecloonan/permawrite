@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced from AGENTS.md §5 at B-229 land (+ B-227 claim). Watch B-225 tip CI; do not cancel.
+Synced from AGENTS.md §5 at B-227 land. **CI `#31065238354` GREEN** on B-225; B-227 body lands this commit.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch **CI #31065238354** on B-225 | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-225** (332bbff2); **B-217** GREEN | **B-227** fourteenth re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-229** tall-tip header cache (viewer); **B-15** wave114 | wave115+ permanence density | VPS proxy+FE apply; Path A lag; JOIN SUMMARY |
+| **A** RC/CI | **CI `#31065238354` GREEN** on B-225; watch B-227 tip CI | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-227** (landing); **B-225** GREEN; **B-217** GREEN | *Idle* — next **B-228** op1 re-slash twin | After 2 hosts: live **B-32** → **B-44** → full **B-24** |
+| **C** Testnet/Onboarding | **B-229** tall-tip header cache (`10976dda`); wave114 hugo@6848 | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load; no parallel Hetzner JOIN |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is `in_progress` on `main`, prefer `[skip ci]` for docs/ops; never cancel a healthy run. **Do not land Rust B-227 until `#31065238354` GREEN.**
+2. **CI concurrency:** if GitHub CI is `in_progress` on `main`, prefer `[skip ci]` for docs/ops; never cancel a healthy run.
 3. **Foreign WIP:** never stage `onchain-tx-storm*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 
@@ -39,7 +39,7 @@ Synced from AGENTS.md §5 at B-229 land (+ B-227 claim). Watch B-225 tip CI; do 
 ```text
 L4 public testnet harden
   ├─ Seat C: B-15 JOIN SUMMARY + Path A lag close
-  ├─ Seat B: fourteenth re-slash pair (B-227→B-228) → B-32 multi-op (needs 2nd host)
+  ├─ Seat B: B-228 closes fourteenth re-slash pair → B-32 multi-op (needs 2nd host)
   └─ Seat A: green CI+Nightly pins on heads
 → Phase 1 permanence: B-40 + B-13a → B-25 (seat A/B with lane 6)
 → TL-9 invites: B-42 → B-14 (seat C) after B-15 PASS
@@ -55,8 +55,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done CI #31063344773 GREEN / Doing watch B-225 #31065238354 / Next pin+Nightly
-3agent — Seat B: Done B-225 fourteenth empty both-miss / Doing B-227 fourteenth asymmetric→absentee re-slash / Next B-228 op1 twin
+3agent — Seat A: Done CI #31065238354 GREEN / Doing watch B-227 tip CI / Next pin+Nightly
+3agent — Seat B: Done B-227 fourteenth asymmetric→absentee re-slash / Doing idle / Next B-228 op1 twin
 3agent — Seat C: Done wave114+ / Doing wave115+ / Next Path A lag + SUMMARY
 (AGENTS.md §5 remains the claim surface)
 ```
