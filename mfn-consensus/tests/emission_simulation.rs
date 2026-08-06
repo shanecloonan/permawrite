@@ -146,6 +146,7 @@ fn treasury_after_combined_inflow_block(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn treasury_after_equivocation_combined_inflow_block(
     treasury: u128,
     equivocation_credit: u128,
@@ -187,6 +188,8 @@ fn treasury_after_settlement_with_ppb_bonus(
     pending
 }
 
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn treasury_after_combined_inflow_block_with_ppb_bonus(
     treasury: u128,
     bond_burn: u128,

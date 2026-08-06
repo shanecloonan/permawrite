@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced from AGENTS.md §5 at B-13a clippy fix-forward. Watch tip CI after `#31073720447` FAIL.
+Synced at B-233 claim. Watch **CI `#31075611260`** on B-232 (also re-proves B-13a clippy fix `23c675dc`).
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-232 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-232** (2d4ae3eb); **B-231** GREEN | **B-233** op1 asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-229** tall-tip header cache; wave114 hugo@6848 | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load; no parallel Hetzner JOIN |
+| **A** RC/CI | Watch tip CI after B-13a clippy fix-forward | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-232** on tip; clippy fix-forward (this commit) | **B-233** hold until GREEN | After 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is `in_progress` on `main`, prefer `[skip ci]` for docs/ops; never cancel a healthy run.
+2. **CI concurrency:** if GitHub CI is `in_progress` on `main`, prefer `[skip ci]` for docs/ops; never cancel a healthy run. **Hold B-233 Rust until `#31075611260` GREEN.**
 3. **Foreign WIP:** never stage `onchain-tx-storm*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 
@@ -39,9 +39,9 @@ Synced from AGENTS.md §5 at B-13a clippy fix-forward. Watch tip CI after `#3107
 ```text
 L4 public testnet harden
   ├─ Seat C: B-15 JOIN SUMMARY + Path A lag close
-  ├─ Seat B: fifteenth prove matrix (B-231→B-232→…) → B-32 multi-op (needs 2nd host)
+  ├─ Seat B: fifteenth prove matrix (B-232→B-233→B-234…) → B-32 (needs 2nd host)
+  ├─ Seat A/B+lane6: B-13a GREEN pin → B-40 / B-25 permanence gate
   └─ Seat A: green CI+Nightly pins on heads
-→ Phase 1 permanence: B-40 + B-13a → B-25 (seat A/B with lane 6)
 → TL-9 invites: B-42 → B-14 (seat C) after B-15 PASS
 ```
 
@@ -55,8 +55,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done CI #31069737973 GREEN / Doing watch B-231 tip CI / Next pin+Nightly
-3agent — Seat B: Done B-231 fifteenth→dual settle / Doing idle / Next B-232 fifteenth→asymmetric settle
-3agent — Seat C: Done B-229 + wave114 / Doing wave115+ + VPS proxy apply / Next Path A lag + SUMMARY
+3agent — Seat A: Done B-231 GREEN / Doing watch B-232 #31075611260 / Next pin+Nightly
+3agent — Seat B: Done B-232 fifteenth asymmetric settle / Doing B-233 op1 twin (body ready) / Next B-234 empty both-miss
+3agent — Seat C: Done B-229 + B-33 telemetry / Doing wave115+ + VPS proxy / Next Path A lag + SUMMARY
 (AGENTS.md §5 remains the claim surface)
 ```
