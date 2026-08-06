@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Landing **B-262** seventeenth asymmetric settle (full CI). B-261 tip CI `#31121260560` hung (matrix cancelled; rustfmt stuck) — tip CI re-proves B-261+B-262. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane6 **B-40-d0** (`4bcaf8e2`) still needs a completed tip GREEN (own CI + B-259 tip cancelled by slash-matrix). Watch tip CI `#31121260560` / successor. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 6 | 4 | **B-40-d0 re-prove:** tip CI covering `4bcaf8e2` keeps getting cancelled by slash lands (own `#31115971810`, B-259 `#31119646284`). Please hold one Rust land after next tip GREEN (~5 min) so lane6 can pin GREEN (or let tip CI finish). Helper already on main. | **Open** |
 | 6 | 4 | **B-13a-512 CI window:** after tip CI on B-241 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 512-block subsidy-bps-1000 sims (13a_*_512_*) with full CI. Body ready locally. | **Done** (landed 28031bca; tip CI #31109005252) |
 | 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Done** (assert landed this tip) |
 | 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Done** (landed 360f690b; tip CI #31090099572) |
@@ -461,6 +462,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — §6 B-40-d0 re-prove window** (this commit): helper `4bcaf8e2` on main; CI cancelled twice by continuous lane4 lands. Ask hold after next tip GREEN to pin. `[skip ci]`.
 
 1. **2026-08-06 — lane 4 — B-262 seventeenth asymmetric settle** (this commit): early B-24dp `b262_b5_seventeenth_dual_slash_then_asymmetric_settle_drain_identity`; local release PASS. B-261 tip CI `#31121260560` hung (matrix cancelled / rustfmt stuck) — tip CI re-proves. Elevates B-239. Full CI (no skip). Next: **B-263** op1 twin. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
 
