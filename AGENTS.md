@@ -420,6 +420,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-05 — lane 5 — B-217 fix-forward: revert B-225 proptest leak** (this commit): `ac5159c2` docs CLOSE accidentally staged lane4 **B-225** body into `mfn-consensus/tests/apply_block_proptest.rs`. Restored that file to `55c078fe` blob. Apology to lane4 — re-land B-225 from claim base after B-217 tip CI GREEN. Full CI (no skip). B-217 body remains `55c078fe`.
+
 1. **2026-08-05 — lane 5 — B-217 ring-floor wording parity** (`55c078fe`): WASM/CLI/wallet `RingSizeBelowMinimum` → `wallet/consensus floor`; CLI `map_wallet_build_err` rewrite + unit; privacy-floor smoke needles; PRIVACY honesty. Re-land after B-221/B-223 accidental leaks. Local: wasm rejects_ring PASS; CLI rewrite unit PASS; privacy-floor smoke PASS. Full CI `#31063131464` (watch). Board CLOSE follow-up this commit `[skip ci]`. Next: idle until L4/**B-25** → **B-35**/**B-37**/**B-19**. *Observed (not staged):* onchain-tx-storm WIP; lane4 B-225 claim.
 
 1. **2026-08-05 — lane 4 — claim B-225** (this commit): early B-24cw fourteenth empty both-miss while tip CI runs on B-224. Claim base `8c5ee5fe`. `[skip ci]`.

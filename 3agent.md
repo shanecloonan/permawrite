@@ -24,7 +24,7 @@ Synced from `AGENTS.md` §5 at B-217 CLOSE. Body `55c078fe`; watch CI `#31063131
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | B-224 CI GREEN; watch B-217 `#31063131464` | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-217** `55c078fe` (landing CI); **B-224** Done | Lane4 **B-225** hold until B-217 tip GREEN | After tip: land B-225; live **B-32** |
+| **B** Protocol/Privacy | **B-217** `55c078fe` (landing CI); **B-224** Done | Lane4 **B-225** hold until B-217 tip GREEN (proptest leak reverted) | After tip: land B-225; live **B-32** |
 | **C** Testnet/Onboarding | **B-15** wave114 hugo@6848 PASS | wave115+ density | Path A lag republish; no parallel Hetzner JOIN |
 
 
