@@ -14,6 +14,11 @@
  * Tall-tip header cache (B-229): mfnd `get_block_header(s)` re-reads the full
  * `chain.blocks` log on every call (~3–4s at tip≈16k). Cache compact header
  * rows here so the viewer / light clients stop timing out or aborting polls.
+ *
+ * Index tip budget (B-251): background `get_tip` for the tx-count index used the
+ * default 30s RPC timeout and failed under concurrent tall-tip `get_light_snapshot`
+ * load (B-249/B-250 bootstrap). Use a longer index-tip timeout so permanence
+ * counters stay complete without thrashing mfnd.
  */
 
 import http from "node:http";
@@ -36,6 +41,10 @@ const HEAVY_METHODS = new Set([
   "get_light_follow",
   "get_block",
 ]);
+/** B-251: indexTick get_tip under tall-tip hub/observer load (default 90s). */
+const INDEX_TIP_TIMEOUT_MS = Number(
+  process.env.PROXY_INDEX_TIP_TIMEOUT_MS ?? "90000",
+);
 const INDEX_INTERVAL_MS = Number(process.env.PROXY_INDEX_INTERVAL_MS ?? "500");
 const INDEX_CONCURRENCY = Number(process.env.PROXY_INDEX_CONCURRENCY ?? "32");
 const INDEX_BURST = Number(process.env.PROXY_INDEX_BURST ?? "128");
@@ -224,10 +233,10 @@ function timeoutForMethod(method) {
   return HEAVY_METHODS.has(method) ? HEAVY_RPC_TIMEOUT_MS : RPC_TIMEOUT_MS;
 }
 
-async function mfndCall(method, params, id = 1) {
+async function mfndCall(method, params, id = 1, timeoutMs = timeoutForMethod(method)) {
   const line = await tcpLineRpc(
     JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-    timeoutForMethod(method),
+    timeoutMs,
   );
   const obj = JSON.parse(line);
   if (obj.error) {
@@ -408,7 +417,8 @@ async function indexTick() {
   if (indexBusy) return;
   indexBusy = true;
   try {
-    const tip = await mfndCall("get_tip", {});
+    // B-251: do not share the short browser RPC timeout for background tip polls.
+    const tip = await mfndCall("get_tip", {}, 1, INDEX_TIP_TIMEOUT_MS);
     const tipH = Number(tip?.tip_height ?? 0);
     const tipGenesis =
       typeof tip?.genesis_id === "string" ? tip.genesis_id : null;
@@ -718,6 +728,8 @@ const server = http.createServer(async (req, res) => {
         index_errors: indexErrors,
         rpc_timeout_ms: RPC_TIMEOUT_MS,
         heavy_rpc_timeout_ms: HEAVY_RPC_TIMEOUT_MS,
+        // B-251 index tip poll budget
+        index_tip_timeout_ms: INDEX_TIP_TIMEOUT_MS,
         // B-229 tall-tip header cache
         header_cache_entries: headerByHeight.size,
         header_cache_hits: headerCacheHits,

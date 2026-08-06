@@ -449,6 +449,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 6 — B-13a-512 docs pin** (this commit): B-33 + B-40 runbook cite 512 sims `28031bca`; watch tip CI `#31109005252`. `[skip ci]`. *Observed (not staged):* foreign lane dirt; onchain-tx-storm WIP.
+
 1. **2026-08-06 - lane 4 - B-13a-512 landed; hold B-246 for tip CI** (this commit): window **Done** (28031bca). Holding B-246 Rust until **CI #31109005252 GREEN**. Body ready. [skip ci].
 
 1. **2026-08-06 — lane 6 — B-13a-512 emission sims** (`28031bca`): `b13a_*_512_*` ledger + drought. Local release drought-512 PASS. **CI `#31105745727` GREEN** on B-242 cleared window. Full CI `#31109005252` (watch). Genesis stays subsidy_bps=0. Next: human B-33; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP; foreign lane dirt.

@@ -18,11 +18,11 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
 
 ### Technical preconditions (lane 6 — filled when evidence exists)
 
-- [x] **B-13a sims landed** — default-CI 256-block treasury identity at
+- [x] **B-13a sims landed** — default-CI 256-block + **512-block** treasury identity at
   `subsidy_to_treasury_bps = 1000` plus fee-drought backstop comparison vs
-  `bps = 0` (`mfn-consensus` `emission_simulation` tests; commit `bbd50ce3`).
-  Tip CI must be GREEN on that head before treating this row as closed for
-  B-13c (watch GitHub CI on `bbd50ce3` / successor).
+  `bps = 0` (`mfn-consensus` `emission_simulation` tests; 256 `bbd50ce3`;
+  512 `28031bca`). Tip CI must be GREEN on a head that contains these sims
+  before B-13c (watch `#31109005252` on `28031bca` / successor).
 - [x] **One-lever rule recorded** — enable changes **only**
   `subsidy_to_treasury_bps` (`0` → `1000`). `fee_to_treasury_bps` remains
   `9000` ([`FEES.md` §5.4](./FEES.md)).
@@ -67,8 +67,9 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
 - public proxy `http://5.161.201.73:8787/rpc`; tip **16063**; `treasury_base_units` **2909711**; `subsidy_to_treasury_bps` **0**; `fee_to_treasury_bps` **9000**; docs SHA `c22e4277` / B-13a `bbd50ce3`.
 - Remote `mfnd` release pin not exposed on public-safe proxy (record at VPS roll if needed).
 
-- [x] **B-13a tip CI GREEN** (**CI `#31077911423` GREEN** on `4860a8d1`; body `bbd50ce3`) — confirm GitHub CI on the B-13a head (or a
-  successor that still contains the sims) is GREEN before enable.
+- [x] **B-13a tip CI GREEN** (**CI `#31077911423` GREEN** on `4860a8d1`; body `bbd50ce3`;
+  **B-13a-512** body `28031bca` — watch tip CI `#31109005252`) — confirm GitHub CI on a
+  head that still contains the sims is GREEN before enable.
 
 ### Human decision (**B-13b**)
 

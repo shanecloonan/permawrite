@@ -15,18 +15,23 @@ needles_mjs=(
   PROXY_HUB_TIP_RPC tipAlignBeforeUploads list_recent_uploads B-90 F105 tip_align_waits
   # B-229 tall-tip header cache (viewer / get_block_headers)
   B-229 ensureHeadersCached handleGetBlockHeaders header_cache_entries headerByHeight
+  # B-251 index tip timeout under tall-tip snapshot load
+  B-251 INDEX_TIP_TIMEOUT_MS PROXY_INDEX_TIP_TIMEOUT_MS index_tip_timeout_ms
 )
 for n in "${needles_mjs[@]}"; do
   grep -q "$n" "$mjs" || { echo "missing needle $n in mjs" >&2; exit 1; }
 done
 grep -q 'PROXY_HUB_TIP_RPC=127.0.0.1:18731' "$svc" || { echo "missing hub tip env in service" >&2; exit 1; }
 grep -q 'PROXY_TIP_ALIGN_MS=45000' "$svc" || { echo "missing tip align ms in service" >&2; exit 1; }
+grep -q 'PROXY_INDEX_TIP_TIMEOUT_MS=90000' "$svc" || { echo "missing B-251 index tip timeout in service" >&2; exit 1; }
 deploy="$SCRIPT_DIR/vps-update-observer-rpc-proxy.sh"
 grep -q 'B-90' "$deploy" || { echo "missing B-90 in deploy" >&2; exit 1; }
+grep -q 'B-251' "$deploy" || { echo "missing B-251 in deploy" >&2; exit 1; }
 grep -q 'never=faucet-http' "$deploy" || { echo "missing never=faucet-http in deploy" >&2; exit 1; }
 plan="$(bash "$deploy" --plan-only)"
 [[ "$plan" == *"vps-update-observer-rpc-proxy: PASS plan-only"* ]] || { printf '%s\n' "$plan" >&2; exit 1; }
+[[ "$plan" == *"B-251"* ]] || { printf '%s\n' "$plan" >&2; exit 1; }
 echo "observer-rpc-proxy-tip-align-rehearsal-smoke: plan"
-echo "  unit=B-90"
+echo "  unit=B-90+B-229+B-251"
 echo "  never=faucet-http mfnd restart join-testnet-rehearsal"
 echo "observer-rpc-proxy-tip-align-rehearsal-smoke: PASS plan-only"

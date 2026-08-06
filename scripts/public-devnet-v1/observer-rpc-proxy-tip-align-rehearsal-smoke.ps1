@@ -7,17 +7,20 @@ $svc = Join-Path $ScriptDir "observer-rpc-proxy.service"
 foreach ($p in @($mjs, $svc)) { if (-not (Test-Path -LiteralPath $p)) { throw "missing $p" } }
 $needles = @(
   "PROXY_HUB_TIP_RPC", "tipAlignBeforeUploads", "list_recent_uploads", "B-90", "F105", "tip_align_waits",
-  "B-229", "ensureHeadersCached", "handleGetBlockHeaders", "header_cache_entries", "headerByHeight"
+  "B-229", "ensureHeadersCached", "handleGetBlockHeaders", "header_cache_entries", "headerByHeight",
+  "B-251", "INDEX_TIP_TIMEOUT_MS", "PROXY_INDEX_TIP_TIMEOUT_MS", "index_tip_timeout_ms"
 )
 $text = Get-Content -LiteralPath $mjs -Raw
 foreach ($n in $needles) { if ($text -notlike "*$n*") { throw "missing needle $n" } }
 $svcText = Get-Content -LiteralPath $svc -Raw
 if ($svcText -notlike "*PROXY_HUB_TIP_RPC=127.0.0.1:18731*") { throw "missing hub tip env" }
 if ($svcText -notlike "*PROXY_TIP_ALIGN_MS=45000*") { throw "missing tip align ms" }
+if ($svcText -notlike "*PROXY_INDEX_TIP_TIMEOUT_MS=90000*") { throw "missing B-251 index tip timeout" }
 $deploy = Join-Path $ScriptDir "vps-update-observer-rpc-proxy.sh"
 if (-not (Test-Path -LiteralPath $deploy)) { throw "missing $deploy" }
 $depText = Get-Content -LiteralPath $deploy -Raw
 if ($depText -notlike "*B-90*") { throw "missing B-90 in deploy" }
+if ($depText -notlike "*B-251*") { throw "missing B-251 in deploy" }
 if ($depText -notlike "*never=faucet-http*") { throw "missing never=faucet-http in deploy" }
 $bashPath = $null
 foreach ($c in @("C:\msys64\usr\bin\bash.exe","C:\Program Files\Git\bin\bash.exe","C:\Program Files\Git\usr\bin\bash.exe")) {
