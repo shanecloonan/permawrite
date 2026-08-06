@@ -297,7 +297,7 @@ Mitigation validated in wave37: require `tip_id` match **and** `mempool_len=0` i
 ### B-32 — Second distinct-host operator (arm gate)
 
 
-Single Hetzner IP (hub+v1+v2) is **not** multi-op diversity. `assert-b32-arm-ready.sh --apply` requires `MFN_B32_OPERATOR_HOSTS` with >=2 public hosts. Checklist: `evidence/b32-second-host-arm-checklist-20260720.md`. Do not fake READY with loopback/docs IPs.
+Single Hetzner IP (hub+v1+v2) is **not** multi-op diversity. `assert-b32-arm-ready.sh --apply` requires `MFN_B32_OPERATOR_HOSTS` with >=2 public hosts. **B-255:** also fail-closed if `mfn-p2p-forward@*` is in `--failed` or dedicated `hub/19002–19004` forwards are down (same class as public-testnet-health B-254). Checklist: `evidence/b32-second-host-arm-checklist-20260720.md`. Do not fake READY with loopback/docs IPs.
 
 ### B-13 subsidy fork sign-off (**B-33**)
 

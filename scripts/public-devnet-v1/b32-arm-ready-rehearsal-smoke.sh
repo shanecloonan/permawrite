@@ -10,7 +10,7 @@ while [[ $# -gt 0 ]]; do
     *) echo "b32-arm-ready-rehearsal-smoke: unknown $1" >&2; exit 1 ;;
   esac
 done
-needles=(assert-b32-arm-ready B-79 B-32 distinct_hosts never=faucet-http lib-ci-roll-gate)
+needles=(assert-b32-arm-ready B-255 B-32 distinct_hosts never=faucet-http lib-ci-roll-gate p2p-forward-hygiene mfn-p2p-forward-hub)
 for n in "${needles[@]}"; do
   grep -q "$n" "$SCRIPT_DIR/assert-b32-arm-ready.sh" || { echo "missing needle $n" >&2; exit 1; }
 done

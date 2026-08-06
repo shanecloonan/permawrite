@@ -7,13 +7,13 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ($Help) {
     Write-Host @"
 usage: b32-arm-ready-rehearsal-smoke.ps1 [-PlanOnly]
-Validates assert-b32-arm-ready.sh plan gate (B-79; no live second host).
+Validates assert-b32-arm-ready.sh plan gate (B-255; no live second host).
 "@
     exit 0
 }
 $assert = Join-Path $ScriptDir "assert-b32-arm-ready.sh"
 if (-not (Test-Path -LiteralPath $assert)) { throw "b32-arm-ready-rehearsal-smoke: missing $assert" }
-$needles = @("assert-b32-arm-ready", "B-79", "B-32", "distinct_hosts", "never=faucet-http", "lib-ci-roll-gate")
+$needles = @("assert-b32-arm-ready", "B-255", "B-32", "distinct_hosts", "never=faucet-http", "lib-ci-roll-gate", "p2p-forward-hygiene", "mfn-p2p-forward-hub")
 $text = Get-Content -LiteralPath $assert -Raw
 foreach ($n in $needles) {
     if ($text -notlike "*$n*") { throw "b32-arm-ready-rehearsal-smoke: missing needle $n" }

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# B-79 / lane 7: read-only B-32 arm-ready inventory (no faucet, no mfnd restart).
+# B-79 / B-255 / lane 7: read-only B-32 arm-ready inventory (no faucet, no mfnd restart).
 # Reports whether the live public tip + host inventory can support a B-32 multi-op pack.
+# B-255 adds B-254-class p2p-forward hygiene so day-of packs do not arm on broken forwards.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,7 +17,9 @@ usage: assert-b32-arm-ready.sh [--plan-only|--apply]
 
 Read-only checks for B-32 multi-op arming:
   tip readable + advancing, peers-clean, B-71 binary/source marker,
-  CI roll gate (B-78), recent uploads with last_proven, distinct public hosts.
+  CI roll gate (B-78), recent uploads with last_proven,
+  B-255 p2p-forward hygiene (no failed mfn-p2p-forward@*; dedicated 1900x active),
+  distinct public hosts.
 Never restarts faucet/mfnd. Exit 0 only when arm-ready (>=2 distinct hosts).
 EOF
 }
@@ -37,8 +40,9 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "assert-b32-arm-ready: plan"
-  echo "  unit=B-79"
-  echo "  checks=tip peers B-71 CI-gate uploads distinct_hosts>=2"
+  echo "  unit=B-255"
+  echo "  checks=tip peers B-71 CI-gate uploads p2p-forward-hygiene distinct_hosts>=2"
+  echo "  b255=fail if mfn-p2p-forward@* failed; require dedicated hub/19002/19003/19004 active"
   echo "  never=faucet-http mfnd restart join-testnet-rehearsal"
   echo "assert-b32-arm-ready: PASS plan-only"
   exit 0
@@ -129,6 +133,29 @@ if (( proven_n < 1 )); then
   echo "assert-b32-arm-ready: FAIL no recent last_proven uploads (need live SPoRA history)" >&2
   fail=1
 fi
+
+# B-255: same-port template failures poison day-of multi-op dials (B-253/B-254 class).
+failed_fwd="$(systemctl list-units --failed --no-legend --no-pager 2>/dev/null || true)"
+if echo "$failed_fwd" | grep -q 'mfn-p2p-forward@'; then
+  echo "assert-b32-arm-ready: FAIL mfn-p2p-forward@ template in failed units (run scrub-failed-p2p-forward-templates.sh --apply)" >&2
+  echo "$failed_fwd" | grep 'mfn-p2p-forward@' >&2 || true
+  fail=1
+else
+  echo "assert-b32-arm-ready: p2p-forward@ failed_units_clean"
+fi
+for u in \
+  mfn-p2p-forward-hub.service \
+  mfn-p2p-forward-19002.service \
+  mfn-p2p-forward-19003.service \
+  mfn-p2p-forward-19004.service
+do
+  if systemctl is-active --quiet "$u" 2>/dev/null; then
+    echo "assert-b32-arm-ready: $u active"
+  else
+    echo "assert-b32-arm-ready: FAIL $u not active (B-41 dedicated forward)" >&2
+    fail=1
+  fi
+done
 
 # Distinct public hosts: env override comma-list, else single known public seed host.
 hosts_csv="${MFN_B32_OPERATOR_HOSTS:-$PUBLIC_HOST}"
