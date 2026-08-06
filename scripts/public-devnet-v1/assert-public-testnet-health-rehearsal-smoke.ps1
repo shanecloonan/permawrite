@@ -4,9 +4,15 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ($Help) { Write-Host "usage: assert-public-testnet-health-rehearsal-smoke.ps1 [-PlanOnly]"; exit 0 }
 $assert = Join-Path $ScriptDir "assert-public-testnet-health.sh"
 if (-not (Test-Path -LiteralPath $assert)) { throw "missing $assert" }
-$needles = @("assert-public-testnet-health", "B-91", "never=faucet-http", "tip-ckpt-lag", "hub_tip_rpc", "assert-path-a-near-tip-timer")
+$needles = @(
+  "assert-public-testnet-health", "B-91", "B-254", "never=faucet-http", "tip-ckpt-lag",
+  "hub_tip_rpc", "assert-path-a-near-tip-timer", "mfn-p2p-forward@", "scrub-failed-p2p-forward-templates",
+  "p2p-forward-hygiene"
+)
 $text = Get-Content -LiteralPath $assert -Raw
 foreach ($n in $needles) { if ($text -notlike "*$n*") { throw "missing needle $n" } }
+$scrub = Join-Path $ScriptDir "scrub-failed-p2p-forward-templates.sh"
+if (-not (Test-Path -LiteralPath $scrub)) { throw "missing scrub-failed-p2p-forward-templates.sh (B-253/B-254)" }
 $bashPath = $null
 foreach ($c in @("C:\msys64\usr\bin\bash.exe","C:\Program Files\Git\bin\bash.exe","C:\Program Files\Git\usr\bin\bash.exe")) {
   if (Test-Path -LiteralPath $c) { $bashPath = $c; break }

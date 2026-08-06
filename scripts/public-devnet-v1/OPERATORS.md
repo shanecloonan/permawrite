@@ -253,6 +253,8 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 
 **B-253 (B-15-safe):** if `systemctl --failed` shows `mfn-p2p-forward@1900x` while seeds still dial, those are leftover **same-port** template units (`%i -> %i`), not a real outage. Dedicated units `mfn-p2p-forward-hub` / `mfn-p2p-forward-19002`… own the live forwards. Scrub without mfnd/faucet restart: `bash scripts/public-devnet-v1/scrub-failed-p2p-forward-templates.sh --apply`.
 
+**B-254:** `assert-public-testnet-health.sh --apply` fails closed if any `mfn-p2p-forward@*` is in failed units, and requires the four dedicated forward units active (JOIN-facing P2P honesty).
+
 ### Tip stall after P2P remap (B-46)
 
 If tip freezes after mfnd remaps/restarts: (1) ensure hub has quoted `Environment="MFN_P2P_DIAL_EXTRA=127.0.0.1:19102 127.0.0.1:19103 127.0.0.1:19104"`; (2) `bash scripts/public-devnet-v1/vps-soften-mfnd-requires.sh` (Requires→Wants); (3) start voters, then **restart hub only** so boot dials succeed (avoid 300s quarantine). Do not restart `faucet-http` during B-15.

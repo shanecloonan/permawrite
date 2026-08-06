@@ -9,10 +9,15 @@ while [[ $# -gt 0 ]]; do
     *) echo "assert-public-testnet-health-rehearsal-smoke: unknown $1" >&2; exit 1 ;;
   esac
 done
-needles=(assert-public-testnet-health B-91 never=faucet-http tip-ckpt-lag hub_tip_rpc assert-path-a-near-tip-timer)
+needles=(assert-public-testnet-health B-91 B-254 never=faucet-http tip-ckpt-lag hub_tip_rpc assert-path-a-near-tip-timer mfn-p2p-forward@ scrub-failed-p2p-forward-templates p2p-forward-hygiene)
 for n in "${needles[@]}"; do
   grep -q "$n" "$SCRIPT_DIR/assert-public-testnet-health.sh" || { echo "missing needle $n" >&2; exit 1; }
 done
+[[ -f "$SCRIPT_DIR/scrub-failed-p2p-forward-templates.sh" ]] || {
+  echo "missing scrub-failed-p2p-forward-templates.sh (B-253/B-254)" >&2
+  exit 1
+}
 plan="$(bash "$SCRIPT_DIR/assert-public-testnet-health.sh" --plan-only)"
 [[ "$plan" == *"assert-public-testnet-health: PASS plan-only"* ]] || { printf '%s\n' "$plan" >&2; exit 1; }
+[[ "$plan" == *"B-254"* ]] || { printf '%s\n' "$plan" >&2; exit 1; }
 echo "assert-public-testnet-health-rehearsal-smoke: PASS plan-only"

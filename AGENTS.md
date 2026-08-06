@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane7 **B-253** scrub failed p2p-forward@ templates (this commit; `[skip ci]`). Lane6 tip CI `#31109005252` in_progress (do not cancel). Lane4 holds **B-246**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane7 **B-254** public-health p2p-forward hygiene (this commit; `[skip ci]`). Do not cancel tip CI on B-13a-512 if still running. Lane4 holds **B-246** until GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-242** GREEN #31105745727 | **B-246** body ready - hold until lane6 tip CI #31109005252 GREEN | After GREEN: land B-246; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-13a-512** (this commit; elevates 256); **B-28 assert** GREEN; **B-40** runbook; **B-20** draft | *Idle* | Human B-33 go → arm **B-40** on L4 → **B-13c** only after go | Emission sims |
-| **7** Testnet launch | **B-253** scrub p2p-forward@ (this commit); **B-252** tip-16321; **B-251**; **B-250** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
+| **7** Testnet launch | **B-254** health p2p-forward hygiene (this commit); **B-253**; **B-252** tip-16321; **B-251** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
 
@@ -300,6 +300,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-246 | Sixteenth-offense op1 asymmetric then absentee re-slash (early B-24dm) | 4 | **Next** after lane6 B-13a-512; elevates B-236; completes sixteenth re-slash pair (ID remapped; B-243=lane7 Path A) |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
+| B-254 | Public-testnet health fail-closed on mfn-p2p-forward@ templates | 7 | **Landed** (this commit; VPS health OK tip~16326; evidence `b254-public-health-p2p-forward-hygiene-20260806T142200Z.md`) |
 | B-253 | Scrub failed mfn-p2p-forward@ templates + F114 hub prove | 7 | **Landed** (this commit; evidence `b253-scrub-p2p-forward-templates-20260806T141800Z.md`) |
 | B-252 | Path A tip-16321 republish + public-testnet health PASS | 7 | **Landed** (this commit; entries=51; evidence `b252-path-a-tip-16321-health-20260806T141100Z.md`) |
 | B-251 | Observer index get_tip timeout under tall-tip snapshot load | 7 | **Landed** (this commit; VPS proxy apply; evidence `b251-index-tip-timeout-20260806T140500Z.md`) |
@@ -450,6 +451,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 7 - B-254 public-health p2p-forward hygiene** (this commit): `assert-public-testnet-health` fails closed on failed `mfn-p2p-forward@` templates and requires dedicated 1900x->1910x units (B-253 class). VPS prove OK tip~16326 lag=5. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* lane4 proposals; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — B-33 telemetry refresh** (this commit): tip=16319 treasury=2909711 subsidy_bps=0 (flat vs prior). Evidence `b13-pre-enable-treasury-20260806T141944Z.md`. Watch B-13a-512 tip CI `#31109005252` (gh rate-limited locally). `[skip ci]`. *Observed (not staged):* lane4 proptest; onchain-tx-storm WIP.
 

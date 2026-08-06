@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# B-91 / lane 7: composite public-testnet health (Path A timer + proxy tip-align + faucet + ckpt lag).
+# B-91 / B-254 / lane 7: composite public-testnet health
+# (Path A timer + proxy tip-align + faucet + ckpt lag + P2P forward hygiene).
 # B-15-safe: never restarts faucet/mfnd/proxy. Run on VPS with --apply.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,6 +22,7 @@ Checks (apply, on VPS):
   - observer-rpc-proxy /health ok + hub_tip_rpc set (B-90)
   - faucet /health ok (busy allowed during B-15)
   - tip - ckpt_max < MFN_CKPT_LAG_THRESHOLD (default 16)
+  - B-254: no failed mfn-p2p-forward@* templates; dedicated 1900x->1910x units active
 Never restarts units.
 EOF
 }
@@ -41,8 +43,9 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "assert-public-testnet-health: plan"
-  echo "  unit=B-91"
-  echo "  checks=timer proxy-tip-align faucet tip-ckpt-lag"
+  echo "  unit=B-91+B-254"
+  echo "  checks=timer proxy-tip-align faucet tip-ckpt-lag p2p-forward-hygiene"
+  echo "  b254=fail if mfn-p2p-forward@* failed; require dedicated hub/19002/19003/19004 active"
   echo "  never=faucet-http mfnd restart observer-rpc-proxy join-testnet-rehearsal"
   echo "assert-public-testnet-health: PASS plan-only"
   exit 0
@@ -118,6 +121,29 @@ if (( lag >= LAG_THRESHOLD )); then
   echo "assert-public-testnet-health: FAIL tip lag >= threshold (run publish-near-tip-checkpoint-if-lag --apply then land jsonl)" >&2
   fail=1
 fi
+
+# B-254: broken same-port template instances must not pollute --failed during JOIN.
+failed_fwd="$(systemctl list-units --failed --no-legend --no-pager 2>/dev/null || true)"
+if echo "$failed_fwd" | grep -q 'mfn-p2p-forward@'; then
+  echo "assert-public-testnet-health: FAIL mfn-p2p-forward@ template in failed units (run scrub-failed-p2p-forward-templates.sh --apply)" >&2
+  echo "$failed_fwd" | grep 'mfn-p2p-forward@' >&2 || true
+  fail=1
+else
+  echo "assert-public-testnet-health: p2p-forward@ failed_units_clean"
+fi
+for u in \
+  mfn-p2p-forward-hub.service \
+  mfn-p2p-forward-19002.service \
+  mfn-p2p-forward-19003.service \
+  mfn-p2p-forward-19004.service
+do
+  if systemctl is-active --quiet "$u" 2>/dev/null; then
+    echo "assert-public-testnet-health: $u active"
+  else
+    echo "assert-public-testnet-health: FAIL $u not active (B-41 dedicated forward)" >&2
+    fail=1
+  fi
+done
 
 if (( fail )); then
   exit 1
