@@ -11,20 +11,20 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-13a-512** **CI `#31109005252` GREEN**; **B-28** GREEN | *Idle* | Human B-33; arm B-40 on L4 |
-| **B** Protocol/Privacy | **B-246** (23749726); watch tip CI | **B-247** seventeenth settle-reset (lane4; body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | Watch B-246 tip CI #31112318136 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-246** (23749726); watch tip CI | **B-259** seventeenth settle-reset (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | VPS / Path A / invite / B-32 arm ops (lanes 3+7) | 3 + 7 | Protocol Rust (B), CI/Nightly cancel (A) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at lane6 pin **B-13a-512 CI `#31109005252` GREEN**. Lane4 clear for **B-246**.
+Synced at B-259 remap (B-247=lane7). Watch B-246 tip CI; body ready.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-13a-512** **CI `#31109005252` GREEN**; **B-28** GREEN | *Idle* | Human B-33; arm B-40 on L4 |
-| **B** Protocol/Privacy | **B-246** (23749726); watch tip CI | **B-247** seventeenth settle-reset (lane4; body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | Watch B-246 tip CI #31112318136 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-246** (23749726); watch tip CI | **B-259** seventeenth settle-reset (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-258** Path A lag=8 body; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 ### Hard locks (all seats)
