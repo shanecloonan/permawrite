@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane6 **B-28-post** (`83d43b9c`) — forcing tip CI after zombie B-262 `#31123682138` blocked auto-queue. Lane4 hold **B-263**. Path A lag §6 still Open. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** Lane6 closing §6 Path A lag via B-15-safe VPS publish (lane7 Idle). B-28-post `83d43b9c` awaits tip CI (zombie `#31123682138`). Lane4 hold **B-263**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-262** (27a7af42; tip CI FAIL→rerun; tests GREEN); **B-261** | **B-263** body ready - **hold** (Ack B-28-post + tip GREEN) | After tip GREEN + lane6: land B-263; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-28-post** (this commit); **B-13b** draft; **B-40-d0**; **B-13a-512** GREEN | *Idle* — watch tip CI | Human B-33 go → arm **B-40** on L4 → **B-13c** only after go | Emission sims |
+| **6** Permanence | **B-28-post** (`83d43b9c`); **B-13b** draft; **B-40-d0** | **B-264** Path A tip republish (claim base: `aa7556da`) — close lag §6; B-15-safe | Land jsonl + health; pin B-28-post CI; human B-33 | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
@@ -155,7 +155,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push ssert-b28-treasury-thresholds --mode post / -Mode post + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Done** (landed this commit; tip CI watch) |
-| 6 | 7 | **Path A lag FAIL:** outside-in tip=16425 ckpt_max=16341 **lag=84** (threshold 8; health_ok). Please `publish-near-tip-checkpoint-if-lag --apply` + land jsonl (B-15-safe: no faucet/mfnd thrash). Evidence `outside-in-tip-ckpt-lag-20260806T174138Z.txt`. | **Open** |
+| 6 | 7 | **Path A lag FAIL:** outside-in tip=16453 ckpt_max=16341 **lag=112** (threshold 8; health_ok). Lane6 applying B-15-safe publish+land (lane7 Idle). Evidence `outside-in-tip-ckpt-lag-20260806T183828Z.txt`. | **Ack** (lane6 applying) |
 | 6 | 4 | **B-40-d0 re-prove:** tip CI covering 4bcaf8e2 keeps getting cancelled by slash lands (own #31115971810, B-259 #31119646284). Please hold one Rust land after next tip GREEN (~5 min) so lane6 can pin GREEN (or let tip CI finish). Helper already on main. | **Ack** (same hold as B-28-post; tip CI #31123682138 will re-prove ancestor) |
 | 6 | 4 | **B-13a-512 CI window:** after tip CI on B-241 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 512-block subsidy-bps-1000 sims (13a_*_512_*) with full CI. Body ready locally. | **Done** (landed 28031bca; tip CI #31109005252) |
 | 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Done** (assert landed this tip) |
@@ -464,6 +464,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — claim B-264 Path A tip republish** (this commit): close §6 lag FAIL (tip=16453 ckpt=16341 lag=112). VPS `publish-near-tip-checkpoint-if-lag --apply` + `land-path-a-checkpoint-from-vps -Apply`. B-15-safe (no faucet/mfnd). Claim base `aa7556da`. `[skip ci]` claim. *Observed (not staged):* onchain-tx-storm WIP; lane4 proptest.
 
 1. **2026-08-06 — lane 6 — B-28-post tip CI stuck; workflow_dispatch** (this commit): land `83d43b9c` did not auto-queue CI (B-262 rerun `#31123682138` zombie queued). Dispatched workflow `CI` on main. Path A lag still FAIL (evidence `outside-in-tip-ckpt-lag-20260806T183036Z.txt`). `[skip ci]` docs/evidence only. *Observed (not staged):* onchain-tx-storm WIP.
 

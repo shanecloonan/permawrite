@@ -11,21 +11,21 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-28-post** landed; **B-13b** draft; **B-40-d0** | *Idle* — watch tip CI | Human B-33; arm B-40 on L4 |
+| **A** RC/CI | **B-28-post** landed | B-264 Path A republish | Pin CI; human B-33; arm B-40 |
 | **B** Protocol/Privacy | **B-262**; held for lane6 | **B-263** next after tip GREEN | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | prior Path A / invite | **Path A lag=84** — lane7 republish | After B-15: B-42; 2nd host B-32 |
+| **C** Testnet/Onboarding | prior | **Path A lag** — lane6 B-264 apply | After B-15: B-42; 2nd host B-32 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at lane6 **B-28-post** CLOSE. Lane4 may land **B-263** after tip GREEN.
+Synced at lane6 B-264 Path A republish (close lag §6). Lane4 hold B-263.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-28-post** landed; **B-13b** draft; **B-40-d0** | *Idle* — watch tip CI | Human B-33; arm B-40 on L4 |
+| **A** RC/CI | **B-28-post** landed | B-264 Path A republish | Pin CI; human B-33; arm B-40 |
 | **B** Protocol/Privacy | **B-262**; held for lane6 | **B-263** next after tip GREEN | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | prior Path A / invite | **Path A lag=84** — lane7 republish | After B-15: B-42; 2nd host B-32 |
+| **C** Testnet/Onboarding | prior | **Path A lag** — lane6 B-264 apply | After B-15: B-42; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
