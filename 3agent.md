@@ -11,21 +11,21 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch lane6 tip CI #31109005252 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-242** GREEN; B-13a-512 window Done | **B-246** hold for #31109005252 (body ready) | After GREEN: land B-246; after 2 hosts: live **B-32** |
+| **A** RC/CI | **CI #31109005252 GREEN** on B-13a-512 | *Idle* - do not cancel healthy in_progress | Pin B-246 tip CI / Nightly |
+| **B** Protocol/Privacy | **B-246** (this commit); **B-242** GREEN | *Idle* (next **B-247** seventeenth settle-reset) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | VPS / Path A / invite / B-32 arm ops (lanes 3+7) | 3 + 7 | Protocol Rust (B), CI/Nightly cancel (A) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at lane7 **B-257** CLOSE (invite-load p2p hygiene). Lane4 **B-246** hold for tip CI `#31109005252`.
+Synced at B-246 land. Completes sixteenth re-slash pair; next **B-247** seventeenth settle-reset.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch lane6 tip CI #31109005252 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-242** GREEN; B-13a-512 window Done | **B-246** hold for #31109005252 (body ready) | After GREEN: land B-246; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-257** invite-load p2p hygiene; **B-256** tip-16330; **B-255** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
+| **A** RC/CI | **CI #31109005252 GREEN** on B-13a-512 | *Idle* - do not cancel healthy in_progress | Pin B-246 tip CI / Nightly |
+| **B** Protocol/Privacy | **B-246** (this commit); **B-242** GREEN | *Idle* (next **B-247** seventeenth settle-reset) | After 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | **B-258** Path A lag=8; **B-257**; **B-256** tip-16330 | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 ### Hard locks (all seats)
 
