@@ -437,6 +437,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 6 — B-28 assert PASS evidence** (this commit): `b28-assert-pass-20260806T112316Z.md` (tip 16240, treasury 2909711). Docs-only `[skip ci]`. Watch tip CI `#31096968523` on `980ac1ef`. *Observed (not staged):* onchain-tx-storm WIP.
+
 1. **2026-08-06 — lane 6 — B-28 assert docs mirror** (this commit): TESTNET_CHECKLIST/ROADMAP/B40/FEES point at `assert-b28-treasury-thresholds` (`980ac1ef`). Docs-only `[skip ci]`. Watch tip CI when gh quota recovers. Next: pin GREEN; human B-33 go; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — B-28 treasury threshold assert** (this commit): `assert-b28-treasury-thresholds.{sh,ps1}` + ci-check plan-only needles; live PASS tip~16215. Lane4 §6 Ack held B-239. Full CI (no skip). Apology: prior claim leaked proptest — fixed in `e2ad483f`. Next: human B-33 go; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP.
