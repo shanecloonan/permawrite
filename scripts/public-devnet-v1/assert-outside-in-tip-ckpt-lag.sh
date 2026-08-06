@@ -7,7 +7,7 @@ REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 LOG_PATH="${MFN_CHECKPOINT_LOG:-$REPO_ROOT/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl}"
 PROXY_URL="${MFN_OUTSIDE_IN_PROXY_URL:-http://5.161.201.73:8787/rpc}"
 EXPECTED_GENESIS="${MFN_EXPECTED_GENESIS_ID:-454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005}"
-LAG_THRESHOLD="${MFN_CKPT_LAG_THRESHOLD:-16}"
+LAG_THRESHOLD="${MFN_CKPT_LAG_THRESHOLD:-8}"
 EVIDENCE_DIR="${MFN_OUTSIDE_IN_LAG_EVIDENCE_DIR:-$SCRIPT_DIR/evidence}"
 PROXY_HEALTH_URL="${MFN_OUTSIDE_IN_PROXY_HEALTH_URL:-${PROXY_URL%/rpc}/health}"
 FAUCET_HEALTH_URL="${MFN_OUTSIDE_IN_FAUCET_HEALTH_URL:-http://5.161.201.73:8788/health}"
@@ -22,7 +22,7 @@ usage: assert-outside-in-tip-ckpt-lag.sh [--plan-only|--apply] [--no-archive]
 Outside-in permanence lag probe:
   - get_tip via public observer proxy
   - max tip_height from local Path A checkpoint jsonl
-  - FAIL if tip - ckpt_max >= MFN_CKPT_LAG_THRESHOLD (default 16)
+  - FAIL if tip - ckpt_max >= MFN_CKPT_LAG_THRESHOLD (default 8; B-258)
   - B-134: report ckpt_entries + last published_at + last tip_block_id (staleness)
   - B-135: age_sec from published_at + remote public proxy/faucet /health pings
   - B-136: FAIL reason health_ok→path_a_republish vs outage (recommended_action)

@@ -21,6 +21,7 @@ foreach ($n in $needles) {
 }
 $svcText = Get-Content -LiteralPath $svc -Raw
 if ($svcText -notlike "*publish-near-tip-checkpoint-if-lag.sh --apply*") { throw "missing ExecStart apply" }
+if ($svcText -notlike "*MFN_CKPT_LAG_THRESHOLD=8*") { throw "missing B-258 lag threshold=8" }
 $tmrText = Get-Content -LiteralPath $tmr -Raw
 if ($tmrText -notlike "*OnUnitActiveSec=30min*") { throw "missing timer interval" }
 $bashPath = $null

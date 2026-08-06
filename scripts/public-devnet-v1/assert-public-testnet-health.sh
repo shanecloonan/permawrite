@@ -9,7 +9,7 @@ LOG_PATH="${MFN_CHECKPOINT_LOG:-$REPO_ROOT/mfn-node/testdata/public_devnet_v1.ch
 PROXY_HEALTH="${MFN_PROXY_HEALTH:-http://127.0.0.1:8787/health}"
 FAUCET_HEALTH="${MFN_FAUCET_HEALTH:-http://127.0.0.1:8788/health}"
 HUB_RPC="${MFN_ROLL_RPC:-127.0.0.1:18731}"
-LAG_THRESHOLD="${MFN_CKPT_LAG_THRESHOLD:-16}"
+LAG_THRESHOLD="${MFN_CKPT_LAG_THRESHOLD:-8}"
 PLAN_ONLY=0
 APPLY=0
 
@@ -21,7 +21,7 @@ Checks (apply, on VPS):
   - path-a-near-tip-ckpt.timer healthy (B-89)
   - observer-rpc-proxy /health ok + hub_tip_rpc set (B-90)
   - faucet /health ok (busy allowed during B-15)
-  - tip - ckpt_max < MFN_CKPT_LAG_THRESHOLD (default 16)
+  - tip - ckpt_max < MFN_CKPT_LAG_THRESHOLD (default 8; B-258)
   - B-254: no failed mfn-p2p-forward@* templates; dedicated 1900x->1910x units active
 Never restarts units.
 EOF

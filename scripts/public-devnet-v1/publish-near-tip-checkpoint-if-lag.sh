@@ -8,7 +8,8 @@ REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 LOG_PATH="${MFN_CHECKPOINT_LOG:-$REPO_ROOT/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl}"
 RPC="${MFN_ROLL_RPC:-127.0.0.1:18731}"
 # Publish when live tip is at least this many blocks ahead of log max tip.
-LAG_THRESHOLD="${MFN_CKPT_LAG_THRESHOLD:-16}"
+# B-258: default 8 (was 16) so Path A stays near tip for JOIN soft-pin / F45.
+LAG_THRESHOLD="${MFN_CKPT_LAG_THRESHOLD:-8}"
 SEED_ENV="${MFN_CHECKPOINT_SIGNER_ENV:-$HOME/.mfn/checkpoint-signer.env}"
 PLAN_ONLY=0
 APPLY=0
@@ -17,7 +18,7 @@ usage() {
   cat <<'EOF'
 usage: publish-near-tip-checkpoint-if-lag.sh [--plan-only|--apply]
 
-If live tip - checkpoint_log_max_tip >= MFN_CKPT_LAG_THRESHOLD (default 16),
+If live tip - checkpoint_log_max_tip >= MFN_CKPT_LAG_THRESHOLD (default 8),
 runs bootstrap-path-a-checkpoint-signer.sh --apply.
 Never restarts faucet/mfnd. Exit 0 on publish or lag-below-threshold skip.
 EOF
@@ -40,7 +41,7 @@ fi
 if (( PLAN_ONLY )); then
   echo "publish-near-tip-checkpoint-if-lag: plan"
   echo "  unit=B-85"
-  echo "  lag_threshold=\$MFN_CKPT_LAG_THRESHOLD (default 16)"
+  echo "  lag_threshold=\$MFN_CKPT_LAG_THRESHOLD (default 8; B-258)"
   echo "  flow=tip vs jsonl max -> bootstrap-path-a-checkpoint-signer --apply"
   echo "  never=faucet-http mfnd restart join-testnet-rehearsal"
   echo "publish-near-tip-checkpoint-if-lag: PASS plan-only"

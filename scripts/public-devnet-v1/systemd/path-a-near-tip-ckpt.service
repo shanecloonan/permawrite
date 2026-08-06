@@ -10,7 +10,8 @@ WorkingDirectory=/root/permawrite
 EnvironmentFile=-/root/.mfn/checkpoint-signer.env
 Environment=MFN_REPO_ROOT=/root/permawrite
 Environment=MFN_ROLL_RPC=127.0.0.1:18731
-Environment=MFN_CKPT_LAG_THRESHOLD=16
+# B-258: tighten for tall-tip JOIN soft-pin (was 16; manual B-252/B-256 used 8).
+Environment=MFN_CKPT_LAG_THRESHOLD=8
 ExecStart=/bin/bash /root/permawrite/scripts/public-devnet-v1/publish-near-tip-checkpoint-if-lag.sh --apply
 Nice=10
 

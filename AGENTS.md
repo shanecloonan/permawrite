@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Landing **B-246** sixteenth op1 asymmetric->absentee re-slash (completes sixteenth re-slash pair). **CI #31109005252 GREEN** on B-13a-512. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane7 **B-258** Path A lag threshold 8 body (this commit; `[skip ci]` — do not cancel B-246 tip CI `#31112318136`). **B-246** landed `23749726`; **CI #31109005252 GREEN** on B-13a-512. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -300,7 +300,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-246 | Sixteenth-offense op1 asymmetric then absentee re-slash (early B-24dm) | 4 | **Landed** (this commit); elevates B-236; completes sixteenth re-slash pair with B-242; full CI |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
-| B-258 | Path A near-tip timer/default lag threshold 16→8 (JOIN soft-pin) | 7 | **Landed** (this commit; VPS timer env=8; health tip=16336 lag=6; evidence `b258-path-a-lag-threshold-8-20260806T144200Z.md`) |
+| B-258 | Path A near-tip timer/default lag threshold 16→8 (JOIN soft-pin) | 7 | **Landed** (this commit; board text raced into B-246 `23749726`; VPS timer env=8; health tip=16336 lag=6; evidence `b258-path-a-lag-threshold-8-20260806T144200Z.md`) |
 | B-257 | Invite-load preflight adds B-254 p2p-forward hygiene (toward B-42) | 7 | **Landed** (`570a51ed`; VPS+outside-in PASS tip~16333; evidence `b257-invite-load-p2p-hygiene-20260806T143700Z.md`) |
 | B-256 | Path A tip-16330 republish + public-testnet health PASS | 7 | **Landed** (`7ea13f4d`; entries=52; lag 9→0; evidence `b256-path-a-tip-16330-health-20260806T143100Z.md`) |
 | B-255 | B-32 arm-ready assert adds B-254 p2p-forward hygiene | 7 | **Landed** (`3185253c`; tip=16328; p2p OK; **distinct_hosts=1 NOT READY**; evidence `b255-b32-arm-ready-p2p-hygiene-20260806T142607Z.md`) |

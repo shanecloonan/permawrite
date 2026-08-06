@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-246 land. Completes sixteenth re-slash pair; next **B-247** seventeenth settle-reset.
+Synced at lane7 **B-258** body CLOSE + lane4 **B-246** land. Do not cancel tip CI `#31112318136`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI #31109005252 GREEN** on B-13a-512 | *Idle* - do not cancel healthy in_progress | Pin B-246 tip CI / Nightly |
-| **B** Protocol/Privacy | **B-246** (this commit); **B-242** GREEN | *Idle* (next **B-247** seventeenth settle-reset) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-258** Path A lag=8; **B-257**; **B-256** tip-16330 | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
+| **A** RC/CI | **CI #31109005252 GREEN** on B-13a-512 | *Idle* - watch B-246 tip CI `#31112318136` | Pin / Nightly |
+| **B** Protocol/Privacy | **B-246** (`23749726`); **B-242** GREEN | *Idle* (next **B-247** seventeenth settle-reset) | After 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | **B-258** Path A lag=8 body; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 ### Hard locks (all seats)
 

@@ -274,7 +274,7 @@ When live tip drifts ahead of `public_devnet_v1.checkpoints.jsonl` max tip (JOIN
 
 `bash scripts/public-devnet-v1/publish-near-tip-checkpoint-if-lag.sh --apply`
 
-Default threshold: 16 blocks (`MFN_CKPT_LAG_THRESHOLD`). Never touches faucet/mfnd. Commit the updated jsonl afterward.
+Default threshold: **8** blocks (`MFN_CKPT_LAG_THRESHOLD`; **B-258**, was 16) so tall-tip JOIN soft-pin stays near the live tip. Never touches faucet/mfnd. Commit the updated jsonl afterward.
 
 **B-88 VPS timer:** `bash scripts/public-devnet-v1/vps-install-near-tip-ckpt-timer.sh --apply` installs `path-a-near-tip-ckpt.timer` (every 30m). After a timer publish dirties the VPS working tree, agents must land the jsonl on `main` (scp + commit); before `git pull` on the VPS, `git checkout -- mfn-node/testdata/public_devnet_v1.checkpoints.jsonl` if needed.
 
