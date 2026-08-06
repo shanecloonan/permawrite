@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-241 land. Tip CI will prove sixteenth empty both-miss; next **B-242** re-slash.
+Synced at B-242 claim. Watch tip CI on B-241; body ready for land after GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI #31100605940 GREEN** on rustfmt tip | *Idle* - do not cancel healthy in_progress | Pin B-241 tip CI / Nightly |
-| **B** Protocol/Privacy | **B-241** (this commit); **B-240**/**B-239** | *Idle* (next **B-242** sixteenth re-slash) | After 2 hosts: live **B-32** |
+| **A** RC/CI | Watch B-241 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-241** (5c5e7253); watch tip CI | **B-242** sixteenth re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
 c12db8e); watch tip CI | **B-240** sixteenth op1 asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
