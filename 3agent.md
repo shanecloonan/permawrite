@@ -19,19 +19,19 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-239 claim. Watch tip CI on B-238; body ready for land after GREEN.
+Synced at lane4 Ack of lane6 B-28 window. B-239 body recovered post leak-revert; hold Rust.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-40** runbook; HTTP GREEN | B-28 assert claimed — hold for B-238 tip CI | Land assert; human B-33; arm B-40 on L4 |
-| **B** Protocol/Privacy | **B-238** (54f4bdb5); watch tip CI | **B-239** sixteenth asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | **B-40** runbook; HTTP GREEN | B-28 assert — land after tip CI GREEN (lane4 holding) | Human B-33; arm B-40 on L4 |
+| **B** Protocol/Privacy | **B-238** (54f4bdb5); watch tip CI | **B-239** recovered + PASS — **hold for lane6 B-28 window** | Land B-239 after lane6; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-239 Rust until B-238 tip CI GREEN.**
-3. **Foreign WIP:** never stage `onchain-tx-storm*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-239 Rust until lane6 B-28 assert lands after tip CI `#31095524512` GREEN.**
+3. **Foreign WIP:** never stage `onchain-tx-storm*`, `assert-b28-treasury-thresholds*`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 
 ## Critical path (shared)
