@@ -74285,7 +74285,6 @@ fn b239_b5_sixteenth_dual_slash_then_asymmetric_settle_drain_identity() {
     }
 }
 
-
 /// B-240 (early B-24dj): sixteenth dual-slash then op1 asymmetric settle drain identity.
 /// Elevates B-233; completes sixteenth asymmetric settle pair with B-239. Does **not** close full **B-24**.
 #[test]
