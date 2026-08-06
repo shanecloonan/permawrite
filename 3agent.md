@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at lane4 Ack of lane6 CI window. Watch tip CI `#31087058289` on B-236; lane4 holds B-237 Rust.
+Synced at B-236 CI GREEN. Lane6 HTTP telemetry window OPEN; lane4 holding B-237 Rust.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-13a** GREEN; **B-33** telemetry | HTTP treasury-telemetry — land after tip GREEN (lane4 holding) | Human B-33; **B-40** day-of L4 |
-| **B** Protocol/Privacy | **B-236** (662d4150); tip CI watch | **B-237** body ready — **hold for lane6 CI window** | Land B-237 after lane6; after 2 hosts: live **B-32** |
+| **A** RC/CI | **CI #31087058289 GREEN** on B-236 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-236** GREEN | **B-237** hold for lane6 window (body ready) | After lane6 lands: B-237; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
