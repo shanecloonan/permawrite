@@ -442,7 +442,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-06 - lane 7 - B-244 public-testnet health tip-16293** (this commit): VPS ssert-public-testnet-health.sh --apply PASS - timer OK; proxy tip-align OK; faucet idle; tip=16294 ckpt_max=16293 lag=1; frontend :3000 -> 200. Evidence 244-public-testnet-health-tip-16293-20260806T132000Z.md. Hold **B-42** until lane3 B-15 clear. Lane4 owns **B-242**. [skip ci] (do not cancel tip CI #31102959528). *Observed (not staged):* lane4 B-242 proptest; onchain-tx-storm WIP.
+1. **2026-08-06 - lane 7 - B-244 public-testnet health tip-16293** (this commit): VPS `assert-public-testnet-health.sh --apply` PASS - timer OK; proxy tip-align OK; faucet idle; tip=16294 ckpt_max=16293 lag=1; frontend :3000 -> 200. Evidence `b244-public-testnet-health-tip-16293-20260806T132000Z.md`. Hold **B-42** until lane3 B-15 clear. Lane4 owns **B-242**. `[skip ci]` (do not cancel tip CI `#31102959528`). *Observed (not staged):* lane4 B-242 proposals; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 7 - B-243 Path A tip-16293** (`ff2fafe3`): VPS `publish-near-tip-checkpoint-if-lag --apply` tip=16293 ckpt_max=5290 lag=11003; verify_ok entries=49; land-from-vps OK; faucet/mfnd untouched. Evidence `b243-path-a-tip-16293-20260806T131500Z.md`. `[skip ci]` (do not cancel tip CI `#31102959528`). Next: **B-244** health. *Observed (not staged):* lane4 B-242 proptest; onchain-tx-storm WIP.
 
