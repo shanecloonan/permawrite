@@ -23,7 +23,7 @@ Synced at lane4 Ack of lane6 B-28 window. B-239 body recovered post leak-revert;
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-28 assert**; **B-40** runbook; HTTP GREEN | *Idle* — watch tip CI | Human B-33; arm B-40 on L4 |
+| **A** RC/CI | **B-28 assert** `980ac1ef`; **B-40** runbook | Watch tip CI (gh rate-limited) | Pin GREEN; human B-33; arm B-40 on L4 |
 | **B** Protocol/Privacy | **B-238** (54f4bdb5); watch tip CI | **B-239** recovered + PASS — **hold for lane6 B-28 window** | Land B-239 after lane6; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 

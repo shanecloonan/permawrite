@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Landing lane6 **B-28 assert** (full CI). Lane4 Ack held B-239. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** **B-28 assert** landed (`980ac1ef`); watch tip CI (gh rate-limited locally). Docs mirror this tip. Lane4 may land B-239 after tip GREEN. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-238** (54f4bdb5, watch tip CI `#31095524512`); **B-237** GREEN | **B-239** body recovered + local exact PASS — **hold Rust for lane6 B-28 window** (claim base: `54f4bdb5`) | After lane6 B-28 assert lands: land B-239; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-28 assert** (this commit); **B-40** runbook; **B-20** draft; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; arm **B-40** on L4; then **B-13c** / arm B-28 live | Emission sims |
+| **6** Permanence | **B-28 assert** (`980ac1ef`); **B-40** runbook; **B-20** draft; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* — watch B-28 tip CI | Pin tip CI GREEN; human B-33 go; arm **B-40** on L4 | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -436,6 +436,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-28 assert docs mirror** (this commit): TESTNET_CHECKLIST/ROADMAP/B40/FEES point at `assert-b28-treasury-thresholds` (`980ac1ef`). Docs-only `[skip ci]`. Watch tip CI when gh quota recovers. Next: pin GREEN; human B-33 go; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — B-28 treasury threshold assert** (this commit): `assert-b28-treasury-thresholds.{sh,ps1}` + ci-check plan-only needles; live PASS tip~16215. Lane4 §6 Ack held B-239. Full CI (no skip). Apology: prior claim leaked proptest — fixed in `e2ad483f`. Next: human B-33 go; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP.
 

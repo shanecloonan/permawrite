@@ -511,7 +511,7 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 | **B-38** | 1+7 | Repair fan-out evidence archived + assert on invite/soak head |
 | **PM3** | 6 | Windowed lottery replaces first-to-publish; ≥2 operators can win in-window under equal latency; deterministic reject of out-of-window proofs |
 | **PM2** | 4+6 | Anchor rejects under-replicated uploads; payout only for distinct registered operators |
-| **B-28** | 2+7 | Sustained `treasury-telemetry-watch` on VPS; **numeric** alert thresholds in OPERATORS; post-B-13c telemetry within B-13a modeled bounds |
+| **B-28** | 2+7 | Assert helper + draft thresholds landed (`980ac1ef`); arm live VPS watch post-B-13c |
 | **B-23** | 2 | `ci-check` fails closed on ring/endowment/SPoRA invariant regressions |
 | **B-25** | 7+human | 30d soak PASS + treasury within bounds + B-24 green + no permanence doc/code drift |
 

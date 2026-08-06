@@ -246,7 +246,7 @@ lever at a time so telemetry can attribute effects.
 The `treasury_base_units` field of `get_chain_params` and per-block backstop
 behavior are the telemetry inputs. Read-only helper:
 `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only`
-(live: `--rpc HOST:PORT` or `--rpc http(s)://…/rpc` for observer proxy).
+(live: `--rpc HOST:PORT` or `--rpc http(s)://…/rpc` for observer proxy). Draft B-28 floors: `assert-b28-treasury-thresholds.*` (`980ac1ef`).
 
 **B-33 pre-enable baseline (Path A, 2026-08-06):** archived at
 [`b13-pre-enable-treasury-20260806T052834Z.md`](../scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-20260806T052834Z.md)

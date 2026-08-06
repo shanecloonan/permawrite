@@ -16,7 +16,7 @@ no `subsidy_to_treasury_bps` enable until **B-33** human go ([`B13_SUBSIDY_FORK_
 | **B-13a** sims @ `subsidy_to_treasury_bps=1000` | **Done** | `bbd50ce3` + clippy allows; **CI `#31077911423` GREEN** |
 | Pre-enable treasury telemetry | **Done** | [`b13-pre-enable-treasury-20260806T052834Z.md`](../scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-20260806T052834Z.md) |
 | HTTP `treasury-telemetry-watch` | **Done** | `360f690b`; **CI `#31090099572` GREEN** |
-| **B-28** draft thresholds | **Draft** | OPERATORS § B-28; sample [`b28-treasury-watch-20260806T102833Z.md`](../scripts/public-devnet-v1/evidence/b28-treasury-watch-20260806T102833Z.md) |
+| **B-28** draft thresholds + assert | **Draft** / helper landed | OPERATORS § B-28; `assert-b28-treasury-thresholds.*` (`980ac1ef`); sample [`b28-treasury-watch-20260806T102833Z.md`](../scripts/public-devnet-v1/evidence/b28-treasury-watch-20260806T102833Z.md) |
 | **B-20** fee-shift policy | **Draft** | [`FEES.md`](./FEES.md) §5.5 — arm after B-13c + B-25 |
 | **B-33** human go | **Open** | Sign-off table still blank |
 
@@ -43,6 +43,7 @@ Archive under `scripts/public-devnet-v1/evidence/b40-d0-treasury-<UTC>.md`.
 
 - [ ] Claim **B-40** in `AGENTS.md` §5 (lane 6 Doing); claim base = L4 tip SHA.
 - [ ] Refresh treasury sample (command above); confirm `subsidy_to_treasury_bps=0`.
+- [ ] Run `assert-b28-treasury-thresholds.* --rpc …` (pre-enable floors PASS).
 - [ ] Confirm **B-13a** still in tip ancestry / CI GREEN on a head that contains sims.
 - [ ] Ping lane 4+7: **B-32** arm status (≥2 distinct hosts) — do not block on it.
 - [ ] Confirm **B-33** human cells still open — **do not** enable B-13c on D0 unless fully signed.
