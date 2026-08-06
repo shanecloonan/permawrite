@@ -23,7 +23,7 @@ Synced at B-239 claim. Watch tip CI on B-238; body ready for land after GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-238 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **A** RC/CI | **B-40** runbook; HTTP GREEN | B-28 assert claimed — hold for B-238 tip CI | Land assert; human B-33; arm B-40 on L4 |
 | **B** Protocol/Privacy | **B-238** (54f4bdb5); watch tip CI | **B-239** sixteenth asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 

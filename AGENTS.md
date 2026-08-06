@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Claiming **B-239** sixteenth dual-slash->asymmetric settle (docs-only while tip CI runs on B-238). **CI #31093098346 GREEN** on B-237. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane6 **B-28 assert** body ready; hold scripts until B-238 tip CI `#31095524512` GREEN. **B-40** runbook landed. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-238** (54f4bdb5, watch tip CI); **B-237** GREEN | **B-239** sixteenth asymmetric settle (claim base: 54f4bdb5; body ready) | After tip GREEN: land B-239; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-40** runbook ([`docs/B40_PERMANENCE_WEEK.md`](docs/B40_PERMANENCE_WEEK.md)); **B-20**/**B-28** drafts; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* — arm B-40 day-of L4 | Human B-33 go; arm **B-40** on L4 close; then **B-13c** / arm B-28 | Emission sims |
+| **6** Permanence | **B-40** runbook; **B-20**/**B-28** drafts; HTTP GREEN; **B-13a** GREEN | **B-28 assert** (`assert-b28-treasury-thresholds.*`; claim base: `eb50e9e6`) — hold until B-238 tip GREEN | Land B-28 assert; human B-33 go; arm **B-40** on L4 | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Open** |
 | 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Done** (landed 360f690b; tip CI #31090099572) |
 | 4 | 6 | **B-13a clippy:** `#31073720447` / `#31075611260` FAIL — allow 8-arg treasury helpers | **Done** (this commit) |
 | 3 | 7 | **F114:** faucet job ERROR hub Connection refused (os error 111) on wave106; HTTP accepted. Verify mfnd-hub RPC without thrashing faucet-http (§6). | **Ack** (wave107 faucet PASS without restart; still watch hub) |
@@ -435,6 +436,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — claim B-28 treasury threshold assert** (this commit): `assert-b28-treasury-thresholds.{sh,ps1}` + ci-check plan-only needles ready; live PASS tip~16215 treasury 2909711. Hold until B-238 tip CI `#31095524512` GREEN (§6). Claim base `eb50e9e6`. `[skip ci]`. *Observed (not staged):* assert body unstaged; lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 4 - claim B-239** (this commit): early B-24di sixteenth dual-slash->asymmetric settle while tip CI runs on B-238. Claim base 54f4bdb5. Body ready locally. [skip ci].
 
