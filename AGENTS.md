@@ -456,6 +456,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-08-06 — lane 6 — FEES/ROADMAP cite B-13a-512 GREEN** (this commit): mirror **CI `#31109005252` GREEN** into FEES §5.4 + ROADMAP B-33 checklist. `[skip ci]`.
+
 1. **2026-08-06 — lane 6 — pin B-13a-512 CI GREEN** (this commit): **CI `#31109005252` GREEN** on `28031bca` (full matrix). Lane4 clear for **B-246**. `[skip ci]`. Next: human B-33; arm **B-40** on L4. *Observed (not staged):* foreign WIP if any.
 
 1. **2026-08-06 - lane 4 - claim B-247** (this commit): early B-24dn settle-reset->seventeenth dual-slash while tip CI runs on B-246. Claim base 23749726. Body ready locally. [skip ci].

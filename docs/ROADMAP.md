@@ -536,7 +536,7 @@ Canonical checklist: [`B13_SUBSIDY_FORK_SIGNOFF.md`](./B13_SUBSIDY_FORK_SIGNOFF.
 (technical rows filled; human / telemetry / tip-CI cells open until signed).
 Before **B-13c** enable on Path A:
 
-- [x] **B-13a** sims landed (`bbd50ce3`; tip CI must GREEN before enable)
+- [x] **B-13a** sims landed (256 `bbd50ce3` + 512 `28031bca`; **CI `#31109005252` GREEN**)
 - [x] **One-lever rule:** only `subsidy_to_treasury_bps` changes; `fee_to_treasury_bps` untouched
 - [x] **Producer security budget:** written note that ~10% of tail moves to treasury (acceptable on Path A toy keys)
 - [x] **Telemetry baseline:** live `treasury_base_units` snapshot archived pre-enable (`scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-20260806T052834Z.md`; tip 16063 / treasury 2909711 / subsidy_bps=0; backstop rate via FEES §5.4 watch post-enable)

@@ -235,7 +235,7 @@ blocks; [`producer_portion_amount`](../mfn-consensus/src/emission.rs) and
 [`get_chain_params`](../mfn-rpc/src/dispatch.rs) expose the parameter.
 **Enabling `1000` on public devnet** remains a separate parameter-fork decision
 (same `genesis_id` policy as other emission knobs). **B-13a** (default CI)
-proves a 256-block treasury identity at `bps=1000` and a fee-drought case
+proves 256- and 512-block treasury identity at `bps=1000` and fee-drought cases
 where cumulative emission backstop is strictly lower than at `bps=0` — still
 without flipping live genesis. Human gate before enable:
 [`B13_SUBSIDY_FORK_SIGNOFF.md`](./B13_SUBSIDY_FORK_SIGNOFF.md) (**B-33**).
