@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-239 land. Tip CI will prove B-239 (+B-238); next **B-240** op1 asymmetric.
+Synced at B-239 land. **CI `#31096968523` GREEN** (B-28 tip re-proves B-238); B-239 full CI landing.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | **CI #31096968523 GREEN** on B-28 | *Idle* - do not cancel healthy in_progress | Pin B-239 tip CI / Nightly |
-| **B** Protocol/Privacy | **B-239** (this commit); **B-238** | *Idle* (next **B-240** op1 asymmetric) | After 2 hosts: live **B-32** |
+| **B** Protocol/Privacy | **B-239** sixteenth asymmetric settle (this commit) | *Idle* — hold live **B-32** for 2nd host | **B-240** sixteenth op1 asymmetric settle |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
@@ -56,7 +56,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done B-231 GREEN / Doing watch B-232 #31075611260 / Next pin+Nightly
-3agent — Seat B: Done B-237 sixteenth settle-reset slash / Doing B-238 dual settle (body ready) / Next land after GREEN
+3agent — Seat B: Done B-239 sixteenth asymmetric settle / Doing Idle / Next B-240 op1 twin
 3agent — Seat C: Done B-229 + B-33 telemetry / Doing wave115+ + VPS proxy / Next Path A lag + SUMMARY
 (AGENTS.md §5 remains the claim surface)
 ```
