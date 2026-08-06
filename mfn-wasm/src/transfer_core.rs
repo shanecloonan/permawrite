@@ -134,8 +134,9 @@ pub fn build_transfer_json(plan_json: &str) -> Result<String, WasmCoreError> {
     let plan: TransferPlanJson = serde_json::from_str(plan_json)
         .map_err(|e| WasmCoreError::InvalidHex(format!("transfer plan json: {e}")))?;
     if plan.ring_size < WALLET_MIN_RING_SIZE {
+        // B-217: parity with CLI refuse text (wallet/consensus floor).
         return Err(WasmCoreError::InvalidHex(format!(
-            "ring size {} below wallet minimum {WALLET_MIN_RING_SIZE}",
+            "ring size {} below wallet/consensus floor {WALLET_MIN_RING_SIZE}",
             plan.ring_size
         )));
     }
@@ -324,7 +325,7 @@ mod tests {
         let err = build_transfer_json(&plan_str).expect_err("must reject");
         let msg = err.to_string();
         assert!(
-            msg.contains("below wallet minimum"),
+            msg.contains("wallet/consensus floor"),
             "unexpected error: {msg}"
         );
         assert!(

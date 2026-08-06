@@ -57,7 +57,11 @@ foreach ($pair in @(
   @("mfn-cli/README.md", "hard-refuses so operators cannot publish unbound"),
   @("mfn-cli/README.md", "faucet dual-send"),
   @("docs/PRIVACY.md", "Path A lag honesty"),
-  @("docs/CHECKPOINT_LOG.md", "Honesty (B-218)")
+  @("docs/CHECKPOINT_LOG.md", "Honesty (B-218)"),
+  @("mfn-wallet/src/error.rs", "wallet/consensus floor"),
+  @("mfn-wasm/src/transfer_core.rs", "wallet/consensus floor"),
+  @("mfn-wasm/src/upload_core.rs", "wallet/consensus floor"),
+  @("mfn-cli/src/wallet_cmd.rs", "map_wallet_build_err_rewrites_ring_size_below_minimum")
 )) {
   $txt = Get-Content -Raw (Join-Path $RepoRoot $pair[0])
   if ($txt -notmatch [regex]::Escape($pair[1])) {
