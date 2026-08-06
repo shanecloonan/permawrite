@@ -15,3 +15,7 @@ Single-box Hetzner (hub+v1+v2 on one IP) does **not** count as multi-op diversit
 
 - Fake READY with loopback/RFC5549/docs hosts.
 - Restart faucet or thrash hub during B-15 JOIN capture.
+
+## Refresh (B-245 / 2026-08-06)
+
+Post Path A tip-**16293** health OK (lag≤3). `assert-b32-arm-ready --apply` at tip=**16296**: peers-clean OK, B-71 OK, uploads recent_proven=8, still **distinct_hosts=1** → **NOT READY**. Evidence: `b245-b32-arm-ready-tip-16296-20260806T132200Z.md`.
