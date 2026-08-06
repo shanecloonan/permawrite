@@ -410,7 +410,8 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 
 - [ ] **B-15** — Outside-in JOIN_TESTNET VPS rehearsal archived (`join-testnet-rehearsal-linux-*.txt`) + `assert-join-testnet-rehearsal-evidence.*` PASS.
 - [x] **B-16** — Privacy-doc sync landed (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match light-scan / checkpoint-log / F7 faucet UX.
-- [x] **B-22** — TL-8 checkpoint log republished (Path A signer-2; `max_tip_height=4133` + public seed `anchor_peers`; seed offline on VPS only). **Refresh:** **B-137** tip-**5290** (`10eedc1`; entries=48; lag assert OK). **Refresh:** **B-243** tip-**16293** (f2fafe3); **B-244**/**B-245** arm-ready still 1-host NOT READY.
+- [x] **B-22** — TL-8 checkpoint log republished (Path A signer-2; `max_tip_height=4133` + public seed `anchor_peers`; seed offline on VPS only). **Refresh:** **B-137** tip-**5290** (`10eedc1`; entries=48; lag assert OK). **Refresh:** **B-243** tip-**16293** ( **Refresh:** **B-249** tip-**16309** (entries=50; F45 soft-repin PASS).
+f2fafe3); **B-244**/**B-245** arm-ready still 1-host NOT READY.
 - [x] **B-15 JOIN archive PASS** (lane 3) — `join-testnet-rehearsal-windows-20260721T191340Z.txt` tip=5322 assert OK; SUMMARY `B15-JOIN-SUMMARY-20260721.md`.
 
 - [ ] **B-26** — R-4 faucet deployed on Hetzner (`vps-update-faucet.sh`) after B-15 evidence window.
