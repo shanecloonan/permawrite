@@ -13,9 +13,10 @@ JSON=0
 
 usage() {
   cat <<EOF
-usage: $(basename "$0") [--plan-only] [--json] [--rpc HOST:PORT]
+usage: $(basename "$0") [--plan-only] [--json] [--rpc HOST:PORT|http(s)://HOST:PORT/path]
 
 Reads get_chain_params.treasury_base_units + tip_height when --rpc is set.
+Accepts NDJSON HOST:PORT (mfnd) or HTTP(S) JSON-RPC URLs (observer proxy).
 Default --plan-only prints FEES.md revisit triggers without a live node.
 EOF
 }
@@ -42,6 +43,7 @@ if [[ "$PLAN_ONLY" -eq 1 ]]; then
   echo "  fields=treasury_base_units,tip_height,emission.fee_to_treasury_bps,emission.subsidy_to_treasury_bps"
   echo "  triggers=docs/FEES.md §5.4 revisit (treasury pinned near zero + backstop majority blocks)"
   echo "  command=$(basename "$0") --rpc 127.0.0.1:18731"
+  echo "  http_example=$(basename "$0") --rpc http://127.0.0.1:8787/rpc"
   if [[ "$JSON" -eq 1 ]]; then
     python3 - <<'PY'
 import json
@@ -63,7 +65,30 @@ if [[ -z "$RPC" ]]; then
 fi
 
 req='{"jsonrpc":"2.0","method":"get_chain_params","id":1}'
-line="$(query_rpc_json_line "$RPC" "$req")"
+line=""
+if [[ "$RPC" == http://* || "$RPC" == https://* ]]; then
+  if command -v curl >/dev/null 2>&1; then
+    line="$(curl -sS -m 60 -H "Content-Type: application/json" -d "$req" "$RPC" 2>/dev/null || true)"
+  elif command -v python3 >/dev/null 2>&1; then
+    line="$(RPC_URL="$RPC" REQ_JSON="$req" python3 - <<'PY'
+import json, os, urllib.request
+req = urllib.request.Request(
+    os.environ["RPC_URL"],
+    data=os.environ["REQ_JSON"].encode(),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(req, timeout=60) as resp:
+    print(resp.read().decode())
+PY
+)" || true
+  else
+    echo "treasury-telemetry-watch: HTTP --rpc needs curl or python3" >&2
+    exit 1
+  fi
+else
+  line="$(query_rpc_json_line "$RPC" "$req")"
+fi
 if [[ -z "$line" ]]; then
   echo "treasury-telemetry-watch: RPC query failed for $RPC" >&2
   exit 1

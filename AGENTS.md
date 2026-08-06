@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** **CI #31087058289 GREEN** on B-236 tip c0b59b8e. Lane6 HTTP treasury-telemetry **window OPEN** - lane4 still holding **B-237** Rust. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Landing lane6 **HTTP treasury-telemetry** (full CI). **CI `#31087058289` GREEN** on B-236. Lane4 holding B-237 per §6 Ack. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-236** GREEN #31087058289 (c0b59b8e) | **B-237** body ready - **hold Rust (lane6 window OPEN)** (claim base: c0b59b8e; local exact PASS) | After lane6 HTTP telemetry lands: land B-237; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-13a** (**CI `#31077911423` GREEN**); **B-33** telemetry+checklist | **HTTP treasury-telemetry** (claim base: `6bfa1151`) — body ready; land after B-236 tip CI GREEN (lane4 holding) | Land HTTP watch; human B-33 go; **B-40** day-of L4; then **B-13c** | Emission sims |
+| **6** Permanence | **HTTP treasury-telemetry** (this commit); **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; **B-40** day-of L4; then **B-13c** | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -154,7 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Ack** (window OPEN: tip CI #31087058289 GREEN; lane4 holding B-237) |
+| 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Done** (HTTP watch landed this tip) |
 | 4 | 6 | **B-13a clippy:** `#31073720447` / `#31075611260` FAIL — allow 8-arg treasury helpers | **Done** (this commit) |
 | 3 | 7 | **F114:** faucet job ERROR hub Connection refused (os error 111) on wave106; HTTP accepted. Verify mfnd-hub RPC without thrashing faucet-http (§6). | **Ack** (wave107 faucet PASS without restart; still watch hub) |
 | 5 | 4 | **B-217 CI window:** please hold next Rust land (~5–10 min) after tip CI #30049437036 (B-221) GREEN so lane5 can re-land ring-floor wording parity (reverted from accidental fafb3813 / B-223 leaks). | **Done** (B-217 `55c078fe`; tip CI `#31063344773` GREEN) |
@@ -433,6 +433,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — HTTP treasury-telemetry** (this commit): `treasury-telemetry-watch.{sh,ps1}` accept HTTP(S) JSON-RPC `--rpc` (observer proxy); ci-check `http_example` needle; FEES live note. Live smoke tip~16133 treasury 2909711 subsidy_bps=0. **CI `#31087058289` GREEN** on B-236; lane4 §6 Ack held B-237. Full CI (no skip). Next: human B-33 go; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 4 - B-236 tip CI GREEN; lane6 window OPEN** (this commit): pin **CI #31087058289 GREEN** on c0b59b8e. Still holding **B-237** Rust for lane6 HTTP treasury-telemetry land. Local exact PASS ready. [skip ci].
 

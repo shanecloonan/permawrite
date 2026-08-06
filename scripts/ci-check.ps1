@@ -158,7 +158,7 @@ if ($pm23Plan -notmatch "pm23-operator-manifest-rehearsal-smoke: PASS plan-only"
     exit 1
 }
 $treasuryPlan = (powershell -NoProfile -File scripts/public-devnet-v1/treasury-telemetry-watch.ps1 -PlanOnly) -join "`n"
-if ($treasuryPlan -notmatch "treasury-telemetry-watch: PASS plan-only" -or $treasuryPlan -notmatch "get_chain_params" -or $treasuryPlan -notmatch "subsidy_to_treasury_bps") {
+if ($treasuryPlan -notmatch "treasury-telemetry-watch: PASS plan-only" -or $treasuryPlan -notmatch "get_chain_params" -or $treasuryPlan -notmatch "subsidy_to_treasury_bps" -or $treasuryPlan -notmatch "http_example") {
     $treasuryPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }

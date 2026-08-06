@@ -127,6 +127,7 @@ pm23_plan="$(bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smok
 treasury_plan="$(bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only)"
 [[ "$treasury_plan" == *"treasury-telemetry-watch: PASS plan-only"* ]] || { printf '%s\n' "$treasury_plan" >&2; exit 1; }
 [[ "$treasury_plan" == *"subsidy_to_treasury_bps"* ]] || { echo "ci-check: treasury-telemetry-watch missing subsidy_to_treasury_bps" >&2; exit 1; }
+[[ "$treasury_plan" == *"http_example"* ]] || { echo "ci-check: treasury-telemetry-watch missing http_example" >&2; exit 1; }
 vps_checklist_plan="$(bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_checklist_plan" == *"vps-execution-checklist-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_checklist_plan" >&2; exit 1; }
 [[ "$vps_checklist_plan" == *"vps-execution-checklist.v2"* ]] || { printf '%s\n' "$vps_checklist_plan" >&2; exit 1; }
