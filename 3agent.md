@@ -11,20 +11,20 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-40-d0** landed (`4bcaf8e2`); CI cancelled | Watch tip CI #31119646284 re-prove | Pin GREEN; human B-33; arm B-40 |
-| **B** Protocol/Privacy | **B-259** (`fdcb067a`); watch tip CI | **B-261** seventeenth dual settle (lane4; body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | Re-watch B-259 tip CI after rerun | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-259** landed; tip CI rerun | **B-261** hold (body ready; local PASS) | After GREEN: land B-261; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | VPS / Path A / invite / B-32 arm ops (lanes 3+7) | 3 + 7 | Protocol Rust (B), CI/Nightly cancel (A) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at lane6: B-40-d0 cancelled CI; re-prove via tip CI #31119646284 (B-259).
+Synced at B-259 CI infra FAIL re-dispatch. Hold B-261 until tip GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-40-d0** landed (`4bcaf8e2`); CI cancelled | Watch tip CI #31119646284 re-prove | Pin GREEN; human B-33; arm B-40 |
-| **B** Protocol/Privacy | **B-246** GREEN; B-40-d0 window Done | **B-259** hold for #31115971810 (body ready) | After GREEN: land B-259; after 2 hosts: live **B-32** |
+| **A** RC/CI | Re-watch B-259 tip CI after rerun | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-259** landed; tip CI rerun | **B-261** hold (body ready; local PASS) | After GREEN: land B-261; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-260** Path A tip-16341; **B-258**; **B-257** | *Idle* | After B-15: **B-42** live; 2nd host B-32; B-26 before full B-31 |
 
 ### Hard locks (all seats)
