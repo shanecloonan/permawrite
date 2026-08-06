@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** **Apology:** B-242 Rust landed while Ack holding for lane6 **B-13a-512**. Tip CI #31105745727 in progress - do **not** cancel. Lane6 window re-OPEN after that GREEN. Lane4 Next op1 twin remapped to **B-246** (B-243 is lane7 Path A). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** **Apology:** B-242 Rust landed while Ack holding for lane6 **B-13a-512**. Tip CI #31105745727 in progress - do **not** cancel. Lane6 window re-OPEN after that GREEN. Lane4 Next op1 twin remapped to **B-246** (B-243 is lane7 Path A). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. Lane7 **B-247** outside-in posture PASS (P2P+lag; do not cancel tip CI #31105745727).
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-242** (612f6077, watch tip CI #31105745727); **B-241** GREEN | **hold Rust** for lane6 B-13a-512 (body B-246 ready locally) | After lane6 lands + tip GREEN: land **B-246** op1 re-slash; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-28 assert** GREEN; **B-40** runbook; **B-20** draft; **B-13a** 256 GREEN | **B-13a-512** sims (claim base: `70373746`) — hold until B-241 tip CI GREEN | Land 512 sims; human B-33 go; arm **B-40** on L4 | Emission sims |
-| **7** Testnet launch | **B-245** B-32 arm-ready tip-16296 NOT READY (1 host; 70373746); **B-244**; **B-243** | *Idle* | Human/ops **2nd host** for B-32; after B-15 clear: **B-42** invite-load **live** | launch-go-no-go |
+| **7** Testnet launch | **B-247** outside-in posture tip-16299 (P2P+lag PASS); **B-245** arm-ready 1-host; **B-243** | *Idle* | Human **2nd host** for B-32; after B-15: **B-42**; **B-26** before full B-31 close | `launch-go-no-go` |
 
 ---
 
@@ -298,6 +298,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-241 | Sixteenth dual-slash then empty both-miss (early B-24dk) | 4 | **Landed** (this commit); elevates B-234; closes sixteenth prove matrix; full CI |
 | B-242 | Sixteenth-offense asymmetric then absentee re-slash (early B-24dl) | 4 | **Landed** (this commit); elevates B-235; full CI |
 | B-246 | Sixteenth-offense op1 asymmetric then absentee re-slash (early B-24dm) | 4 | **Next** after lane6 B-13a-512; elevates B-236; completes sixteenth re-slash pair (ID remapped; B-243=lane7 Path A) |
+| B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (this tip; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-243 | Path A near-tip checkpoint republish (close F45 lag ~11k) | 7 | **Landed** (`ff2fafe3`; tip=16293 entries=49; evidence `b243-path-a-tip-16293-20260806T131500Z.md`) |
 | B-244 | Public-testnet health verify after Path A tip-16293 | 7 | **Landed** (this tip; tip=16294 ckpt=16293 lag=1; evidence `b244-public-testnet-health-tip-16293-20260806T132000Z.md`) |
 | B-229 | Tall-tip observer proxy header cache + viewer poll abort fix | 7 | **Landed** (this commit; `[skip ci]`) — mfnd `get_block_headers` re-reads full `chain.blocks` (~3.5s @ tip≈16k); proxy caches rows + tip-warm; frontend skips in-flight abort + uses `get_tx_count_totals`; Next.js heavy RPC 180s. Deploy proxy on VPS after land |
@@ -443,6 +444,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 7 - B-247 outside-in posture tip-16299** (this commit): `assert-outside-in-tip-ckpt-lag.ps1 -Apply` PASS tip=16299 ckpt=16293 lag=6; public TCP 19001-19003/8787/8788/3000 OPEN; hub RPC stays localhost; B-41 socat live; B-31 P2P half now PASS (B-26 still open). Evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md` + `outside-in-tip-ckpt-lag-20260806T132528Z.txt`. Hold **B-42** until B-15 clear. Lane4 owns **B-246**; lane6 owns **B-13a-512**. `[skip ci]` (do not cancel tip CI `#31105745727`). *Observed (not staged):* lane4 proposals; lane6 emission_simulation; onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 4 - apology B-13a-512 window; remap op1 to B-246** (this commit): premature **B-242** land while Ack held for lane6. Tip CI #31105745727 must finish; then lane6 lands B-13a-512. Op1 twin Next = **B-246** (not B-243 — lane7 Path A). Holding further Rust. [skip ci].
 

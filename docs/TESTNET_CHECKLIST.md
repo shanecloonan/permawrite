@@ -417,7 +417,7 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 - [ ] **B-27** — Fresh participant + soak evidence on invite head (not only TL-5/TL-6 archives).
 - [x] **B-29** — Nightly GREEN closed (board: Nightly `#29755942849` on `d248ba2` B-75 inclusive; recent GREEN `#29854540235`). Path = Nightly `fund-wallet.sh` — **not** JOIN.
 - [x] **B-30** — Residual-risk owner matrix + halt/rollback authority in OPERATORS + threat-model matrix (docs landed; fill human name cells at TL-9 sign-off).
-- [ ] **B-31** — Live RPC/faucet threat posture verify — probe in [`b31-threat-posture-20260720.md`](../scripts/public-devnet-v1/evidence/b31-threat-posture-20260720.md) (RPC PASS; P2P FAIL → **B-41**; close after bind repair + B-26).
+- [ ] **B-31** — Live RPC/faucet threat posture verify — probe in [`b31-threat-posture-20260720.md`](../scripts/public-devnet-v1/evidence/b31-threat-posture-20260720.md); **refresh B-247** [`b247-outside-in-posture-tip-16299-20260806T132600Z.md`](../scripts/public-devnet-v1/evidence/b247-outside-in-posture-tip-16299-20260806T132600Z.md) (RPC PASS; **P2P PASS** via B-41 socat; Path A tip-16293 lag OK; close after **B-26** R-4 deploy confirm).
 - [x] **B-41** — Public P2P seeds reachable via socat forwards ([`b41-p2p-forward-20260720.md`](../scripts/public-devnet-v1/evidence/b41-p2p-forward-20260720.md); do not bind mfnd on `0.0.0.0`).
 - [x] **B-137** — Path A near-tip checkpoint tip-**5290** landed (`10eedc1`); closes tip-lag §6 (was lag~437).
 - [x] **B-138** — Public-testnet health OK post-B-137 (`555d5df`; tip=ckpt=5290 lag=0).

@@ -13,19 +13,19 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch B-242 tip CI #31105745727 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol / Privacy | `apply_block`, SPoRA/slash matrix, wallet ring defaults | 4 + 5 | Hetzner mfnd/faucet restarts (C), Nightly dispatch (A) |
-| **C** Testnet/Onboarding | **B-245** arm-ready NOT READY; **B-244**; **B-243** | *Idle* | Human **2nd host** for B-32; after B-15: **B-42** |
+| **C** Testnet/Onboarding | **B-247** outside-in posture; **B-245**; **B-243** | *Idle* | Human **2nd host** B-32; after B-15: **B-42**; B-26 before full B-31 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-242 apology. Hold Rust for lane6 B-13a-512 after tip CI GREEN; Next **B-246** op1.
+Synced at lane7 **B-247** CLOSE (outside-in P2P+lag PASS). Lane4 owns **B-246**. Lane6 **B-13a-512**. Watch tip CI `#31105745727`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch B-242 tip CI #31105745727 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-242** (612f6077); apology window | **hold** for lane6 B-13a-512; then **B-246** | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-245** arm-ready NOT READY; **B-244**; **B-243** | *Idle* | Human **2nd host** for B-32; after B-15: **B-42** |
+| **C** Testnet/Onboarding | **B-247** outside-in posture; **B-245**; **B-243** | *Idle* | Human **2nd host** B-32; after B-15: **B-42**; B-26 before full B-31 |
 
 ### Hard locks (all seats)
 
