@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-05):** Watch **CI `#31065238354`** on B-225 tip `332bbff2`/`73b3e87b`. Claim **B-227** fourteenth asymmetric→absentee re-slash (body ready; land after tip GREEN). Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-05):** Watch **CI `#31065238354`** on B-225 tip `332bbff2`/`73b3e87b`. Claim **B-227** fourteenth asymmetric→absentee re-slash (body ready; land after tip GREEN). Lane7 **B-229** tall-tip header cache (ops; `[skip ci]` — do not cancel tip CI). Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-225** (`332bbff2`; watch CI `#31065238354`); **B-224** (**CI `#31061590223` GREEN**); **B-223** GREEN | **B-227** fourteenth asymmetric→absentee re-slash (claim base: `73b3e87b`; body ready) | After tip GREEN: land B-227; then **B-228** op1 twin; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-140** (`262c748`); **B-139**/**B-138**/**B-137** Path A tip-5290 | *Idle* | **B-42** invite-load **live** (B-15 PASS); Path A republish lag; 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -280,6 +280,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-225 | Fourteenth dual-slash then empty both-miss (early B-24cw) | 4 | **Landed** (this commit); closes fourteenth prove matrix with B-222/B-223/B-224; elevates B-215; full CI |
 | B-227 | Fourteenth-offense asymmetric then absentee re-slash (early B-24cx) | 4 | **Claimed** — elevates B-219; body ready; land after B-225 tip CI `#31065238354` GREEN |
 | B-228 | Fourteenth-offense op1 asymmetric then absentee re-slash (early B-24cy) | 4 | **Next** after B-227 — elevates B-220; completes fourteenth re-slash pair |
+| B-229 | Tall-tip observer proxy header cache + viewer poll abort fix | 7 | **Landed** (this commit; `[skip ci]`) — mfnd `get_block_headers` re-reads full `chain.blocks` (~3.5s @ tip≈16k); proxy caches rows + tip-warm; frontend skips in-flight abort + uses `get_tx_count_totals`; Next.js heavy RPC 180s. Deploy proxy on VPS after land |
 | B-214 | WASM/wallet README F7 faucet dual-send fail-closed honesty (elevates B-197) | 5 | **Landed** (`c5efb7f4`) — docs-only; lane4 owns B-212/B-213 |
 | B-216 | CLI README/usage F7 dual-UTXO + disabled standalone `wallet claim` honesty | 5 | **Landed** (`e350481f`; watch CI `#30035644826`) — usage + README + privacy-floor smoke |
 | B-218 | PRIVACY/CHECKPOINT_LOG Path A lag vs F45 soft-pass honesty | 5 | **Landed** (`8eaa1af6`) — soft-pass ≠ exact-tip; docs-only |
@@ -422,6 +423,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-05 — lane 7 — B-229 tall-tip observer header cache + viewer poll** (this commit): live tip≈15985; `get_block_headers` ~3.5s every call (full `chain.blocks` read) while viewer polled/aborted every 2.5s — headers never landed. Proxy caches `get_block_header(s)` + tip-warm; frontend no in-flight abort + `get_tx_count_totals`; Next.js heavy timeout 180s; OPERATORS + tip-align smoke needles. Local: `node --check` + tip-align smoke PASS. `[skip ci]` (do not cancel B-225 CI `#31065238354`). Next: VPS proxy+frontend apply. *Observed (not staged):* onchain-tx-storm WIP; lane4 B-227 proptest.
 
 1. **2026-08-05 — lane 4 — claim B-227** (this commit): early B-24cx fourteenth asymmetric→absentee re-slash while **CI `#31065238354`** runs on B-225. Claim base `73b3e87b`. Body ready locally (`b227_b5_...` exact PASS). `[skip ci]`.
 

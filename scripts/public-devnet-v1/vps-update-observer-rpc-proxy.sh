@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# B-90 / lane 7: install+restart observer-rpc-proxy with tip-align (F105).
+# B-90 / B-229 / lane 7: install+restart observer-rpc-proxy (tip-align + header cache).
 # B-15-safe: never touches faucet/mfnd. Restarts observer-rpc-proxy only.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,7 +31,7 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "vps-update-observer-rpc-proxy: plan"
-  echo "  unit=B-90"
+  echo "  unit=B-90+B-229"
   echo "  flow=install service -> daemon-reload -> restart observer-rpc-proxy"
   echo "  never=faucet-http mfnd restart join-testnet-rehearsal"
   echo "vps-update-observer-rpc-proxy: PASS plan-only"

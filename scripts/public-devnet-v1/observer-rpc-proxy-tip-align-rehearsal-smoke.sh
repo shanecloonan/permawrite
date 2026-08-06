@@ -11,7 +11,11 @@ while [[ $# -gt 0 ]]; do
 done
 mjs="$SCRIPT_DIR/observer-rpc-proxy.mjs"
 svc="$SCRIPT_DIR/observer-rpc-proxy.service"
-needles_mjs=(PROXY_HUB_TIP_RPC tipAlignBeforeUploads list_recent_uploads B-90 F105 tip_align_waits)
+needles_mjs=(
+  PROXY_HUB_TIP_RPC tipAlignBeforeUploads list_recent_uploads B-90 F105 tip_align_waits
+  # B-229 tall-tip header cache (viewer / get_block_headers)
+  B-229 ensureHeadersCached handleGetBlockHeaders header_cache_entries headerByHeight
+)
 for n in "${needles_mjs[@]}"; do
   grep -q "$n" "$mjs" || { echo "missing needle $n in mjs" >&2; exit 1; }
 done

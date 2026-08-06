@@ -10,6 +10,10 @@
  * Also maintains an in-process index of per-height tx counts + a get_block_txs
  * response cache so browser wallet scans and the explore "user transactions"
  * counter do not re-fetch the whole chain through Vercel on every visit.
+ *
+ * Tall-tip header cache (B-229): mfnd `get_block_header(s)` re-reads the full
+ * `chain.blocks` log on every call (~3–4s at tip≈16k). Cache compact header
+ * rows here so the viewer / light clients stop timing out or aborting polls.
  */
 
 import http from "node:http";
@@ -36,6 +40,10 @@ const INDEX_INTERVAL_MS = Number(process.env.PROXY_INDEX_INTERVAL_MS ?? "500");
 const INDEX_CONCURRENCY = Number(process.env.PROXY_INDEX_CONCURRENCY ?? "32");
 const INDEX_BURST = Number(process.env.PROXY_INDEX_BURST ?? "128");
 const RANGE_MAX = Number(process.env.PROXY_TXS_RANGE_MAX ?? "32");
+/** Matches mfn-rpc MAX_BLOCK_HEADERS_SPAN — one upstream call can fill this many. */
+const HEADERS_SPAN_MAX = Number(process.env.PROXY_HEADERS_SPAN_MAX ?? "4096");
+/** Tip window to warm on each index tick (viewer only needs last few). */
+const HEADERS_TIP_WARM = Number(process.env.PROXY_HEADERS_TIP_WARM ?? "64");
 const INDEX_PATH =
   process.env.PROXY_INDEX_PATH ??
   "/root/permawrite/.permawrite-devnet-v1/observer-rpc-proxy-index.json";
@@ -47,6 +55,9 @@ const TIP_ALIGN_POLL_MS = Number(process.env.PROXY_TIP_ALIGN_POLL_MS ?? "500");
 const TIP_ALIGN_MAX_LAG = Number(process.env.PROXY_TIP_ALIGN_MAX_LAG ?? "1");
 let tipAlignWaits = 0;
 let tipAlignTimeouts = 0;
+let headerCacheHits = 0;
+let headerCacheMisses = 0;
+let headerCacheUpstream = 0;
 
 const PUBLIC_SAFE = new Set([
   "get_block",
@@ -92,11 +103,14 @@ const hubTipPort = hubTipParts ? Number(hubTipParts[1] ?? "18731") : null;
 const txCountByHeight = new Map();
 /** @type {Map<number, string>} raw JSON-RPC result object as string (just the result) */
 const txsResultByHeight = new Map();
+/** @type {Map<number, object>} compact get_block_headers rows (B-229) */
+const headerByHeight = new Map();
 let indexedTip = 0;
 let indexBusy = false;
 let indexErrors = 0;
 let indexDirty = false;
 let genesisId = null;
+let headerGenesisId = null;
 
 function loadPersistedIndex() {
   try {
@@ -407,10 +421,26 @@ async function indexTick() {
       );
       txCountByHeight.clear();
       txsResultByHeight.clear();
+      headerByHeight.clear();
+      headerGenesisId = null;
       indexedTip = 0;
       indexDirty = true;
     }
     if (tipGenesis) genesisId = tipGenesis;
+
+    // B-229: warm tip-window headers so viewer polls hit cache (mfnd is O(chain)).
+    try {
+      const warmFrom = Math.max(1, tipH - HEADERS_TIP_WARM + 1);
+      await ensureHeadersCached(warmFrom, tipH);
+    } catch (e) {
+      indexErrors += 1;
+      if (indexErrors <= 5 || indexErrors % 50 === 0) {
+        console.error(
+          "header tip-warm:",
+          e instanceof Error ? e.message : e,
+        );
+      }
+    }
 
     // Prefer filling near tip first (explore + fresh wallets), then older gaps.
     const missing = [];
@@ -527,6 +557,123 @@ async function handleGetBlockTxs(params, id) {
   return JSON.stringify({ jsonrpc: "2.0", id, result });
 }
 
+function rememberHeaderRows(result) {
+  if (!result || typeof result !== "object") return;
+  const gid = typeof result.genesis_id === "string" ? result.genesis_id : null;
+  if (gid && headerGenesisId && headerGenesisId !== gid) {
+    headerByHeight.clear();
+  }
+  if (gid) headerGenesisId = gid;
+  const list = Array.isArray(result.headers)
+    ? result.headers
+    : result.height != null
+      ? [result]
+      : [];
+  for (const row of list) {
+    if (!row || typeof row !== "object") continue;
+    const h = Number(row.height);
+    if (!Number.isFinite(h) || h < 1) continue;
+    headerByHeight.set(h, row);
+  }
+}
+
+function coalesceMissingRanges(missing, spanMax) {
+  if (missing.length === 0) return [];
+  const ranges = [];
+  let start = missing[0];
+  let prev = missing[0];
+  for (let i = 1; i < missing.length; i++) {
+    const h = missing[i];
+    if (h === prev + 1 && h - start + 1 < spanMax) {
+      prev = h;
+    } else {
+      ranges.push([start, prev]);
+      start = h;
+      prev = h;
+    }
+  }
+  ranges.push([start, prev]);
+  return ranges;
+}
+
+async function ensureHeadersCached(from, to) {
+  const missing = [];
+  for (let h = from; h <= to; h++) {
+    if (!headerByHeight.has(h)) missing.push(h);
+  }
+  if (missing.length === 0) {
+    headerCacheHits += 1;
+    return;
+  }
+  headerCacheMisses += 1;
+  const ranges = coalesceMissingRanges(missing, HEADERS_SPAN_MAX);
+  for (const [a, b] of ranges) {
+    headerCacheUpstream += 1;
+    const result = await mfndCall("get_block_headers", {
+      from_height: a,
+      to_height: b,
+    });
+    rememberHeaderRows(result);
+  }
+}
+
+async function handleGetBlockHeaders(params) {
+  const from = Number(params?.from_height);
+  const to = Number(params?.to_height);
+  if (
+    !Number.isFinite(from) ||
+    !Number.isFinite(to) ||
+    from < 1 ||
+    to < from ||
+    !Number.isInteger(from) ||
+    !Number.isInteger(to)
+  ) {
+    throw Object.assign(new Error("invalid from_height/to_height"), {
+      code: -32602,
+    });
+  }
+  if (to - from + 1 > HEADERS_SPAN_MAX) {
+    throw Object.assign(
+      new Error(
+        `header range span ${to - from + 1} exceeds max ${HEADERS_SPAN_MAX}`,
+      ),
+      { code: -32602 },
+    );
+  }
+  await ensureHeadersCached(from, to);
+  const headers = [];
+  for (let h = from; h <= to; h++) {
+    const row = headerByHeight.get(h);
+    if (!row) {
+      throw Object.assign(new Error(`header cache miss at height ${h}`), {
+        code: -32000,
+      });
+    }
+    headers.push(row);
+  }
+  return {
+    from_height: from,
+    to_height: to,
+    genesis_id: headerGenesisId || genesisId,
+    headers,
+  };
+}
+
+async function handleGetBlockHeader(params) {
+  const height = Number(params?.height ?? (Array.isArray(params) ? params[0] : NaN));
+  if (!Number.isFinite(height) || height < 1 || !Number.isInteger(height)) {
+    throw Object.assign(new Error("invalid height"), { code: -32602 });
+  }
+  await ensureHeadersCached(height, height);
+  const row = headerByHeight.get(height);
+  if (!row) {
+    throw Object.assign(new Error(`header cache miss at height ${height}`), {
+      code: -32000,
+    });
+  }
+  return row;
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -571,6 +718,11 @@ const server = http.createServer(async (req, res) => {
         index_errors: indexErrors,
         rpc_timeout_ms: RPC_TIMEOUT_MS,
         heavy_rpc_timeout_ms: HEAVY_RPC_TIMEOUT_MS,
+        // B-229 tall-tip header cache
+        header_cache_entries: headerByHeight.size,
+        header_cache_hits: headerCacheHits,
+        header_cache_misses: headerCacheMisses,
+        header_cache_upstream: headerCacheUpstream,
         // B-90 / F105 tip-align telemetry
         hub_tip_rpc: HUB_TIP_RPC || null,
         tip_align_ms: TIP_ALIGN_MS,
@@ -642,6 +794,34 @@ const server = http.createServer(async (req, res) => {
       }
     } else if (method === "get_block_txs") {
       line = await handleGetBlockTxs(msg.params || {}, id);
+    } else if (method === "get_block_headers") {
+      try {
+        const result = await handleGetBlockHeaders(msg.params || {});
+        line = JSON.stringify({ jsonrpc: "2.0", id, result });
+      } catch (e) {
+        line = JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          error: {
+            code: e?.code ?? -32000,
+            message: e instanceof Error ? e.message : String(e),
+          },
+        });
+      }
+    } else if (method === "get_block_header") {
+      try {
+        const result = await handleGetBlockHeader(msg.params || {});
+        line = JSON.stringify({ jsonrpc: "2.0", id, result });
+      } catch (e) {
+        line = JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          error: {
+            code: e?.code ?? -32000,
+            message: e instanceof Error ? e.message : String(e),
+          },
+        });
+      }
     } else if (method === "list_methods") {
       const upstream = await tcpLineRpc(JSON.stringify(msg), timeoutForMethod(method));
       try {

@@ -5,7 +5,10 @@ if ($Help) { Write-Host "usage: observer-rpc-proxy-tip-align-rehearsal-smoke.ps1
 $mjs = Join-Path $ScriptDir "observer-rpc-proxy.mjs"
 $svc = Join-Path $ScriptDir "observer-rpc-proxy.service"
 foreach ($p in @($mjs, $svc)) { if (-not (Test-Path -LiteralPath $p)) { throw "missing $p" } }
-$needles = @("PROXY_HUB_TIP_RPC", "tipAlignBeforeUploads", "list_recent_uploads", "B-90", "F105", "tip_align_waits")
+$needles = @(
+  "PROXY_HUB_TIP_RPC", "tipAlignBeforeUploads", "list_recent_uploads", "B-90", "F105", "tip_align_waits",
+  "B-229", "ensureHeadersCached", "handleGetBlockHeaders", "header_cache_entries", "headerByHeight"
+)
 $text = Get-Content -LiteralPath $mjs -Raw
 foreach ($n in $needles) { if ($text -notlike "*$n*") { throw "missing needle $n" } }
 $svcText = Get-Content -LiteralPath $svc -Raw

@@ -38,8 +38,25 @@ const PUBLIC_SAFE = new Set([
   "submit_tx",
 ]);
 
+/**
+ * Tall-tip methods can take tens of seconds on cold mfnd (full chain.blocks
+ * read). Match observer-proxy PROXY_HEAVY_RPC_TIMEOUT_MS (B-52 / B-229).
+ */
+const HEAVY_METHODS = new Set([
+  "get_light_snapshot",
+  "get_block_headers",
+  "get_block_header",
+  "get_light_follow",
+  "get_block",
+  "get_block_txs_range",
+]);
+const DEFAULT_TIMEOUT_MS = 20_000;
+const HEAVY_TIMEOUT_MS = 180_000;
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+/** Allow heavy tall-tip RPC through Vercel/Node without the default ~10s cap. */
+export const maxDuration = 180;
 
 function upstreamUrl(): string {
   return (
@@ -87,13 +104,16 @@ export async function POST(req: NextRequest) {
   }
 
   const upstream = upstreamUrl();
+  const timeoutMs = HEAVY_METHODS.has(method)
+    ? HEAVY_TIMEOUT_MS
+    : DEFAULT_TIMEOUT_MS;
   try {
     const res = await fetch(upstream, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const text = (await res.text()).trim();
     if (!res.ok) {

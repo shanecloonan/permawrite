@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced from AGENTS.md §5 at B-227 claim. Watch B-225 tip CI; B-227 body ready (land after GREEN).
+Synced from AGENTS.md §5 at B-229 land (+ B-227 claim). Watch B-225 tip CI; do not cancel.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch **CI #31065238354** on B-225 | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-225** (332bbff2); **B-217** GREEN | **B-227** fourteenth re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-15** wave114 hugo@6848 PASS | wave115+ permanence density | Path A lag republish; JOIN SUMMARY; no parallel Hetzner JOIN |
+| **C** Testnet/Onboarding | **B-229** tall-tip header cache (viewer); **B-15** wave114 | wave115+ permanence density | VPS proxy+FE apply; Path A lag; JOIN SUMMARY |
 
 ### Hard locks (all seats)
 

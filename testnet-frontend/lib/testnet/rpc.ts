@@ -70,8 +70,8 @@ type BlockTxCounts = { all: number; user: number };
 
 /** Cache tx counts by height — payloads are large; heights are immutable. */
 const txCountCache = new Map<number, BlockTxCounts>();
-/** How many historical heights to fetch per live poll while backfilling a total. */
-const TX_COUNT_BACKFILL_BUDGET = 16;
+/** Fallback only when proxy `get_tx_count_totals` is unavailable. */
+const TX_COUNT_BACKFILL_BUDGET = 8;
 
 export type TxCountTotals = {
   /**
@@ -84,6 +84,13 @@ export type TxCountTotals = {
   tipHeight: number;
   /** True once every height from 1..=tip is cached. */
   complete: boolean;
+};
+
+type ProxyTxCountTotals = {
+  tip_height?: number;
+  covered_heights?: number;
+  total_user_tx_count?: number;
+  complete?: boolean;
 };
 
 export async function fetchLiveSnapshot(proxyUrl: string, signal?: AbortSignal) {
@@ -99,17 +106,40 @@ export async function fetchLiveSnapshot(proxyUrl: string, signal?: AbortSignal) 
   const tipHeight =
     status.chain?.tip_height ?? tip?.tip_height ?? tip?.height ?? null;
 
+  // Prefer proxy-side totals (already indexed to tip≈16k) over per-height backfill.
+  try {
+    const totals = await rpcCall<ProxyTxCountTotals>(
+      proxyUrl,
+      "get_tx_count_totals",
+      {},
+      signal,
+    );
+    const th = Number(totals.tip_height ?? tipHeight ?? 0);
+    const covered = Number(totals.covered_heights ?? 0);
+    txTotals = {
+      totalTxCount:
+        typeof totals.total_user_tx_count === "number"
+          ? totals.total_user_tx_count
+          : null,
+      coveredHeights: covered,
+      tipHeight: th,
+      complete: Boolean(totals.complete),
+    };
+  } catch {
+    // optional — fall back below
+  }
+
   if (tipHeight != null && tipHeight >= 1) {
     try {
       const from = Math.max(1, tipHeight - 5);
       const raw = await rpcCall<unknown>(
         proxyUrl,
         "get_block_headers",
-        { from_height: from, to_height: tipHeight, limit: 6 },
+        { from_height: from, to_height: tipHeight },
         signal,
       );
       headers = normalizeHeaders(raw);
-      // Prefer tip window first, then backfill older heights toward a full-chain sum.
+      // Tip-window tx counts for the explore strip only (not full-chain backfill).
       await fetchMissingTxCounts(
         proxyUrl,
         headers.map((h) => h.height).filter((h): h is number => h != null),
@@ -122,8 +152,10 @@ export async function fetchLiveSnapshot(proxyUrl: string, signal?: AbortSignal) 
           ? { ...h, tx_count: c.all, user_tx_count: c.user }
           : h;
       });
-      await backfillTxCounts(proxyUrl, tipHeight, signal);
-      txTotals = summarizeTxCounts(tipHeight);
+      if (!txTotals) {
+        await backfillTxCounts(proxyUrl, tipHeight, signal);
+        txTotals = summarizeTxCounts(tipHeight);
+      }
     } catch {
       // optional — ignore
     }
