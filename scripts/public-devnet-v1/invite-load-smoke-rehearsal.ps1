@@ -1,4 +1,4 @@
-# B-42 / B-248 Windows twin — plan gate + B-15-safe invite-load preflight (no JOIN unless armed).
+# B-42 / B-248 / B-257 Windows twin — plan gate + B-15-safe invite-load preflight (no JOIN unless armed).
 param(
     [switch]$PlanOnly,
     [switch]$Apply,
@@ -30,11 +30,11 @@ if ($bash) {
 
 if ($PlanOnly) {
     $text = Get-Content -LiteralPath $bashScript -Raw
-    foreach ($n in @("invite-load-smoke-rehearsal", "B-42", "B-248", "serialize-with-reason", "MFN_INVITE_LOAD_ALLOW_LIVE", "never=faucet-http")) {
+    foreach ($n in @("invite-load-smoke-rehearsal", "B-257", "B-248", "serialize-with-reason", "MFN_INVITE_LOAD_ALLOW_LIVE", "never=faucet-http", "p2p-forward-hygiene", "mfn-p2p-forward-hub")) {
         if ($text -notlike "*$n*") { throw "invite-load-smoke-rehearsal: missing needle $n" }
     }
     Write-Host "invite-load-smoke-rehearsal: plan"
-    Write-Host "  unit=B-42"
+    Write-Host "  unit=B-257"
     Write-Host "invite-load-smoke-rehearsal: PASS plan-only"
     exit 0
 }
@@ -45,7 +45,7 @@ $FaucetHealth = if ($env:MFN_FAUCET_HEALTH) { $env:MFN_FAUCET_HEALTH } else { "h
 $PublicHost = if ($env:MFN_INVITE_PUBLIC_HOST) { $env:MFN_INVITE_PUBLIC_HOST } else { "5.161.201.73" }
 
 Write-Host "invite-load-smoke-rehearsal: apply preflight"
-Write-Host "  unit=B-42/B-248"
+Write-Host "  unit=B-42/B-248/B-257"
 $proxy = Invoke-RestMethod -Uri $ProxyHealth -TimeoutSec 10
 if ($proxy.ok -ne $true) { throw "invite-load-smoke-rehearsal: FAIL proxy ok!=true" }
 Write-Host "invite-load-smoke-rehearsal: proxy ok tip=$($proxy.index.tip_height)"
@@ -57,6 +57,9 @@ foreach ($port in 19001, 19002, 19003) {
     if (-not $r.TcpTestSucceeded) { throw "invite-load-smoke-rehearsal: FAIL seed port $port" }
 }
 Write-Host "invite-load-smoke-rehearsal: seeds ok host=$PublicHost ports=19001,19002,19003"
+$r04 = Test-NetConnection -ComputerName $PublicHost -Port 19004 -WarningAction SilentlyContinue
+if (-not $r04.TcpTestSucceeded) { throw "invite-load-smoke-rehearsal: FAIL seed port 19004 (dedicated forward)" }
+Write-Host "invite-load-smoke-rehearsal: p2p-forward outside-in ok host=$PublicHost port=19004"
 
 if ($Live -and $env:MFN_INVITE_LOAD_ALLOW_LIVE -eq "1") {
     if ($faucet.busy -eq $true) { throw "invite-load-smoke-rehearsal: FAIL refuse -Live while faucet busy" }
@@ -75,7 +78,7 @@ $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
 $ev = Join-Path $EvidenceDir "invite-load-preflight-$stamp.txt"
 @(
     "invite-load-smoke-rehearsal: preflight"
-    "unit=B-248"
+    "unit=B-257"
     "status=PASS"
     "serialize_with_reason=$reason"
     "proxy_health=$ProxyHealth"
@@ -84,6 +87,7 @@ $ev = Join-Path $EvidenceDir "invite-load-preflight-$stamp.txt"
     "faucet_pending=$($faucet.pending_jobs)"
     "public_host=$PublicHost"
     "seed_ports=19001,19002,19003"
+    "p2p_forward_hygiene=ok"
     "live_armed=$($env:MFN_INVITE_LOAD_ALLOW_LIVE)"
     "never=join-testnet-rehearsal_without_ALLOW_LIVE"
 ) | Set-Content -LiteralPath $ev -Encoding utf8

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# B-42 / B-248 invite-load smoke — plan gate + B-15-safe preflight (live JOIN only when explicitly armed).
+# B-42 / B-248 / B-257 invite-load smoke — plan gate + B-15-safe preflight (live JOIN only when explicitly armed).
 # Privacy/permanence: never weaken ring/SPoRA floors; never thrash faucet/mfnd during B-15 capture.
+# B-257: fail-closed on B-254-class p2p-forward hygiene before inviting JOIN load.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLAN_ONLY=0
@@ -18,7 +19,7 @@ usage: invite-load-smoke-rehearsal.sh [--plan-only|--apply|--live]
 
   (no flags)    same as --plan-only (ci-check / backward compatible)
   --plan-only   CI plan gate
-  --apply       B-15-safe preflight: proxy+faucet health, seed TCP, serialize-with-reason (no JOIN)
+  --apply       B-15-safe preflight: proxy+faucet health, seed TCP, p2p-forward hygiene, serialize-with-reason (no JOIN)
   --live        Requires MFN_INVITE_LOAD_ALLOW_LIVE=1 + idle faucet; JOIN remains operator-driven
 Never restarts faucet/mfnd. Prefer --apply until lane3 B-15 clear.
 EOF
@@ -41,13 +42,14 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "invite-load-smoke-rehearsal: plan"
-  echo "  unit=B-42"
+  echo "  unit=B-257"
   echo "  flow=staggered join-testnet-rehearsal x2 against live faucet+observer after B-15 lock"
   echo "  checks=SUMMARY PASS or serialize-with-reason; R-4 cooldown; proxy healthy; light-scan-checkpoint-soft (F45)"
+  echo "  b257=p2p-forward-hygiene (no failed mfn-p2p-forward@*; dedicated hub/19002/19003/19004 when systemctl)"
   echo "  evidence=invite-load-smoke-YYYYMMDD.txt under scripts/public-devnet-v1/evidence/"
   echo "  docs=docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9"
   echo "  conflict=do not run during B-15 faucet lock"
-  echo "  preflight=--apply (B-248); live=--live + MFN_INVITE_LOAD_ALLOW_LIVE=1"
+  echo "  preflight=--apply (B-248/B-257); live=--live + MFN_INVITE_LOAD_ALLOW_LIVE=1"
   echo "  never=faucet-http mfnd restart"
   echo "invite-load-smoke-rehearsal: PASS plan-only"
   exit 0
@@ -55,18 +57,31 @@ fi
 
 fail=0
 echo "invite-load-smoke-rehearsal: apply preflight"
-echo "  unit=B-42/B-248"
+echo "  unit=B-42/B-248/B-257"
 echo "  proxy_health=$PROXY_HEALTH"
 echo "  faucet_health=$FAUCET_HEALTH"
 echo "  public_host=$PUBLIC_HOST"
 echo "  never=faucet-http mfnd restart"
+
+# Windows Git Bash often lacks python3 on PATH; prefer python3 then python/py.
+PY=
+if command -v python3 >/dev/null 2>&1; then
+  PY=python3
+elif command -v python >/dev/null 2>&1; then
+  PY=python
+elif command -v py >/dev/null 2>&1; then
+  PY=py
+else
+  echo "invite-load-smoke-rehearsal: FAIL need python3/python/py on PATH" >&2
+  exit 1
+fi
 
 proxy_json="$(curl -fsS --max-time 10 "$PROXY_HEALTH" || true)"
 if [[ -z "$proxy_json" ]]; then
   echo "invite-load-smoke-rehearsal: FAIL proxy health unreachable" >&2
   fail=1
 else
-  python3 - "$proxy_json" <<'PY' || fail=1
+  "$PY" - "$proxy_json" <<'PY' || fail=1
 import json, sys
 d = json.loads(sys.argv[1])
 if d.get("ok") is not True:
@@ -87,7 +102,7 @@ if [[ -z "$faucet_json" ]]; then
   echo "invite-load-smoke-rehearsal: FAIL faucet health unreachable" >&2
   fail=1
 else
-  faucet_meta="$(python3 - "$faucet_json" <<'PY'
+  faucet_meta="$("$PY" - "$faucet_json" <<'PY'
 import json, sys
 d = json.loads(sys.argv[1])
 if d.get("ok") is not True:
@@ -105,7 +120,7 @@ PY
   fi
 fi
 
-python3 - "$PUBLIC_HOST" "$SEED_PORTS" <<'PY' || fail=1
+"$PY" - "$PUBLIC_HOST" "$SEED_PORTS" <<'PY' || fail=1
 import socket, sys
 host = sys.argv[1]
 ports = [int(p.strip()) for p in sys.argv[2].split(",") if p.strip()]
@@ -127,6 +142,48 @@ print(
     % (host, ",".join(str(p) for p in ports))
 )
 PY
+
+# B-257: same-port template failures / missing dedicated forwards poison invite JOIN dials.
+if command -v systemctl >/dev/null 2>&1; then
+  failed_fwd="$(systemctl list-units --failed --no-legend --no-pager 2>/dev/null || true)"
+  if echo "$failed_fwd" | grep -q 'mfn-p2p-forward@'; then
+    echo "invite-load-smoke-rehearsal: FAIL mfn-p2p-forward@ template in failed units (run scrub-failed-p2p-forward-templates.sh --apply)" >&2
+    echo "$failed_fwd" | grep 'mfn-p2p-forward@' >&2 || true
+    fail=1
+  else
+    echo "invite-load-smoke-rehearsal: p2p-forward@ failed_units_clean"
+  fi
+  for u in \
+    mfn-p2p-forward-hub.service \
+    mfn-p2p-forward-19002.service \
+    mfn-p2p-forward-19003.service \
+    mfn-p2p-forward-19004.service
+  do
+    if systemctl is-active --quiet "$u" 2>/dev/null; then
+      echo "invite-load-smoke-rehearsal: $u active"
+    else
+      echo "invite-load-smoke-rehearsal: FAIL $u not active (B-41 dedicated forward)" >&2
+      fail=1
+    fi
+  done
+else
+  # Outside-in: dedicated voter forward :19004 must accept TCP (B-41/B-254 class).
+  "$PY" - "$PUBLIC_HOST" <<'PY' || fail=1
+import socket, sys
+host = sys.argv[1]
+port = 19004
+s = socket.socket()
+s.settimeout(5)
+try:
+    s.connect((host, port))
+except OSError as e:
+    print("invite-load-smoke-rehearsal: FAIL seed port 19004 (dedicated forward) %s" % e, file=sys.stderr)
+    sys.exit(1)
+finally:
+    s.close()
+print("invite-load-smoke-rehearsal: p2p-forward outside-in ok host=%s port=19004" % host)
+PY
+fi
 
 if (( fail != 0 )); then
   echo "invite-load-smoke-rehearsal: FAIL preflight" >&2
@@ -167,7 +224,7 @@ stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 ev="$EVIDENCE_DIR/invite-load-preflight-${stamp}.txt"
 {
   echo "invite-load-smoke-rehearsal: preflight"
-  echo "unit=B-248"
+  echo "unit=B-257"
   echo "status=PASS"
   echo "serialize_with_reason=$reason"
   echo "proxy_health=$PROXY_HEALTH"
@@ -176,6 +233,7 @@ ev="$EVIDENCE_DIR/invite-load-preflight-${stamp}.txt"
   echo "faucet_pending=$faucet_pending"
   echo "public_host=$PUBLIC_HOST"
   echo "seed_ports=$SEED_PORTS"
+  echo "p2p_forward_hygiene=ok"
   echo "live_armed=$allow"
   echo "never=join-testnet-rehearsal_without_ALLOW_LIVE"
 } | tee "$ev"
