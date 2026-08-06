@@ -532,14 +532,16 @@ Do not leave lane 6 idle after TL-9. Claim **B-13a** the same day L4 gates.
 
 #### B-33 — B-13b human sign-off checklist
 
+Canonical checklist: [`B13_SUBSIDY_FORK_SIGNOFF.md`](./B13_SUBSIDY_FORK_SIGNOFF.md)
+(technical rows filled; human / telemetry / tip-CI cells open until signed).
 Before **B-13c** enable on Path A:
 
-- [ ] **B-13a** GREEN (sims above)
-- [ ] **One-lever rule:** only `subsidy_to_treasury_bps` changes; `fee_to_treasury_bps` untouched
-- [ ] **Producer security budget:** written note that ~10% of tail moves to treasury (acceptable on Path A toy keys)
+- [x] **B-13a** sims landed (`bbd50ce3`; tip CI must GREEN before enable)
+- [x] **One-lever rule:** only `subsidy_to_treasury_bps` changes; `fee_to_treasury_bps` untouched
+- [x] **Producer security budget:** written note that ~10% of tail moves to treasury (acceptable on Path A toy keys)
 - [ ] **Telemetry baseline:** live `treasury_base_units` + backstop-rate snapshot archived pre-enable
-- [ ] **Bond residual named:** `min_storage_operator_bond = 0` remains; PM1 deferred to Path B — not a fork blocker but recorded
-- [ ] **Same-chain lean affirmed** (new `genesis_id` reserved for Path B / header v2)
+- [x] **Bond residual named:** `min_storage_operator_bond = 0` remains; PM1 deferred to Path B — not a fork blocker but recorded
+- [x] **Same-chain lean affirmed** (draft; new `genesis_id` reserved for Path B / header v2)
 - [ ] Named human sign-off in OPERATORS / launch packet
 
 #### Near-term execution calendar (next ~14 days)

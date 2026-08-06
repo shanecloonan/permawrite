@@ -112,6 +112,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | VPS preflight checklist | `bash scripts/public-devnet-v1/vps-execution-checklist.sh` — before TL-5/TL-6 (`v2` schema; use `--strict` when CI must be green) |
 | VPS checklist rehearsal | `bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only` — ci-check gate |
 | Treasury telemetry (F6) | `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc HOST:PORT` — FEES.md §5 revisit triggers |
+| B-13 subsidy fork sign-off (**B-33**) | [`docs/B13_SUBSIDY_FORK_SIGNOFF.md`](../../docs/B13_SUBSIDY_FORK_SIGNOFF.md) — human gate before enabling `subsidy_to_treasury_bps=1000` (**B-13c**); archive pre-enable telemetry first |
 | P32 / PM23 rehearsal | `bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only` — role env separation gate |
 | TL-9 go/no-go | `bash scripts/public-devnet-v1/launch-go-no-go.sh` — before outside invites |
 | Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` |
@@ -290,6 +291,19 @@ Mitigation validated in wave37: require `tip_id` match **and** `mempool_len=0` i
 
 
 Single Hetzner IP (hub+v1+v2) is **not** multi-op diversity. `assert-b32-arm-ready.sh --apply` requires `MFN_B32_OPERATOR_HOSTS` with >=2 public hosts. Checklist: `evidence/b32-second-host-arm-checklist-20260720.md`. Do not fake READY with loopback/docs IPs.
+
+### B-13 subsidy fork sign-off (**B-33**)
+
+Before enabling `subsidy_to_treasury_bps = 1000` on Path A (**B-13c**), complete
+[`docs/B13_SUBSIDY_FORK_SIGNOFF.md`](../../docs/B13_SUBSIDY_FORK_SIGNOFF.md).
+Technical rows (B-13a sims, one-lever rule, producer budget, bond residual,
+same-chain lean draft) are filled in that doc. Still required before enable:
+
+1. Archive pre-enable `treasury-telemetry-watch` evidence (tip, `treasury_base_units`, SHA).
+2. Confirm B-13a tip CI GREEN.
+3. Named human go/hold in the sign-off table (permanence + launch/ops).
+
+Do **not** edit `public_devnet_v1.json` emission knobs until that checklist is fully ticked.
 
 ### Residual-risk owners and halt authority (**B-30**)
 

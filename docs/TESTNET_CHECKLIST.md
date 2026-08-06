@@ -430,11 +430,11 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permanence-playbook-acceptance-criteria). **Hard rule:** permanence (**B-13** / **B3** / **B-25**) before Tier 2 privacy or Path B value.
 
 - [ ] **B-40** — First permanence week (arm day-of L4; with **B-13a**).
-- [ ] **B-13a** — Emission/treasury sims at `subsidy_to_treasury_bps=1000` in default CI (lane 6 — claim day-of L4).
+- [x] **B-13a** — Emission/treasury sims at `subsidy_to_treasury_bps=1000` in default CI (`bbd50ce3`; tip CI must GREEN before **B-13c**).
 - [ ] **B-32** — B3 multi-op evidence pack + assert (unblocks honest **B-24**).
 - [ ] **B-44** — PM3 windowed SPoRA lottery work package (after B-32).
-- [ ] **B-33** — B-13b human sign-off checklist (before **B-13c** enable).
-- [ ] **B-13c** — Same-chain enable + operator announcement (after B-33).
+- [x] **B-33** — B-13b human sign-off checklist artifact ([`B13_SUBSIDY_FORK_SIGNOFF.md`](./B13_SUBSIDY_FORK_SIGNOFF.md); human / telemetry cells still open before **B-13c**).
+- [ ] **B-13c** — Same-chain enable + operator announcement (after B-33 human go).
 - [ ] **B-24** — Multi-op consensus settlement audit + M5 proptests (after B-32 / B-44 path).
 - [ ] **B-38** — Repair/soak evidence + assert.
 - [ ] **B-28** — Treasury watch + numeric OPERATORS alert thresholds (after B-13c).

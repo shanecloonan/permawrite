@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced from AGENTS.md §5 at B-13a CLOSE. **CI `#31071345155` GREEN** on B-231.
+Synced from AGENTS.md §5 at B-33 CLOSE. Watch B-13a CI `#31073720447`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch **CI `#31073720447`** on B-13a; B-231 GREEN | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-231** GREEN; **B-13a** in flight (lane6) | **B-232** fifteenth asymmetric (lane4; hold) | After 2 hosts: live **B-32** |
+| **A** RC/CI | **B-33** checklist artifact; **B-13a** `bbd50ce3` | Watch B-13a CI `#31073720447` — do not cancel | Pin / Nightly; **B-40** day-of L4 |
+| **B** Protocol/Privacy | **B-231** GREEN; **B-13a** (lane6) | **B-232** fifteenth asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; wave114 hugo@6848 | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load; no parallel Hetzner JOIN |
 
 ### Hard locks (all seats)

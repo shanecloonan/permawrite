@@ -237,7 +237,8 @@ blocks; [`producer_portion_amount`](../mfn-consensus/src/emission.rs) and
 (same `genesis_id` policy as other emission knobs). **B-13a** (default CI)
 proves a 256-block treasury identity at `bps=1000` and a fee-drought case
 where cumulative emission backstop is strictly lower than at `bps=0` — still
-without flipping live genesis.
+without flipping live genesis. Human gate before enable:
+[`B13_SUBSIDY_FORK_SIGNOFF.md`](./B13_SUBSIDY_FORK_SIGNOFF.md) (**B-33**).
 
 **Do not combine with** raising `fee_to_treasury_bps` in the same fork — one
 lever at a time so telemetry can attribute effects.
