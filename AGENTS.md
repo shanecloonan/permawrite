@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane7 **B-258** Path A lag threshold 8 body (this commit; `[skip ci]` — do not cancel B-246 tip CI `#31112318136`). **B-246** landed `23749726`; **CI #31109005252 GREEN** on B-13a-512. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Claiming **B-247** settle-reset->seventeenth dual-slash (docs-only while tip CI runs on B-246 23749726). **CI #31109005252 GREEN** on B-13a-512. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16330** (B-256); no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-246** (this commit); **B-242** GREEN; B-13a-512 GREEN #31109005252 | *Idle* | Settle-reset->seventeenth dual-slash; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-246** (23749726, watch tip CI); **B-242** GREEN | **B-247** settle-reset->seventeenth dual-slash (claim base: 23749726; body ready) | After tip GREEN: land B-247; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-13a-512** (this commit; elevates 256); **B-28 assert** GREEN; **B-40** runbook; **B-20** draft | *Idle* | Human B-33 go → arm **B-40** on L4 → **B-13c** only after go | Emission sims |
 | **7** Testnet launch | **B-258** Path A lag threshold 8 (this commit); **B-257**; **B-256** tip-16330; **B-255** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
@@ -455,6 +455,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 - lane 4 - claim B-247** (this commit): early B-24dn settle-reset->seventeenth dual-slash while tip CI runs on B-246. Claim base 23749726. Body ready locally. [skip ci].
 
 1. **2026-08-06 - lane 4 - B-246 sixteenth op1 asymmetric->absentee re-slash** (this commit): early B-24dm 246_b5_sixteenth_offense_op1_asymmetric_then_absentee_reslash_while_peer_settles; compile OK. Held for lane6 B-13a-512 **CI #31109005252 GREEN**. Elevates B-236; completes sixteenth re-slash pair with B-242. Full CI (no skip). Next: **B-247** settle-reset->seventeenth dual-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* onchain-tx-storm WIP.
 
