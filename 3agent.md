@@ -23,8 +23,8 @@ Synced at B-233 claim. Watch **CI `#31075611260`** on B-232 (also re-proves B-13
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **CI `#31080095877` GREEN** on B-233; watch B-234 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-234** (this commit); **B-233** GREEN | *Idle* (lane4) | **B-235** fifteenth re-slash; after 2 hosts: live **B-32** |
+| **A** RC/CI | Watch B-234 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **B** Protocol/Privacy | **B-234** (9fc53f42); **B-233** GREEN | **B-235** fifteenth re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
 ### Hard locks (all seats)
