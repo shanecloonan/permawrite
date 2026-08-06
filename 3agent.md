@@ -12,14 +12,14 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
 | **A** RC/CI | **CI #31112318136 GREEN** on B-246 | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-246** GREEN | **B-259** courtesy hold (body ready) | After lane6 d0: land B-259; after 2 hosts: live **B-32** |
+| **B** Protocol/Privacy | **B-246** GREEN `#31112318136` | **B-259** hold for lane6 B-40-d0 (body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | VPS / Path A / invite / B-32 arm ops (lanes 3+7) | 3 + 7 | Protocol Rust (B), CI/Nightly cancel (A) |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-246 CI GREEN. Courtesy hold B-259 for lane6 B-40-d0; then land.
+Synced at B-246 GREEN `#31112318136`. Lane6 B-40-d0 window OPEN; hold B-259.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
