@@ -11,7 +11,7 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-28** GREEN; **B-40** runbook | B-13a-512 claimed — hold for B-241 tip CI | Land 512 sims; human B-33; arm B-40 |
+| **A** RC/CI | **CI #31102959528 GREEN** on B-241 | *Idle* - do not cancel healthy in_progress | Pin B-242 tip CI / Nightly |
 | **B** Protocol / Privacy | `apply_block`, SPoRA/slash matrix, wallet ring defaults | 4 + 5 | Hetzner mfnd/faucet restarts (C), Nightly dispatch (A) |
 | **C** Testnet/Onboarding | **B-245** arm-ready NOT READY; **B-244**; **B-243** | *Idle* | Human **2nd host** for B-32; after B-15: **B-42** |
 
@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-242 hold for lane6 B-13a-512. **CI `#31102959528` GREEN** on B-241; body ready after lane6 lands.
+Synced at B-242 land. Tip CI will prove sixteenth re-slash; next **B-243** op1 twin.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-28** GREEN; **B-40** runbook | B-13a-512 claimed — hold for B-241 tip CI | Land 512 sims; human B-33; arm B-40 |
-| **B** Protocol/Privacy | **B-241** GREEN `#31102959528` | **B-242** hold for lane6 B-13a-512 (body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | **CI #31102959528 GREEN** on B-241 | *Idle* - do not cancel healthy in_progress | Pin B-242 tip CI / Nightly |
+| **B** Protocol/Privacy | **B-242** (this commit); **B-241** GREEN | *Idle* (next **B-243** op1 re-slash) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-245** arm-ready NOT READY; **B-244**; **B-243** | *Idle* | Human **2nd host** for B-32; after B-15: **B-42** |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-242 Rust until B-241 tip CI GREEN.**
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. **Hold B-243 Rust until B-242 tip CI GREEN.**
 3. **Foreign WIP:** never stage `onchain-tx-storm*`, lane4 `apply_block_proptest.rs`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
