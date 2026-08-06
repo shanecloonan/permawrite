@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced from AGENTS.md §5 at B-231 land. **CI `#31069737973` GREEN** on B-230.
+Synced from AGENTS.md §5 at B-13a claim. Tip CI `#31071345155` on B-231.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch **CI #31071345155** on B-231 | *Idle* — do not cancel healthy in_progress | Pin / Nightly |
-| **B** Protocol/Privacy | **B-231** (b0e260c); **B-230** GREEN | **B-232** fifteenth asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
+| **A** RC/CI | Watch **CI #31071345155** on B-231 | Lane6 **B-13a** sims (permanence; no genesis) | Pin / Nightly; B-40 still day-of L4 |
+| **B** Protocol/Privacy | **B-231** (`fb0e260c`); **B-230** GREEN | **B-232** fifteenth asymmetric (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; wave114 hugo@6848 | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load; no parallel Hetzner JOIN |
 
 ### Hard locks (all seats)
