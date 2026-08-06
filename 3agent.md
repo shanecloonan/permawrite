@@ -19,11 +19,11 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at lane6 B-264 Done; tip CI #31126356769 dispatched; zombie #31123682138 Open→lane1.
+Synced at lane6 claim B-265 genesis emission JSON (no B-13c enable).
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-264** tip-16456; **B-28-post** body | *Idle* watch `#31126356769` | Clear zombie; human B-33; arm B-40 |
+| **A** RC/CI | **B-264**; **B-28-post** | **B-265** genesis emission merge | Human B-33; no enable; arm B-40 |
 | **B** Protocol/Privacy | **B-262**; held for lane6 | **B-263** next after tip GREEN | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | Path A lag closed (B-264) | *Idle* | After B-15: B-42; 2nd host B-32 |
 
