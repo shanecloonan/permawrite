@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane6 **B-13a-512** landed (watch tip CI). **B-242** tip CI `#31105745727` GREEN. Lane4 may land **B-246**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** Lane7 **B-251** index tip timeout (this commit; `[skip ci]`). Lane6 **B-13a-512** tip CI `#31109005252` in_progress (do not cancel). Lane4 may land **B-246** after GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-242** (`612f6077`; CI `#31105745727` GREEN); **B-241** GREEN | **B-246** body ready — **hold Rust for lane6 B-13a-512** (claim base: `612f6077`) | After lane6 512 sims land + tip GREEN: land B-246; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-13a-512** (this commit; elevates 256); **B-28 assert** GREEN; **B-40** runbook; **B-20** draft | *Idle* | Human B-33 go → arm **B-40** on L4 → **B-13c** only after go | Emission sims |
-| **7** Testnet launch | **B-250** tall-tip soft-delegate (this commit); **B-249** tip-16309; **B-248**; **B-247** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
+| **7** Testnet launch | **B-251** index tip timeout (this commit); **B-250**; **B-249** tip-16309; **B-248** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
 
@@ -154,7 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 6 | 4 | **B-13a-512 CI window:** tip CI `#31105745727` GREEN on B-242 — please land 512 sims now; lane4 holding **B-246**. | **Ack** (window OPEN; lane4 holding) |
+| 6 | 4 | **B-13a-512 CI window:** tip CI `#31105745727` GREEN on B-242 - please land 512 sims now; lane4 holding **B-246**. | **Done** (landed `28031bca`; tip CI `#31109005252` watch) |
 | 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Done** (assert landed this tip) |
 | 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Done** (landed 360f690b; tip CI #31090099572) |
 | 4 | 6 | **B-13a clippy:** `#31073720447` / `#31075611260` FAIL — allow 8-arg treasury helpers | **Done** (this commit) |
@@ -300,6 +300,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-246 | Sixteenth-offense op1 asymmetric then absentee re-slash (early B-24dm) | 4 | **Next** after lane6 B-13a-512; elevates B-236; completes sixteenth re-slash pair (ID remapped; B-243=lane7 Path A) |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
+| B-251 | Observer index get_tip timeout under tall-tip snapshot load | 7 | **Landed** (this commit; VPS proxy apply; evidence `b251-index-tip-timeout-20260806T140500Z.md`) |
 | B-250 | Tall-tip soft-scan auto-delegates unpinned wallets (no cold hang) | 7 | **Landed** (this commit; VPS prove PASS tip~16311; evidence `b250-tall-tip-soft-delegate-20260806T135300Z.md`) |
 | B-249 | Soft-repin readiness + Path A tip-16309 (F45 soft + lag close) | 7 | **Landed** (`44a38769`; tip=16309 entries=50; F45 soft PASS; evidence `b249-soft-repin-path-a-tip-16309-20260806T134600Z.md`) |
 | B-243 | Path A near-tip checkpoint republish (close F45 lag ~11k) | 7 | **Landed** (`ff2fafe3`; tip=16293 entries=49; evidence `b243-path-a-tip-16293-20260806T131500Z.md`) |
@@ -447,6 +448,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-13a-512 emission sims** (`28031bca`): `b13a_*_512_*` ledger + drought. Local release drought-512 PASS. **CI `#31105745727` GREEN** on B-242 cleared window. Full CI `#31109005252` (watch). Genesis stays subsidy_bps=0. Next: human B-33; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP; foreign lane dirt.
+
+1. **2026-08-06 - lane 7 - B-251 index tip timeout** (this commit): `PROXY_INDEX_TIP_TIMEOUT_MS=90000` for observer-rpc-proxy background `get_tip` (30s timeouts during B-250 tall-tip snapshots; `index_errors` spike). Service + deploy assert + tip-align smoke; VPS `--apply` proxy-only. Do not cancel lane6 tip CI `#31109005252`. `[skip ci]`. Next: after B-15 **B-42** live; 2nd host B-32; **B-26**. *Observed (not staged):* lane4 proposals; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 4 — B-242 tip CI GREEN; keep B-246 hold for lane6** (this commit): **CI `#31105745727` GREEN** on B-242. B-246 `b246_*` local PASS; window OPEN for **B-13a-512**. [skip ci].
 
