@@ -248,6 +248,12 @@ behavior are the telemetry inputs. Read-only helper:
 `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only`
 (live: `--rpc HOST:PORT`).
 
+**B-33 pre-enable baseline (Path A, 2026-08-06):** archived at
+[`b13-pre-enable-treasury-20260806T052834Z.md`](../scripts/public-devnet-v1/evidence/b13-pre-enable-treasury-20260806T052834Z.md)
+(public observer proxy `get_chain_params`; tip 16063; treasury 2909711;
+`subsidy_to_treasury_bps=0`). **B-13a** sims + clippy fix-forward tip
+**CI `#31077911423` GREEN** on `4860a8d1` (body `bbd50ce3`).
+
 ---
 
 ## See also

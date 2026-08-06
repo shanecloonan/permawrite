@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-233** (5ff775d9, watch tip CI); clippy tip GREEN | **B-234** fifteenth empty both-miss (claim base: 5ff775d9; body ready) | After tip GREEN: land B-234; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-13a** (`bbd50ce3` + clippy allows; tip **CI `#31077911423` GREEN**); **B-33** docs | *Idle* | **B-40** day-of L4 | Emission sims |
+| **6** Permanence | **B-13a** (`bbd50ce3` + clippy; **CI `#31077911423` GREEN**); **B-33** telemetry+checklist | *Idle* — hold Rust/scripts while B-233 tip CI runs | treasury-telemetry HTTP RPC (public proxy); human B-33 go; **B-40** day-of L4; then **B-13c** | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -199,7 +199,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | --- | --- | --- | --- |
 | B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | Follows `6377812`; defer until L4 unless fix-forward |
 | B-13 | Parameter fork umbrella: `subsidy_to_treasury_bps = 1000` | 6 | Split into **B-13a** (sims) → **B-13b** (fork policy) → **B-13c** (enable + ops comms). **Not** TL Path B genesis. [`ROADMAP.md` Phase 1](docs/ROADMAP.md#phase-1--permanence-depth-on-the-live-chain-permanence-first) |
-| B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** (`bbd50ce3` + `c9aec150`/`4860a8d1` clippy; **CI `#31077911423` GREEN**) — genesis stays `0` |
+| B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** (`bbd50ce3` + clippy allows; **CI `#31077911423` GREEN**) — genesis stays `0` |
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | After B-13a green |
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) — windows evidence tip=5322 assert OK; SUMMARY `B15-JOIN-SUMMARY-20260721.md` |
