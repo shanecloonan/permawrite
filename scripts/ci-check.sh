@@ -128,6 +128,9 @@ treasury_plan="$(bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --pla
 [[ "$treasury_plan" == *"treasury-telemetry-watch: PASS plan-only"* ]] || { printf '%s\n' "$treasury_plan" >&2; exit 1; }
 [[ "$treasury_plan" == *"subsidy_to_treasury_bps"* ]] || { echo "ci-check: treasury-telemetry-watch missing subsidy_to_treasury_bps" >&2; exit 1; }
 [[ "$treasury_plan" == *"http_example"* ]] || { echo "ci-check: treasury-telemetry-watch missing http_example" >&2; exit 1; }
+b28_plan="$(bash scripts/public-devnet-v1/assert-b28-treasury-thresholds.sh --plan-only)"
+[[ "$b28_plan" == *"assert-b28-treasury-thresholds: PASS plan-only"* ]] || { printf '%s\n' "$b28_plan" >&2; exit 1; }
+[[ "$b28_plan" == *"treasury>=1000000"* ]] || { echo "ci-check: assert-b28-treasury-thresholds missing treasury floor needle" >&2; exit 1; }
 vps_checklist_plan="$(bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_checklist_plan" == *"vps-execution-checklist-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_checklist_plan" >&2; exit 1; }
 [[ "$vps_checklist_plan" == *"vps-execution-checklist.v2"* ]] || { printf '%s\n' "$vps_checklist_plan" >&2; exit 1; }

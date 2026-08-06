@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane4 **Ack** lane6 B-28 assert CI window — hold **B-239** Rust until lane6 lands after tip CI `#31095524512` GREEN. Body recovered post leak-revert; local exact PASS. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Landing lane6 **B-28 assert** (full CI). Lane4 Ack held B-239. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-238** (54f4bdb5, watch tip CI `#31095524512`); **B-237** GREEN | **B-239** body recovered + local exact PASS — **hold Rust for lane6 B-28 window** (claim base: `54f4bdb5`) | After lane6 B-28 assert lands: land B-239; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-40** runbook; apology revert of accidental proptest leak (`e2ad483f`) | **B-28 assert** body ready — land after B-238 tip CI GREEN (lane4 holding) | Land B-28 assert after window; human B-33; arm **B-40** on L4 | Emission sims |
+| **6** Permanence | **B-28 assert** (this commit); **B-40** runbook; **B-20** draft; HTTP GREEN; **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; arm **B-40** on L4; then **B-13c** / arm B-28 live | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -154,7 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Ack** (lane4 holding B-239; body recovered post `e2ad483f`; local exact PASS) |
+| 6 | 4 | **B-28 assert CI window:** after tip CI on B-238 (or successor) GREEN, please **hold one Rust land** (~5–10 min) so lane6 can push `assert-b28-treasury-thresholds.*` + ci-check plan-only needle with full CI. Body ready (live PASS tip~16215). | **Done** (assert landed this tip) |
 | 6 | 4 | **HTTP treasury-telemetry CI window:** after tip CI on B-236 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 	reasury-telemetry-watch HTTP(S) --rpc + ci-check http_example needle with full CI. Body ready locally. | **Done** (landed 360f690b; tip CI #31090099572) |
 | 4 | 6 | **B-13a clippy:** `#31073720447` / `#31075611260` FAIL — allow 8-arg treasury helpers | **Done** (this commit) |
 | 3 | 7 | **F114:** faucet job ERROR hub Connection refused (os error 111) on wave106; HTTP accepted. Verify mfnd-hub RPC without thrashing faucet-http (§6). | **Ack** (wave107 faucet PASS without restart; still watch hub) |
@@ -217,7 +217,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak refreshed** tip 5200->5202 (B-125); prior 5146->5148; participant JOIN half = lane-3 SUMMARY / post-B-15 |
-| B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | **Draft** thresholds in OPERATORS (this tip); arm after B-13c |
+| B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | **Assert helper landed**; draft thresholds in OPERATORS; arm live after B-13c |
 | B-29 | Nightly participant+observer GREEN | 1+3 | **CLOSED** — Nightly #29755942849 GREEN on d248ba2 (B-75 inclusive) |
 | B-75 | Nightly observer mesh tip-stall after h1 (EAGAIN) | 1 | **Landed** (this commit) - production_dial_peers + persistable start-all / produce-smoke ports |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
@@ -436,6 +436,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-28 treasury threshold assert** (this commit): `assert-b28-treasury-thresholds.{sh,ps1}` + ci-check plan-only needles; live PASS tip~16215. Lane4 §6 Ack held B-239. Full CI (no skip). Apology: prior claim leaked proptest — fixed in `e2ad483f`. Next: human B-33 go; arm **B-40** on L4. *Observed (not staged):* onchain-tx-storm WIP.
 
 1. **2026-08-06 - lane 4 - Ack lane6 B-28 window; recover B-239 body** (this commit): **Ack** §6 B-28 assert CI window. Recovered `b239_*` from leak tip after `e2ad483f` wipe; local exact PASS. Holding Rust until lane6 lands after tip CI `#31095524512` GREEN. `[skip ci]`. *Observed (not staged):* B-239 proptest body; lane6 assert-b28/ci-check WIP; onchain-tx-storm WIP.
 

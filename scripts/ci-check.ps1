@@ -162,6 +162,12 @@ if ($treasuryPlan -notmatch "treasury-telemetry-watch: PASS plan-only" -or $trea
     $treasuryPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+
+$b28Plan = (powershell -NoProfile -File scripts/public-devnet-v1/assert-b28-treasury-thresholds.ps1 -PlanOnly) -join "`n"
+if ($b28Plan -notmatch "assert-b28-treasury-thresholds: PASS plan-only" -or $b28Plan -notmatch "treasury>=1000000") {
+    $b28Plan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $vpsChecklistPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($vpsChecklistPlan -notmatch "vps-execution-checklist-rehearsal-smoke: PASS plan-only" -or $vpsChecklistPlan -notmatch "vps-execution-checklist.v2") {
     $vpsChecklistPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
