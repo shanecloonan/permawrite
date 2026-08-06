@@ -23,7 +23,7 @@ Synced at B-237 claim. Watch tip CI on B-236 `662d4150`; body ready after GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-236 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
+| **A** RC/CI | **B-13a** GREEN; **B-33** telemetry | HTTP treasury-telemetry claimed — hold for B-236 tip CI | Land HTTP watch; human B-33; **B-40** day-of L4 |
 | **B** Protocol/Privacy | **B-236** (662d4150); watch tip CI | **B-237** sixteenth settle-reset slash (lane4; body ready) | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-229** tall-tip header cache; **B-33** telemetry archive | wave115+ density; VPS proxy+frontend apply | Path A lag; JOIN SUMMARY; **B-42** invite-load |
 
