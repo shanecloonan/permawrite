@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-237** (7203e1a, watch tip CI #31093098346); **B-236** GREEN | **B-238** sixteenth dual settle (claim base: 7203e1a; body ready) | After tip GREEN: land B-238; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **HTTP telemetry** **CI `#31090099572` GREEN**; **B-28** draft+sample; **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; **B-40** day-of L4; then **B-13c** / arm B-28 | Emission sims |
+| **6** Permanence | **B-20** draft (FEES §5.5); **HTTP telemetry** GREEN; **B-28** draft+sample; **B-13a** GREEN; **B-33** telemetry | *Idle* | Human B-33 go; **B-40** day-of L4; then **B-13c** / arm B-28 | Emission sims |
 | **7** Testnet launch | **B-229** tall-tip observer header cache + viewer poll (this commit); **B-140** (`262c748`); Path A tip-5290 | *Idle* | VPS `vps-update-observer-rpc-proxy.sh --apply` + frontend redeploy; **B-42** invite-load **live**; Path A lag; 2nd host for B-32 | `launch-go-no-go` |
 
 ---
@@ -208,7 +208,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | Phase 2; [`PROBLEMS.md` §15](docs/PROBLEMS.md) |
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy; after L4 + B-25 unless waived |
-| B-20 | F6: producer↔treasury runway fee-shift policy | 6 | Phase 1 permanence; after B-13a |
+| B-20 | F6: producer↔treasury runway fee-shift policy | 6 | **Draft** FEES §5.5 (this tip); arm after B-13c + B-25 |
 | B-21 | B7 Dandelion++ internet soak evidence | 1 | Unblocks P16; after L4 |
 | B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** - tip **4262** Path A (entries=11); seed offline on VPS only |
 | B-23 | F18: privacy/permanence regression gate in ci-check | 2 | Phase 1; after L4 |
@@ -434,6 +434,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-06 — lane 6 — B-20 draft fee-shift policy** (this commit): FEES §5.5 producer↔treasury runway coupling rules (hold/±bps); OPERATORS pointer. No knob changes. Docs-only `[skip ci]`. Next: human B-33 go; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 
 1. **2026-08-06 — lane 6 — B-28 pre-enable watch sample** (this commit): `b28-treasury-watch-20260806T102833Z.md` via HTTP `treasury-telemetry-watch` (draft thresholds PASS). Docs-only `[skip ci]` (B-237/B-238 tip CI may be in progress). Next: human B-33 go; **B-40** day-of L4. *Observed (not staged):* lane4 `apply_block_proposals.rs`; onchain-tx-storm WIP.
 

@@ -254,6 +254,35 @@ behavior are the telemetry inputs. Read-only helper:
 `subsidy_to_treasury_bps=0`). **B-13a** sims + clippy fix-forward tip
 **CI `#31077911423` GREEN** on `4860a8d1` (body `bbd50ce3`). HTTP watch tip **CI `#31090099572` GREEN** on `360f690b`.
 
+### 5.5 Producer↔treasury runway fee-shift (**B-20** — draft policy)
+
+**Status:** economics review draft after **B-13a**. **Do not** change
+`fee_to_treasury_bps` until **B-13c** has soaked and **B-25** (or named human
+waiver) says the permanence week is green. Distinct from F6 telemetry / B-13
+subsidy split.
+
+**Problem.** After the subsidy tail feeds the treasury, producer income is
+~10% lower at the tail. If fee volume is also drought-low, security budget
+and treasury runway can pull in opposite directions. A later fee-shift
+(raising or lowering `fee_to_treasury_bps` from `9000`) is the coupling lever —
+**never** in the same fork as enabling `subsidy_to_treasury_bps`.
+
+**Draft decision rule (not armed):**
+
+| Observation (rolling ~7d via `treasury-telemetry-watch`) | Proposed action | Notes |
+| --- | --- | --- |
+| Treasury above B-28 floor + backstop rare + producer fee share healthy | **Hold** `fee_to_treasury_bps = 9000` | Default after B-13c |
+| Treasury pinned near B-28 floor **and** backstop majority of proof blocks | Consider **+500–1000 bps** fee→treasury (separate fork) | Only after B-25 / human go; one lever |
+| Treasury growing fast **and** producer security complaints with evidence | Consider **−500 bps** fee→treasury (separate fork) | Prefer not to starve permanence |
+
+**Hard rules:**
+
+1. One lever per fork (same as §5.4).
+2. No automatic on-chain oracle in Path A — ops + human (PM22 research).
+3. Sims required before any fee-bps change (extend B-13a-style identity tests).
+4. Arm only after B-13c enable telemetry and B-28 thresholds are watched live.
+
+
 ---
 
 ## See also

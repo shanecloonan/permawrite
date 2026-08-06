@@ -482,7 +482,7 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **PM19** | Persistent proof obligation for cold data + repair bounty escalation | 6 | After PM3; couples to B4 repair sweep (shipped) |
 | **Header v2** | Path B `header_version: 2` (`utxo_root` in BLS signing bytes) on **new** chain only | 4+7 | [`PROBLEMS.md` §12](./PROBLEMS.md#12-utxo_root-is-not-covered-by-the-finality-signature-partially-resolved); sequenced with TL Path B (Phase 4) |
 | **B-28 / Treasury watch** | Sustained `treasury-telemetry-watch` on VPS + **numeric** alert thresholds in OPERATORS | 2+7 | F6 telemetry shipped; thresholds after B-13c modeled bounds |
-| **B-20** | F6 coupling: producer revenue ↔ treasury runway fee-shift policy ([`F5.md`](./F5.md) F6 — distinct from F6 telemetry field) | 6 | After B-13a sims; economics review |
+| **B-20** | F6 coupling: producer revenue ↔ treasury runway fee-shift policy ([`F5.md`](./F5.md) F6 — distinct from F6 telemetry field) | 6 | **Draft** in [`FEES.md`](./FEES.md) §5.5; arm after B-13c + B-25 |
 | **B-23** | F18: privacy/permanence regression gate in `ci-check` (ring/endowment/SPoRA invariants) | 2 | After L4; supports permanence-first CI |
 | **B-38 / Repair/soak** | Long-horizon internet soak with staleness → repair fan-out evidence + assert | 1+7 | B4 repair sweep shipped; give this a B-ID so it cannot drop vs B-13 |
 | **M7.10** | One-command `push-all-chunks` replication to manifest peers | 3 | ✓ **Shipped** (`c1e0373`) — document in JOIN/OPERATORS onboarding |
