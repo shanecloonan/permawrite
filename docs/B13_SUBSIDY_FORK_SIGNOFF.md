@@ -84,6 +84,33 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
 
 ---
 
+
+## B-13b recommended decision (lane 6 draft — not a human go)
+
+Lane 6 **recommends** Path A **same-chain enable** of `subsidy_to_treasury_bps = 1000`
+(parameter fork; keep `genesis_id`). This is a draft for human **B-13b** cells above —
+it does **not** tick the named sign-off table and does **not** authorize **B-13c**.
+
+| Option | Permanence effect | Privacy / ops effect | Recommendation |
+| --- | --- | --- | --- |
+| **Same-chain enable** (keep `genesis_id`) | Continuity of treasury, SPoRA history, and soak evidence into **B-25**; no endowment reset | No wallet/address migration; one-lever telemetry attribution | **Recommended for Path A** |
+| New `genesis_id` / header-v2 | Fresh chain; loses Path A permanence soak continuity | Invitation reset; Path B freeze inventory still separate | Reserve for **Path B** economic value ([`PATH_B_GENESIS_FREEZE.md`](./PATH_B_GENESIS_FREEZE.md)) |
+
+**Why same-chain wins for permanence-first:** Arweave-class durability needs unbroken
+operator/SPoRA/treasury history. Restarting genesis to flip a single bps knob burns
+the Path A permanence week (**B-40**) and delays **B-25**. Privacy floors (ring/F7)
+are unchanged by this fork — do not couple with fee-bps or ring changes.
+
+**Still required before B-13c:**
+
+1. Named humans tick the table in § Human decision (permanence + launch/ops).
+2. Tip CI GREEN on a head containing B-13a 256+512 sims.
+3. Fresh pre-enable `treasury-telemetry-watch` + `assert-b28-treasury-thresholds` PASS
+   (`subsidy_bps=0`).
+4. Lane 7 Path A near-tip checkpoint lag healthy (JOIN soft-pin); do not enable during
+   lag FAIL / tip-stall.
+5. One lever only — `fee_to_treasury_bps` stays `9000` (**B-20** later).
+
 ## After sign-off → **B-13c** (lane 7)
 
 Only when every box above is ticked:

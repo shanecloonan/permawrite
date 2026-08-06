@@ -503,7 +503,7 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 | Unit | Owner | Pass when |
 |---|---|---|
 | **B-13a** | 6 | Default-CI 256–512 block sim at `subsidy_to_treasury_bps=1000`: treasury identity `Δtreasury = fee_share + Σ subsidy_treasury_credit − SPoRA drain`; producer coinbase = 90% subsidy + fee share; **fee-drought@1000** case ([`ECONOMICS.md`](./ECONOMICS.md) §5) shows smoother backstop vs `bps=0`; do not change `fee_to_treasury_bps` in the same scenario set |
-| **B-13b** | 6+7+human | Written decision: **same-chain enable** (recommended for Path A) vs new `genesis_id`; sign-off recorded |
+| **B-13b** | 6+7+human | Lane-6 recommended decision draft in B-33 doc (same-chain); **human sign-off still required** |
 | **B-13c** | 7 | `public_devnet_v1.json` carries `subsidy_to_treasury_bps: 1000` (or documented fork height); OPERATORS + TESTNET announce |
 | **B3 multi-op + B-32** | 4+7 | ≥2 operators on distinct hosts; distinct payouts; ≥1 live upload with SPoRA from both; **`b3-multi-op-*.txt` + assert script PASS** |
 | **B-24** | 4 | M5 proptest / settlement audit after **B-32** green |

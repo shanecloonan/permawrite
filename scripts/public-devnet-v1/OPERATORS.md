@@ -309,6 +309,7 @@ same-chain lean draft) are filled in that doc. Still required before enable:
 1. Archive pre-enable `treasury-telemetry-watch` evidence (tip, `treasury_base_units`, SHA) — **done** [`b13-pre-enable-treasury-20260806T052834Z.md`](./evidence/b13-pre-enable-treasury-20260806T052834Z.md).
 2. Confirm B-13a tip CI GREEN — **done** (**CI `#31077911423` GREEN**).
 3. Named human go/hold in the sign-off table (permanence + launch/ops) — **still open**.
+4. Read lane-6 **B-13b recommended decision** in [`B13_SUBSIDY_FORK_SIGNOFF.md`](../../docs/B13_SUBSIDY_FORK_SIGNOFF.md) (same-chain lean; not a human go).
 
 Do **not** edit `public_devnet_v1.json` emission knobs until that checklist is fully ticked.
 
