@@ -1,4 +1,5 @@
 # Lane 6 / B-28: assert draft treasury thresholds (OPERATORS).
+# B-28-post land: pre|post modes; never flips genesis subsidy_bps.
 # Default mode=pre (Path A pre-enable). -Mode post expects subsidy_bps=1000 after B-13c.
 param(
     [switch]$PlanOnly,

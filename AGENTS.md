@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Lane6 **B-28-post** landed (watch tip CI). Lane4 may land **B-263** after this tip GREEN. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-08-06):** Lane6 **B-28-post** (`83d43b9c`) — forcing tip CI after zombie B-262 `#31123682138` blocked auto-queue. Lane4 hold **B-263**. Path A lag §6 still Open. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
