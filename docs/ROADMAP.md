@@ -488,7 +488,7 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **M7.10** | One-command `push-all-chunks` replication to manifest peers | 3 | ✓ **Shipped** (`c1e0373`) — document in JOIN/OPERATORS onboarding |
 | **B-13a** | Emission/treasury sims at `subsidy_to_treasury_bps = 1000` in default CI | 6 | See **B-13a work package** below — claim on L4 close |
 | **B-13b** | Fork policy: enable `1000` on live devnet vs new `genesis_id` chain | 6+7+human | **Lean same-chain**; human gate = **B-33** checklist (not sims alone) |
-| **B-13c** | If same-chain: update `public_devnet_v1.json` + operator announcement | 7 | After B-13a green + **B-33** sign-off |
+| **B-13c** | Enable `emission.subsidy_to_treasury_bps: 1000` (B-265 loader) + ops announce; same-chain needs activation-height (not JSON-only on live tip) | 7 | After B-13a green + **B-33** + **B-265**; no DEFAULT_EMISSION change |
 | **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
 | **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
 | **B-24** | Multi-op **consensus** settlement audit + M5 proptests (ledger compose, not only ops evidence) | 4 | After B3 multi-op internet evidence; [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) Part B |
@@ -504,7 +504,7 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 |---|---|---|
 | **B-13a** | 6 | Default-CI 256–512 block sim at `subsidy_to_treasury_bps=1000`: treasury identity `Δtreasury = fee_share + Σ subsidy_treasury_credit − SPoRA drain`; producer coinbase = 90% subsidy + fee share; **fee-drought@1000** case ([`ECONOMICS.md`](./ECONOMICS.md) §5) shows smoother backstop vs `bps=0`; do not change `fee_to_treasury_bps` in the same scenario set |
 | **B-13b** | 6+7+human | Lane-6 recommended decision draft in B-33 doc (same-chain); **human sign-off still required** |
-| **B-13c** | 7 | `public_devnet_v1.json` carries `subsidy_to_treasury_bps: 1000` (or documented fork height); OPERATORS + TESTNET announce |
+| **B-13c** | 7 | `public_devnet_v1.json` carries `emission.subsidy_to_treasury_bps: 1000` via B-265 merge **or** documented activation height; OPERATORS + TESTNET announce; never flip `DEFAULT_EMISSION_PARAMS` |
 | **B3 multi-op + B-32** | 4+7 | ≥2 operators on distinct hosts; distinct payouts; ≥1 live upload with SPoRA from both; **`b3-multi-op-*.txt` + assert script PASS** |
 | **B-24** | 4 | M5 proptest / settlement audit after **B-32** green |
 | **B-33** | 6+7+human | Sign-off checklist complete before B-13c |

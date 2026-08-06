@@ -4,17 +4,24 @@
 //! Maps a small declarative file into [`mfn_consensus::GenesisConfig`]. This
 //! is **not** the canonical on-wire genesis block — that remains
 //! [`mfn_consensus::build_genesis`]. The spec exists so every node can agree on
-//! `timestamp`, `ConsensusParams`, and validator key material derived from
-//! explicit 32-byte seeds before the first block is produced.
+//! `timestamp`, `ConsensusParams`, optional `emission` / `endowment` overrides,
+//! and validator key material derived from explicit 32-byte seeds before the
+//! first block is produced.
+//!
+//! **B-265 / B-13c:** optional JSON `emission.subsidy_to_treasury_bps` merges
+//! over [`DEFAULT_EMISSION_PARAMS`]. Path A (`public_devnet_v1.json`) omits
+//! the section so subsidy stays `0` until named human **B-33**. Live tall-tip
+//! same-chain enable still needs a fork-height activation story — JSON alone
+//! does not rewrite checkpoint-restored emission on running nodes.
 
 use std::fs;
 use std::path::Path;
 
 use mfn_bls::{bls_keygen_from_seed, decode_signature};
 use mfn_consensus::{
-    validate_constitution, verify_register_sig, ConsensusParams, ConstitutionError, GenesisConfig,
-    GenesisOutput, GenesisStorageOperator, Validator, ValidatorPayout, DEFAULT_EMISSION_PARAMS,
-    HEADER_VERSION, SUPPORTED_GENESIS_HEADER_VERSIONS,
+    validate_constitution, verify_register_sig, ConsensusParams, ConstitutionError, EmissionParams,
+    GenesisConfig, GenesisOutput, GenesisStorageOperator, Validator, ValidatorPayout,
+    DEFAULT_EMISSION_PARAMS, HEADER_VERSION, SUPPORTED_GENESIS_HEADER_VERSIONS,
 };
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::bytes_to_scalar;
@@ -239,6 +246,11 @@ struct GenesisFile {
     consensus: Option<ConsensusSection>,
     #[serde(default)]
     endowment: Option<EndowmentSection>,
+    /// Optional monetary-policy overrides (**F6** / **B-13c**). Absent →
+    /// [`DEFAULT_EMISSION_PARAMS`] (`subsidy_to_treasury_bps = 0`). Path A
+    /// public devnet must keep the default until named human **B-33** go.
+    #[serde(default)]
+    emission: Option<EmissionSection>,
     #[serde(default)]
     validators: Vec<ValidatorSection>,
     #[serde(default)]
@@ -282,6 +294,20 @@ struct EndowmentSection {
     operator_audit_missed_cap: Option<u8>,
     operator_slash_bps: Option<u32>,
     require_endowment_range_proof: Option<u8>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct EmissionSection {
+    initial_reward: Option<u64>,
+    halving_period: Option<u64>,
+    halving_count: Option<u32>,
+    tail_emission: Option<u64>,
+    storage_proof_reward: Option<u64>,
+    fee_to_treasury_bps: Option<u16>,
+    /// F6 subsidy tail split (**B-13**). Default `0`; B-13c may set `1000`
+    /// after **B-33** — never change `DEFAULT_EMISSION_PARAMS` for Path A alone.
+    subsidy_to_treasury_bps: Option<u16>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -400,6 +426,23 @@ fn merge_endowment(base: EndowmentParams, file: Option<EndowmentSection>) -> End
     }
 }
 
+fn merge_emission(base: EmissionParams, file: Option<EmissionSection>) -> EmissionParams {
+    let Some(e) = file else {
+        return base;
+    };
+    EmissionParams {
+        initial_reward: e.initial_reward.unwrap_or(base.initial_reward),
+        halving_period: e.halving_period.unwrap_or(base.halving_period),
+        halving_count: e.halving_count.unwrap_or(base.halving_count),
+        tail_emission: e.tail_emission.unwrap_or(base.tail_emission),
+        storage_proof_reward: e.storage_proof_reward.unwrap_or(base.storage_proof_reward),
+        fee_to_treasury_bps: e.fee_to_treasury_bps.unwrap_or(base.fee_to_treasury_bps),
+        subsidy_to_treasury_bps: e
+            .subsidy_to_treasury_bps
+            .unwrap_or(base.subsidy_to_treasury_bps),
+    }
+}
+
 /// Parse genesis configuration from UTF-8 JSON bytes (version 1).
 ///
 /// # Errors
@@ -420,10 +463,11 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
     let base_consensus = ConsensusParams::default();
     let params = merge_consensus(base_consensus, file.consensus);
     let endowment_params = merge_endowment(DEFAULT_ENDOWMENT_PARAMS, file.endowment);
+    let emission_params = merge_emission(DEFAULT_EMISSION_PARAMS, file.emission);
     // Constitutional gate (F5:PM13): every operator-supplied genesis must
     // satisfy the invariants reference clients refuse to fork away —
     // permanent tail emission, uniform rings >= 16, sane endowment pricing.
-    validate_constitution(&params, &DEFAULT_EMISSION_PARAMS, &endowment_params)?;
+    validate_constitution(&params, &emission_params, &endowment_params)?;
 
     let mut rows = file.validators;
     rows.sort_by_key(|v| v.index);
@@ -545,7 +589,7 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
         initial_storage_operators,
         validators,
         params,
-        emission_params: DEFAULT_EMISSION_PARAMS,
+        emission_params,
         endowment_params,
         bonding_params: None,
         header_version,
@@ -715,6 +759,29 @@ mod tests {
         assert_eq!(g.endowment_params.require_endowment_opening, 1);
     }
 
+    /// **B-265:** optional `emission` merge without changing global defaults.
+    #[test]
+    fn emission_section_overrides_subsidy_bps() {
+        let s = r#"{"version":1,"timestamp":0,"emission":{"subsidy_to_treasury_bps":1000},"validators":[]}"#;
+        let g = genesis_config_from_json_bytes(s.as_bytes()).expect("parse");
+        assert_eq!(g.emission_params.subsidy_to_treasury_bps, 1000);
+        assert_eq!(
+            g.emission_params.fee_to_treasury_bps,
+            DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps
+        );
+        // Global default must stay 0 — Path A enable is per-genesis JSON only.
+        assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+    }
+
+    #[test]
+    fn emission_section_rejects_bad_subsidy_bps() {
+        let s = r#"{"version":1,"timestamp":0,"emission":{"subsidy_to_treasury_bps":10001},"validators":[]}"#;
+        assert!(matches!(
+            genesis_config_from_json_bytes(s.as_bytes()),
+            Err(GenesisSpecError::Constitution(_))
+        ));
+    }
+
     #[test]
     fn storage_operators_section_loads() {
         let s = r#"{"version":1,"timestamp":0,"endowment":{"operator_salted_challenges":1,"require_registered_operators":1},"storage_operators":[{"index":0,"payout_seed_hex":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","bond_amount":0}],"validators":[]}"#;
@@ -810,5 +877,9 @@ mod tests {
         let state = apply_genesis(&genesis, &cfg).expect("apply");
         assert_eq!(state.storage_operators.len(), 2);
         assert_eq!(cfg.endowment_params.require_registered_operators, 1);
+        // **B-265 / B-33:** Path A must stay pre-enable until named human go.
+        assert_eq!(cfg.emission_params.subsidy_to_treasury_bps, 0);
+        assert_eq!(cfg.emission_params, DEFAULT_EMISSION_PARAMS);
+        assert_eq!(state.emission_params.subsidy_to_treasury_bps, 0);
     }
 }

@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-06):** Landing **B-263** seventeenth op1 asymmetric (full CI). Lane6 B-28-post + B-264 Path A landed; tip CI `#31126356769` cancelled / zombie `#31123682138` — tip CI re-proves ancestry. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-06):** Lane6 landing **B-265** genesis `emission` JSON merge (Path A pin subsidy=0; no enable). Lane4 hold **B-263** until tip GREEN. Zombie `#31123682138` Open→lane1. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; re-pin soft at tip-**16341** (B-260); no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-263** seventeenth op1 asymmetric (this commit); **B-262** (`27a7af42`); **B-261** (`9798ee22`) | *Idle* — live **B-32** blocked on 2nd host (**B-79** NOT READY) | Next: **B-265** seventeenth empty both-miss; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-264** (`16fb0583`); **B-28-post** (`83d43b9c`); **B-13b** draft; **B-40-d0** | **B-265** genesis emission JSON merge + B-13c honesty (claim base: `0a0f47cc`) — Path A stays subsidy=0 | Land body; human B-33; arm B-40 day-of L4; no B-13c enable | Emission sims |
+| **6** Permanence | **B-265** genesis emission JSON merge (this commit); **B-264**; **B-28-post**; **B-13b** draft; **B-40-d0** | *Idle* — watch tip CI; no B-13c enable | Human **B-33** → arm **B-40** day-of L4; activation-height research before same-chain B-13c | Emission sims |
 | **7** Testnet launch | **B-260** Path A tip-16341 (this commit); **B-258** lag=8; **B-257**; **B-256** | *Idle* | After B-15: **B-42** live; human **2nd host** B-32; **B-26** before full B-31 | `launch-go-no-go` |
 
 ---
@@ -156,7 +156,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | --- | --- | --- | --- |
 | 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push ssert-b28-treasury-thresholds --mode post / -Mode post + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Done** (landed this commit; tip CI watch) |
 | 6 | 7 | **Path A lag FAIL:** outside-in tip=16453 ckpt_max=16341 **lag=112**. Closed by **B-264** tip-16456 land (assert OK lag=-1; evidence `outside-in-tip-ckpt-lag-20260806T184223Z.txt`). | **Done** (B-264) |
-| 6 | 4 | **B-265 CI window:** after tip CI clears zombie, please hold one Rust land (~5-10 min) so lane6 can land genesis `emission` JSON merge + Path A subsidy=0 pin (no enable). | **Open** |
+| 6 | 4 | **B-265 CI window:** genesis `emission` JSON merge + Path A subsidy=0 pin (no enable). | **Done** (landing this commit) |
 | 6 | 1 | **CI zombie `#31123682138`:** queued empty jobs ~68m+; `gh run cancel` → completed; DELETE 403; blocks push-triggered CI. Lane6 dispatched `#31126356769` on tip `16fb0583`. Please clear zombie / confirm tip GREEN. | **Open** |
 | 6 | 4 | **B-40-d0 re-prove:** tip CI covering 4bcaf8e2 keeps getting cancelled by slash lands (own #31115971810, B-259 #31119646284). Please hold one Rust land after next tip GREEN (~5 min) so lane6 can pin GREEN (or let tip CI finish). Helper already on main. | **Ack** (same hold as B-28-post; tip CI #31123682138 will re-prove ancestor) |
 | 6 | 4 | **B-13a-512 CI window:** after tip CI on B-241 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push 512-block subsidy-bps-1000 sims (13a_*_512_*) with full CI. Body ready locally. | **Done** (landed 28031bca; tip CI #31109005252) |
@@ -209,7 +209,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | Follows `6377812`; defer until L4 unless fix-forward |
 | B-13 | Parameter fork umbrella: `subsidy_to_treasury_bps = 1000` | 6 | Split into **B-13a** (sims) → **B-13b** (fork policy) → **B-13c** (enable + ops comms). **Not** TL Path B genesis. [`ROADMAP.md` Phase 1](docs/ROADMAP.md#phase-1--permanence-depth-on-the-live-chain-permanence-first) |
 | B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** 256+512 sims (this commit elevates 256); genesis stays 0; human B-33 still open
-| B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | **Draft** recommended same-chain decision in B-33 doc (this tip); human cells still open
+| B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | **Draft** same-chain+activation-height (B-265 honesty); human cells still open
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) — windows evidence tip=5322 assert OK; SUMMARY `B15-JOIN-SUMMARY-20260721.md` |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |

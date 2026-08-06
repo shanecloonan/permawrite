@@ -19,11 +19,11 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at B-263 land. Full CI re-proves tip after cancelled/zombie runs.
+Synced at lane6 B-265 genesis emission merge Done (Path A subsidy=0; no enable).
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | **B-264**; **B-28-post** | **B-265** genesis emission merge | Human B-33; no enable; arm B-40 |
+| **A** RC/CI | **B-265** emission JSON; **B-264**; **B-28-post** | *Idle* watch tip CI | Human B-33; arm B-40; no enable |
 | **B** Protocol/Privacy | **B-262**; held for lane6 | **B-263** next after tip GREEN | After 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | Path A lag closed (B-264) | *Idle* | After B-15: B-42; 2nd host B-32 |
 

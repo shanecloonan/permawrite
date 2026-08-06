@@ -88,12 +88,14 @@ and [`ROADMAP.md` Phase 1](./ROADMAP.md#phase-1--permanence-depth-on-the-live-ch
 ## B-13b recommended decision (lane 6 draft — not a human go)
 
 Lane 6 **recommends** Path A **same-chain enable** of `subsidy_to_treasury_bps = 1000`
-(parameter fork; keep `genesis_id`). This is a draft for human **B-13b** cells above —
-it does **not** tick the named sign-off table and does **not** authorize **B-13c**.
+**once an activation-height (or equivalent) fork exists** (keep `genesis_id`). This is a
+draft for human **B-13b** cells above — it does **not** tick the named sign-off table
+and does **not** authorize **B-13c**.
 
 | Option | Permanence effect | Privacy / ops effect | Recommendation |
 | --- | --- | --- | --- |
-| **Same-chain enable** (keep `genesis_id`) | Continuity of treasury, SPoRA history, and soak evidence into **B-25**; no endowment reset | No wallet/address migration; one-lever telemetry attribution | **Recommended for Path A** |
+| **Same-chain + activation height** (keep `genesis_id`) | Continuity of treasury, SPoRA history, and soak evidence into **B-25**; no endowment reset | No wallet migration; one-lever telemetry from activation height | **Recommended for Path A** (blocked on fork machinery — not JSON-only) |
+| JSON `emission` on fresh genesis / wipe | Works today via **B-265** loader; burns tall-tip continuity if wipe | Invitation / wallet re-bootstrap | Acceptable only if humans accept soak reset |
 | New `genesis_id` / header-v2 | Fresh chain; loses Path A permanence soak continuity | Invitation reset; Path B freeze inventory still separate | Reserve for **Path B** economic value ([`PATH_B_GENESIS_FREEZE.md`](./PATH_B_GENESIS_FREEZE.md)) |
 
 **Why same-chain wins for permanence-first:** Arweave-class durability needs unbroken
@@ -101,29 +103,51 @@ operator/SPoRA/treasury history. Restarting genesis to flip a single bps knob bu
 the Path A permanence week (**B-40**) and delays **B-25**. Privacy floors (ring/F7)
 are unchanged by this fork — do not couple with fee-bps or ring changes.
 
+**Honesty (B-265):** before the optional genesis `emission` merge landed, docs that said
+“edit `public_devnet_v1.json`” were **wrong** (loader ignored / rejected the field).
+Even with B-265, JSON enable alone does not rewrite checkpoint-restored emission on
+the live tall tip.
+
 **Still required before B-13c:**
 
 1. Named humans tick the table in § Human decision (permanence + launch/ops).
-2. Tip CI GREEN on a head containing B-13a 256+512 sims.
+2. Tip CI GREEN on a head containing B-13a 256+512 sims + **B-265** loader.
 3. Fresh pre-enable `treasury-telemetry-watch` + `assert-b28-treasury-thresholds` PASS
    (`subsidy_bps=0`).
 4. Lane 7 Path A near-tip checkpoint lag healthy (JOIN soft-pin); do not enable during
    lag FAIL / tip-stall.
 5. One lever only — `fee_to_treasury_bps` stays `9000` (**B-20** later).
+6. Explicit choice: activation-height fork (preferred) vs wipe/fresh genesis.
 
 ## After sign-off → **B-13c** (lane 7)
 
 Only when every box above is ticked:
 
-1. Set `subsidy_to_treasury_bps: 1000` in
-   [`mfn-node/testdata/public_devnet_v1.json`](../mfn-node/testdata/public_devnet_v1.json)
-   (same `genesis_id` if same-chain).
-2. Announce in [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) +
+1. **Loader readiness (B-265):** genesis JSON may carry optional
+   `emission.subsidy_to_treasury_bps` (merged over
+   `DEFAULT_EMISSION_PARAMS`). Before B-265, editing
+   `public_devnet_v1.json` could **not** set the lever (`deny_unknown_fields`
+   + hardcoded defaults).
+2. **Fresh / wipe path:** set
+   ```json
+   "emission": { "subsidy_to_treasury_bps": 1000 }
+   ```
+   in [`mfn-node/testdata/public_devnet_v1.json`](../mfn-node/testdata/public_devnet_v1.json)
+   and roll nodes from that genesis. Do **not** change
+   `DEFAULT_EMISSION_PARAMS` (keeps other nets at 0). Do **not** change
+   `fee_to_treasury_bps` in the same commit (**B-20** later).
+3. **Live Path A same-chain caveat:** running nodes restore
+   `emission_params` from **chain checkpoints**. JSON-only edits do **not**
+   rewrite tall-tip history or coinbase amounts already sealed. Same-chain
+   enable therefore needs either (a) an explicit **activation-height** fork
+   in consensus (not shipped yet), or (b) coordinated wipe / new
+   `genesis_id` — human **B-13b** must pick; lane 6 draft still prefers
+   same-chain *once* activation exists.
+4. Announce in [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) +
    testnet invite channels: producer-tail cut ~10%, treasury inflow + telemetry
    watch.
-3. Do **not** change `fee_to_treasury_bps` in the same commit.
-4. Arm **B-28** treasury watch thresholds after enable; **B-40** / **B-25**
-   remain on the L4 → permanence-week calendar.
+5. Arm **B-28** `--mode post` after enable; **B-40** / **B-25** remain on the
+   L4 → permanence-week calendar.
 
 ---
 
