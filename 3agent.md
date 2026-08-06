@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at lane7 **B-243** Path A tip-16293 CLOSE. Lane4 keeps B-242. Watch tip CI `#31102959528`.
+Synced at lane7 **B-244** CLOSE (health OK lag=1). Lane4 keeps B-242. Watch tip CI `#31102959528`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Watch B-241 tip CI | *Idle* - do not cancel healthy in_progress | Pin / Nightly |
 | **B** Protocol/Privacy | **B-241** (5c5e7253); watch tip CI | **B-242** sixteenth re-slash (lane4; body ready) | After 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-243** Path A tip-16293 (lag 11003->0); **B-229** | *Idle* / wave115+ re-pin | **B-42** invite-load live |
+| **C** Testnet/Onboarding | **B-244** health tip-16293; **B-243** Path A; **B-229** | *Idle* / lane3 re-pin | After B-15 clear: **B-42**; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
@@ -58,6 +58,6 @@ L4 public testnet harden
 ```text
 3agent — Seat A: Done watch / Doing idle / Next pin+Nightly
 3agent — Seat B: Done B-241 / Doing B-242 re-slash (body ready) / Next B-32 (2 hosts)
-3agent — Seat C: Done B-229 code / Doing B-229 VPS proxy+frontend apply / Next Path A + B-42
+3agent — Seat C: Done B-244 health + B-243 Path A / Doing idle / Next B-42 after B-15 clear
 (AGENTS.md §5 remains the claim surface)
 ```
