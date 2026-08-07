@@ -12,19 +12,19 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
 | **A** RC/CI | Tip CI `#31132162520` GREEN | *Idle* | Pin / Nightly |
-| **B** Protocol/Privacy | **B-275** (this commit); **B-274** GREEN `#31132162520` | *Idle* (next **B-276** empty both-miss) | After 2 hosts: live **B-32** |
+| **B** Protocol/Privacy | **B-275** (`e5c27e1c`); **B-274** | **B-276** empty both-miss (claim base `e5c27e1c`) | After land: re-slash pair; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | **B-277** live Path A tx-storm (claim base `decb34ef`) | After land: B-42; 2nd host B-32 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-277 claim (lane7) + B-275 still Doing (lane4). Do not cancel tip CI `#31132162520`.
+Synced at B-276 claim (lane4) + B-277 Doing (lane7). Do not cancel tip CI `#31135276096`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Tip CI `#31132162520` GREEN | *Idle* | Pin / Nightly |
-| **B** Protocol/Privacy | **B-275** (this commit); **B-274** GREEN `#31132162520` | *Idle* (next **B-276** empty both-miss) | After 2 hosts: live **B-32** |
+| **B** Protocol/Privacy | **B-275** (`e5c27e1c`); **B-274** | **B-276** empty both-miss (claim base `e5c27e1c`) | After land: re-slash pair; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | **B-277** live Path A tx-storm (claim base `decb34ef`) | After land: B-42; 2nd host B-32 |
 
 ### Hard locks (all seats)
