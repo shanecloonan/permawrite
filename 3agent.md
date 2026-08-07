@@ -11,27 +11,27 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-274 tip CI `#31132162520` | *Idle* - do not cancel | Pin / Nightly |
-| **B** Protocol/Privacy | **B-274** (`fef0ca88`); **B-273** | **B-275** op1 asymmetric (claim base `fef0ca88`) | After land: empty both-miss; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | *Idle* | After B-15: B-42; 2nd host B-32 |
+| **A** RC/CI | Tip CI `#31132162520` GREEN | *Idle* | Pin / Nightly |
+| **B** Protocol/Privacy | **B-275** (this commit); **B-274** GREEN `#31132162520` | *Idle* (next **B-276** empty both-miss) | After 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | **B-277** live Path A tx-storm (claim base `decb34ef`) | After land: B-42; 2nd host B-32 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-275 claim. Body ready; land after tip CI `#31132162520` GREEN.
+Synced at B-277 claim (lane7) + B-275 still Doing (lane4). Do not cancel tip CI `#31132162520`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Watch B-274 tip CI `#31132162520` | *Idle* - do not cancel | Pin / Nightly |
-| **B** Protocol/Privacy | **B-274** (`fef0ca88`); **B-273** | **B-275** op1 asymmetric (claim base `fef0ca88`) | After land: empty both-miss; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | *Idle* | After B-15: B-42; 2nd host B-32 |
+| **A** RC/CI | Tip CI `#31132162520` GREEN | *Idle* | Pin / Nightly |
+| **B** Protocol/Privacy | **B-275** (this commit); **B-274** GREEN `#31132162520` | *Idle* (next **B-276** empty both-miss) | After 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | Path A timer cadence fixed (B-269) | **B-277** live Path A tx-storm (claim base `decb34ef`) | After land: B-42; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
 2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Lane6 **B-13a-512** landed; lane4 may push **B-246** after this tip CI settles.
-3. **Foreign WIP:** never stage `onchain-tx-storm*`, lane4 `apply_block_proptest.rs`, `mfn-cli/Cargo.toml`, rc-audit dry-run JSON, or another seat's uncommitted files.
+3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
 
