@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-07):** Landing **B-285** nineteenth empty both-miss. Tip CI `#31152030401` **GREEN** on B-284. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-07):** Claiming **B-286** nineteenth asymmetric absentee re-slash (docs-only while tip CI `#31155238632` runs on B-285 `d1b44f3b`). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch CI `#31065238354` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; **F122 faucet bloat blocks new funds** until B-278 | L4 checklist |
-| **4** Protocol | **B-285** (this commit); **B-284** GREEN `#31152030401`; **B-283** | *Idle* | **B-286** nineteenth re-slash; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-285** (`d1b44f3b`); **B-284** GREEN `#31152030401` | **B-286** nineteenth asymmetric absentee re-slash (claim base: `d1b44f3b`) | After land: **B-287** op1 twin; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m (this commit); **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | *Idle* — no B-268b / no B-13c | After tip GREEN + lane4 Ack: **B-268b**; human **B-33**; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | **B-277** live stress F120–F123 (`af596d04`); **B-260**; **B-258**; **B-257** | *Idle* | **B-278** faucet UTXO consolidate/rotate; then dual-payment storm + **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
@@ -327,7 +327,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-283 | Nineteenth dual-slash then asymmetric settle drain (early B-24ed) | 4 | **Landed** (this commit); elevates B-274; continues nineteenth prove matrix; full CI |
 | B-284 | Nineteenth dual-slash then op1 asymmetric settle drain (early B-24ee) | 4 | **Landed** (this commit); elevates B-275; completes nineteenth asymmetric settle pair with B-283; full CI |
 | B-285 | Nineteenth dual-slash then empty both-miss (early B-24ef) | 4 | **Landed** (this commit); elevates B-276; closes nineteenth prove matrix; full CI |
-| B-286 | Nineteenth-offense asymmetric then absentee re-slash (early B-24eg) | 4 | **Next** after B-285; elevates B-279 |
+| B-286 | Nineteenth-offense asymmetric then absentee re-slash (early B-24eg) | 4 | **Claimed** (this commit) — elevates B-279; full CI after `#31155238632` GREEN |
+| B-287 | Nineteenth-offense op1 asymmetric then absentee re-slash (early B-24eh) | 4 | **Next** after B-286; elevates B-280 |
 | B-277 | Live Path A onchain tx-storm + adversarial submit probes (observer-visible) | 7 | **Landed** (`af596d04`) — evidence `b277-live-tx-storm-20260807.md`; F120–F123; adv rejects OK; user txs blocked until B-278 |
 | B-278 | Faucet wallet UTXO consolidate/rotate (unblock F122 fund path) | 7+2 | **Next** — `faucet-consolidate.sh` or rotate faucet wallet; prove HTTP faucet job done under 120s; then re-run dual-payment storm |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
@@ -487,6 +488,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-08-07 - lane 4 - claim B-286** (this commit): early B-24eg nineteenth-offense asymmetric->absentee re-slash while tip CI `#31155238632` runs on B-285. Claim base `d1b44f3b`. Body ready (`b286_*` PASS). *Observed (not staged):* mfn-wallet/tests/tx_storm.rs. `[skip ci]`.
 
 1. **2026-08-07 - lane 4 - B-285 nineteenth dual-slash->empty both-miss** (this commit): early B-24ef `b285_b5_nineteenth_dual_slash_then_empty_both_miss_no_drain_identity`; local exact PASS. Tip CI `#31152030401` **GREEN** on B-284. Elevates B-276; closes nineteenth prove matrix. Full CI (no skip). Next: **B-286** nineteenth re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs.
 
