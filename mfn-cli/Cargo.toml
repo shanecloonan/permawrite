@@ -12,6 +12,10 @@ description = "Permawrite operator CLI: JSON-RPC client for mfnd and wallet comm
 name = "mfn-cli"
 path = "src/bin/mfn-cli.rs"
 
+[[bin]]
+name = "onchain-tx-storm"
+path = "src/bin/onchain-tx-storm.rs"
+
 [lints.clippy]
 all = "warn"
 

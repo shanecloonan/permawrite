@@ -44,7 +44,7 @@ if ($null -ne $walletObj.scan_height) { $scanH = [int]$walletObj.scan_height }
 $ckpt = ""
 if ($null -ne $walletObj.light_checkpoint_hex) { $ckpt = [string]$walletObj.light_checkpoint_hex }
 if ($scanH -le 1 -or [string]::IsNullOrWhiteSpace($ckpt)) {
-  Write-Output "light-scan-checkpoint-soft: B-250 wallet unpinned — delegating to bootstrap-wallet-from-checkpoint-log.ps1 (avoid cold tall-tip hang)"
+  Write-Output 'light-scan-checkpoint-soft: B-250 wallet unpinned — delegating to bootstrap-wallet-from-checkpoint-log.ps1 (avoid cold tall-tip hang)'
   if (-not $env:MFN_HEAVY_RPC_TIMEOUT_MS) { $env:MFN_HEAVY_RPC_TIMEOUT_MS = "300000" }
   $boot = Join-Path $ScriptDir "bootstrap-wallet-from-checkpoint-log.ps1"
   & powershell -File $boot -Apply -Wallet $Wallet -Rpc $Rpc -Log $Log
