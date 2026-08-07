@@ -487,6 +487,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 1. **2026-08-07 - lane 4 - B-282 nineteenth dual-slash->dual settle** (this commit): early B-24ec `b282_b5_nineteenth_dual_slash_then_dual_settle_drain_identity`; local exact PASS. Tip CI `#31144715090` **GREEN** on B-281. Elevates B-273. Full CI (no skip). Next: **B-283** nineteenth asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs.
 
+1. **2026-08-07 - lane 4 - B-282 nineteenth dual-slash->dual settle** (this commit): early B-24ec `b282_b5_nineteenth_dual_slash_then_dual_settle_drain_identity`; local exact PASS. Tip CI `#31144715090` **GREEN** on B-281. Elevates B-273. Full CI (no skip). Next: **B-283** nineteenth asymmetric settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs.
+
 1. **2026-08-07 - lane 4 - claim B-282** (this commit): early B-24ec nineteenth dual-slash->dual settle while tip CI `#31144715090` runs on B-281. Claim base `27768fba`. Body ready (`b282_*` PASS). *Observed (not staged):* mfn-wallet/tests/tx_storm.rs. `[skip ci]`.
 
 1. **2026-08-07 - lane 4 - B-281 settle-reset->nineteenth dual-slash** (this commit): early B-24eb `b281_b5_settle_reset_then_nineteenth_dual_slash_treasury_identity`; local exact PASS. Tip CI `#31142492616` **GREEN** on B-280. Elevates B-272. Full CI (no skip). Next: **B-282** nineteenth dual settle. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs.
