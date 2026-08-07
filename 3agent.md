@@ -11,20 +11,20 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | Tip CI `#31142492616` GREEN | *Idle* | Pin / Nightly |
-| **B** Protocol/Privacy | **B-281** (this commit); **B-280** GREEN `#31142492616` | *Idle* (next **B-282** nineteenth dual settle) | After 2 hosts: live **B-32** |
+| **A** RC/CI | Watch B-281 tip CI `#31144715090` | *Idle* - do not cancel | Pin / Nightly |
+| **B** Protocol/Privacy | **B-281** (`27768fba`); **B-280** | **B-282** nineteenth dual settle (claim base `27768fba`) | After land: asymmetric pair; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-277** F120–F123 (`af596d04`) | *Idle* | **B-278** faucet consolidate; storm + B-42 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-281 land. Tip CI `#31142492616` GREEN; next **B-282** nineteenth dual settle.
+Synced at B-282 claim. Body ready; land after tip CI `#31144715090` GREEN.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Tip CI `#31142492616` GREEN | *Idle* | Pin / Nightly |
-| **B** Protocol/Privacy | **B-281** (this commit); **B-280** GREEN `#31142492616` | *Idle* (next **B-282** nineteenth dual settle) | After 2 hosts: live **B-32** |
+| **A** RC/CI | Watch B-281 tip CI `#31144715090` | *Idle* - do not cancel | Pin / Nightly |
+| **B** Protocol/Privacy | **B-281** (`27768fba`); **B-280** | **B-282** nineteenth dual settle (claim base `27768fba`) | After land: asymmetric pair; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-277** F120–F123 (`af596d04`) | *Idle* | **B-278** faucet consolidate; storm + B-42 |
 
 ### Hard locks (all seats)
