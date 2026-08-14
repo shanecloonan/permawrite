@@ -13,19 +13,19 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | --- | --- | --- | --- |
 | **A** RC/CI | Tip CI `#31845327735` in_progress on B-288 | *Idle* | Pin / Nightly; do not cancel `#31845327735` |
 | **B** Protocol/Privacy | **B-289** twentieth dual settle (claim base: `925c9c7b`) | Lane 4 protocol tests | Hold Rust until `#31845327735` GREEN; do not steal B-278 / B-268b |
-| **C** Testnet/Onboarding | **B-277** F120–F123 (`af596d04`) | *Idle* | **B-278** faucet consolidate; storm + B-42 |
+| **C** Testnet/Onboarding | **B-278** faucet prune+HTTP 99s (this commit); **B-277** | *Idle* | Dual-payment storm / faucet-ops rotate; B-42 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-289 claim. Tip CI `#31845327735` in_progress on B-288; seat B holds Rust until GREEN.
+Synced at B-278 land (lane7). Tip CI `#31845327735` on B-288; seat B owns B-289.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Tip CI `#31845327735` in_progress on B-288 | *Idle* | Pin / Nightly; do not cancel `#31845327735` |
 | **B** Protocol/Privacy | **B-288** (`925c9c7b`) | **B-289** twentieth dual settle (claim base: `925c9c7b`) | **B-290** twentieth asymmetric settle; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-277** F120–F123 (`af596d04`) | *Idle* | **B-278** faucet consolidate; storm + B-42 |
+| **C** Testnet/Onboarding | **B-278** faucet prune+HTTP 99s (this commit); **B-277** | *Idle* | Dual-payment storm / faucet-ops rotate; B-42 |
 
 ### Hard locks (all seats)
 

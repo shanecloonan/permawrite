@@ -490,7 +490,8 @@ pub fn wallet_send(
     require_f7_owned_input_floor(&wallet)?;
     let chain_state = fetch_chain_state(client)?;
 
-    let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
+    let pre_owned: std::collections::HashSet<[u8; 32]> =
+        wallet.owned().map(|o| o.utxo_key()).collect();
     let mut rng = production_tx_rng;
     let signed = wallet
         .build_transfer(
@@ -506,10 +507,10 @@ pub fn wallet_send(
         )
         .map_err(map_wallet_build_err)?;
 
-    let consumed: Vec<[u8; 32]> = pre_owned
-        .into_iter()
-        .filter(|k| !wallet.owned().any(|o| o.utxo_key() == *k))
-        .collect();
+    // O(n) consumed-key diff (was O(n^2) via owned().any per key — F122 / B-278).
+    let post_owned: std::collections::HashSet<[u8; 32]> =
+        wallet.owned().map(|o| o.utxo_key()).collect();
+    let consumed: Vec<[u8; 32]> = pre_owned.difference(&post_owned).copied().collect();
     file.record_pending_spends(&consumed);
     persist_wallet(path, &mut file, &wallet)?;
 
@@ -654,7 +655,8 @@ pub fn wallet_upload(
 
     let anchor = anchor_recipient.unwrap_or_else(|| wallet.recipient());
 
-    let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
+    let pre_owned: std::collections::HashSet<[u8; 32]> =
+        wallet.owned().map(|o| o.utxo_key()).collect();
     let mut rng = production_tx_rng;
     let art = if let Some(message) = &params.message {
         let seed = file.seed_bytes()?;
@@ -691,10 +693,9 @@ pub fn wallet_upload(
             .map_err(map_wallet_build_err)?
     };
 
-    let consumed: Vec<[u8; 32]> = pre_owned
-        .into_iter()
-        .filter(|k| !wallet.owned().any(|o| o.utxo_key() == *k))
-        .collect();
+    let post_owned: std::collections::HashSet<[u8; 32]> =
+        wallet.owned().map(|o| o.utxo_key()).collect();
+    let consumed: Vec<[u8; 32]> = pre_owned.difference(&post_owned).copied().collect();
     file.record_pending_spends(&consumed);
     persist_wallet(path, &mut file, &wallet)?;
 

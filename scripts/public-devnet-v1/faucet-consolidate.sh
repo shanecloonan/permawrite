@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Merge operator faucet UTXOs via self-sends (run weekly when owned_count grows).
+# B-278 / F122: when owned_count is thousands, run faucet-wallet-prune.sh first —
+# self-send cannot shrink under the 2-output privacy floor; prune drops cache rows.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
