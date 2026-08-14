@@ -11,21 +11,21 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | Tip CI `#31845327735` in_progress on B-288 | *Idle* | Pin / Nightly; do not cancel `#31845327735` |
-| **B** Protocol/Privacy | **B-289** twentieth dual settle (claim base: `925c9c7b`) | Lane 4 protocol tests | Hold Rust until `#31845327735` GREEN; do not steal B-278 / B-268b |
-| **C** Testnet/Onboarding | **B-278** faucet prune+HTTP 99s (this commit); **B-277** | *Idle* | Dual-payment storm / faucet-ops rotate; B-42 |
+| **A** RC/CI | Tip CI `#31848492528` in_progress on B-278 | *Idle* | Pin / Nightly; do not cancel `#31848492528` |
+| **B** Protocol/Privacy | **B-289** twentieth dual settle (claim base: `925c9c7b`) | Lane 4 protocol tests | Hold Rust until tip CI GREEN; do not steal B-291 / B-268b |
+| **C** Testnet/Onboarding | **B-278** (`b1ab1b17`) | **B-291** dual-payment storm + faucet-ops rotate | **B-42**; 2nd host B-32 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-278 land (lane7). Tip CI `#31845327735` on B-288; seat B owns B-289.
+Synced at B-291 claim (lane7). Tip CI `#31848492528` on B-278; seat B owns B-289.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Tip CI `#31845327735` in_progress on B-288 | *Idle* | Pin / Nightly; do not cancel `#31845327735` |
-| **B** Protocol/Privacy | **B-288** (`925c9c7b`) | **B-289** twentieth dual settle (claim base: `925c9c7b`) | **B-290** twentieth asymmetric settle; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-278** faucet prune+HTTP 99s (this commit); **B-277** | *Idle* | Dual-payment storm / faucet-ops rotate; B-42 |
+| **A** RC/CI | Tip CI `#31848492528` in_progress on B-278 | *Idle* | Pin / Nightly; do not cancel `#31848492528` |
+| **B** Protocol/Privacy | **B-288** (`925c9c7b`) | **B-289** twentieth dual settle (claim base: `925c9c7b`) | **B-290**; after 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | **B-278** (`b1ab1b17`) | **B-291** dual-payment storm + faucet-ops rotate | **B-42**; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
