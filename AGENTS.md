@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Tip CI `#31897824126` on B-301 `a55d5869` rust **GREEN** / scripts **FAIL** (Seat A). `#31893770179` FAIL scripts. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** land (lag ≥36→7). **B-302** claim (empty MFEX). Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Landing **B-302** Rust (full CI). `#31897824126` rust **GREEN** / scripts **FAIL** (Seat A). Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Watch B-301 tip CI; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
+| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Watch B-302 tip CI; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | `go` requires `gates.ci.commit` == manifest commit (`b0bd1caa`); VRF `edd1bc65`; GHA needle `93c93dc6` | *Idle* | Fix scripts FAIL `#31893770179`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-301** (`a55d5869`) | **B-302** empty-MFEX fail-closed (claim base: `a55d5869`) | After B-302: **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-302** (this commit); **B-301** (`a55d5869`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | Path A **22565** (this commit; lag **OK=7**); **B-42** 3rd JOIN last_proven **22560** (`6a1468fc`); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | Path A **22565** (`160a9b07`; lag **OK=7**); **B-42** 3rd JOIN last_proven **22560** (`6a1468fc`); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -241,7 +241,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-94 | Spent-debris prune + gitignore tighten (M2.5.39 follow-up) | 2 | **Landed** (this commit) — delete 5 tracked spent one-shots; ignore `_*.py` / lane WIP / nightly dumps / live-testnet-data* / evidence `_*` |
 
 | B-301 | F5 P20: consensus-reject opaque non-MFEX `tx.extra` | 4+5 | **Landed** `a55d5869`; no B-13c enable |
-| B-302 | F5 P20: reject empty MFEX envelope (magic+version, no payload) | 4+5 | **Claimed** (this commit); body after tip CI `#31897824126` GREEN |
+| B-302 | F5 P20: reject empty MFEX envelope (magic+version, no payload) | 4+5 | **Landed** (this commit); no B-13c enable |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -504,7 +504,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - Path A tip-22535→22565 lag close** (this commit): VPS timer already at **22565** (97 entries). `land-path-a-checkpoint-from-vps -Apply`; outside-in **OK lag=7** tip=22572. last_proven still **22560**. Evidence `outside-in-tip-ckpt-lag-20260815T182225Z.txt` + `b-path-a-tip-22565-20260815.md`. B-301 `#31897824126` rust GREEN / scripts FAIL (Seat A) — `[skip ci]`. Next: 2nd host B-32. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 4 - B-302 empty-MFEX fail-closed** (this commit): `parse_mfex_extra` / `verify_transaction` reject `MFEX` + version with no MFCL/MFEO/MFER payload. Wallet typed refuse. `b302_empty_mfex_*` PASS. No-MFER apply fixture uses empty extra (not empty header). Local `ci-check -RustOnly` green. `#31897824126` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** still Phase 3 / B-25. *Observed (not staged):* `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 7 - Path A tip-22535→22565 lag close** (`160a9b07`): VPS timer already at **22565** (97 entries). `land-path-a-checkpoint-from-vps -Apply`; outside-in **OK lag=7** tip=22572. last_proven still **22560**. Evidence `outside-in-tip-ckpt-lag-20260815T182225Z.txt` + `b-path-a-tip-22565-20260815.md`. B-301 `#31897824126` rust GREEN / scripts FAIL (Seat A) — `[skip ci]`. Next: 2nd host B-32. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 7 - B-42 3rd staggered JOIN last_proven 22560** (`5ed4a2f1`): payout→`b42-join-b` two 2e6 via hub; B-50 pin observer; upload `6a1468fc` mined+proven in **22560** (proxy total 96→97). Distinct from iris `24e62a5a` @ 22487 and join-a `ea7cba7c` @ 22492. No mfnd/faucet restart. Evidence `b42-join-b-last-proven-22560-20260815.md`. B-301 `#31897824126` rust GREEN / scripts FAIL (Seat A) — `[skip ci]`. Next: Path A lag (ckpt 22535 vs tip 22560); 2nd host B-32. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 

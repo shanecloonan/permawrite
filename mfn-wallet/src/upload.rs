@@ -746,6 +746,48 @@ mod tests {
         }
     }
 
+    /// B-302 / P20: empty MFEX header is a typed refuse, never signed.
+    #[test]
+    fn b302_empty_mfex_is_typed_reject() {
+        let (anchor_recipient, _keys) = alice_recipient();
+        let (owned_a, owned_b) = two_real_owned_outputs(50_000_000_000);
+        let inputs = [&owned_a, &owned_b];
+        let pool = decoy_pool(20);
+        let extra = {
+            let mut e = Vec::from(mfn_consensus::extra_codec::MFEX_MAGIC.as_slice());
+            e.push(mfn_consensus::extra_codec::MFEX_VERSION);
+            e
+        };
+        let mut r = rng();
+        let plan = StorageUploadPlan {
+            inputs: &inputs,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: 100_000,
+            },
+            data: b"empty-mfex-refuse",
+            replication: 3,
+            chunk_size: None,
+            endowment_blinding: None,
+            endowment_params: &DEFAULT_ENDOWMENT_PARAMS,
+            fee_to_treasury_bps: 9000,
+            change_recipients: &[],
+            fee: 1_000_000,
+            extra: &extra,
+            authorship_claims: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &pool,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_storage_upload(plan) {
+            Err(crate::WalletError::NonCanonicalTxExtra { len }) => {
+                assert_eq!(len, 5);
+            }
+            other => panic!("expected NonCanonicalTxExtra, got {other:?}"),
+        }
+    }
+
     #[test]
     fn happy_path_anchors_data_and_returns_artifacts() {
         let (anchor_recipient, _keys) = alice_recipient();

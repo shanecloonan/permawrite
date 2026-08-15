@@ -412,6 +412,46 @@ mod tests {
         }
     }
 
+    /// B-302 / P20: empty MFEX header is a typed refuse, never signed.
+    #[test]
+    fn b302_empty_mfex_is_typed_reject() {
+        let input_a = owned(600_000);
+        let input_b = owned(500_000);
+        let refs = [&input_a, &input_b];
+        let decoys = pool(20);
+        let keys = wallet_from_seed(&[3u8; 32]);
+        let recipient = Recipient {
+            view_pub: keys.view_pub(),
+            spend_pub: keys.spend_pub(),
+        };
+        let recipients = [TransferRecipient {
+            recipient,
+            value: 100_000,
+        }];
+        let extra = {
+            let mut e = Vec::from(mfn_consensus::extra_codec::MFEX_MAGIC.as_slice());
+            e.push(mfn_consensus::extra_codec::MFEX_VERSION);
+            e
+        };
+        let mut r = mfn_crypto::seeded_rng(0xB302_0001);
+        let plan = TransferPlan {
+            inputs: &refs,
+            recipients: &recipients,
+            fee: 1_000,
+            extra: &extra,
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &decoys,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_transfer(plan) {
+            Err(WalletError::NonCanonicalTxExtra { len }) => {
+                assert_eq!(len, 5);
+            }
+            other => panic!("expected NonCanonicalTxExtra, got {other:?}"),
+        }
+    }
+
     /// guarantee: no reference caller ever broadcasts a one-output tx.
     #[test]
     fn single_recipient_transfer_is_padded_to_two_outputs() {

@@ -1,6 +1,7 @@
 //! Structured `TransactionWire.extra` payloads (M2.2.x).
 //!
-//! Consensus `extra` is empty or an **`MFEX`** envelope (B-301 / F5 P20).
+//! Consensus `extra` is empty or an **`MFEX`** envelope with a payload
+//! (B-301 / B-302 / F5 P20).
 //! When `extra` begins with the **`MFEX`** magic, the remainder is a versioned container
 //! whose v1 body is a concatenation of zero or more self-delimiting
 //! **`MFCL`** authorship claim frames (see [`mfn_crypto::authorship`]).
@@ -95,11 +96,12 @@ pub enum ExtraClaimsParseError {
         /// Bytes available.
         got: usize,
     },
-    /// Non-empty `extra` that is not an `MFEX` envelope (F5 P20 / B-301).
-    /// Empty `extra` is the transfer canonical form; anything else must
-    /// parse as MFEX so a hostile wallet cannot partition the anonymity
-    /// set with an arbitrary memo.
-    #[error("non-canonical tx.extra (must be empty or MFEX)")]
+    /// Non-empty `extra` that is not a useful `MFEX` envelope (F5 P20 /
+    /// B-301 / B-302). Empty `extra` is the transfer canonical form;
+    /// anything else must parse as MFEX **with** at least one MFCL /
+    /// MFEO / MFER payload so a hostile wallet cannot partition the
+    /// anonymity set with an arbitrary memo or an empty header.
+    #[error("non-canonical tx.extra (must be empty or MFEX with payload)")]
     NonCanonicalExtra,
     /// Unknown `MFEX` version.
     #[error("unknown MFEX version {0}")]
@@ -380,6 +382,11 @@ pub fn parse_mfex_extra(extra: &[u8]) -> Result<ParsedMfexExtra, ExtraClaimsPars
         }
         _ => unreachable!("version filtered above"),
     };
+    if claims.is_empty() && endowment_openings.is_empty() && endowment_range_proofs.is_empty() {
+        // B-302: `MFEX` + version with no payload is a public fingerprint
+        // versus honest empty extra. Require at least one frame.
+        return Err(ExtraClaimsParseError::NonCanonicalExtra);
+    }
     Ok(ParsedMfexExtra {
         claims,
         endowment_openings,
@@ -389,7 +396,8 @@ pub fn parse_mfex_extra(extra: &[u8]) -> Result<ParsedMfexExtra, ExtraClaimsPars
 
 /// If `extra` is empty, returns no claims. If it begins with [`MFEX_MAGIC`],
 /// parse v1 as a concatenation of `MFCL` claim frames. Non-empty non-MFEX
-/// `extra` is [`ExtraClaimsParseError::NonCanonicalExtra`] (B-301).
+/// `extra`, and MFEX with no payload, are
+/// [`ExtraClaimsParseError::NonCanonicalExtra`] (B-301 / B-302).
 pub fn parse_mfex_authorship_claims(
     extra: &[u8],
 ) -> Result<Vec<AuthorshipClaim>, ExtraClaimsParseError> {
@@ -433,9 +441,25 @@ mod tests {
     }
 
     #[test]
-    fn mfex_empty_body_round_trip() {
-        let extra = mfex_wrap(&[]);
-        assert!(parse_mfex_authorship_claims(&extra).unwrap().is_empty());
+    fn b302_empty_mfex_is_non_canonical() {
+        assert_eq!(
+            parse_mfex_authorship_claims(&mfex_wrap(&[])),
+            Err(ExtraClaimsParseError::NonCanonicalExtra)
+        );
+        let mut v2 = Vec::new();
+        v2.extend_from_slice(MFEX_MAGIC);
+        v2.push(MFEX_VERSION_V2);
+        assert_eq!(
+            parse_mfex_extra(&v2),
+            Err(ExtraClaimsParseError::NonCanonicalExtra)
+        );
+        let mut v3 = Vec::new();
+        v3.extend_from_slice(MFEX_MAGIC);
+        v3.push(MFEX_VERSION_V3);
+        assert_eq!(
+            parse_mfex_extra(&v3),
+            Err(ExtraClaimsParseError::NonCanonicalExtra)
+        );
     }
 
     #[test]

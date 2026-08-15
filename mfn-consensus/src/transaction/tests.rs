@@ -498,6 +498,31 @@ fn b301_opaque_extra_rejected_at_verify() {
     );
 }
 
+/// F5 P20 / B-302: empty MFEX header is a fingerprint vs honest empty extra.
+#[test]
+fn b302_empty_mfex_rejected_at_verify() {
+    let inputs = vec![make_input(100_000, 4)];
+    let (_w, r) = recipient();
+    let outputs = vec![OutputSpec::ToRecipient {
+        recipient: r,
+        value: 99_500,
+        storage: None,
+    }];
+    let mut empty_mfex = Vec::new();
+    empty_mfex.extend_from_slice(crate::extra_codec::MFEX_MAGIC);
+    empty_mfex.push(crate::extra_codec::MFEX_VERSION);
+    let signed = sign_transaction(inputs, outputs, 500, empty_mfex).expect("sign");
+    let res = verify_transaction(&signed.tx, &RingPolicy::TEST);
+    assert!(!res.ok, "empty MFEX must fail verify");
+    assert!(
+        res.errors
+            .iter()
+            .any(|e| e.contains("non-canonical tx.extra")),
+        "expected P20 diagnostic, got: {:?}",
+        res.errors
+    );
+}
+
 #[test]
 fn storage_commitment_binds_into_preimage() {
     let inputs = vec![make_input(100_000, 4)];
