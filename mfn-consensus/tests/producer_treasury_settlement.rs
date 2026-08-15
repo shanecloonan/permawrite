@@ -1039,6 +1039,112 @@ fn b268b_activation_overlay_credits_at_height_without_mutating_base() {
 }
 
 #[test]
+fn b268f_apply_block_rejects_overlay_bps_above_10000() {
+    let fixture = ValidatorFixture::three_validators();
+    let (mut st, _, _) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        50_000_000_000,
+        &fixture,
+        None,
+        DEFAULT_ENDOWMENT_PARAMS,
+        false,
+    );
+    assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+    assert_eq!(st.subsidy_bps_activation_height, 0);
+    assert_eq!(st.subsidy_bps_activation_value, 0);
+
+    let path_a = build_validator_coinbase(
+        1,
+        &TEST_EMISSION,
+        0,
+        &fixture.payout,
+        &st,
+        1,
+        &[],
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        vec![path_a],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Ok { .. } => {}
+        ApplyOutcome::Err { errors, .. } => panic!("Path A (0,0) must still apply: {errors:?}"),
+    }
+
+    st.subsidy_bps_activation_height = 1;
+    st.subsidy_bps_activation_value = 10_001;
+    let bomb = build_validator_coinbase(
+        1,
+        &TEST_EMISSION,
+        0,
+        &fixture.payout,
+        &st,
+        1,
+        &[],
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        vec![bomb],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BadSubsidySchedule { got: 10_001 })),
+                "overlay 10001 must fail-closed: {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("overlay 10001 must not apply"),
+    }
+
+    st.subsidy_bps_activation_height = 0;
+    st.subsidy_bps_activation_value = 10_001;
+    let inactive_bomb = build_validator_coinbase(
+        1,
+        &TEST_EMISSION,
+        0,
+        &fixture.payout,
+        &st,
+        1,
+        &[],
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        vec![inactive_bomb],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BadSubsidySchedule { got: 10_001 })),
+                "height-0 bomb must fail-closed: {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("height-0 bomb must not apply"),
+    }
+}
+
+#[test]
 fn fee_only_legacy_block_credits_full_fee_to_treasury() {
     let initial = 50_000_000_000u64;
     let (mut st, spend, input_pad) = {

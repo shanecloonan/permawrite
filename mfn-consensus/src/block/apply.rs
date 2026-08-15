@@ -231,6 +231,18 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     // ---- Tentative state copy (only kept on success). ----
     let mut next = state.clone();
     next.height = Some(block.header.height);
+    // B-268f: refuse overlay that takes more than 100% of subsidy,
+    // including a height-0 bomb. Decode already gates restore (B-268e);
+    // this is the live gate for in-memory / B-13c inject.
+    let overlay = crate::emission::SubsidyBpsSchedule {
+        activation_height: next.subsidy_bps_activation_height,
+        activation_value: next.subsidy_bps_activation_value,
+    };
+    if overlay.validate().is_err() {
+        errors.push(BlockError::BadSubsidySchedule {
+            got: next.subsidy_bps_activation_value,
+        });
+    }
     let emission_params = next.effective_emission_params(block.header.height);
 
     // Storage commitments newly anchored this block (in declaration order),

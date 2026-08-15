@@ -197,6 +197,16 @@ pub enum BlockError {
     /// `verify_coinbase` rejected the tx.
     #[error("coinbase invalid: {0:?}")]
     CoinbaseInvalid(Vec<String>),
+    /// Overlay `activation_value` exceeds 10000 bps (B-268f).
+    ///
+    /// Checkpoint decode already refuses this (B-268e). `apply_block` is
+    /// the live gate for in-memory / genesis-inject schedules that never
+    /// went through restore.
+    #[error("subsidy overlay activation_value {got} exceeds 10000")]
+    BadSubsidySchedule {
+        /// Configured overlay value.
+        got: u16,
+    },
     /// Block has a coinbase but the producer has no payout (or there is
     /// no producer at all).
     #[error("unexpected coinbase: producer has no payout")]
