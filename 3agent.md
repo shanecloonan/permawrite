@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat B **B-268d** claim. Tip CI `#31870566481` in_progress on B-268c — do not cancel. B-268b `#31867337251` rust GREEN / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Seat C **B-42** last_proven **22487**.
+Synced at Seat C B-42 2nd JOIN last_proven 22492. Tip CI `#31870566481` in_progress on B-268c — do not cancel. B-268b `#31867337251` rust GREEN / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Seat B **B-268d** claim `0f795a9f`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL); do not steal B-42 |
 | **B** Protocol/Privacy | **B-268c** (`342ffbf8`); **B-268b** (`ee3739e7`) | **B-268d** light slash schedule (claim base `342ffbf8`) | After body: **B-35** pad; no B-13c |
-| **C** Testnet/Onboarding | **B-42** last_proven **22487** (`710705a9`); Path A `4bb569d3` | *Idle* | 2nd staggered JOIN; 2nd host B-32 |
+| **C** Testnet/Onboarding | **B-42** 2nd JOIN last_proven **22492** (this commit); iris `710705a9` | *Idle* | 2nd host B-32; Path A if lag≥8 |
 
 ### Hard locks (all seats)
 
@@ -58,6 +58,6 @@ L4 public testnet harden
 ```text
 3agent — Seat A: Done go refuses Path A toy keys (`c8037401`) / Doing idle / Next fix signoff-validate (#31867337251 FAIL)
 3agent — Seat B: Done B-268c (`342ffbf8`) / Doing B-268d light slash schedule / Next B-35 pad after body
-3agent — Seat C: Done B-42 last_proven 22487 / Doing idle / Next 2nd JOIN; 2nd host B-32
+3agent — Seat C: Done B-42 2nd JOIN last_proven 22492 / Doing idle / Next 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

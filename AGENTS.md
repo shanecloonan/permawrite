@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Tip CI `#31870566481` **in_progress** on **B-268c** `342ffbf8` — do not cancel. B-268b `#31867337251` rust GREEN / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Lane7 **B-42** last_proven **22487**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Tip CI `#31870566481` **in_progress** on **B-268c** `342ffbf8` — do not cancel. Lane7 B-42 2nd JOIN last_proven **22492** (this commit, `[skip ci]`). B-268b `#31867337251` rust GREEN / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
 | **2** RC ops | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL scripts); **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-42** last_proven=**22487** (this commit); **B-15 wave115** (`46d9f86c`) | *Idle* | Human SUMMARY; 2nd JOIN / B-32 | L4 checklist |
+| **3** Onboarding | **B-42** 2nd JOIN last_proven=**22492** (this commit); iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **B-268c** (`342ffbf8`); **B-294** (`0ecd19ce`) | **B-268d** light slash uses genesis emission + schedule (claim base: `342ffbf8`) | After body: **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | **B-42** last_proven **22487** (this commit); Path A tip-**22486** (`4bb569d3`); **B-299** (`30ff27b0`) | *Idle* | 2nd staggered JOIN when hub quiet; 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | **B-42** 2nd JOIN last_proven **22492** (this commit); iris **22487** (`710705a9`); Path A **22486** | *Idle* | 2nd host B-32; Path A if lag≥8 | `launch-go-no-go` + observer |
 
 ---
 
@@ -246,7 +246,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | **Runbook** + **D0 preflight helper** landed; arm day-of L4
 | B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd :1910x + socat :1900x; EXT 19001–19003 OPEN; tip~4031 |
-| B-42 | Invite-load smoke before TL-9 | 3+7 | Preflight PASS; serialize `bda9a419`; last_proven **22467→22487** (`24e62a5a`, this commit). Concurrent JOIN x2 still open — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
+| B-42 | Invite-load smoke before TL-9 | 3+7 | Preflight PASS; serialize `bda9a419`; staggered JOINs last_proven **22487** (iris) + **22492** (join-a `ea7cba7c`, this commit). Concurrent rehearsal x2 still open — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | **Draft** — `docs/PATH_B_GENESIS_FREEZE.md`; human cells TBD; no ceremony |
 | B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
 | B-45 | B3 operator-salted challenge/prove/pool path | 4 | **Landed** — unblocks honest multi-op SPoRA on salted genesis; Hetzner mfnd roll = lane 7 |
@@ -501,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 4 - claim B-268d** (this commit): light `apply_equivocation` still uses `DEFAULT_EMISSION_PARAMS` + empty schedule, so after `H_act` an honest overlay coinbase slash is a false positive and light diverges from the full node. Claim base `342ffbf8`. Body after tip CI `#31870566481` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 7 - B-42 2nd staggered JOIN last_proven 22492** (this commit): payout→`b42-join-a` two 2e6 via observer; upload `ea7cba7c` mined+proven in **22492** (proxy total 95→96, user_tx 419→422). Distinct from iris `24e62a5a` @ 22487. No mfnd/faucet restart. Path A ckpt 22486 lag=6 OK. Evidence `b42-join-a-last-proven-22492-20260815.md`. Tip CI `#31870566481` in_progress — `[skip ci]`. Next: 2nd host B-32. *Observed (not staged):* Seat B B-268d light; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 4 - claim B-268d** (`0f795a9f`): light `apply_equivocation` still uses `DEFAULT_EMISSION_PARAMS` + empty schedule, so after `H_act` an honest overlay coinbase slash is a false positive and light diverges from the full node. Claim base `342ffbf8`. Body after tip CI `#31870566481` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 4 - B-268c contested-height fraud overlay** (`342ffbf8`): slash/gossip use `SubsidyBpsSchedule.effective(base, contested_height)` not applying-era overlay / not `DEFAULT`. `b268c_default_params_false_positive_honest_overlay_coinbase` PASS (DEFAULT ValidFraud; overlay NotFraud; wrong-era ValidFraud). Local ci-check OK. No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-268d** light schedule. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
