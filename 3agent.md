@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat B **B-301** land. `#31893770179` FAIL scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 **faucet HTTP F7**.
+Synced at Seat B claim **B-302** (base `a55d5869`). Tip CI `#31897824126` in_progress — do not cancel. Nightly `#31861932921` **GREEN**. Lane7 **faucet HTTP F7**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | `go` requires `gates.ci.commit` == manifest commit (`b0bd1caa`); VRF `edd1bc65` | *Idle* | Fix scripts FAIL `#31893770179`; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-301** (this commit); **B-268g** (`247b5198`) | *Idle* | **B-35** pad; no B-13c |
+| **B** Protocol/Privacy | **B-301** (`a55d5869`) | **B-302** empty-MFEX fail-closed (claim base `a55d5869`) | Body after tip CI GREEN; no B-13c; no B-35 |
 | **C** Testnet/Onboarding | Path A **22504** (`e0cc06f1`); last_proven **22492** | **faucet HTTP F7** (claim base `e0cc06f1`) | 2nd host B-32 |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. This land is full CI (B-301 Rust). Nightly `#31861932921` GREEN.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#31897824126` in_progress — do not cancel; Nightly `#31861932921` GREEN.
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done go requires gates.ci.commit == manifest commit / Doing idle / Next fix scripts FAIL #31893770179
-3agent — Seat B: Done B-301 P20 opaque extra fail-closed / Doing idle / Next B-35 pad
+3agent — Seat B: Done B-301 (`a55d5869`) / Doing B-302 empty-MFEX fail-closed / Next body after tip CI GREEN
 3agent — Seat C: Done Path A tip-22504 / Doing faucet HTTP F7 / Next 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```
