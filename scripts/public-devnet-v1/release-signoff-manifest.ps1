@@ -133,6 +133,10 @@ if ($Decision -eq "go") {
     if ($subsidyBps -le 0 -or $bondAtoms -le 0 -or $pathAExperimental) {
         Add-Issue "go decision requires funded economy (subsidy>0, bond>0, path_a_experimental=false)"
     }
+    $nightly = $evidence.nightly
+    if ($null -eq $nightly -or [string]$nightly.status -ne "completed" -or [string]$nightly.conclusion -ne "success") {
+        Add-Issue "go decision requires completed successful Nightly on bound evidence"
+    }
 }
 
 $manifest = [pscustomobject]@{

@@ -737,6 +737,57 @@ try {
         [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest with failing CI")
         exit 1
     }
+    $nightlyFailEvidence = Join-Path $signoffValidateDir "funded-nightly-fail.json"
+    $nightlyFailEvidenceObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $nightlyFailEvidenceObject.economy.subsidy_to_treasury_bps = 1000
+    $nightlyFailEvidenceObject.economy.min_storage_operator_bond = 1
+    $nightlyFailEvidenceObject.economy.path_a_experimental = $false
+    $nightlyFailEvidenceObject.nightly.conclusion = "failure"
+    $nightlyFailEvidenceObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $nightlyFailEvidence -Encoding utf8
+    $nightlyFailSignoff = Join-Path $signoffValidateDir "nightly-fail-signoff.json"
+    $nightlyFailSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $nightlyFailSignoffObject.decision = "go"
+    $nightlyFailSignoffObject.issues = @()
+    $nightlyFailSignoffObject.release_evidence.path = $nightlyFailEvidence
+    $nightlyFailSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $nightlyFailSignoff -Encoding utf8
+    $nightlyFailStdout = Join-Path $signoffValidateDir "nightly-fail.out"
+    $nightlyFailStderr = Join-Path $signoffValidateDir "nightly-fail.err"
+    $nightlyFailProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $nightlyFailSignoff
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $nightlyFailStdout -RedirectStandardError $nightlyFailStderr
+    if ($nightlyFailProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest without green Nightly")
+        exit 1
+    }
+    $fundedGoEvidence = Join-Path $signoffValidateDir "funded-nightly-ok.json"
+    $fundedGoEvidenceObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $fundedGoEvidenceObject.economy.subsidy_to_treasury_bps = 1000
+    $fundedGoEvidenceObject.economy.min_storage_operator_bond = 1
+    $fundedGoEvidenceObject.economy.path_a_experimental = $false
+    $fundedGoEvidenceObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGoEvidence -Encoding utf8
+    $fundedGoSignoff = Join-Path $signoffValidateDir "funded-go.json"
+    $fundedGoSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $fundedGoSignoffObject.decision = "go"
+    $fundedGoSignoffObject.issues = @()
+    $fundedGoSignoffObject.release_evidence.path = $fundedGoEvidence
+    $fundedGoSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGoSignoff -Encoding utf8
+    $fundedGoStdout = Join-Path $signoffValidateDir "funded-go.out"
+    $fundedGoStderr = Join-Path $signoffValidateDir "funded-go.err"
+    $fundedGoProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $fundedGoSignoff
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $fundedGoStdout -RedirectStandardError $fundedGoStderr
+    if ($fundedGoProcess.ExitCode -ne 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 rejected a funded go manifest with green Nightly")
+        exit 1
+    }
     $global:LASTEXITCODE = 0
 } finally {
     Remove-Item -Recurse -Force $signoffValidateDir -ErrorAction SilentlyContinue

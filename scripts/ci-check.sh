@@ -561,6 +561,57 @@ if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest
   echo "release-signoff-manifest-validate.sh accepted a go manifest with failing CI" >&2
   exit 1
 fi
+python3 - "$signoff_validate_dir/funded-nightly-fail.json" "$signoff_validate_dir/nightly-fail-signoff.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as handle:
+    evidence = json.load(handle)
+evidence["economy"]["subsidy_to_treasury_bps"] = 1000
+evidence["economy"]["min_storage_operator_bond"] = 1
+evidence["economy"]["path_a_experimental"] = False
+evidence["nightly"]["conclusion"] = "failure"
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(evidence, handle, indent=2)
+    handle.write("\n")
+with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["decision"] = "go"
+doc["issues"] = []
+doc["release_evidence"]["path"] = sys.argv[1]
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest "$signoff_validate_dir/nightly-fail-signoff.json" >/dev/null 2>&1; then
+  echo "release-signoff-manifest-validate.sh accepted a go manifest without green Nightly" >&2
+  exit 1
+fi
+python3 - "$signoff_validate_dir/funded-nightly-ok.json" "$signoff_validate_dir/funded-go.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as handle:
+    evidence = json.load(handle)
+evidence["economy"]["subsidy_to_treasury_bps"] = 1000
+evidence["economy"]["min_storage_operator_bond"] = 1
+evidence["economy"]["path_a_experimental"] = False
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(evidence, handle, indent=2)
+    handle.write("\n")
+with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["decision"] = "go"
+doc["issues"] = []
+doc["release_evidence"]["path"] = sys.argv[1]
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if ! bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest "$signoff_validate_dir/funded-go.json" >/dev/null 2>&1; then
+  echo "release-signoff-manifest-validate.sh rejected a funded go manifest with green Nightly" >&2
+  exit 1
+fi
 rm -rf "$signoff_validate_dir"
 ci_watch_dir="$(mktemp -d)"
 ci_watch_commit="0123456789abcdef0123456789abcdef01234567"

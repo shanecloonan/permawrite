@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane3 **B-15 wave115** CLOSE (this commit, `[skip ci]`). Public last_proven **6848→22467**. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Lane2 signoff `go` requires Nightly GREEN (this commit, `[skip ci]` — leave full CI for **B-268b** Rust). Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Lane7 **B-42** claimed. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
 | **2** RC ops | signoff `go` requires Nightly GREEN (this commit); Path A go-forbid (`eaa822a8`); RC no-go (`0845655d`) | *Idle* | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave115** last_proven=**22467** (`601cb854…`; this commit); **B-15 wave114** (hugo 6848) | *Idle* | Human SUMMARY; **B-42** | L4 checklist |
+| **3** Onboarding | **B-15 wave115** last_proven=**22467** (`46d9f86c`); **B-15 wave114** (hugo 6848) | *Idle* | Human SUMMARY; **B-42** | L4 checklist |
 | **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m; **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | Path A tip-**22467** land (this commit; lag=1); **B-299** (`30ff27b0`); **B-298** (`0237a53d`); **B-296** | *Idle* | **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | Path A tip-**22467** (`46d9f86c`); **B-299** (`30ff27b0`); **B-298** | **B-42** live invite-load stagger (claim base: `46d9f86c`) | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -501,9 +501,13 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 3 - B-15 wave115 last_proven 6848→22467** (this commit): public newest last_proven was hugo **6848** for ~15k blocks. Faucet-ops **owned=0** after B-296 storm (HTTP F7 1-input error). Payout refill owned=3 (no faucet restart); iris job `3f46b975` **done 91s**; upload `601cb854…` + prove; proxy **last_proven=22467** total 93→94. Path A land tip-22467; outside-in lag **OK=1**. Evidence `b15-wave115-last-proven-22467-20260815.md`. `[skip ci]` — do not steal **B-268b**. Next: Human SUMMARY; **B-42**. *Observed (not staged):* lane6 B-268b Rust; `apply_block_proptest.rs`; `tx_storm.rs`; lane2 signoff scripts.
+1. **2026-08-15 - lane 2 - signoff go requires Nightly GREEN** (this commit): emit + validate refuse `decision=go` unless bound `evidence.nightly` is completed+success (in addition to funded economy + CI). ci-check: funded go + `nightly.conclusion=failure` reject; funded + Nightly success still accept. SYNC: wave115 `46d9f86c` on main; lane7 **B-42** Doing (not this body). Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
 
-1. **2026-08-15 - lane 2 - signoff go requires Nightly GREEN** (working-tree / prior): emit + validate refuse `decision=go` unless bound `evidence.nightly` is completed+success (in addition to funded economy + CI). ci-check: funded go + `nightly.conclusion=failure` reject; funded + Nightly success still accept. Board SYNC: wave115 CLOSE was not on `main` (Seat C working-tree); restored C to **B-299** / wave114. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; C wave115 evidence/jsonl; rc-audit json.
+1. **2026-08-15 - lane 7 - claim B-42** (Seat C working-tree): live invite-load stagger after B-15 wave115. Claim base `46d9f86c`. Faucet-ops owned=1 (need second UTXO before JOIN). No parallel JOIN until this unit runs staggered pair. `[skip ci]` — do not steal **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; lane2 signoff scripts.
+
+1. **2026-08-15 - lane 3 - B-15 wave115 last_proven 6848→22467** (`46d9f86c`): public newest last_proven was hugo **6848** for ~15k blocks. Faucet-ops **owned=0** after B-296 storm (HTTP F7 1-input error). Payout refill owned=3 (no faucet restart); iris job `3f46b975` **done 91s**; upload `601cb854…` + prove; proxy **last_proven=22467** total 93→94. Path A land tip-22467; outside-in lag **OK=1**. Evidence `b15-wave115-last-proven-22467-20260815.md`. `[skip ci]` — do not steal **B-268b**. Next: Human SUMMARY; **B-42**. *Observed (not staged):* lane6 B-268b Rust; `apply_block_proptest.rs`; `tx_storm.rs`; lane2 signoff scripts.
+
+1. **2026-08-15 - lane 2 - signoff go requires Nightly GREEN** (body in this commit; prior board note): emit + validate refuse `decision=go` unless bound `evidence.nightly` is completed+success.
 
 1. **2026-08-15 - lane 2 - signoff go forbidden on Path A holes** (`eaa822a8`): `release-signoff-manifest` emit + validate refuse `decision=go` unless subsidy>0, bond>0, and `path_a_experimental=false`. Sample is honest `no-go`. ci-check: Path A go reject; funded go + bad CI still reject. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
 

@@ -168,6 +168,9 @@ if doc.get("decision") == "go":
         path_a_experimental = bool(economy.get("path_a_experimental", True))
         if subsidy_bps <= 0 or bond_atoms <= 0 or path_a_experimental is not False:
             issue("go decision requires funded economy (subsidy>0, bond>0, path_a_experimental=false)")
+        nightly = evidence.get("nightly") or {}
+        if nightly.get("status") != "completed" or nightly.get("conclusion") != "success":
+            issue("go decision requires completed successful Nightly on bound evidence")
 
 if issues:
     for message in issues:
