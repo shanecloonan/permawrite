@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Landing **B-268e** Rust (full CI). B-268d `#31872756568` rust/clippy/wasm/audit + all OS tests **GREEN**; scripts FAIL is Seat A. Nightly `#31861932921` **GREEN**. Lane7 tip-22495 stall recover stands. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Tip CI `#31874878025` **in_progress** on **B-268e** `13ea7acf` — do not cancel. Lane4 claiming **B-300** inbound hello timeout / slot release (claim base `13ea7acf`, `[skip ci]`). Scripts FAIL is Seat A. Nightly `#31861932921` **GREEN**. Lane7 tip-22495 stall recover stands. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
 | **2** RC ops | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL scripts); **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 2nd JOIN last_proven=**22492** (`985e594e`); iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-268e** (this commit); **B-268d** (`6015797c`; rust GREEN `#31872756568`) | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-268e** (`13ea7acf`); **B-268d** (`6015797c`) | **B-300** inbound hello timeout releases handler slot (claim base: `13ea7acf`) | After body: **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | Path A **22495** (`a6cd75f6`); **B-42** last_proven **22492** | **tip-22495 stall recover** (claim base: `a6cd75f6`) | faucet HTTP F7 (owned=1); 2nd host B-32 | `launch-go-no-go` + observer |
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 7 | 4 | **Hub inbound CLOSE-WAIT leak:** `:19101` fills `P2P_MAX_INBOUND_HANDLERS=48` (`inbound_cap_reached`); silent/half-closed inbound holds the slot for the 30s hello timeout; vote fanout EAGAIN; tip stuck **22495**. | **Ack** (B-300 claim) |
 | 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push ssert-b28-treasury-thresholds --mode post / -Mode post + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Done** (landed this commit; tip CI watch) |
 | 6 | 7 | **Path A lag FAIL:** outside-in tip=16453 ckpt_max=16341 **lag=112**. Closed by **B-264** tip-16456 land (assert OK lag=-1; evidence `outside-in-tip-ckpt-lag-20260806T184223Z.txt`). | **Done** (B-264) |
 | 6 | 4 | **B-268 design review:** please skim [`docs/B13_ACTIVATION_HEIGHT.md`](docs/B13_ACTIVATION_HEIGHT.md) (now includes call-site inventory for apply_block/fraud/producer). Ack before **B-268b** Rust. | **Ack** (lane4: agree effective_emission_params + no base mutate at H_act; fraud/producer must mirror; ckpt v12 schedule fields OK) |
@@ -501,7 +502,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 4 - B-268e overlay bps>10000 fail-closed** (this commit): chain v12 + light v2 decode reject `activation_value > 10000` (inactive height-0 bomb included). `SubsidyBpsSchedule::validate` + `b268e_schedule_rejects_bps_above_10000` / `b268e_v12_rejects_overlay_bps_above_10000` / `b268e_v2_rejects_overlay_bps_above_10000` PASS. Path A `(0,0)` still loads. Local `ci-check -RustOnly` green. B-268d `#31872756568` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** pad. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C tip-22495 claim + CLOSE-WAIT evidence.
+1. **2026-08-15 - lane 4 - claim B-300** (this commit): silent inbound holds a `P2P_MAX_INBOUND_HANDLERS` slot for the 30s hello timeout, so 48 probes / half-closes starve vote fanout (`inbound_cap_reached`) and the producer cannot seal. Claim base `13ea7acf`. Body after tip CI `#31874878025` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C tip-22495 / CLOSE-WAIT evidence.
+
+1. **2026-08-15 - lane 4 - B-268e overlay bps>10000 fail-closed** (`13ea7acf`): chain v12 + light v2 decode reject `activation_value > 10000` (inactive height-0 bomb included). `SubsidyBpsSchedule::validate` + `b268e_schedule_rejects_bps_above_10000` / `b268e_v12_rejects_overlay_bps_above_10000` / `b268e_v2_rejects_overlay_bps_above_10000` PASS. Path A `(0,0)` still loads. Local `ci-check -RustOnly` green. B-268d `#31872756568` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** pad. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C tip-22495 claim + CLOSE-WAIT evidence.
 
 1. **2026-08-15 - lane 7 - claim tip-22495 stall recover** (`6ea5452a`): public tip stuck **22495** since hub OOM restart 07:30Z; journal is inbound_cap=48 + vote_fanout EAGAIN, no `producer_sealed`. Recover `mfn-p2p-forward-hub` only (no mfnd/faucet). Skeptic: `get_tip` > 22495. Claim base `a6cd75f6`. Tip CI `#31872756568` in_progress — `[skip ci]`. *Observed (not staged):* Seat B B-268e; `tx_storm.rs`; rc-audit json.
 
