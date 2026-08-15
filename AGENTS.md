@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane7 **B-291** tall-tip mesh recover (this push, docs/ops). Tip CI `#31857970110` **GREEN** on B-293; watch lane4 B-294 if in flight. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Landing **B-294** twentieth asymmetric then absentee re-slash. Tip CI `#31857970110` **GREEN** on B-293. Lane7 **B-291** `24ce61a9` landed — do not steal **B-296**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-294** (this commit); **B-293** GREEN `#31857970110` | *Idle* | **B-295** twentieth op1 re-slash; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m (this commit); **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | *Idle* — no B-268b / no B-13c | After tip GREEN + lane4 Ack: **B-268b**; human **B-33**; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | **B-291** tall-tip mesh recover+skip-seeds (this commit); **B-278** (`b1ab1b17`); **B-277** (`af596d04`) | *Idle* | **B-296** dual-payment storm + faucet-ops rotate; **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | **B-291** tall-tip mesh recover+skip-seeds (`24ce61a9`); **B-278** (`b1ab1b17`); **B-277** (`af596d04`) | *Idle* | **B-296** dual-payment storm + faucet-ops rotate; **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -338,7 +338,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-295 | Twentieth-offense op1 asymmetric then absentee re-slash (early B-24eo) | 4 | After B-294; elevates B-287; completes twentieth re-slash pair |
 | B-277 | Live Path A onchain tx-storm + adversarial submit probes (observer-visible) | 7 | **Landed** (`af596d04`) — evidence `b277-live-tx-storm-20260807.md`; F120–F123; adv rejects OK; user txs blocked until B-278 |
 | B-278 | Faucet wallet UTXO prune/rotate (unblock F122 fund path) | 7+2 | **Landed** (`b1ab1b17`) — prune 22062→32; HTTP dual-fund **done 99s**; evidence `b278-faucet-utxo-prune-20260814.md`; CLI O(n) pending-spend diff |
-| B-291 | Tall-tip mesh recover + skip-manifest-seeds + loopback peers (post-B-278) | 7 | **Landed** (this commit) — tip stall root cause = public hairpins + cold replay; tip restored ~22350; evidence `b291-tall-tip-mesh-recover-20260815.md`; storm deferred to **B-296** |
+| B-291 | Tall-tip mesh recover + skip-manifest-seeds + loopback peers (post-B-278) | 7 | **Landed** (`24ce61a9`) — tip stall root cause = public hairpins + cold replay; tip restored ~22350; evidence `b291-tall-tip-mesh-recover-20260815.md`; storm deferred to **B-296** |
 | B-296 | Dual-payment live storm + faucet-ops systemd rotate (post-B-291) | 7 | After calm light-scan / optional `chain.checkpoint`; observer user-tx delta >= storm count |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
@@ -498,9 +498,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - B-291 tall-tip mesh recover** (this commit): tip stall from public seed hairpins + ~15m block-log replay; applied `MFN_SKIP_MANIFEST_SEEDS=1`, loopback `peers.json` (object shape), voters-hot then hub-only restart; tip restored **22350**; faucet hot path `validator0-faucet.json`; dual-fund txs raised observer user-tx 384→391; storm deferred to **B-296** (light-scan EAGAIN). Evidence `b291-tall-tip-mesh-recover-20260815.md` + OPERATORS row. Docs/ops `[skip ci]`. Next: **B-296** storm+ops rotate; B-42; 2nd host B-32. *Observed (not staged):* lane4 `apply_block_proptest.rs`; `mfn-wallet/tests/tx_storm.rs`; rc-audit-dry-run json.
+1. **2026-08-15 - lane 4 - B-294 twentieth asymmetric->absentee re-slash** (this commit): early B-24en `b294_b5_twentieth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local exact PASS. Tip CI `#31857970110` **GREEN** on B-293. Elevates B-286. Full CI (no skip). Next: **B-295** twentieth op1 re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs; rc-audit-dry-run json. Lane7 **B-291** `24ce61a9` / **B-296** Next — not staged.
 
-1. **2026-08-14 - lane 4 - B-294 twentieth asymmetric->absentee re-slash** (this commit): early B-24en `b294_b5_twentieth_offense_asymmetric_then_absentee_reslash_while_peer_settles`; local exact PASS. Tip CI `#31857970110` **GREEN** on B-293. Elevates B-286. Full CI (no skip). Next: **B-295** twentieth op1 re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs; rc-audit-dry-run json. Lane7 **B-291** claimed — not staged.
+1. **2026-08-15 - lane 7 - B-291 tall-tip mesh recover** (`24ce61a9`): tip stall from public seed hairpins + ~15m block-log replay; applied `MFN_SKIP_MANIFEST_SEEDS=1`, loopback `peers.json` (object shape), voters-hot then hub-only restart; tip restored **22350**; faucet hot path `validator0-faucet.json`; dual-fund txs raised observer user-tx 384→391; storm deferred to **B-296** (light-scan EAGAIN). Evidence `b291-tall-tip-mesh-recover-20260815.md` + OPERATORS row. Docs/ops `[skip ci]`. Next: **B-296** storm+ops rotate; B-42; 2nd host B-32. *Observed (not staged):* lane4 `apply_block_proptest.rs`; `mfn-wallet/tests/tx_storm.rs`; rc-audit-dry-run json.
 
 1. **2026-08-14 - lane 4 - claim B-294** (`1a986708`): early B-24en twentieth-offense asymmetric then absentee re-slash while tip CI `#31857970110` ran on B-293 `054f6332`. Claim base `054f6332`. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs; rc-audit-dry-run json. Lane7 **B-291** claimed. `[skip ci]`.
 
