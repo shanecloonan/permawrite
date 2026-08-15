@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Tip CI `#31897824126` **in_progress** on B-301 `a55d5869` — do not cancel. `#31893770179` FAIL scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 Path A **22535** land (lag ≥18→1). **B-302** claim (empty MFEX). Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Tip CI `#31897824126` **in_progress** on B-301 `a55d5869` — do not cancel. `#31893770179` FAIL scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 claiming **B-42 3rd staggered JOIN** (last_proven 22492 vs tip 22545). **B-302** claim (empty MFEX). Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-301** (`a55d5869`) | **B-302** empty-MFEX fail-closed (claim base: `a55d5869`) | After B-302: **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | Path A **22535** (this commit; lag **OK=1**); faucet HTTP F7 **`f77a4048` 73s**; last_proven **22492** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | Path A **22535** (`8425c601`; lag **OK=1**); faucet F7 **`f77a4048` 73s**; last_proven **22492** | **B-42 3rd staggered JOIN** last_proven catch-up (claim base: `8425c601`) | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -504,7 +504,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - Path A tip-22504→22535 lag close** (this commit): VPS timer already at **22535** (94 entries). `land-path-a-checkpoint-from-vps -Apply`; outside-in **OK lag=1** tip=22536. last_proven still **22492**. Evidence `outside-in-tip-ckpt-lag-20260815T174345Z.txt` + `b-path-a-tip-22535-20260815.md`. Tip CI `#31897824126` in_progress — `[skip ci]`. Next: 2nd host B-32. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 7 - claim B-42 3rd staggered JOIN** (this commit): public newest last_proven still **22492** (`ea7cba7c`) vs tip **22545**. One observer upload+prove (no parallel rehearsal). Skeptic: `list_recent_uploads` last_proven > 22492. Claim base `8425c601`. Tip CI `#31897824126` in_progress — `[skip ci]`. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 7 - Path A tip-22504→22535 lag close** (`8425c601`): VPS timer already at **22535** (94 entries). `land-path-a-checkpoint-from-vps -Apply`; outside-in **OK lag=1** tip=22536. last_proven still **22492**. Evidence `outside-in-tip-ckpt-lag-20260815T174345Z.txt` + `b-path-a-tip-22535-20260815.md`. Tip CI `#31897824126` in_progress — `[skip ci]`. Next: 2nd host B-32. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 7 - faucet HTTP F7 job done 73s** (`16825793`): faucet-ops B-50 pin + payout refill; hub/voter restart cleared competing-22509 stall; tip **22508→22522**. `POST /faucet` job **`f77a4048f05e9d22c2b28d3c` done 73185ms** txs `eb4e89a3…` `ac8d77a4…`. `/health` scan=tip **22522**. Evidence `b-faucet-http-f7-20260815.md`. Tip CI `#31897824126` in_progress — `[skip ci]`. Next: Path A lag (ckpt 22504); 2nd host B-32. *Observed (not staged):* B-302 claim; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
