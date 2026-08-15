@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat B **B-300** claim. Tip CI `#31874878025` in_progress on B-268e — do not cancel. Nightly `#31861932921` **GREEN**. Seat C tip-22495 stall recover stands.
+Synced at Seat B **B-300** CLOSE. Tip CI `#31874878025` rust/OS **GREEN** / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Seat C tip-22495 stall recover stands.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL); do not steal B-42 |
-| **B** Protocol/Privacy | **B-268e** (`13ea7acf`); **B-268d** (`6015797c`) | **B-300** inbound hello timeout / slot release (claim base `13ea7acf`) | After body: **B-35** pad; no B-13c |
+| **B** Protocol/Privacy | **B-300** (this commit); **B-268e** (`13ea7acf`) | *Idle* | **B-35** pad; no B-13c |
 | **C** Testnet/Onboarding | Path A **22495** (`a6cd75f6`); B-42 last_proven **22492** | **tip-22495 stall recover** (claim base `a6cd75f6`) | faucet HTTP F7; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#31874878025` in_progress on B-268e; Nightly `#31861932921` GREEN.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Landing B-300 full CI; `#31874878025` rust GREEN / scripts FAIL (Seat A); Nightly `#31861932921` GREEN.
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done go refuses Path A toy keys (`c8037401`) / Doing idle / Next fix signoff-validate (#31867337251 FAIL)
-3agent — Seat B: Done B-268e (`13ea7acf`) / Doing B-300 inbound slot release / Next B-35 pad after body
+3agent — Seat B: Done B-300 inbound hello 3s slot release / Doing idle / Next B-35 pad
 3agent — Seat C: Done Path A tip-22495 / Doing tip-22495 stall recover / Next faucet HTTP F7; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

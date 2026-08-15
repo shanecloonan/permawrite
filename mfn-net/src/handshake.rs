@@ -18,6 +18,10 @@ use crate::transport;
 
 /// Read/write timeout for P2P handshake framing on [`TcpStream`] (dial + `mfnd serve` accept path).
 pub const P2P_HANDSHAKE_IO_TIMEOUT: Duration = Duration::from_secs(30);
+/// Inbound accept path only: silent / half-closed peers must release the
+/// handler slot quickly so `P2P_MAX_INBOUND_HANDLERS` cannot be filled by
+/// probes (**B-300**). Outbound dials keep [`P2P_HANDSHAKE_IO_TIMEOUT`].
+pub const P2P_INBOUND_HELLO_IO_TIMEOUT: Duration = Duration::from_secs(3);
 /// Re-exported from [`transport`] (**B8.0**).
 pub use crate::transport::P2P_CONNECT_TIMEOUT;
 

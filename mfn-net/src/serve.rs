@@ -16,7 +16,7 @@ use crate::{
 use crate::{
     tcp_connect_peer_v1_handshake_with_tip_exchange, BlockSyncApplier, BlockSyncProvider,
     ChainTipV1, GossipHandler, GossipRecvStats, HelloHandshakeError, PullBlocksError,
-    PullBlocksStats, P2P_GOSSIP_IO_TIMEOUT, P2P_HANDSHAKE_IO_TIMEOUT,
+    PullBlocksStats, P2P_GOSSIP_IO_TIMEOUT, P2P_INBOUND_HELLO_IO_TIMEOUT,
 };
 
 /// Maximum concurrent inbound P2P session handlers (handshake + post-handshake).
@@ -819,6 +819,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                 eprintln!(
                     "mfnd_p2p_inbound_cap_reached peer={peer} cap={P2P_MAX_INBOUND_HANDLERS}"
                 );
+                let _ = sock.shutdown(std::net::Shutdown::Both);
                 drop(sock);
                 continue;
             }
@@ -839,8 +840,17 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                     let _slot = InboundHandlerSlot(&slot_counter);
                     let mut sock = sock;
                     let t0 = Instant::now();
-                    let _ = sock.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
-                    let _ = sock.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+                    let _ = sock.set_read_timeout(Some(P2P_INBOUND_HELLO_IO_TIMEOUT));
+                    let _ = sock.set_write_timeout(Some(P2P_INBOUND_HELLO_IO_TIMEOUT));
+                    struct ShutdownOnDrop(Option<TcpStream>);
+                    impl Drop for ShutdownOnDrop {
+                        fn drop(&mut self) {
+                            if let Some(s) = self.0.take() {
+                                let _ = s.shutdown(std::net::Shutdown::Both);
+                            }
+                        }
+                    }
+                    let _shutdown = ShutdownOnDrop(sock.try_clone().ok());
                     if let Err(e) = hello_v1_handshake(&mut sock, &genesis_id) {
                         eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=hello {e}");
                         return;
@@ -1297,5 +1307,69 @@ mod tests {
             None
         );
         assert_eq!(parse_fraud_producer_slash_hint("TxRoot"), None);
+    }
+
+    #[test]
+    fn b300_inbound_slot_releases_on_drop() {
+        let n = AtomicUsize::new(0);
+        let mut held = Vec::new();
+        while try_acquire_inbound_handler_slot(&n) {
+            held.push(InboundHandlerSlot(&n));
+        }
+        assert_eq!(held.len(), P2P_MAX_INBOUND_HANDLERS);
+        assert!(!try_acquire_inbound_handler_slot(&n));
+        drop(held);
+        assert_eq!(n.load(AtomicOrdering::Acquire), 0);
+        assert!(try_acquire_inbound_handler_slot(&n));
+    }
+
+    #[test]
+    fn b300_silent_inbound_hello_releases_under_five_seconds() {
+        use std::io::Read;
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("local_addr");
+        spawn_inbound_handshake_loop(InboundP2pLoop {
+            listener,
+            genesis_id: [7u8; 32],
+            tip_cell: Arc::new(Mutex::new((0, [0u8; 32]))),
+            hid_counter: Arc::new(AtomicU64::new(0)),
+            hooks: P2pSessionHooks::default(),
+        })
+        .expect("spawn inbound");
+        let t0 = Instant::now();
+        let mut client = TcpStream::connect(addr).expect("connect");
+        client
+            .set_read_timeout(Some(std::time::Duration::from_secs(6)))
+            .expect("client read timeout");
+        let mut buf = [0u8; 256];
+        loop {
+            match client.read(&mut buf) {
+                Ok(0) => break,
+                Ok(_) => continue,
+                Err(e)
+                    if matches!(
+                        e.kind(),
+                        std::io::ErrorKind::UnexpectedEof | std::io::ErrorKind::ConnectionReset
+                    ) =>
+                {
+                    break;
+                }
+                Err(e)
+                    if matches!(
+                        e.kind(),
+                        std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                    ) =>
+                {
+                    panic!("client timed out waiting for inbound hello close");
+                }
+                other => panic!("expected server close after inbound hello timeout, got {other:?}"),
+            }
+        }
+        let elapsed = t0.elapsed();
+        assert!(
+            elapsed >= std::time::Duration::from_secs(2)
+                && elapsed < std::time::Duration::from_secs(5),
+            "silent inbound close took {elapsed:?} (want 2s..=5s)"
+        );
     }
 }

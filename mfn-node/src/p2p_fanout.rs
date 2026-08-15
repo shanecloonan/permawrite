@@ -14,7 +14,7 @@ use mfn_net::{
     push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1, send_chunk_v2, send_fraud_proof_v1,
     send_gossip_end_v1, send_proposal_v1, send_vote_v1, spawn_catch_up_dial, spawn_outbound_dial,
     BlockSyncApplierHook, BlockSyncHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter,
-    OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
+    OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot, P2P_GOSSIP_IO_TIMEOUT,
 };
 use mfn_runtime::Chain;
 use mfn_store::{
@@ -1064,6 +1064,8 @@ impl FanoutPeerSet for P2pPeerSet {
 
     fn register_session(&self, peer_addr: &str, stream: TcpStream) {
         let _ = stream.set_nodelay(true);
+        let _ = stream.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+        let _ = stream.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
         let Ok(mut guard) = self.sessions.lock() else {
             return;
         };
