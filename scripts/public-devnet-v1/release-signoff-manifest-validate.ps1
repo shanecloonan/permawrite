@@ -4,6 +4,9 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
+
 if (-not (Test-Path -LiteralPath $Manifest -PathType Leaf)) {
     throw "release-signoff-manifest-validate: missing file $Manifest"
 }
@@ -123,6 +126,31 @@ if ($doc.decision -eq "go") {
     )) {
         if ($doc.approvals.$name -ne $true) {
             Add-Issue "go decision requires approval '$name'"
+        }
+    }
+    $evidenceRel = [string]$doc.release_evidence.path
+    $evidenceCandidates = @()
+    if ($evidenceRel) {
+        $evidenceCandidates += $evidenceRel
+        $evidenceCandidates += (Join-Path $RepoRoot $evidenceRel)
+        $manifestDir = Split-Path -Parent (Resolve-Path -LiteralPath $Manifest).Path
+        $evidenceCandidates += (Join-Path $manifestDir $evidenceRel)
+    }
+    $evidencePath = $evidenceCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    if (-not $evidencePath) {
+        Add-Issue "go decision requires readable release evidence"
+    } else {
+        $evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+        $subsidyBps = 0
+        $bondAtoms = 0
+        $pathAExperimental = $true
+        if ($evidence.economy) {
+            if ($null -ne $evidence.economy.subsidy_to_treasury_bps) { $subsidyBps = [int]$evidence.economy.subsidy_to_treasury_bps }
+            if ($null -ne $evidence.economy.min_storage_operator_bond) { $bondAtoms = [int64]$evidence.economy.min_storage_operator_bond }
+            if ($null -ne $evidence.economy.path_a_experimental) { $pathAExperimental = [bool]$evidence.economy.path_a_experimental }
+        }
+        if ($subsidyBps -le 0 -or $bondAtoms -le 0 -or $pathAExperimental) {
+            Add-Issue "go decision requires funded economy (subsidy>0, bond>0, path_a_experimental=false)"
         }
     }
 }

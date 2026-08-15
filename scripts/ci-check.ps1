@@ -693,8 +693,35 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $signoffValidateDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-signoff-validate-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $signoffValidateDir | Out-Null
 try {
+    $pathAGo = Join-Path $signoffValidateDir "path-a-go.json"
+    $pathAGoObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $pathAGoObject.decision = "go"
+    $pathAGoObject.issues = @()
+    $pathAGoObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $pathAGo -Encoding utf8
+    $pathAGoStdout = Join-Path $signoffValidateDir "path-a-go.out"
+    $pathAGoStderr = Join-Path $signoffValidateDir "path-a-go.err"
+    $pathAGoProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $pathAGo
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $pathAGoStdout -RedirectStandardError $pathAGoStderr
+    if ($pathAGoProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest with Path A economy holes")
+        exit 1
+    }
+    $fundedEvidence = Join-Path $signoffValidateDir "funded-economy.json"
+    $fundedObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $fundedObject.economy.subsidy_to_treasury_bps = 1000
+    $fundedObject.economy.min_storage_operator_bond = 1
+    $fundedObject.economy.path_a_experimental = $false
+    $fundedObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedEvidence -Encoding utf8
     $badSignoff = Join-Path $signoffValidateDir "bad-signoff.json"
     $badSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $badSignoffObject.decision = "go"
+    $badSignoffObject.issues = @()
+    $badSignoffObject.release_evidence.path = $fundedEvidence
     $badSignoffObject.gates.ci.conclusion = "failure"
     $badSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $badSignoff -Encoding utf8
     $badSignoffStdout = Join-Path $signoffValidateDir "bad-signoff.out"
@@ -914,8 +941,14 @@ try {
 
 Decision: go
 '@ | Set-Content -LiteralPath $signoffInventory -Encoding utf8
+    $fundedEvidence = Join-Path $archiveDir "funded-economy-evidence.json"
+    $fundedObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $fundedObject.economy.subsidy_to_treasury_bps = 1000
+    $fundedObject.economy.min_storage_operator_bond = 1
+    $fundedObject.economy.path_a_experimental = $false
+    $fundedObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedEvidence -Encoding utf8
     $signoffJson = powershell -NoProfile -File scripts/public-devnet-v1/release-signoff-manifest.ps1 `
-        -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+        -ReleaseEvidenceJson $fundedEvidence `
         -ArchiveDir $archiveRoot `
         -Inventory $signoffInventory `
         -CiMockRuns $signoffCiSuccess `
@@ -952,12 +985,6 @@ Decision: go
   ]
 }
 "@ | Set-Content -LiteralPath (Join-Path $participantBundle "manifest.json") -Encoding utf8
-    $fundedEvidence = Join-Path $archiveDir "funded-economy-evidence.json"
-    $fundedObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
-    $fundedObject.economy.subsidy_to_treasury_bps = 1000
-    $fundedObject.economy.min_storage_operator_bond = 1
-    $fundedObject.economy.path_a_experimental = $false
-    $fundedObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedEvidence -Encoding utf8
     $auditJson = powershell -NoProfile -File scripts/public-devnet-v1/release-audit-packet.ps1 `
         -ReleaseEvidenceJson $fundedEvidence `
         -SignoffManifest docs/release-signoff-manifest-v1.sample.json `

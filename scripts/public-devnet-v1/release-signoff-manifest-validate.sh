@@ -41,11 +41,15 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 127
 fi
 
-python3 - "$manifest" <<'PY'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+python3 - "$manifest" "$REPO_ROOT" <<'PY'
 import json
+import os
 import sys
 
 manifest_path = sys.argv[1]
+repo_root = sys.argv[2]
 with open(manifest_path, "r", encoding="utf-8-sig") as handle:
     doc = json.load(handle)
 
@@ -137,6 +141,33 @@ if doc.get("decision") == "go":
     for key in required_approvals:
         if approvals.get(key) is not True:
             issue(f"go decision requires approval '{key}'")
+    evidence_rel = release_evidence.get("path") if isinstance(release_evidence, dict) else ""
+    evidence_path = None
+    if evidence_rel:
+        candidates = [
+            evidence_rel,
+            os.path.join(repo_root, evidence_rel),
+            os.path.join(os.path.dirname(os.path.abspath(manifest_path)), evidence_rel),
+        ]
+        for candidate in candidates:
+            if os.path.isfile(candidate):
+                evidence_path = candidate
+                break
+    if not evidence_path:
+        issue("go decision requires readable release evidence")
+    else:
+        with open(evidence_path, "r", encoding="utf-8-sig") as handle:
+            evidence = json.load(handle)
+        economy = evidence.get("economy") or {}
+        try:
+            subsidy_bps = int(economy.get("subsidy_to_treasury_bps") or 0)
+            bond_atoms = int(economy.get("min_storage_operator_bond") or 0)
+        except (TypeError, ValueError):
+            subsidy_bps = 0
+            bond_atoms = 0
+        path_a_experimental = bool(economy.get("path_a_experimental", True))
+        if subsidy_bps <= 0 or bond_atoms <= 0 or path_a_experimental is not False:
+            issue("go decision requires funded economy (subsidy>0, bond>0, path_a_experimental=false)")
 
 if issues:
     for message in issues:

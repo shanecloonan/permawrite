@@ -1,10 +1,10 @@
 {
   "schema_version": "release-signoff-manifest.v1",
   "generated_utc": "2026-06-29T00:00:00Z",
-  "decision": "go",
+  "decision": "no-go",
   "commit": "0000000000000000000000000000000000000000",
   "release_evidence": {
-    "path": "release-evidence.json",
+    "path": "docs/release-evidence-v1.sample.json",
     "schema_version": "release-evidence.v1",
     "commit": "0000000000000000000000000000000000000000"
   },
@@ -38,7 +38,7 @@
     "rpc_exposure_approved": true,
     "backups_and_restore_rehearsed": true,
     "halt_rollback_authority_agreed": true,
-    "notes": "sample only; not a real launch decision"
+    "notes": "sample only; Path A holes forbid go"
   },
   "issues": []
 }

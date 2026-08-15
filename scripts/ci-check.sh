@@ -519,14 +519,41 @@ fi
 rm -rf "$schema_validate_dir"
 bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest docs/release-signoff-manifest-v1.sample.json >/dev/null
 signoff_validate_dir="$(mktemp -d)"
-python3 - "$signoff_validate_dir/bad-signoff.json" <<'PY'
+python3 - "$signoff_validate_dir/path-a-go.json" <<'PY'
 import json
 import sys
 
 with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
     doc = json.load(handle)
-doc["gates"]["ci"]["conclusion"] = "failure"
+doc["decision"] = "go"
+doc["issues"] = []
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest "$signoff_validate_dir/path-a-go.json" >/dev/null 2>&1; then
+  echo "release-signoff-manifest-validate.sh accepted a go manifest with Path A economy holes" >&2
+  exit 1
+fi
+python3 - "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/bad-signoff.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as handle:
+    evidence = json.load(handle)
+evidence["economy"]["subsidy_to_treasury_bps"] = 1000
+evidence["economy"]["min_storage_operator_bond"] = 1
+evidence["economy"]["path_a_experimental"] = False
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(evidence, handle, indent=2)
+    handle.write("\n")
+with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["decision"] = "go"
+doc["issues"] = []
+doc["release_evidence"]["path"] = sys.argv[1]
+doc["gates"]["ci"]["conclusion"] = "failure"
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
     json.dump(doc, handle, indent=2)
     handle.write("\n")
 PY
@@ -682,8 +709,21 @@ cat > "$archive_dir/signoff-inventory.md" <<'EOF'
 
 Decision: go
 EOF
+python3 - "$archive_dir/funded-economy-evidence.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-evidence-v1.sample.json", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["economy"]["subsidy_to_treasury_bps"] = 1000
+doc["economy"]["min_storage_operator_bond"] = 1
+doc["economy"]["path_a_experimental"] = False
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
 signoff_json="$(bash scripts/public-devnet-v1/release-signoff-manifest.sh \
-  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --release-evidence-json "$archive_dir/funded-economy-evidence.json" \
   --archive-dir "$archive_root" \
   --inventory "$archive_dir/signoff-inventory.md" \
   --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
@@ -725,19 +765,6 @@ cat > "$participant_bundle/manifest.json" <<EOF
   ]
 }
 EOF
-python3 - "$archive_dir/funded-economy-evidence.json" <<'PY'
-import json
-import sys
-
-with open("docs/release-evidence-v1.sample.json", encoding="utf-8") as handle:
-    doc = json.load(handle)
-doc["economy"]["subsidy_to_treasury_bps"] = 1000
-doc["economy"]["min_storage_operator_bond"] = 1
-doc["economy"]["path_a_experimental"] = False
-with open(sys.argv[1], "w", encoding="utf-8") as handle:
-    json.dump(doc, handle, indent=2)
-    handle.write("\n")
-PY
 audit_json="$(bash scripts/public-devnet-v1/release-audit-packet.sh \
   --release-evidence-json "$archive_dir/funded-economy-evidence.json" \
   --signoff-manifest docs/release-signoff-manifest-v1.sample.json \

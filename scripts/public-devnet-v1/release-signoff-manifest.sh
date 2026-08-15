@@ -201,6 +201,16 @@ if decision == "go":
         add_issue("archive validation is required for go decision")
     if not inventory:
         add_issue("artifact inventory validation is required for go decision")
+    economy = evidence.get("economy") or {}
+    try:
+        subsidy_bps = int(economy.get("subsidy_to_treasury_bps") or 0)
+        bond_atoms = int(economy.get("min_storage_operator_bond") or 0)
+    except (TypeError, ValueError):
+        subsidy_bps = 0
+        bond_atoms = 0
+    path_a_experimental = bool(economy.get("path_a_experimental", True))
+    if subsidy_bps <= 0 or bond_atoms <= 0 or path_a_experimental is not False:
+        add_issue("go decision requires funded economy (subsidy>0, bond>0, path_a_experimental=false)")
 
 manifest = {
     "schema_version": "release-signoff-manifest.v1",

@@ -122,6 +122,17 @@ if ($Decision -eq "go") {
     }
     if (-not $ArchiveDir) { Add-Issue "archive validation is required for go decision" }
     if (-not $Inventory) { Add-Issue "artifact inventory validation is required for go decision" }
+    $subsidyBps = 0
+    $bondAtoms = 0
+    $pathAExperimental = $true
+    if ($evidence.economy) {
+        if ($null -ne $evidence.economy.subsidy_to_treasury_bps) { $subsidyBps = [int]$evidence.economy.subsidy_to_treasury_bps }
+        if ($null -ne $evidence.economy.min_storage_operator_bond) { $bondAtoms = [int64]$evidence.economy.min_storage_operator_bond }
+        if ($null -ne $evidence.economy.path_a_experimental) { $pathAExperimental = [bool]$evidence.economy.path_a_experimental }
+    }
+    if ($subsidyBps -le 0 -or $bondAtoms -le 0 -or $pathAExperimental) {
+        Add-Issue "go decision requires funded economy (subsidy>0, bond>0, path_a_experimental=false)"
+    }
 }
 
 $manifest = [pscustomobject]@{

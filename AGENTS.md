@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane2 RC audit no-go on Path A holes (this commit, `[skip ci]` — leave full CI for **B-268b** Rust). Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Lane3 **B-15 wave115** CLOSE (this commit, `[skip ci]`). Public last_proven **6848→22467**. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
-| **2** RC ops | RC audit no-go on Path A holes (this commit); economy pin (`83f76d7e`); Nightly pin (`d4af3743`) | *Idle* | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; F122 fund path unblocked by B-278 | L4 checklist |
+| **2** RC ops | signoff `go` forbidden on Path A holes (`0845655d`); economy pin (`83f76d7e`) | *Idle* | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
+| **3** Onboarding | **B-15 wave115** last_proven=**22467** (`601cb854…`; this commit); **B-15 wave114** (hugo 6848) | *Idle* | Human SUMMARY; **B-42** | L4 checklist |
 | **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m; **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | **B-299** hub seed 19001 OPEN (`30ff27b0`); **B-298** (`0237a53d`); **B-296** (`9396b6cb`) | *Idle* | **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | Path A tip-**22467** land (this commit; lag=1); **B-299** (`30ff27b0`); **B-298** (`0237a53d`); **B-296** | *Idle* | **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -213,7 +213,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** 256+512 sims (this commit elevates 256); genesis stays 0; human B-33 still open
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | **Draft** same-chain+activation-height (B-265 honesty); human cells still open
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
-| B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) — windows evidence tip=5322 assert OK; SUMMARY `B15-JOIN-SUMMARY-20260721.md` |
+| B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) tip=5322 SUMMARY; **wave115** last_proven **22467** (`601cb854…`; this commit). Human SUMMARY still open |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | Phase 2; [`PROBLEMS.md` §15](docs/PROBLEMS.md) |
@@ -501,7 +501,11 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 2 - RC audit no-go on Path A holes** (this commit): `path_a_economy` check fails unless subsidy>0, bond>0, and `path_a_experimental=false`; packet decision becomes `no-go`. Dry-run records the decision (no longer hard-requires `go`). ci-check: Path A dry-run must be `no-go`; funded temp evidence can still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b** Rust CI. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit-dry-run json.
+1. **2026-08-15 - lane 3 - B-15 wave115 last_proven 6848→22467** (this commit): public `list_recent_uploads` newest was hugo **6848** for ~15k blocks. Faucet-ops was **owned=0** (B-296 storm drain) → HTTP job F7 1-input error. Payout refill owned=3 (no faucet restart); iris HTTP job `3f46b975` **done 91s**; upload `601cb854…` + prove; proxy **last_proven=22467** total 93→94. Path A land tip-22467; outside-in lag **OK=1**. Evidence `b15-wave115-last-proven-22467-20260815.md`. `[skip ci]` — do not steal **B-268b**. Next: Human SUMMARY; **B-42**. *Observed (not staged):* lane6 B-268b Rust; `apply_block_proptest.rs`; `tx_storm.rs`; release-evidence.
+
+1. **2026-08-15 - lane 2 - signoff go forbidden on Path A holes** (`0845655d`): `release-signoff-manifest` emit + validate refuse `decision=go` unless subsidy>0, bond>0, and `path_a_experimental=false`. Sample is honest `no-go`. ci-check: Path A go reject; funded go + bad CI still reject. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 2 - RC audit no-go on Path A holes** (`0845655d`): `path_a_economy` check fails unless subsidy>0, bond>0, and `path_a_experimental=false`; packet decision becomes `no-go`. Dry-run records the decision (no longer hard-requires `go`). ci-check: Path A dry-run must be `no-go`; funded temp evidence can still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b** Rust CI. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit-dry-run json.
 
 1. **2026-08-15 - lane 2 - Path A economy honesty** (`83f76d7e`): `release-evidence.v1` requires `economy` from `public_devnet_v1.json` (`subsidy_to_treasury_bps`, `min_storage_operator_bond`, `path_a_experimental`). Refresh fail-closed if the flag lies about zeros; schema rejects missing `economy`. Live packet pins Path A zeros + `path_a_experimental=true`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c enable. `[skip ci]` so Seat B can take full CI for **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit-dry-run json.
 
