@@ -194,7 +194,7 @@ fn wallet_round_trip_through_full_chain_and_light_chain() {
 
     let mut rng = seeded_rng(0x1234_5678);
     let signed = alice
-        .build_transfer(&recipients, fee, 16, chain.state(), b"hello bob", &mut rng)
+        .build_transfer(&recipients, fee, 16, chain.state(), b"", &mut rng)
         .expect("build transfer");
 
     // Default emission params route 90% of fees to treasury; the
@@ -397,7 +397,7 @@ fn wallet_storage_upload_through_mempool_producer_and_chain() {
             None,
             16, // ring size
             chain.state(),
-            b"upload-end-to-end",
+            b"",
             &mut rng,
         )
         .expect("build_storage_upload");

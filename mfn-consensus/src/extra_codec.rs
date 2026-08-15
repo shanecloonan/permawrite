@@ -1,7 +1,7 @@
 //! Structured `TransactionWire.extra` payloads (M2.2.x).
 //!
-//! Legacy transactions use arbitrary opaque `extra` bytes. When `extra`
-//! begins with the **`MFEX`** magic, the remainder is a versioned container
+//! Consensus `extra` is empty or an **`MFEX`** envelope (B-301 / F5 P20).
+//! When `extra` begins with the **`MFEX`** magic, the remainder is a versioned container
 //! whose v1 body is a concatenation of zero or more self-delimiting
 //! **`MFCL`** authorship claim frames (see [`mfn_crypto::authorship`]).
 //!
@@ -95,6 +95,12 @@ pub enum ExtraClaimsParseError {
         /// Bytes available.
         got: usize,
     },
+    /// Non-empty `extra` that is not an `MFEX` envelope (F5 P20 / B-301).
+    /// Empty `extra` is the transfer canonical form; anything else must
+    /// parse as MFEX so a hostile wallet cannot partition the anonymity
+    /// set with an arbitrary memo.
+    #[error("non-canonical tx.extra (must be empty or MFEX)")]
+    NonCanonicalExtra,
     /// Unknown `MFEX` version.
     #[error("unknown MFEX version {0}")]
     UnknownMfexVersion(u8),
@@ -341,6 +347,9 @@ fn parse_mfer_range_proofs_at(
 
 /// Parse the full MFEX container (claims + optional openings).
 pub fn parse_mfex_extra(extra: &[u8]) -> Result<ParsedMfexExtra, ExtraClaimsParseError> {
+    if extra.is_empty() {
+        return Ok(ParsedMfexExtra::default());
+    }
     if extra.len() < 5 {
         if extra.starts_with(MFEX_MAGIC) {
             return Err(ExtraClaimsParseError::Truncated {
@@ -348,10 +357,10 @@ pub fn parse_mfex_extra(extra: &[u8]) -> Result<ParsedMfexExtra, ExtraClaimsPars
                 got: extra.len(),
             });
         }
-        return Ok(ParsedMfexExtra::default());
+        return Err(ExtraClaimsParseError::NonCanonicalExtra);
     }
     if !extra.starts_with(MFEX_MAGIC) {
-        return Ok(ParsedMfexExtra::default());
+        return Err(ExtraClaimsParseError::NonCanonicalExtra);
     }
     let ver = extra[4];
     if ver != MFEX_VERSION && ver != MFEX_VERSION_V2 && ver != MFEX_VERSION_V3 {
@@ -378,8 +387,9 @@ pub fn parse_mfex_extra(extra: &[u8]) -> Result<ParsedMfexExtra, ExtraClaimsPars
     })
 }
 
-/// If `extra` begins with [`MFEX_MAGIC`], parse v1 as a concatenation of
-/// `MFCL` claim frames. Otherwise returns an empty list (opaque legacy `extra`).
+/// If `extra` is empty, returns no claims. If it begins with [`MFEX_MAGIC`],
+/// parse v1 as a concatenation of `MFCL` claim frames. Non-empty non-MFEX
+/// `extra` is [`ExtraClaimsParseError::NonCanonicalExtra`] (B-301).
 pub fn parse_mfex_authorship_claims(
     extra: &[u8],
 ) -> Result<Vec<AuthorshipClaim>, ExtraClaimsParseError> {
@@ -406,11 +416,20 @@ mod tests {
     }
 
     #[test]
-    fn legacy_opaque_extra_yields_empty_claims() {
-        assert!(parse_mfex_authorship_claims(b"hello-memo")
-            .unwrap()
-            .is_empty());
+    fn empty_extra_yields_empty_claims() {
         assert!(parse_mfex_authorship_claims(&[]).unwrap().is_empty());
+    }
+
+    #[test]
+    fn b301_opaque_extra_is_non_canonical() {
+        assert_eq!(
+            parse_mfex_authorship_claims(b"hello-memo"),
+            Err(ExtraClaimsParseError::NonCanonicalExtra)
+        );
+        assert_eq!(
+            parse_mfex_extra(b"hi"),
+            Err(ExtraClaimsParseError::NonCanonicalExtra)
+        );
     }
 
     #[test]

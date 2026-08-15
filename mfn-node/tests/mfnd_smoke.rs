@@ -482,7 +482,7 @@ fn synth_decoy_one_step_signed_transfer_fixture_with_store(
             10_000,
             16,
             chain.state(),
-            b"mfnd-serve",
+            b"",
             &mut rng,
         )
         .expect("build transfer");

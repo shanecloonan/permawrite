@@ -172,7 +172,7 @@ fn wallet_to_mempool_to_producer_to_chain_round_trip() {
     let pre_balance = alice.balance();
     let mut rng = seeded_rng(0xdead_beef);
     let signed = alice
-        .build_transfer(&recipients, fee, 16, chain.state(), b"hi bob", &mut rng)
+        .build_transfer(&recipients, fee, 16, chain.state(), b"", &mut rng)
         .expect("build transfer");
 
     // (1) Submit to mempool — should be Fresh.
@@ -858,7 +858,7 @@ fn mempool_rejects_non_uniform_ring_sizes_across_inputs() {
             storage: None,
         }],
         2_000,
-        b"non-uniform-ring".to_vec(),
+        Vec::new(),
     )
     .expect("sign")
     .tx;

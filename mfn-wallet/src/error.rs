@@ -46,6 +46,16 @@ pub enum WalletError {
     #[error("cannot set both `extra` and `authorship_claims` on a storage upload")]
     UploadExtraConflictsWithAuthorshipClaims,
 
+    /// Caller supplied a non-empty `tx.extra` that is not a well-formed
+    /// MFEX envelope (F5 P20 / B-301). Never silently stripped — an
+    /// opaque memo is an explicit reject so a reference wallet cannot
+    /// partition the anonymity set.
+    #[error("tx.extra is not empty or MFEX ({len} bytes)")]
+    NonCanonicalTxExtra {
+        /// Caller-supplied extra length.
+        len: usize,
+    },
+
     /// The claiming pubkey equals one of this wallet's financial pubkeys
     /// (view or spend). A claim pubkey is public by design; signing with
     /// financial key material would permanently link the wallet's

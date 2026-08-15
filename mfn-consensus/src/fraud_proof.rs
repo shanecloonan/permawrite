@@ -1512,7 +1512,7 @@ mod tests {
                 },
             ],
             1_000,
-            b"absent".to_vec(),
+            Vec::new(),
         )
         .expect("sign");
         let block = {
@@ -1642,7 +1642,7 @@ mod tests {
                 },
             ],
             1_000,
-            b"mismatch".to_vec(),
+            Vec::new(),
         )
         .expect("sign");
         let block = {

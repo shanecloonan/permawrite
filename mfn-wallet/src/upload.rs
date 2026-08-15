@@ -174,9 +174,10 @@ pub struct StorageUploadPlan<'a, R: FnMut() -> f64> {
     /// `fee_to_treasury_bps`; the wallet rejects underfunded fees up
     /// front via [`WalletError::UploadUnderfunded`].
     pub fee: u64,
-    /// Opaque memo committed to by the tx preimage. Pass `&[]` for none.
-    /// When [`Self::authorship_claims`] is non-empty, this must be empty
-    /// — the wire `extra` is exactly [`build_mfex_extra`]`(authorship_claims)`.
+    /// Canonical extra: empty or well-formed MFEX. Opaque memos are a
+    /// typed refuse (F5 P20 / B-301). When [`Self::authorship_claims`]
+    /// is non-empty, this must be empty — the wire `extra` is
+    /// [`build_mfex_extra`]`(authorship_claims)`.
     pub extra: &'a [u8],
     /// Optional signed authorship claims (MFEX/MFCL) in `tx.extra`. When
     /// non-empty, [`Self::extra`] must be `&[]`, and every claim's
@@ -353,6 +354,11 @@ where
         return Err(WalletError::DecoyPoolTooSmall {
             ring_size: plan.ring_size,
             pool_size: plan.decoy_pool.len(),
+        });
+    }
+    if !plan.extra.is_empty() && mfn_consensus::extra_codec::parse_mfex_extra(plan.extra).is_err() {
+        return Err(WalletError::NonCanonicalTxExtra {
+            len: plan.extra.len(),
         });
     }
 
@@ -703,6 +709,43 @@ mod tests {
         }
     }
 
+    /// B-301 / P20: opaque upload memo is a typed refuse, never signed.
+    #[test]
+    fn b301_opaque_extra_is_typed_reject() {
+        let (anchor_recipient, _keys) = alice_recipient();
+        let (owned_a, owned_b) = two_real_owned_outputs(50_000_000_000);
+        let inputs = [&owned_a, &owned_b];
+        let pool = decoy_pool(20);
+        let mut r = rng();
+        let plan = StorageUploadPlan {
+            inputs: &inputs,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: 100_000,
+            },
+            data: b"opaque-extra-refuse",
+            replication: 3,
+            chunk_size: None,
+            endowment_blinding: None,
+            endowment_params: &DEFAULT_ENDOWMENT_PARAMS,
+            fee_to_treasury_bps: 9000,
+            change_recipients: &[],
+            fee: 1_000_000,
+            extra: b"upload-1",
+            authorship_claims: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &pool,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_storage_upload(plan) {
+            Err(crate::WalletError::NonCanonicalTxExtra { len }) => {
+                assert_eq!(len, 8);
+            }
+            other => panic!("expected NonCanonicalTxExtra, got {other:?}"),
+        }
+    }
+
     #[test]
     fn happy_path_anchors_data_and_returns_artifacts() {
         let (anchor_recipient, _keys) = alice_recipient();
@@ -749,7 +792,7 @@ mod tests {
             fee_to_treasury_bps,
             change_recipients: &change,
             fee,
-            extra: b"upload-1",
+            extra: &[],
             authorship_claims: &[],
             ring_size: crate::WALLET_MIN_RING_SIZE,
             decoy_pool: &pool,

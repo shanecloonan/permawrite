@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Tip CI `#31893770179` **in_progress** on `93c93dc6` — do not cancel. `#31891608943` FAIL scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 claiming **faucet HTTP F7** (scan 22479 / tip 22508). **B-301** Seat B working-tree. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Landing **B-301** Rust (full CI). `#31893770179` FAIL scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 **faucet HTTP F7**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Watch tip CI `#31893770179`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
-| **2** RC ops | `go` requires `gates.ci.commit` == manifest commit (this commit); VRF `edd1bc65`; GHA needle `93c93dc6` | *Idle* | Watch CI `#31893770179`; **B-26** after B-15 | Board + encoding guards |
+| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Watch B-301 tip CI; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
+| **2** RC ops | `go` requires `gates.ci.commit` == manifest commit (`b0bd1caa`); VRF `edd1bc65`; GHA needle `93c93dc6` | *Idle* | Fix scripts FAIL `#31893770179`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 2nd JOIN last_proven=**22492** (`985e594e`); iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-268g** (`247b5198`; rust GREEN `#31881362071`); claim **B-301** (`42b0bf49`) | Seat B working-tree (not this commit) | **B-35** after B-301 land; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-301** (this commit); **B-268g** (`247b5198`; rust GREEN `#31881362071`) | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | Path A **22504** (`e0cc06f1`; lag **OK=4**); **B-300** tip **22502**; last_proven **22492** | **faucet HTTP F7** (claim base: `e0cc06f1`) | 2nd host B-32 | `launch-go-no-go` + observer |
@@ -240,7 +240,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-96 | Soak evidence requires Nightly+CI pins (assert + soak fail-closed) | 1 | **Landed** (this commit) — assert `# nnightly_run=`/`# ci_run=`; soak fail-closed; tip 4820->4822 evidence |
 | B-94 | Spent-debris prune + gitignore tighten (M2.5.39 follow-up) | 2 | **Landed** (this commit) — delete 5 tracked spent one-shots; ignore `_*.py` / lane WIP / nightly dumps / live-testnet-data* / evidence `_*` |
 
-| B-301 | F5 P20: consensus-reject opaque non-MFEX `tx.extra` | 4+5 | **Claimed** `42b0bf49`; body is Seat B working-tree (not on main) |
+| B-301 | F5 P20: consensus-reject opaque non-MFEX `tx.extra` | 4+5 | **Landed** (this commit); no B-13c enable |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -503,7 +503,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 2 - go requires gates.ci.commit == manifest commit** (this commit): validate+emit refuse `go` if `gates.ci.commit` is a different SHA than the release commit, so a green CI pin from another head cannot unlock `go`. ci-check: funded go still accepts; funded + only `gates.ci.commit=ffff…` rejects. Path A **22504** is on main `e0cc06f1`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — do not cancel tip CI `#31893770179`. *Observed (not staged):* B-301 Rust; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C faucet F7 claim.
+1. **2026-08-15 - lane 4 - B-301 P20 opaque extra fail-closed** (this commit): `parse_mfex_extra` / `verify_transaction` reject non-empty non-MFEX `tx.extra`; wallet `build_transfer` / `build_storage_upload` typed refuse. `b301_opaque_extra_*` PASS. Local `ci-check -RustOnly` green. `#31893770179` FAIL scripts (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** pad. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C faucet F7.
+
+1. **2026-08-15 - lane 2 - go requires gates.ci.commit == manifest commit** (`b0bd1caa`): validate+emit refuse `go` if `gates.ci.commit` is a different SHA than the release commit, so a green CI pin from another head cannot unlock `go`. ci-check: funded go still accepts; funded + only `gates.ci.commit=ffff…` rejects. Path A **22504** is on main `e0cc06f1`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]`. *Observed (not staged):* B-301 Rust; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C faucet F7 claim.
 
 1. **2026-08-15 - lane 7 - claim faucet HTTP F7** (Seat C working-tree; not this commit): faucet-ops scan **22479** / tip **22508** (29 behind, lock held). Claim base `e0cc06f1`. Tip CI `#31893770179` in_progress — `[skip ci]`.
 

@@ -85,6 +85,11 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
             ring.min_input_count
         ));
     }
+    // F5 P20 / B-301: non-empty extra must be a well-formed MFEX
+    // envelope. Opaque memos are a public fingerprint.
+    if let Err(e) = crate::extra_codec::parse_mfex_extra(&tx.extra) {
+        errors.push(format!("tx.extra: {e}"));
+    }
 
     // Range proofs: bound to the on-chain amount commitment.
     for (i, out) in tx.outputs.iter().enumerate() {

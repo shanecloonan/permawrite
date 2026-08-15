@@ -65,8 +65,8 @@ pub struct TransferPlan<'a, R: FnMut() -> f64> {
     pub recipients: &'a [TransferRecipient],
     /// Public fee claimed by the producer.
     pub fee: u64,
-    /// Opaque memo committed-to by the tx preimage. Pass `&[]` for
-    /// none.
+    /// Canonical extra: empty or well-formed MFEX. Opaque memos are
+    /// a typed refuse (F5 P20 / B-301).
     pub extra: &'a [u8],
     /// Anonymity-set size **including** the real input. The wallet
     /// asserts this is `>= 2`.
@@ -122,6 +122,11 @@ where
         return Err(WalletError::DecoyPoolTooSmall {
             ring_size: plan.ring_size,
             pool_size: plan.decoy_pool.len(),
+        });
+    }
+    if !plan.extra.is_empty() && mfn_consensus::extra_codec::parse_mfex_extra(plan.extra).is_err() {
+        return Err(WalletError::NonCanonicalTxExtra {
+            len: plan.extra.len(),
         });
     }
 
@@ -369,6 +374,41 @@ mod tests {
                 assert_eq!(min, crate::WALLET_MIN_RING_SIZE);
             }
             other => panic!("expected RingSizeBelowMinimum, got {other:?}"),
+        }
+    }
+
+    /// B-301 / P20: opaque memo is a typed refuse, never signed.
+    #[test]
+    fn b301_opaque_extra_is_typed_reject() {
+        let input_a = owned(600_000);
+        let input_b = owned(500_000);
+        let refs = [&input_a, &input_b];
+        let decoys = pool(20);
+        let keys = wallet_from_seed(&[3u8; 32]);
+        let recipient = Recipient {
+            view_pub: keys.view_pub(),
+            spend_pub: keys.spend_pub(),
+        };
+        let recipients = [TransferRecipient {
+            recipient,
+            value: 100_000,
+        }];
+        let mut r = mfn_crypto::seeded_rng(0xB301_0001);
+        let plan = TransferPlan {
+            inputs: &refs,
+            recipients: &recipients,
+            fee: 1_000,
+            extra: b"hello-memo",
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &decoys,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_transfer(plan) {
+            Err(WalletError::NonCanonicalTxExtra { len }) => {
+                assert_eq!(len, 10);
+            }
+            other => panic!("expected NonCanonicalTxExtra, got {other:?}"),
         }
     }
 

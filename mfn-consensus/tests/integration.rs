@@ -183,7 +183,7 @@ fn end_to_end_block_flow() {
             },
         ],
         fee,
-        b"end-to-end".to_vec(),
+        Vec::new(),
     )
     .expect("sign");
 
@@ -412,7 +412,7 @@ fn chain_genesis_block1_block2_with_slashing() {
             },
         ],
         fee,
-        b"block-1".to_vec(),
+        Vec::new(),
     )
     .expect("sign");
 
@@ -857,7 +857,7 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
                     storage: None,
                 }],
                 fee,
-                b"m5.5-mixed".to_vec(),
+                Vec::new(),
             )
             .expect("sign self-transfer");
             let next = Self {
@@ -1929,7 +1929,7 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
             },
         ],
         fee,
-        b"m5.6-mixed".to_vec(),
+        Vec::new(),
     )
     .expect("sign");
     assert!(verify_transaction(&signed.tx, &RingPolicy::TEST).ok);

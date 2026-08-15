@@ -475,6 +475,29 @@ fn extra_payload_is_committed() {
     assert_ne!(id_before, id_after);
 }
 
+/// F5 P20 / B-301: opaque `tx.extra` is a consensus reject at
+/// [`verify_transaction`] (empty extra and well-formed MFEX still pass).
+#[test]
+fn b301_opaque_extra_rejected_at_verify() {
+    let inputs = vec![make_input(100_000, 4)];
+    let (_w, r) = recipient();
+    let outputs = vec![OutputSpec::ToRecipient {
+        recipient: r,
+        value: 99_500,
+        storage: None,
+    }];
+    let signed = sign_transaction(inputs, outputs, 500, b"hello-memo".to_vec()).expect("sign");
+    let res = verify_transaction(&signed.tx, &RingPolicy::TEST);
+    assert!(!res.ok, "opaque extra must fail verify");
+    assert!(
+        res.errors
+            .iter()
+            .any(|e| e.contains("non-canonical tx.extra")),
+        "expected P20 diagnostic, got: {:?}",
+        res.errors
+    );
+}
+
 #[test]
 fn storage_commitment_binds_into_preimage() {
     let inputs = vec![make_input(100_000, 4)];
@@ -524,7 +547,7 @@ fn signed_simple_tx() -> SignedTransaction {
             storage: None,
         },
     ];
-    sign_transaction(inputs, outputs, 1_000, b"memo".to_vec()).expect("sign")
+    sign_transaction(inputs, outputs, 1_000, Vec::new()).expect("sign")
 }
 
 fn signed_multi_input_storage_tx() -> SignedTransaction {

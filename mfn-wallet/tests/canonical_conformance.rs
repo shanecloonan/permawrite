@@ -260,10 +260,10 @@ fn wallet_ring_floor_matches_consensus_uniform_policy() {
     );
 }
 
-/// A caller-supplied memo is carried verbatim (committed by the
-/// preimage) — canonical means "no *silent* bytes", not "no memos".
+/// B-301 / P20: an opaque caller memo is a typed refuse — canonical
+/// extra is empty or well-formed MFEX, never a fingerprint string.
 #[test]
-fn caller_supplied_extra_is_verbatim() {
+fn caller_supplied_opaque_extra_is_typed_reject() {
     // B-185: two real inputs required (F7 / WALLET_MIN_TX_INPUTS).
     let input_a = owned(600_000);
     let input_b = owned(400_000);
@@ -291,8 +291,12 @@ fn caller_supplied_extra_is_verbatim() {
         current_height: 1,
         rng: &mut r,
     };
-    let tx = build_transfer(plan).expect("transfer with memo").tx;
-    assert_eq!(tx.extra, memo, "memo must be carried verbatim");
+    match build_transfer(plan) {
+        Err(mfn_wallet::WalletError::NonCanonicalTxExtra { len }) => {
+            assert_eq!(len, memo.len());
+        }
+        other => panic!("expected NonCanonicalTxExtra, got {other:?}"),
+    }
 }
 
 /// B3 tail: reference frontends must wire the normative production RNG,

@@ -1999,7 +1999,7 @@ fn ring_member_not_in_utxo_set_rejected() {
             },
         ],
         1_000,
-        b"attack".to_vec(),
+        Vec::new(),
     )
     .expect("sign");
 
@@ -2144,7 +2144,7 @@ fn ring_member_with_wrong_commit_rejected() {
             },
         ],
         1_000,
-        b"inflated-c".to_vec(),
+        Vec::new(),
     )
     .expect("sign");
 
@@ -3020,7 +3020,7 @@ fn consensus_rejects_ring_smaller_than_sixteen() {
             storage: None,
         }],
         1_000,
-        b"ring-4".to_vec(),
+        Vec::new(),
     )
     .expect("sign");
 
@@ -3138,7 +3138,7 @@ fn consensus_rejects_non_uniform_ring_sizes_across_inputs() {
             storage: None,
         }],
         2_000,
-        b"non-uniform-ring".to_vec(),
+        Vec::new(),
     )
     .expect("sign");
 
@@ -3256,7 +3256,7 @@ fn apply_block_rejects_non_uniform_ring_sizes_across_inputs() {
             storage: None,
         }],
         2_000,
-        b"non-uniform-ring".to_vec(),
+        Vec::new(),
     )
     .expect("sign");
 
@@ -3563,7 +3563,7 @@ fn apply_block_rejects_ring_smaller_than_sixteen() {
             storage: None,
         }],
         1_000,
-        b"ring-4".to_vec(),
+        Vec::new(),
     )
     .expect("sign");
 
