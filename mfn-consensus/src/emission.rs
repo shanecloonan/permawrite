@@ -330,6 +330,26 @@ pub fn storage_proof_coinbase_bonus(
         .fold(0u128, u128::saturating_add)
 }
 
+/// Height-aware emission params: copy `base`, then overlay
+/// `subsidy_to_treasury_bps` when `activation_height != 0` and
+/// `height >= activation_height`.
+///
+/// Never writes back to `base`. `activation_height == 0` is inactive
+/// (Path A today). Does not change [`DEFAULT_EMISSION_PARAMS`].
+#[must_use]
+pub fn effective_emission_params(
+    base: &EmissionParams,
+    height: u32,
+    activation_height: u32,
+    activation_value: u16,
+) -> EmissionParams {
+    let mut p = *base;
+    if activation_height != 0 && height >= activation_height {
+        p.subsidy_to_treasury_bps = activation_value;
+    }
+    p
+}
+
 /// Treasury tranche of block subsidy when a producer coinbase is required.
 pub fn subsidy_treasury_credit(height: u64, params: &EmissionParams) -> u128 {
     let subsidy = u128::from(emission_at_height(height, params));
@@ -408,6 +428,37 @@ mod tests {
     #[test]
     fn default_params_validate() {
         assert!(validate_emission_params(&DEFAULT_EMISSION_PARAMS).is_ok());
+    }
+
+    #[test]
+    fn default_subsidy_bps_stays_zero() {
+        assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+    }
+
+    #[test]
+    fn effective_emission_inactive_schedule_is_base() {
+        let p = effective_emission_params(&DEFAULT_EMISSION_PARAMS, 1_000, 0, 1000);
+        assert_eq!(p, DEFAULT_EMISSION_PARAMS);
+        assert_eq!(p.subsidy_to_treasury_bps, 0);
+    }
+
+    #[test]
+    fn effective_emission_overlays_at_and_after_activation() {
+        let pre = effective_emission_params(&DEFAULT_EMISSION_PARAMS, 9, 10, 1000);
+        let at = effective_emission_params(&DEFAULT_EMISSION_PARAMS, 10, 10, 1000);
+        let post = effective_emission_params(&DEFAULT_EMISSION_PARAMS, 11, 10, 1000);
+        assert_eq!(pre.subsidy_to_treasury_bps, 0);
+        assert_eq!(at.subsidy_to_treasury_bps, 1000);
+        assert_eq!(post.subsidy_to_treasury_bps, 1000);
+        assert_eq!(
+            pre.fee_to_treasury_bps,
+            DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps
+        );
+        assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+        let mut mutated = DEFAULT_EMISSION_PARAMS;
+        mutated.subsidy_to_treasury_bps = 1000;
+        assert_eq!(at, mutated);
+        assert!(validate_emission_params(&at).is_ok());
     }
 
     #[test]

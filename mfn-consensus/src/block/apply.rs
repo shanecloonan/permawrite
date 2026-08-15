@@ -231,6 +231,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     // ---- Tentative state copy (only kept on success). ----
     let mut next = state.clone();
     next.height = Some(block.header.height);
+    let emission_params = next.effective_emission_params(block.header.height);
 
     // Storage commitments newly anchored this block (in declaration order),
     // for the post-block storage-root check.
@@ -475,14 +476,14 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
         if tx_storage_ok && tx_burden > 0 {
             let tx_treasury_share: u128 =
-                u128::from(tx.fee) * u128::from(next.emission_params.fee_to_treasury_bps) / 10_000;
+                u128::from(tx.fee) * u128::from(emission_params.fee_to_treasury_bps) / 10_000;
             if tx_treasury_share < tx_burden {
                 errors.push(BlockError::UploadUnderfunded {
                     tx: ti,
                     burden: tx_burden,
                     treasury_share: tx_treasury_share,
                     fee: tx.fee,
-                    fee_to_treasury_bps: next.emission_params.fee_to_treasury_bps,
+                    fee_to_treasury_bps: emission_params.fee_to_treasury_bps,
                 });
             }
         }
@@ -737,7 +738,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         let eq = crate::validator_evolution::apply_equivocation_slashings(
             &mut next.validators,
             &block.slashings,
-            &next.emission_params,
+            &emission_params,
             block.header.height,
             block.header.version,
         );
@@ -1066,7 +1067,6 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     //      as a backstop. Treasury balance never goes negative.
     //   4. Coinbase output 0 = producer (subsidy + producer_fee);
     //      outputs 1..N = per-operator storage rewards.
-    let emission_params = next.emission_params;
     let treasury_fee: u128 = fee_sum * u128::from(emission_params.fee_to_treasury_bps) / 10_000;
     let producer_fee = fee_sum.saturating_sub(treasury_fee);
     // When no producer coinbase is required (legacy harness or validators

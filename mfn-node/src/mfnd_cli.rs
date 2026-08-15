@@ -254,7 +254,7 @@ fn run_solo_step(
         let timestamp = cfg.genesis.timestamp.saturating_add(u64::from(next_height));
         let (params, emission_params) = {
             let st = chain.state();
-            (st.params, st.emission_params)
+            (st.params, st.effective_emission_params(next_height))
         };
 
         let drained = pool.drain(MFND_MEMPOOL_DRAIN_MAX);

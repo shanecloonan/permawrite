@@ -293,6 +293,12 @@ pub struct ChainState {
     pub params: ConsensusParams,
     /// Emission schedule (defaults to [`DEFAULT_EMISSION_PARAMS`]).
     pub emission_params: EmissionParams,
+    /// Height at which `subsidy_bps_activation_value` overlays
+    /// `emission_params.subsidy_to_treasury_bps`. `0` = inactive.
+    pub subsidy_bps_activation_height: u32,
+    /// Overlay bps when activation height is armed and `height >=` that
+    /// value. Ignored when height is `0`.
+    pub subsidy_bps_activation_value: u16,
     /// Endowment schedule (defaults to [`DEFAULT_ENDOWMENT_PARAMS`]).
     pub endowment_params: EndowmentParams,
     /// Permanence treasury, in base units (gains the fee→treasury share
@@ -338,6 +344,8 @@ impl ChainState {
             validator_stats: Vec::new(),
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
+            subsidy_bps_activation_height: 0,
+            subsidy_bps_activation_value: 0,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             treasury: 0,
             utxo_tree: empty_utxo_tree(),
@@ -354,6 +362,17 @@ impl ChainState {
     /// The block id of the chain's current tip (`None` before genesis).
     pub fn tip_id(&self) -> Option<&[u8; 32]> {
         self.block_ids.last()
+    }
+
+    /// Coinbase/treasury params at `height` (base + optional subsidy overlay).
+    #[must_use]
+    pub fn effective_emission_params(&self, height: u32) -> crate::emission::EmissionParams {
+        crate::emission::effective_emission_params(
+            &self.emission_params,
+            height,
+            self.subsidy_bps_activation_height,
+            self.subsidy_bps_activation_value,
+        )
     }
 }
 

@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane7 **B-42** CLOSE serialize-with-reason (this commit, `[skip ci]`). Live JOIN not completed. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Landing **B-268b** Rust (full CI). Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Do not cancel this matrix. Lane7 **B-42** landed `bda9a419`. Lane2 bonded-operator `go` is Seat A WIP. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
-| **2** RC ops | `go` re-reads genesis economy (this commit); RC Nightly (`5ebfc727`); signoff Nightly (`50e3d496`) | *Idle* | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
+| **2** RC ops | genesis re-read (`dd6fdd71`); Nightly pin (`d4af3743`) | *Idle* — bonded-operator `go` is Seat A WIP (not this commit) | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave115** last_proven=**22467** (`46d9f86c`); **B-15 wave114** (hugo 6848) | *Idle* | Human SUMMARY; **B-42** | L4 checklist |
 | **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-269** Path A timer 8m; **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | **B-42** serialize-with-reason (this commit); Path A tip-**22475** land; **B-299** (`30ff27b0`) | *Idle* | Retry JOIN when observer quiet; 2nd host B-32 | `launch-go-no-go` + observer |
+| **6** Permanence | **B-268b** (this commit); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
+| **7** Testnet launch | **B-42** serialize-with-reason (`bda9a419`); Path A tip-**22475**; **B-299** (`30ff27b0`) | *Idle* | Retry JOIN when observer quiet; 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -501,7 +501,11 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - B-42 serialize-with-reason** (this commit): invite-load `-Apply` **PASS** (seeds 19001–19004 OPEN, faucet idle). Live JOIN **not** started: `get_light_snapshot` @ ckpt 22475 timed out 300s on observer; hub `wallet send` **EAGAIN**; faucet-ops **owned=1** (F7). Path A land **22475**. Evidence `b42-invite-load-serialize-20260815.md` + `invite-load-preflight-20260815T052914Z.txt`. `[skip ci]` — do not steal **B-268b**. Next: retry JOIN when observer quiet; 2nd host B-32. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; lane2 signoff scripts.
+1. **2026-08-15 - lane 6 - B-268b effective_emission_params + ckpt v12** (this commit): same-chain subsidy overlay without mutating base `emission_params` or `DEFAULT_EMISSION_PARAMS`. apply_block/producer use height-aware params; checkpoint v12 persists `(H_act, bps)`; v11 decodes `(0,0)`. Local ci-check OK; `b268b_activation_overlay_*` apply_block PASS (wrong-era CoinbaseInvalid). No B-13c enable. Full CI (no skip). Next: human **B-33**; **B-35** pad. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; Seat A signoff scripts; Seat C B-42 evidence/jsonl.
+
+1. **2026-08-15 - lane 2 - go requires bonded genesis operators** (Seat A working-tree; not this commit): signoff + RC audit refuse `go` unless genesis has >=2 `storage_operators` with `bond_amount >= min_storage_operator_bond`. Funded min-bond with $0 operators is still Path A. ci-check: unbonded-ops reject; bonded temp genesis still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; C B-42 evidence/jsonl.
+
+1. **2026-08-15 - lane 7 - B-42 serialize-with-reason** (`bda9a419`): invite-load `-Apply` **PASS** (seeds 19001–19004 OPEN, faucet idle). Live JOIN **not** started: `get_light_snapshot` @ ckpt 22475 timed out 300s on observer; hub `wallet send` **EAGAIN**; faucet-ops **owned=1** (F7). Path A land **22475**. Evidence `b42-invite-load-serialize-20260815.md` + `invite-load-preflight-20260815T052914Z.txt`. `[skip ci]` — do not steal **B-268b**. Next: retry JOIN when observer quiet; 2nd host B-32. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; lane2 signoff scripts.
 
 1. **2026-08-15 - lane 2 - go re-reads genesis economy** (`dd6fdd71`): signoff emit/validate + RC audit refuse `go` unless `economy.genesis_path` genesis has subsidy>0 and bond>0. Evidence overlay lies no longer unlock `go` on Path A zeros. ci-check: overlay-lie reject; funded temp genesis still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
 

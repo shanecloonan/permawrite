@@ -173,7 +173,7 @@ impl ProductionEngine {
             .ok_or_else(|| "tip height overflow".to_string())?;
         let slot = self.reserve_next_slot(height)?;
         let timestamp = self.genesis_timestamp.saturating_add(u64::from(slot));
-        let emission_params = chain.state().emission_params;
+        let emission_params = chain.state().effective_emission_params(height);
         let drained = pool.select_for_block(MFND_MEMPOOL_DRAIN_MAX);
         let mut fee_sum: u128 = 0;
         for t in &drained {

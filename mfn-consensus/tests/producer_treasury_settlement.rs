@@ -925,6 +925,120 @@ fn subsidy_tail_split_credits_treasury() {
 }
 
 #[test]
+fn b268b_activation_overlay_credits_at_height_without_mutating_base() {
+    let fixture = ValidatorFixture::three_validators();
+    let (mut st, _, _) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        50_000_000_000,
+        &fixture,
+        None,
+        DEFAULT_ENDOWMENT_PARAMS,
+        false,
+    );
+    st.subsidy_bps_activation_height = 2;
+    st.subsidy_bps_activation_value = 1000;
+    assert_eq!(st.emission_params.subsidy_to_treasury_bps, 0);
+    assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+
+    let pre = st.effective_emission_params(1);
+    let post = st.effective_emission_params(2);
+    assert_eq!(pre.subsidy_to_treasury_bps, 0);
+    assert_eq!(post.subsidy_to_treasury_bps, 1000);
+
+    let cb1 = build_validator_coinbase(
+        1,
+        &pre,
+        0,
+        &fixture.payout,
+        &st,
+        1,
+        &[],
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    st = match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        vec![cb1],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height 1: {errors:?}"),
+    };
+    assert_eq!(st.treasury, 0);
+    assert_eq!(st.emission_params.subsidy_to_treasury_bps, 0);
+    assert_eq!(st.subsidy_bps_activation_height, 2);
+    assert_eq!(st.subsidy_bps_activation_value, 1000);
+
+    let wrong = build_validator_coinbase(
+        2,
+        &TEST_EMISSION,
+        0,
+        &fixture.payout,
+        &st,
+        2,
+        &[],
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    match apply_validator_block(
+        &fixture,
+        &st,
+        2,
+        vec![wrong],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        2,
+    ) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::CoinbaseInvalid(_))),
+                "wrong-era coinbase must fail: {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("base-bps coinbase at H_act must be CoinbaseInvalid"),
+    }
+
+    let cb2 = build_validator_coinbase(
+        2,
+        &post,
+        0,
+        &fixture.payout,
+        &st,
+        2,
+        &[],
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    let before = st.treasury;
+    st = match apply_validator_block(
+        &fixture,
+        &st,
+        2,
+        vec![cb2],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        2,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height 2: {errors:?}"),
+    };
+    let subsidy_credit = subsidy_treasury_credit(2, &post);
+    assert_eq!(
+        subsidy_credit,
+        u128::from(emission_at_height(2, &post)) / 10
+    );
+    assert!(subsidy_credit > 0);
+    assert_eq!(st.treasury, before + subsidy_credit);
+    assert_eq!(st.emission_params.subsidy_to_treasury_bps, 0);
+}
+
+#[test]
 fn fee_only_legacy_block_credits_full_fee_to_treasury() {
     let initial = 50_000_000_000u64;
     let (mut st, spend, input_pad) = {

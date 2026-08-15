@@ -23,6 +23,8 @@ fn fresh_state() -> ChainState {
         validator_stats: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
+        subsidy_bps_activation_height: 0,
+        subsidy_bps_activation_value: 0,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         treasury: 0,
         utxo_tree: empty_utxo_tree(),
@@ -93,6 +95,64 @@ fn pre_genesis_round_trip() {
     // Re-encode must produce identical bytes.
     let bytes2 = encode_chain_checkpoint(&cp2);
     assert_eq!(bytes, bytes2);
+    assert_eq!(cp2.state.subsidy_bps_activation_height, 0);
+    assert_eq!(cp2.state.subsidy_bps_activation_value, 0);
+}
+
+#[test]
+fn v12_schedule_round_trip() {
+    let mut s = fresh_state();
+    s.subsidy_bps_activation_height = 16_500;
+    s.subsidy_bps_activation_value = 1000;
+    let cp = ChainCheckpoint {
+        genesis_id: [3u8; 32],
+        state: s,
+    };
+    let bytes = encode_chain_checkpoint(&cp);
+    let cp2 = decode_chain_checkpoint(&bytes).unwrap();
+    assert_eq!(cp2.state.subsidy_bps_activation_height, 16_500);
+    assert_eq!(cp2.state.subsidy_bps_activation_value, 1000);
+    assert_eq!(cp2.state.emission_params.subsidy_to_treasury_bps, 0);
+    assert_eq!(encode_chain_checkpoint(&cp2), bytes);
+}
+
+#[test]
+fn v11_decode_defaults_schedule_inactive() {
+    let mut w = Writer::new();
+    w.push(&CHAIN_CHECKPOINT_MAGIC);
+    w.u32(11);
+    w.push(&[0u8; 32]);
+    w.u8(0);
+    w.varint(0);
+    encode_consensus_params(&mut w, &DEFAULT_CONSENSUS_PARAMS);
+    encode_bonding_params(&mut w, &DEFAULT_BONDING_PARAMS);
+    encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS, 11);
+    encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS, 11);
+    encode_u128(&mut w, 0);
+    w.u64(0);
+    w.u32(0);
+    w.u32(0);
+    w.u32(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    let tree = encode_utxo_tree_state(&empty_utxo_tree());
+    w.varint(tree.len() as u64);
+    w.push(&tree);
+    let payload = w.into_bytes();
+    let tag = dhash(CHAIN_CHECKPOINT, &[&payload]);
+    let mut bytes = payload;
+    bytes.extend_from_slice(&tag);
+    let cp = decode_chain_checkpoint(&bytes).expect("v11 decode");
+    assert_eq!(cp.state.subsidy_bps_activation_height, 0);
+    assert_eq!(cp.state.subsidy_bps_activation_value, 0);
+    assert_eq!(cp.state.emission_params.subsidy_to_treasury_bps, 0);
 }
 
 fn rich_state() -> ChainState {
@@ -269,6 +329,8 @@ fn encode_is_independent_of_hashmap_iteration_order() {
         validator_stats: s_a.validator_stats.clone(),
         params: s_a.params,
         emission_params: s_a.emission_params,
+        subsidy_bps_activation_height: s_a.subsidy_bps_activation_height,
+        subsidy_bps_activation_value: s_a.subsidy_bps_activation_value,
         endowment_params: s_a.endowment_params,
         treasury: s_a.treasury,
         utxo_tree: s_a.utxo_tree.clone(),
@@ -337,13 +399,14 @@ fn rejects_unsupported_version() {
         state: fresh_state(),
     };
     let mut bytes = encode_chain_checkpoint(&cp);
-    // Bytes 4..8 are the version, big-endian. Flip to 12 (unsupported).
-    bytes[4..8].copy_from_slice(&12u32.to_be_bytes());
+    // Bytes 4..8 are the version, big-endian. Flip past current.
+    let unsupported = CHAIN_CHECKPOINT_VERSION + 1;
+    bytes[4..8].copy_from_slice(&unsupported.to_be_bytes());
     let plen = bytes.len() - 32;
     let new_tag = dhash(CHAIN_CHECKPOINT, &[&bytes[..plen]]);
     bytes[plen..].copy_from_slice(&new_tag);
     match decode_chain_checkpoint(&bytes) {
-        Err(ChainCheckpointError::UnsupportedVersion { got }) => assert_eq!(got, 12),
+        Err(ChainCheckpointError::UnsupportedVersion { got }) => assert_eq!(got, unsupported),
         other => panic!("expected UnsupportedVersion, got {other:?}"),
     }
 }

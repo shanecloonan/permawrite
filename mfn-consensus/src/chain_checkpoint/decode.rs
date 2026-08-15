@@ -2,7 +2,9 @@
 
 use super::internal::*;
 
-use super::{ChainCheckpoint, ChainCheckpointError, CHAIN_CHECKPOINT_MAGIC};
+use super::{
+    ChainCheckpoint, ChainCheckpointError, CHAIN_CHECKPOINT_MAGIC, CHAIN_CHECKPOINT_VERSION,
+};
 
 /* ----------------------------------------------------------------------- *
  *  Decode                                                                   *
@@ -321,7 +323,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         return Err(ChainCheckpointError::BadMagic { got: magic });
     }
     let version = read_u32(&mut r, "version")?;
-    if !(1..=11).contains(&version) {
+    if !(1..=CHAIN_CHECKPOINT_VERSION).contains(&version) {
         return Err(ChainCheckpointError::UnsupportedVersion { got: version });
     }
 
@@ -344,6 +346,14 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     let bonding_params = decode_bonding_params(&mut r)?;
     let emission_params = decode_emission_params(&mut r, version)?;
     let endowment_params = decode_endowment_params(&mut r, version)?;
+    let (subsidy_bps_activation_height, subsidy_bps_activation_value) = if version >= 12 {
+        (
+            read_u32(&mut r, "subsidy_bps_activation_height")?,
+            read_u16(&mut r, "subsidy_bps_activation_value")?,
+        )
+    } else {
+        (0, 0)
+    };
 
     let treasury = read_u128(&mut r, "treasury")?;
 
@@ -478,7 +488,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     let claims = match version {
         1 => BTreeMap::new(),
         2 => decode_claims_state_v2(&mut r)?,
-        3..=11 => decode_claims_state_v3(&mut r)?,
+        3..=CHAIN_CHECKPOINT_VERSION => decode_claims_state_v3(&mut r)?,
         _ => {
             return Err(ChainCheckpointError::UnsupportedVersion { got: version });
         }
@@ -533,6 +543,8 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         validator_stats,
         params,
         emission_params,
+        subsidy_bps_activation_height,
+        subsidy_bps_activation_value,
         endowment_params,
         treasury,
         utxo_tree,

@@ -150,6 +150,10 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
         &parts.state.endowment_params,
         CHAIN_CHECKPOINT_VERSION,
     );
+    if CHAIN_CHECKPOINT_VERSION >= 12 {
+        w.u32(parts.state.subsidy_bps_activation_height);
+        w.push(&parts.state.subsidy_bps_activation_value.to_be_bytes());
+    }
 
     // ---- Treasury ----
     encode_u128(&mut w, parts.state.treasury);

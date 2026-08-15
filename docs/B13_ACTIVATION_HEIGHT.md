@@ -1,6 +1,6 @@
 # B-268 — Same-chain subsidy activation-height (work package)
 
-**Status:** design landed (this unit) — **not** implemented; **not** B-13c enable.
+**Status:** **B-268b** implemented (helper + ckpt v12 + apply_block/producer wire) — **not** B-13c enable.
 **Owner:** lane 6 (emission helpers + sims) · **Review:** lane 4 (`apply_block` / fraud / producer seal)
 **Depends on:** **B-265** genesis `emission` JSON merge · **B-13a** sims · human **B-33** before enable
 **Blocks:** honest same-chain **B-13c** on live Path A (JSON alone cannot rewrite checkpoint emission)
