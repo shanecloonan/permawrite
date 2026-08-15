@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane2 `go` re-reads genesis economy (this commit, `[skip ci]` — leave full CI for **B-268b** Rust). Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Lane7 **B-42** claimed. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Lane7 **B-42** CLOSE serialize-with-reason (this commit, `[skip ci]`). Live JOIN not completed. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m; **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | Path A tip-**22467** (`46d9f86c`); **B-299** (`30ff27b0`); **B-298** | **B-42** live invite-load stagger (claim base: `46d9f86c`) | 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | **B-42** serialize-with-reason (this commit); Path A tip-**22475** land; **B-299** (`30ff27b0`) | *Idle* | Retry JOIN when observer quiet; 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -246,7 +246,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | **Runbook** + **D0 preflight helper** landed; arm day-of L4
 | B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd :1910x + socat :1900x; EXT 19001–19003 OPEN; tip~4031 |
-| B-42 | Invite-load smoke before TL-9 | 3+7 | Plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
+| B-42 | Invite-load smoke before TL-9 | 3+7 | Preflight PASS; **live JOIN serialized** (this commit): snapshot 300s timeout + hub EAGAIN. Retry when observer quiet — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | **Draft** — `docs/PATH_B_GENESIS_FREEZE.md`; human cells TBD; no ceremony |
 | B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
 | B-45 | B3 operator-salted challenge/prove/pool path | 4 | **Landed** — unblocks honest multi-op SPoRA on salted genesis; Hetzner mfnd roll = lane 7 |
@@ -501,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 2 - go re-reads genesis economy** (this commit): signoff emit/validate + RC audit refuse `go` unless `economy.genesis_path` genesis has subsidy>0 and bond>0. Evidence overlay lies no longer unlock `go` on Path A zeros. ci-check: overlay-lie reject; funded temp genesis still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 7 - B-42 serialize-with-reason** (this commit): invite-load `-Apply` **PASS** (seeds 19001–19004 OPEN, faucet idle). Live JOIN **not** started: `get_light_snapshot` @ ckpt 22475 timed out 300s on observer; hub `wallet send` **EAGAIN**; faucet-ops **owned=1** (F7). Path A land **22475**. Evidence `b42-invite-load-serialize-20260815.md` + `invite-load-preflight-20260815T052914Z.txt`. `[skip ci]` — do not steal **B-268b**. Next: retry JOIN when observer quiet; 2nd host B-32. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; lane2 signoff scripts.
+
+1. **2026-08-15 - lane 2 - go re-reads genesis economy** (`dd6fdd71`): signoff emit/validate + RC audit refuse `go` unless `economy.genesis_path` genesis has subsidy>0 and bond>0. Evidence overlay lies no longer unlock `go` on Path A zeros. ci-check: overlay-lie reject; funded temp genesis still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 2 - RC audit go requires Nightly GREEN** (`5ebfc727`): `release-audit-packet` fails `nightly` unless bound evidence is completed+success, so funded+red-Nightly cannot emit `decision=go`. ci-check: funded packet still `go` with Nightly success; funded + `nightly.conclusion=failure` is `no-go` + failing `nightly`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
 

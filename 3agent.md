@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat A genesis-backed `go`. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**; seat B **Doing B-268b**; seat C **Doing B-42**.
+Synced at Seat C B-42 CLOSE serialize-with-reason. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**; seat B **Doing B-268b**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | `go` re-reads genesis economy (this commit); RC Nightly (`5ebfc727`) | *Idle* | Watch B-268b Rust CI; do not steal B-268b |
+| **A** RC/CI | `go` re-reads genesis economy (`dd6fdd71`); RC Nightly (`5ebfc727`) | *Idle* | Watch B-268b Rust CI; do not steal B-268b |
 | **B** Protocol/Privacy | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; **B-35** pad; no B-13c; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-15 wave115** last_proven=**22467** (`46d9f86c`) | **B-42** live invite-load stagger (claim base: `46d9f86c`) | 2nd host B-32 |
+| **C** Testnet/Onboarding | **B-42** serialize-with-reason (this commit) | *Idle* | Retry JOIN when observer quiet; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
