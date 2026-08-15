@@ -527,7 +527,7 @@ Remove-Item -Recurse -Force $refreshDir -ErrorAction SilentlyContinue
 $evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $evidenceText = $evidenceMarkdown -join "`n"
-foreach ($required in @("# Permawrite Release-Candidate Evidence", "## Commit And CI", "GitHub Nightly:", "## RPC Posture", "## Operator Sign-Off")) {
+foreach ($required in @("# Permawrite Release-Candidate Evidence", "## Commit And CI", "GitHub Nightly:", "path_a_experimental=", "## RPC Posture", "## Operator Sign-Off")) {
     if (-not $evidenceText.Contains($required)) {
         [Console]::Error.WriteLine("release-evidence.ps1 Markdown output missing '$required'")
         exit 1
@@ -536,7 +536,7 @@ foreach ($required in @("# Permawrite Release-Candidate Evidence", "## Commit An
 $evidenceJson = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -Json -SkipCiLookup
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $evidenceObject = $evidenceJson | ConvertFrom-Json
-foreach ($required in @($evidenceObject.schema_version, $evidenceObject.generated_utc, $evidenceObject.commit.head, $evidenceObject.ci.status, $evidenceObject.nightly.status, $evidenceObject.chain.expected_genesis_id, $evidenceObject.health.status, $evidenceObject.rpc.endpoint, $evidenceObject.rpc.current_in_flight, $evidenceObject.rpc.max_in_flight, $evidenceObject.rpc.p2p_session_count, $evidenceObject.rpc.p2p_peer_count)) {
+foreach ($required in @($evidenceObject.schema_version, $evidenceObject.generated_utc, $evidenceObject.commit.head, $evidenceObject.ci.status, $evidenceObject.nightly.status, $evidenceObject.economy.path_a_experimental, $evidenceObject.chain.expected_genesis_id, $evidenceObject.health.status, $evidenceObject.rpc.endpoint, $evidenceObject.rpc.current_in_flight, $evidenceObject.rpc.max_in_flight, $evidenceObject.rpc.p2p_session_count, $evidenceObject.rpc.p2p_peer_count)) {
     if (-not $required) {
         [Console]::Error.WriteLine("release-evidence.ps1 JSON output is missing a required schema field")
         exit 1
@@ -548,6 +548,10 @@ if ($evidenceObject.schema_version -ne "release-evidence.v1") {
 }
 if ($evidenceObject.operator_signoff.operator -ne "ci-smoke") {
     [Console]::Error.WriteLine("release-evidence.ps1 JSON output did not preserve operator sign-off metadata")
+    exit 1
+}
+if ($evidenceObject.economy.subsidy_to_treasury_bps -ne 0 -or $evidenceObject.economy.min_storage_operator_bond -ne 0 -or -not $evidenceObject.economy.path_a_experimental) {
+    [Console]::Error.WriteLine("release-evidence.ps1 Path A holes must be subsidy_bps=0 min_storage_operator_bond=0 path_a_experimental=true")
     exit 1
 }
 foreach ($jsonPath in @(
@@ -618,6 +622,25 @@ try {
     ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $missingNightlyStdout -RedirectStandardError $missingNightlyStderr
     if ($missingNightlyProcess.ExitCode -eq 0) {
         [Console]::Error.WriteLine("release-json-schema-validate.ps1 accepted release evidence without nightly")
+        exit 1
+    }
+    $missingEconomy = Join-Path $schemaValidateDir "missing-economy.json"
+    $missingEconomyObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $missingEconomyObject.PSObject.Properties.Remove("economy")
+    $missingEconomyObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $missingEconomy -Encoding utf8
+    $missingEconomyStdout = Join-Path $schemaValidateDir "missing-economy.out"
+    $missingEconomyStderr = Join-Path $schemaValidateDir "missing-economy.err"
+    $missingEconomyProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-json-schema-validate.ps1",
+        "-Schema",
+        "docs/release-evidence-v1.schema.json",
+        "-Json",
+        $missingEconomy
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $missingEconomyStdout -RedirectStandardError $missingEconomyStderr
+    if ($missingEconomyProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-json-schema-validate.ps1 accepted release evidence without economy")
         exit 1
     }
     $badAudit = Join-Path $schemaValidateDir "bad-audit.json"

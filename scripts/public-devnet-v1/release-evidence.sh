@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 STATS_PATH="$REPO_ROOT/CODEBASE_STATS.md"
 EXPECTED_GENESIS_ID="454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
+GENESIS_REL="mfn-node/testdata/public_devnet_v1.json"
 
 RPC=""
 RPC_API_KEY=""
@@ -52,6 +53,21 @@ remote_slug() {
   if [[ "$remote" =~ github.com[:/]([^/]+)/([^/.]+)(\.git)?$ ]]; then
     printf '%s/%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
   fi
+}
+
+path_a_economy() {
+  python3 - "$REPO_ROOT/$GENESIS_REL" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    genesis = json.load(handle)
+emission = genesis.get("emission") or {}
+subsidy = int(emission.get("subsidy_to_treasury_bps", 0))
+bond = int((genesis.get("endowment") or {}).get("min_storage_operator_bond", 0))
+experimental = "true" if subsidy == 0 or bond == 0 else "false"
+print(f"{subsidy}|{bond}|{experimental}")
+PY
 }
 
 stats_timestamp() {
@@ -231,6 +247,8 @@ RPC_P2P_SESSION_COUNT="${RPC_P2P%/*}"
 RPC_P2P_PEER_COUNT="${RPC_P2P##*/}"
 HEALTH_INFO="$(health_status)"
 IFS='|' read -r HEALTH_STATE HEALTH_OUTPUT <<< "$HEALTH_INFO"
+ECONOMY_INFO="$(path_a_economy)"
+IFS='|' read -r ECONOMY_SUBSIDY ECONOMY_BOND ECONOMY_EXPERIMENTAL <<< "$ECONOMY_INFO"
 GENERATED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 if (( JSON_OUTPUT == 1 )); then
@@ -255,6 +273,12 @@ if (( JSON_OUTPUT == 1 )); then
     echo "    \"conclusion\": \"$(json_escape "${NIGHTLY_CONCLUSION:-}")\","
     echo "    \"source\": \"$(json_escape "${NIGHTLY_SOURCE:-unknown}")\","
     echo "    \"url\": \"$(json_escape "${NIGHTLY_URL:-}")\""
+    echo "  },"
+    echo "  \"economy\": {"
+    echo "    \"genesis_path\": \"$(json_escape "$GENESIS_REL")\","
+    echo "    \"subsidy_to_treasury_bps\": ${ECONOMY_SUBSIDY:-0},"
+    echo "    \"min_storage_operator_bond\": ${ECONOMY_BOND:-0},"
+    echo "    \"path_a_experimental\": ${ECONOMY_EXPERIMENTAL:-true}"
     echo "  },"
     echo "  \"chain\": {"
     echo "    \"expected_genesis_id\": \"$(json_escape "$EXPECTED_GENESIS_ID")\""
@@ -313,6 +337,7 @@ fi
   echo "## Chain And Health"
   echo
   echo "- Expected public-devnet genesis_id: \`$EXPECTED_GENESIS_ID\`"
+  echo "- Economy: subsidy_bps=\`${ECONOMY_SUBSIDY:-0}\` min_storage_operator_bond=\`${ECONOMY_BOND:-0}\` path_a_experimental=\`${ECONOMY_EXPERIMENTAL:-true}\`"
   echo "- Health check: \`$HEALTH_STATE\`"
   if [[ -n "${HEALTH_OUTPUT:-}" ]]; then
     echo

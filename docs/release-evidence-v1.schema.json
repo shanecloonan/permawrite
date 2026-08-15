@@ -10,6 +10,7 @@
     "commit",
     "ci",
     "nightly",
+    "economy",
     "chain",
     "health",
     "rpc",
@@ -59,6 +60,22 @@
         "conclusion": { "type": "string" },
         "source": { "type": "string" },
         "url": { "type": "string" }
+      }
+    },
+    "economy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "genesis_path",
+        "subsidy_to_treasury_bps",
+        "min_storage_operator_bond",
+        "path_a_experimental"
+      ],
+      "properties": {
+        "genesis_path": { "type": "string" },
+        "subsidy_to_treasury_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "min_storage_operator_bond": { "type": "integer", "minimum": 0 },
+        "path_a_experimental": { "type": "boolean" }
       }
     },
     "chain": {

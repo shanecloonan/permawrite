@@ -15,6 +15,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $StatsPath = Join-Path $RepoRoot "CODEBASE_STATS.md"
 $ExpectedGenesisId = "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
+$GenesisRel = "mfn-node/testdata/public_devnet_v1.json"
 
 function Invoke-GitText {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
@@ -131,6 +132,28 @@ function Query-RpcStatus {
     return $json.result
 }
 
+function Get-PathAEconomy {
+    $genesisPath = Join-Path $RepoRoot $GenesisRel
+    if (-not (Test-Path -LiteralPath $genesisPath -PathType Leaf)) {
+        throw "release-evidence: missing genesis $GenesisRel"
+    }
+    $genesis = Get-Content -LiteralPath $genesisPath -Raw | ConvertFrom-Json
+    $subsidy = 0
+    if ($genesis.emission -and $null -ne $genesis.emission.subsidy_to_treasury_bps) {
+        $subsidy = [int]$genesis.emission.subsidy_to_treasury_bps
+    }
+    $bond = 0
+    if ($genesis.endowment -and $null -ne $genesis.endowment.min_storage_operator_bond) {
+        $bond = [int64]$genesis.endowment.min_storage_operator_bond
+    }
+    return [pscustomobject]@{
+        genesis_path = $GenesisRel
+        subsidy_to_treasury_bps = $subsidy
+        min_storage_operator_bond = $bond
+        path_a_experimental = ($subsidy -eq 0) -or ($bond -eq 0)
+    }
+}
+
 function Invoke-HealthEvidence {
     if (-not $RunHealthCheck) {
         return [pscustomobject]@{ Status = "not run"; Output = "" }
@@ -154,6 +177,7 @@ $ci = if ($SkipCiLookup) { $skippedLookup } else { Get-WorkflowStatus $head "CI"
 $nightly = if ($SkipCiLookup) { $skippedLookup } else { Get-WorkflowStatus $head "Nightly" "nightly.yml" }
 $health = Invoke-HealthEvidence
 $rpcStatus = Query-RpcStatus $Rpc
+$economy = Get-PathAEconomy
 $generatedAt = (Get-Date).ToUniversalTime().ToString("o")
 
 $rpcEvidence = if ($rpcStatus) {
@@ -209,6 +233,7 @@ $evidence = [pscustomobject]@{
         source = $nightly.Source
         url = $nightly.Url
     }
+    economy = $economy
     chain = [pscustomobject]@{
         expected_genesis_id = $ExpectedGenesisId
     }
@@ -258,6 +283,7 @@ $lines.Add("") | Out-Null
 $lines.Add("## Chain And Health") | Out-Null
 $lines.Add("") | Out-Null
 $lines.Add("- Expected public-devnet genesis_id: ``$ExpectedGenesisId``") | Out-Null
+$lines.Add("- Economy: subsidy_bps=``$($economy.subsidy_to_treasury_bps)`` min_storage_operator_bond=``$($economy.min_storage_operator_bond)`` path_a_experimental=``$($economy.path_a_experimental)``") | Out-Null
 $lines.Add("- Health check: ``$($health.Status)``") | Out-Null
 if ($health.Output) {
     $lines.Add("") | Out-Null

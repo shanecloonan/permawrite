@@ -51,8 +51,16 @@ with open(path, encoding="utf-8") as fh:
     obj = json.load(fh)
 ci = obj.get("ci") or {}
 nightly = obj.get("nightly") or {}
+economy = obj.get("economy") or {}
 ci_ok = ci.get("status") == "completed" and ci.get("conclusion") == "success"
 nightly_ok = nightly.get("status") == "completed" and nightly.get("conclusion") == "success"
+holes = economy.get("subsidy_to_treasury_bps") == 0 or economy.get("min_storage_operator_bond") == 0
+if holes != bool(economy.get("path_a_experimental")):
+    raise SystemExit(
+        f"release-evidence-refresh-for-head: path_a_experimental={economy.get('path_a_experimental')} "
+        f"does not match subsidy_bps={economy.get('subsidy_to_treasury_bps')} "
+        f"min_storage_operator_bond={economy.get('min_storage_operator_bond')}"
+    )
 if (not ci_ok or not nightly_ok) and not allow_pending:
     raise SystemExit(
         f"release-evidence-refresh-for-head: GitHub CI or Nightly is not green "

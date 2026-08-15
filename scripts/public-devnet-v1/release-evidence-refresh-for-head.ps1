@@ -46,6 +46,10 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $evidenceObject = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
 $ciOk = ($evidenceObject.ci.status -eq "completed" -and $evidenceObject.ci.conclusion -eq "success")
 $nightlyOk = ($evidenceObject.nightly.status -eq "completed" -and $evidenceObject.nightly.conclusion -eq "success")
+$holes = ($evidenceObject.economy.subsidy_to_treasury_bps -eq 0) -or ($evidenceObject.economy.min_storage_operator_bond -eq 0)
+if ($holes -ne [bool]$evidenceObject.economy.path_a_experimental) {
+    throw "release-evidence-refresh-for-head: path_a_experimental=$($evidenceObject.economy.path_a_experimental) does not match subsidy_bps=$($evidenceObject.economy.subsidy_to_treasury_bps) min_storage_operator_bond=$($evidenceObject.economy.min_storage_operator_bond)"
+}
 if ((-not $ciOk -or -not $nightlyOk) -and -not $AllowPendingCi) {
     throw "release-evidence-refresh-for-head: GitHub CI or Nightly is not green for $head (ci=$($evidenceObject.ci.status)/$($evidenceObject.ci.conclusion) nightly=$($evidenceObject.nightly.status)/$($evidenceObject.nightly.conclusion)). Re-run with -AllowPendingCi to record pending runs anyway."
 }

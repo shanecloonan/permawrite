@@ -363,7 +363,7 @@ pwsh -NoProfile -Command '
   }
 '
 evidence_md="$(bash scripts/public-devnet-v1/release-evidence.sh --operator ci-smoke --skip-ci-lookup)"
-for required in "# Permawrite Release-Candidate Evidence" "## Commit And CI" "GitHub Nightly:" "## RPC Posture" "## Operator Sign-Off"; do
+for required in "# Permawrite Release-Candidate Evidence" "## Commit And CI" "GitHub Nightly:" "path_a_experimental=" "## RPC Posture" "## Operator Sign-Off"; do
   if [[ "$evidence_md" != *"$required"* ]]; then
     echo "release-evidence.sh Markdown output missing '$required'" >&2
     exit 1
@@ -382,6 +382,7 @@ required_paths = [
     ("commit", "head"),
     ("ci", "status"),
     ("nightly", "status"),
+    ("economy", "path_a_experimental"),
     ("chain", "expected_genesis_id"),
     ("health", "status"),
     ("rpc", "endpoint"),
@@ -399,6 +400,18 @@ for path in required_paths:
         sys.exit(1)
 if doc.get("operator_signoff", {}).get("operator") != "ci-smoke":
     print("release-evidence.sh JSON output did not preserve operator sign-off metadata", file=sys.stderr)
+    sys.exit(1)
+economy = doc.get("economy") or {}
+if (
+    economy.get("subsidy_to_treasury_bps") != 0
+    or economy.get("min_storage_operator_bond") != 0
+    or economy.get("path_a_experimental") is not True
+):
+    print(
+        "release-evidence.sh Path A holes must be subsidy_bps=0 "
+        "min_storage_operator_bond=0 path_a_experimental=true",
+        file=sys.stderr,
+    )
     sys.exit(1)
 if doc.get("schema_version") != "release-evidence.v1":
     print("release-evidence.sh JSON output has unexpected schema_version", file=sys.stderr)
@@ -462,6 +475,21 @@ with open(sys.argv[1], "w", encoding="utf-8") as handle:
 PY
 if bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json "$schema_validate_dir/missing-nightly.json" >/dev/null 2>&1; then
   echo "release-json-schema-validate.sh accepted release evidence without nightly" >&2
+  exit 1
+fi
+python3 - "$schema_validate_dir/missing-economy.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+del doc["economy"]
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json "$schema_validate_dir/missing-economy.json" >/dev/null 2>&1; then
+  echo "release-json-schema-validate.sh accepted release evidence without economy" >&2
   exit 1
 fi
 python3 - "$schema_validate_dir/bad-audit.json" <<'PY'
