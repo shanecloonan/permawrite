@@ -700,7 +700,10 @@ impl Wallet {
     where
         R: FnMut() -> f64,
     {
-        if !authorship_claims.is_empty() && !extra.is_empty() {
+        let synthesizing_mfex = !authorship_claims.is_empty()
+            || chain_state.endowment_params.require_endowment_opening != 0
+            || chain_state.endowment_params.require_endowment_range_proof != 0;
+        if synthesizing_mfex && !extra.is_empty() {
             return Err(WalletError::UploadExtraConflictsWithAuthorshipClaims);
         }
         if !authorship_claims.is_empty() {

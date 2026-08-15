@@ -41,9 +41,10 @@ pub enum WalletError {
         max: usize,
     },
 
-    /// Non-empty `extra` cannot be combined with authorship claims (wire
-    /// `extra` is exactly the MFEX claim envelope).
-    #[error("cannot set both `extra` and `authorship_claims` on a storage upload")]
+    /// Non-empty `extra` cannot be combined with wallet-synthesized MFEX
+    /// (authorship claims, MFEO opening, or MFER range proof). The wallet
+    /// never silently drops caller extra.
+    #[error("cannot set `extra` when the wallet will synthesize MFEX")]
     UploadExtraConflictsWithAuthorshipClaims,
 
     /// Caller supplied a non-empty `tx.extra` that is not a well-formed

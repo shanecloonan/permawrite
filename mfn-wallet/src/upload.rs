@@ -272,6 +272,10 @@ fn build_upload_extra_wire(
 ) -> Result<Vec<u8>, WalletError> {
     let require_opening = plan.endowment_params.require_endowment_opening != 0;
     let require_range_proof = plan.endowment_params.require_endowment_range_proof != 0;
+    let synthesizing = require_opening || require_range_proof || !plan.authorship_claims.is_empty();
+    if synthesizing && !plan.extra.is_empty() {
+        return Err(WalletError::UploadExtraConflictsWithAuthorshipClaims);
+    }
 
     if require_range_proof {
         let range_proof = build_endowment_surplus_range_proof(
@@ -360,6 +364,12 @@ where
         return Err(WalletError::NonCanonicalTxExtra {
             len: plan.extra.len(),
         });
+    }
+    let synthesizing_mfex = !plan.authorship_claims.is_empty()
+        || plan.endowment_params.require_endowment_opening != 0
+        || plan.endowment_params.require_endowment_range_proof != 0;
+    if synthesizing_mfex && !plan.extra.is_empty() {
+        return Err(WalletError::UploadExtraConflictsWithAuthorshipClaims);
     }
 
     // (2) Replication range — surface early so the caller never wastes
@@ -455,9 +465,6 @@ where
     )?;
 
     if !plan.authorship_claims.is_empty() {
-        if !plan.extra.is_empty() {
-            return Err(WalletError::UploadExtraConflictsWithAuthorshipClaims);
-        }
         let commit_hash = mfn_storage::storage_commitment_hash(&built.commit);
         for c in plan.authorship_claims {
             if c.data_root != built.commit.data_root {
@@ -786,6 +793,98 @@ mod tests {
             }
             other => panic!("expected NonCanonicalTxExtra, got {other:?}"),
         }
+    }
+
+    /// B-303: well-formed caller extra is refused when the wallet will
+    /// synthesize MFEO — never silently dropped.
+    #[test]
+    fn b303_synthesized_mfex_refuses_caller_extra() {
+        let (anchor_recipient, _keys) = alice_recipient();
+        let (owned_a, owned_b) = two_real_owned_outputs(50_000_000_000);
+        let inputs = [&owned_a, &owned_b];
+        let pool = decoy_pool(20);
+        let extra = mfn_consensus::build_mfex_extra_v2(
+            &[],
+            &[mfn_consensus::extra_codec::EndowmentOpening {
+                value: 1,
+                blinding: Scalar::from(1u64),
+            }],
+        )
+        .expect("well-formed MFEX");
+        let mut params = DEFAULT_ENDOWMENT_PARAMS;
+        params.require_endowment_opening = 1;
+        let mut r = rng();
+        let plan = StorageUploadPlan {
+            inputs: &inputs,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: 100_000,
+            },
+            data: b"silent-extra-drop-refuse",
+            replication: 3,
+            chunk_size: None,
+            endowment_blinding: None,
+            endowment_params: &params,
+            fee_to_treasury_bps: 9000,
+            change_recipients: &[],
+            fee: 1_000_000,
+            extra: &extra,
+            authorship_claims: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &pool,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_storage_upload(plan) {
+            Err(crate::WalletError::UploadExtraConflictsWithAuthorshipClaims) => {}
+            other => panic!("expected UploadExtraConflictsWithAuthorshipClaims, got {other:?}"),
+        }
+    }
+
+    /// B-303 control: empty extra + required opening still builds MFEX.
+    #[test]
+    fn b303_opening_with_empty_extra_still_builds() {
+        let (anchor_recipient, _keys) = alice_recipient();
+        let input_value = 50_000_000_000u64;
+        let (owned_a, owned_b) = two_real_owned_outputs(input_value);
+        let inputs = [&owned_a, &owned_b];
+        let pool = decoy_pool(20);
+        let mut r = rng();
+        let mut params = DEFAULT_ENDOWMENT_PARAMS;
+        params.require_endowment_opening = 1;
+        let fee = 1_000_000u64;
+        let change = [TransferRecipient {
+            recipient: anchor_recipient,
+            value: input_value - 100_000 - fee,
+        }];
+        let plan = StorageUploadPlan {
+            inputs: &inputs,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: 100_000,
+            },
+            data: b"opening-empty-extra",
+            replication: 3,
+            chunk_size: None,
+            endowment_blinding: None,
+            endowment_params: &params,
+            fee_to_treasury_bps: 9000,
+            change_recipients: &change,
+            fee,
+            extra: &[],
+            authorship_claims: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &pool,
+            current_height: 1,
+            rng: &mut r,
+        };
+        let art = build_storage_upload(plan).expect("opening + empty extra");
+        assert!(
+            !art.signed.tx.extra.is_empty(),
+            "wallet must synthesize MFEO"
+        );
+        mfn_consensus::extra_codec::parse_mfex_extra(&art.signed.tx.extra)
+            .expect("synthesized extra is MFEX");
     }
 
     #[test]
