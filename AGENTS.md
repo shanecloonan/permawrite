@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Tip CI `#31872756568` **in_progress** on **B-268d** `6015797c` — do not cancel. Lane7 Path A **22495** (this commit, `[skip ci]`). B-268c `#31870566481` rust GREEN / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Tip CI `#31872756568` **in_progress** on **B-268d** `6015797c` — do not cancel. Lane7 claiming tip-22495 stall recover (claim base `a6cd75f6`, `[skip ci]`). B-268c `#31870566481` rust GREEN / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-268d** (`6015797c`); **B-268c** (`342ffbf8`) | **B-268e** overlay bps>10000 fail-closed (claim base: `6015797c`) | After body: **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | Path A **22495** (this commit); hub OOM + faucet voter RPC; **B-42** last_proven **22492** | *Idle* | faucet HTTP F7 (owned=1); 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | Path A **22495** (`a6cd75f6`); **B-42** last_proven **22492** | **tip-22495 stall recover** (claim base: `a6cd75f6`) | faucet HTTP F7 (owned=1); 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -501,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - Path A tip-22495 + hub OOM / faucet voter RPC** (this commit): repo ckpt 22486→**22495** (timer publish; lag 9→0). Hub OOM-kill 07:30Z (systemd; no agent mfnd restart). Faucet drop-in `MFND_RPC=127.0.0.1:18733`. HTTP fund **not** proven (faucet-ops owned=1; refill txs mempool-only). 19001 OPEN. Evidence `b42-hub-oom-path-a-22495-20260815.md` + `outside-in-tip-ckpt-lag-20260815T075855Z.txt`. Tip CI `#31872756568` in_progress — `[skip ci]`. Next: faucet F7; 2nd host B-32. *Observed (not staged):* Seat B B-268e; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 7 - claim tip-22495 stall recover** (this commit): public tip stuck **22495** since hub OOM restart 07:30Z; journal is inbound_cap=48 + vote_fanout EAGAIN, no `producer_sealed`. Recover `mfn-p2p-forward-hub` only (no mfnd/faucet). Skeptic: `get_tip` > 22495. Claim base `a6cd75f6`. Tip CI `#31872756568` in_progress — `[skip ci]`. *Observed (not staged):* Seat B B-268e; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 7 - Path A tip-22495 + hub OOM / faucet voter RPC** (`a6cd75f6`): repo ckpt 22486→**22495** (timer publish; lag 9→0). Hub OOM-kill 07:30Z (systemd; no agent mfnd restart). Faucet drop-in `MFND_RPC=127.0.0.1:18733`. HTTP fund **not** proven (faucet-ops owned=1; refill txs mempool-only). 19001 OPEN. Evidence `b42-hub-oom-path-a-22495-20260815.md` + `outside-in-tip-ckpt-lag-20260815T075855Z.txt`. Tip CI `#31872756568` in_progress — `[skip ci]`. Next: faucet F7; 2nd host B-32. *Observed (not staged):* Seat B B-268e; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 4 - claim B-268e** (`936311e9`): chain/light checkpoint decode still accept `activation_value > 10000`, so a restored overlay can take more than 100% of subsidy. Claim base `6015797c`. Body after tip CI `#31872756568` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C hub EAGAIN.
 
