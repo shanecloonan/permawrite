@@ -211,6 +211,29 @@ with open(os.path.join(repo_root, release_evidence_json) if not os.path.isabs(re
 if not commit:
     commit = (evidence.get("commit") or {}).get("head") or git_head()
 
+economy = evidence.get("economy") or {}
+try:
+    subsidy_bps = int(economy.get("subsidy_to_treasury_bps") or 0)
+    bond_atoms = int(economy.get("min_storage_operator_bond") or 0)
+except (TypeError, ValueError):
+    subsidy_bps = 0
+    bond_atoms = 0
+path_a_experimental = bool(economy.get("path_a_experimental", True))
+if subsidy_bps > 0 and bond_atoms > 0 and path_a_experimental is False:
+    add_check(
+        "path_a_economy",
+        "pass",
+        f"subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} path_a_experimental=false",
+    )
+else:
+    add_check(
+        "path_a_economy",
+        "fail",
+        f"subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} "
+        f"path_a_experimental={str(path_a_experimental).lower()} "
+        "(Path A holes; not a funded-permanence RC)",
+    )
+
 add_tool_check("release evidence schema", ["bash", os.path.join(script_dir, "release-json-schema-validate.sh"), "--schema", "docs/release-evidence-v1.schema.json", "--json", release_evidence_json])
 add_tool_check("signoff manifest schema", ["bash", os.path.join(script_dir, "release-json-schema-validate.sh"), "--schema", "docs/release-signoff-manifest-v1.schema.json", "--json", signoff_manifest])
 add_tool_check("signoff manifest gates", ["bash", os.path.join(script_dir, "release-signoff-manifest-validate.sh"), "--manifest", signoff_manifest])

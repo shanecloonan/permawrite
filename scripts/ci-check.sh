@@ -304,8 +304,13 @@ if ! python3 - <<'PY' "$rc_audit_output"
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as fh:
     obj = json.load(fh)
-if obj.get("decision") != "go":
-    print(f"release-rc-audit-dry-run.ps1 returned decision={obj.get('decision')}", file=sys.stderr)
+if obj.get("decision") != "no-go":
+    print(f"release-rc-audit-dry-run.ps1 Path A packet must be decision=no-go, got {obj.get('decision')}", file=sys.stderr)
+    sys.exit(1)
+checks = {c.get("name"): c for c in obj.get("checks") or []}
+economy = checks.get("path_a_economy") or {}
+if economy.get("status") != "fail":
+    print("release-rc-audit-dry-run.ps1 Path A packet missing failing path_a_economy check", file=sys.stderr)
     sys.exit(1)
 PY
 then
@@ -720,8 +725,21 @@ cat > "$participant_bundle/manifest.json" <<EOF
   ]
 }
 EOF
+python3 - "$archive_dir/funded-economy-evidence.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-evidence-v1.sample.json", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["economy"]["subsidy_to_treasury_bps"] = 1000
+doc["economy"]["min_storage_operator_bond"] = 1
+doc["economy"]["path_a_experimental"] = False
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
 audit_json="$(bash scripts/public-devnet-v1/release-audit-packet.sh \
-  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --release-evidence-json "$archive_dir/funded-economy-evidence.json" \
   --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
   --archive-dir "$archive_root" \
   --inventory "$archive_dir/signoff-inventory.md" \
@@ -740,6 +758,10 @@ if doc.get("schema_version") != "release-audit-packet.v1" or doc.get("decision")
     print("release-audit-packet.sh did not emit a clean go packet", file=sys.stderr)
     sys.exit(1)
 checks = {check.get("name"): check for check in doc.get("checks", [])}
+economy = checks.get("path_a_economy")
+if not economy or economy.get("status") != "pass":
+    print("release-audit-packet.sh funded packet missing passing path_a_economy check", file=sys.stderr)
+    sys.exit(1)
 participant = checks.get("participant rehearsal evidence")
 if not participant or participant.get("status") != "pass" or "commitment_hash=" not in participant.get("message", ""):
     print("release-audit-packet.sh did not validate participant rehearsal evidence", file=sys.stderr)
@@ -756,7 +778,7 @@ cat > "$archive_dir/participant-rehearsal-bad-bundle.log" <<EOF
 participant-rehearsal: PASS commitment_hash=$participant_commit restored_sha256=$participant_sha restored_path=restored.bin support_bundle=$archive_dir/wrong-support-bundle
 EOF
 if bash scripts/public-devnet-v1/release-audit-packet.sh \
-  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --release-evidence-json "$archive_dir/funded-economy-evidence.json" \
   --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
   --archive-dir "$archive_root" \
   --inventory "$archive_dir/signoff-inventory.md" \
@@ -770,7 +792,7 @@ if bash scripts/public-devnet-v1/release-audit-packet.sh \
 fi
 fixture_root="scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 fixture_audit_json="$(bash scripts/public-devnet-v1/release-audit-packet.sh \
-  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --release-evidence-json "$archive_dir/funded-economy-evidence.json" \
   --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
   --archive-dir "$archive_root" \
   --inventory "$archive_dir/signoff-inventory.md" \
@@ -792,7 +814,7 @@ if not participant or participant.get("status") != "pass":
     sys.exit(1)
 PY
 fixture_via_dir_json="$(bash scripts/public-devnet-v1/release-audit-packet.sh \
-  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --release-evidence-json "$archive_dir/funded-economy-evidence.json" \
   --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
   --archive-dir "$archive_root" \
   --inventory "$archive_dir/signoff-inventory.md" \

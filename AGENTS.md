@@ -134,12 +134,12 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane2 Path A economy honesty (this commit, `[skip ci]` — leave full CI for **B-268b** Rust). Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Lane2 RC audit no-go on Path A holes (this commit, `[skip ci]` — leave full CI for **B-268b** Rust). Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
-| **2** RC ops | Path A economy honesty in release-evidence (this commit); Nightly pin (`d4af3743`); **B-141** | *Idle* | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
+| **2** RC ops | RC audit no-go on Path A holes (this commit); economy pin (`83f76d7e`); Nightly pin (`d4af3743`) | *Idle* | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; F122 fund path unblocked by B-278 | L4 checklist |
 | **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
@@ -501,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 2 - Path A economy honesty** (this commit): `release-evidence.v1` requires `economy` from `public_devnet_v1.json` (`subsidy_to_treasury_bps`, `min_storage_operator_bond`, `path_a_experimental`). Refresh fail-closed if the flag lies about zeros; schema rejects missing `economy`. Live packet pins Path A zeros + `path_a_experimental=true`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c enable. `[skip ci]` so Seat B can take full CI for **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit-dry-run json.
+1. **2026-08-15 - lane 2 - RC audit no-go on Path A holes** (this commit): `path_a_economy` check fails unless subsidy>0, bond>0, and `path_a_experimental=false`; packet decision becomes `no-go`. Dry-run records the decision (no longer hard-requires `go`). ci-check: Path A dry-run must be `no-go`; funded temp evidence can still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b** Rust CI. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit-dry-run json.
+
+1. **2026-08-15 - lane 2 - Path A economy honesty** (`83f76d7e`): `release-evidence.v1` requires `economy` from `public_devnet_v1.json` (`subsidy_to_treasury_bps`, `min_storage_operator_bond`, `path_a_experimental`). Refresh fail-closed if the flag lies about zeros; schema rejects missing `economy`. Live packet pins Path A zeros + `path_a_experimental=true`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c enable. `[skip ci]` so Seat B can take full CI for **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit-dry-run json.
 
 1. **2026-08-15 - lane 7 - B-299 restore public hub seed 19001** (`30ff27b0`): B-291 left `mfn-p2p-forward-hub` stopped (exit 143 @ 02:04Z); outside TCP **19001 CLOSED**, 19002–19004 OPEN, hub still on `127.0.0.1:19101`. `systemctl start mfn-p2p-forward-hub` only (no mfnd/faucet). After: **19001 OPEN**, tip **22446→22447**, invite-load `-Apply` **PASS** (`invite-load-preflight-20260815T043052Z.txt`). Evidence `b299-hub-seed-19001-20260815.md`. `[skip ci]` — do not steal **B-268b**. Next: **B-42**; 2nd host B-32. *Observed (not staged):* lane6 B-268b Rust; release-evidence; `apply_block_proptest.rs`; `tx_storm.rs`.
 

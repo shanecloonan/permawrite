@@ -81,13 +81,29 @@ if [[ "$run_rc_audit" -eq 1 ]]; then
     -ReleaseEvidenceJson "$json_path" \
     -OutputPath "$rc_output" \
     -Json >/dev/null
-  python3 - <<'PY' "$rc_output"
+  python3 - <<'PY' "$rc_output" "$json_path"
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as fh:
     obj = json.load(fh)
-if obj.get("decision") != "go":
+with open(sys.argv[2], encoding="utf-8") as fh:
+    evidence = json.load(fh)
+economy = evidence.get("economy") or {}
+holes = (
+    economy.get("subsidy_to_treasury_bps") == 0
+    or economy.get("min_storage_operator_bond") == 0
+    or bool(economy.get("path_a_experimental"))
+)
+checks = {c.get("name"): c for c in obj.get("checks") or []}
+economy_check = checks.get("path_a_economy") or {}
+if holes:
+    if obj.get("decision") != "no-go" or economy_check.get("status") != "fail":
+        raise SystemExit(
+            "release-evidence-refresh-for-head: Path A holes must force RC "
+            f"decision=no-go via path_a_economy (decision={obj.get('decision')})"
+        )
+elif obj.get("decision") != "go":
     raise SystemExit(f"release-evidence-refresh-for-head: RC audit dry-run decision={obj.get('decision')}")
-print("release-evidence-refresh-for-head: RC audit dry-run decision=go")
+print(f"release-evidence-refresh-for-head: RC audit dry-run decision={obj.get('decision')}")
 PY
   rm -f "$rc_output"
 fi

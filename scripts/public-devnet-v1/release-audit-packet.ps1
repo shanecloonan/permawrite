@@ -136,6 +136,21 @@ $evidence = Get-Content -LiteralPath $ReleaseEvidenceJson -Raw | ConvertFrom-Jso
 if (-not $Commit) { $Commit = [string]$evidence.commit.head }
 if (-not $Commit) { $Commit = (& git rev-parse HEAD).Trim() }
 
+$economy = $evidence.economy
+$subsidyBps = 0
+$bondAtoms = 0
+$pathAExperimental = $true
+if ($economy) {
+    if ($null -ne $economy.subsidy_to_treasury_bps) { $subsidyBps = [int]$economy.subsidy_to_treasury_bps }
+    if ($null -ne $economy.min_storage_operator_bond) { $bondAtoms = [int64]$economy.min_storage_operator_bond }
+    if ($null -ne $economy.path_a_experimental) { $pathAExperimental = [bool]$economy.path_a_experimental }
+}
+if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental) {
+    Add-Check -Name "path_a_economy" -Status "pass" -Message "subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms path_a_experimental=false"
+} else {
+    Add-Check -Name "path_a_economy" -Status "fail" -Message "subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
+}
+
 Add-ToolCheck -Name "release evidence schema" -FilePath "powershell" -ArgumentList @("-NoProfile", "-File", (Join-Path $ScriptDir "release-json-schema-validate.ps1"), "-Schema", "docs/release-evidence-v1.schema.json", "-Json", $ReleaseEvidenceJson)
 Add-ToolCheck -Name "signoff manifest schema" -FilePath "powershell" -ArgumentList @("-NoProfile", "-File", (Join-Path $ScriptDir "release-json-schema-validate.ps1"), "-Schema", "docs/release-signoff-manifest-v1.schema.json", "-Json", $SignoffManifest)
 Add-ToolCheck -Name "signoff manifest gates" -FilePath "powershell" -ArgumentList @("-NoProfile", "-File", (Join-Path $ScriptDir "release-signoff-manifest-validate.ps1"), "-Manifest", $SignoffManifest)

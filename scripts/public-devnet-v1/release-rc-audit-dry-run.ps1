@@ -36,6 +36,16 @@ if (-not (Test-Path -LiteralPath $releaseEvidenceMd -PathType Leaf)) {
 
 $inventoryStaging = Join-Path ([System.IO.Path]::GetTempPath()) "permawrite-rc-inventory-$shortCommit.md"
 $evidenceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $ReleaseEvidenceJson).Hash.ToLowerInvariant()
+$evidencePreview = Get-Content -LiteralPath $ReleaseEvidenceJson -Raw | ConvertFrom-Json
+$previewSubsidy = 0
+$previewBond = 0
+$previewExperimental = $true
+if ($evidencePreview.economy) {
+    if ($null -ne $evidencePreview.economy.subsidy_to_treasury_bps) { $previewSubsidy = [int]$evidencePreview.economy.subsidy_to_treasury_bps }
+    if ($null -ne $evidencePreview.economy.min_storage_operator_bond) { $previewBond = [int64]$evidencePreview.economy.min_storage_operator_bond }
+    if ($null -ne $evidencePreview.economy.path_a_experimental) { $previewExperimental = [bool]$evidencePreview.economy.path_a_experimental }
+}
+$inventoryDecision = if ($previewSubsidy -gt 0 -and $previewBond -gt 0 -and -not $previewExperimental) { "go" } else { "no-go" }
 @(
     "# RC dry-run inventory",
     "",
@@ -43,7 +53,7 @@ $evidenceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $ReleaseEvidenceJso
     "- SHA-256: $evidenceHash",
     "- Reviewer: rc-dry-run",
     "",
-    "Decision: go"
+    "Decision: $inventoryDecision"
 ) | Set-Content -LiteralPath $inventoryStaging -Encoding utf8
 
 $archiveArgs = @(
@@ -123,12 +133,6 @@ $auditArgs = @(
     "-Json"
 )
 $auditJson = & powershell @auditArgs
-if ($LASTEXITCODE -ne 0) {
-    if ($auditJson -is [array]) { $auditJson = $auditJson -join "`n" }
-    Write-Output $auditJson
-    exit $LASTEXITCODE
-}
-
 if ($auditJson -is [array]) { $auditJson = $auditJson -join "`n" }
 
 if (-not $OutputPath) {
@@ -136,15 +140,20 @@ if (-not $OutputPath) {
     $OutputPath = Join-Path $ScriptDir "evidence/rc-audit-dry-run-$shortCommit-$stamp.json"
 }
 
-$auditObject = $auditJson | ConvertFrom-Json
-if ($auditObject.decision -ne "go") {
-    Write-Output ($auditObject | ConvertTo-Json -Depth 10)
-    throw "release-rc-audit-dry-run: audit packet decision=$($auditObject.decision)"
+try {
+    $auditObject = $auditJson | ConvertFrom-Json
+} catch {
+    Write-Output $auditJson
+    throw "release-rc-audit-dry-run: audit packet was not JSON"
+}
+if ($auditObject.schema_version -ne "release-audit-packet.v1" -or -not $auditObject.decision) {
+    Write-Output $auditJson
+    throw "release-rc-audit-dry-run: audit packet missing schema_version or decision"
 }
 
 $auditText = $auditObject | ConvertTo-Json -Depth 10
 Set-Content -LiteralPath $OutputPath -Value $auditText -Encoding utf8
-Write-Host "release-rc-audit-dry-run: OK decision=go path=$OutputPath"
+Write-Host "release-rc-audit-dry-run: OK decision=$($auditObject.decision) path=$OutputPath"
 
 if ($Json) {
     Write-Output $auditText

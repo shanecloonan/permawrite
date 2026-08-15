@@ -509,8 +509,13 @@ powershell -NoProfile -File scripts/public-devnet-v1/release-rc-audit-dry-run.ps
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $rcAuditObject = Get-Content -LiteralPath $rcAuditOutput -Raw | ConvertFrom-Json
 Remove-Item -Force $rcAuditOutput -ErrorAction SilentlyContinue
-if ($rcAuditObject.decision -ne "go") {
-    [Console]::Error.WriteLine("release-rc-audit-dry-run.ps1 returned decision=$($rcAuditObject.decision)")
+if ($rcAuditObject.decision -ne "no-go") {
+    [Console]::Error.WriteLine("release-rc-audit-dry-run.ps1 Path A packet must be decision=no-go, got $($rcAuditObject.decision)")
+    exit 1
+}
+$rcEconomy = @($rcAuditObject.checks | Where-Object { $_.name -eq "path_a_economy" }) | Select-Object -First 1
+if (-not $rcEconomy -or $rcEconomy.status -ne "fail") {
+    [Console]::Error.WriteLine("release-rc-audit-dry-run.ps1 Path A packet missing failing path_a_economy check")
     exit 1
 }
 $refreshDir = Join-Path $env:TEMP ("permawrite-evidence-refresh-" + [Guid]::NewGuid().ToString("N"))
@@ -947,8 +952,14 @@ Decision: go
   ]
 }
 "@ | Set-Content -LiteralPath (Join-Path $participantBundle "manifest.json") -Encoding utf8
+    $fundedEvidence = Join-Path $archiveDir "funded-economy-evidence.json"
+    $fundedObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $fundedObject.economy.subsidy_to_treasury_bps = 1000
+    $fundedObject.economy.min_storage_operator_bond = 1
+    $fundedObject.economy.path_a_experimental = $false
+    $fundedObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedEvidence -Encoding utf8
     $auditJson = powershell -NoProfile -File scripts/public-devnet-v1/release-audit-packet.ps1 `
-        -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+        -ReleaseEvidenceJson $fundedEvidence `
         -SignoffManifest docs/release-signoff-manifest-v1.sample.json `
         -ArchiveDir $archiveRoot `
         -Inventory $signoffInventory `
@@ -961,6 +972,11 @@ Decision: go
     $auditObject = $auditJson | ConvertFrom-Json
     if ($auditObject.schema_version -ne "release-audit-packet.v1" -or $auditObject.decision -ne "go") {
         [Console]::Error.WriteLine("release-audit-packet.ps1 did not emit a clean go packet")
+        exit 1
+    }
+    $fundedEconomyCheck = $auditObject.checks | Where-Object { $_.name -eq "path_a_economy" } | Select-Object -First 1
+    if (-not $fundedEconomyCheck -or $fundedEconomyCheck.status -ne "pass") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 funded packet missing passing path_a_economy check")
         exit 1
     }
     $participantCheck = $auditObject.checks | Where-Object { $_.name -eq "participant rehearsal evidence" } | Select-Object -First 1
@@ -988,7 +1004,7 @@ Decision: go
         "-File",
         "scripts/public-devnet-v1/release-audit-packet.ps1",
         "-ReleaseEvidenceJson",
-        "docs/release-evidence-v1.sample.json",
+        $fundedEvidence,
         "-SignoffManifest",
         "docs/release-signoff-manifest-v1.sample.json",
         "-ArchiveDir",
@@ -1011,7 +1027,7 @@ Decision: go
     $global:LASTEXITCODE = 0
     $fixtureRoot = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
     $fixtureAuditJson = powershell -NoProfile -File scripts/public-devnet-v1/release-audit-packet.ps1 `
-        -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+        -ReleaseEvidenceJson $fundedEvidence `
         -SignoffManifest docs/release-signoff-manifest-v1.sample.json `
         -ArchiveDir $archiveRoot `
         -Inventory (Join-Path $archiveDir "signoff-inventory.md") `
@@ -1028,7 +1044,7 @@ Decision: go
         exit 1
     }
     $fixtureViaDirJson = powershell -NoProfile -File scripts/public-devnet-v1/release-audit-packet.ps1 `
-        -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+        -ReleaseEvidenceJson $fundedEvidence `
         -SignoffManifest docs/release-signoff-manifest-v1.sample.json `
         -ArchiveDir $archiveRoot `
         -Inventory (Join-Path $archiveDir "signoff-inventory.md") `

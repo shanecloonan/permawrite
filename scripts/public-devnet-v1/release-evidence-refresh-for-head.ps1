@@ -62,8 +62,14 @@ if ($RunRcAuditDryRun) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $rcObject = Get-Content -LiteralPath $rcOutput -Raw | ConvertFrom-Json
     Remove-Item -Force $rcOutput -ErrorAction SilentlyContinue
-    if ($rcObject.decision -ne "go") {
+    $holes = ($evidenceObject.economy.subsidy_to_treasury_bps -eq 0) -or ($evidenceObject.economy.min_storage_operator_bond -eq 0) -or [bool]$evidenceObject.economy.path_a_experimental
+    $economyCheck = @($rcObject.checks | Where-Object { $_.name -eq "path_a_economy" }) | Select-Object -First 1
+    if ($holes) {
+        if ($rcObject.decision -ne "no-go" -or -not $economyCheck -or $economyCheck.status -ne "fail") {
+            throw "release-evidence-refresh-for-head: Path A holes must force RC decision=no-go via path_a_economy (decision=$($rcObject.decision))"
+        }
+    } elseif ($rcObject.decision -ne "go") {
         throw "release-evidence-refresh-for-head: RC audit dry-run decision=$($rcObject.decision)"
     }
-    Write-Host "release-evidence-refresh-for-head: RC audit dry-run decision=go"
+    Write-Host "release-evidence-refresh-for-head: RC audit dry-run decision=$($rcObject.decision)"
 }
