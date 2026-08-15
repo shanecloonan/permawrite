@@ -47,6 +47,15 @@ pub enum WalletError {
     #[error("cannot set `extra` when the wallet will synthesize MFEX")]
     UploadExtraConflictsWithAuthorshipClaims,
 
+    /// Privacy transfers must use empty `tx.extra`. MFEX is only for
+    /// storage-anchor uploads (claims / MFEO / MFER). A well-formed
+    /// envelope on a transfer partitions the anonymity set (F5 P20 / B-304).
+    #[error("transfer tx.extra must be empty ({len} bytes; MFEX is upload-only)")]
+    TransferTxExtraNotEmpty {
+        /// Caller-supplied extra length.
+        len: usize,
+    },
+
     /// Caller supplied a non-empty `tx.extra` that is not a well-formed
     /// MFEX envelope (F5 P20 / B-301). Never silently stripped — an
     /// opaque memo is an explicit reject so a reference wallet cannot

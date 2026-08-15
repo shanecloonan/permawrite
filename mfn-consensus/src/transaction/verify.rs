@@ -90,6 +90,12 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
     if let Err(e) = crate::extra_codec::parse_mfex_extra(&tx.extra) {
         errors.push(format!("tx.extra: {e}"));
     }
+    // F5 P20 / B-304: MFEX is upload-only. A well-formed envelope on a
+    // no-storage transfer partitions vs honest empty extra.
+    let has_storage = tx.outputs.iter().any(|o| o.storage.is_some());
+    if !tx.extra.is_empty() && !has_storage {
+        errors.push("tx.extra: MFEX is only allowed on storage-anchor txs".to_string());
+    }
 
     // Range proofs: bound to the on-chain amount commitment.
     for (i, out) in tx.outputs.iter().enumerate() {

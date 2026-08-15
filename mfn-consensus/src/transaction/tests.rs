@@ -476,7 +476,8 @@ fn extra_payload_is_committed() {
 }
 
 /// F5 P20 / B-301: opaque `tx.extra` is a consensus reject at
-/// [`verify_transaction`] (empty extra and well-formed MFEX still pass).
+/// [`verify_transaction`] (empty extra still passes; well-formed MFEX
+/// is upload-only — B-304).
 #[test]
 fn b301_opaque_extra_rejected_at_verify() {
     let inputs = vec![make_input(100_000, 4)];
@@ -519,6 +520,37 @@ fn b302_empty_mfex_rejected_at_verify() {
             .iter()
             .any(|e| e.contains("non-canonical tx.extra")),
         "expected P20 diagnostic, got: {:?}",
+        res.errors
+    );
+}
+
+/// F5 P20 / B-304: well-formed MFEX on a no-storage transfer partitions
+/// vs honest empty extra.
+#[test]
+fn b304_transfer_mfex_rejected_at_verify() {
+    let inputs = vec![make_input(100_000, 4)];
+    let (_w, r) = recipient();
+    let outputs = vec![OutputSpec::ToRecipient {
+        recipient: r,
+        value: 99_500,
+        storage: None,
+    }];
+    let extra = crate::build_mfex_extra_v2(
+        &[],
+        &[crate::extra_codec::EndowmentOpening {
+            value: 1,
+            blinding: curve25519_dalek::scalar::Scalar::from(1u64),
+        }],
+    )
+    .expect("well-formed MFEX");
+    let signed = sign_transaction(inputs, outputs, 500, extra).expect("sign");
+    let res = verify_transaction(&signed.tx, &RingPolicy::TEST);
+    assert!(!res.ok, "transfer MFEX must fail verify");
+    assert!(
+        res.errors
+            .iter()
+            .any(|e| e.contains("MFEX is only allowed on storage-anchor txs")),
+        "expected B-304 diagnostic, got: {:?}",
         res.errors
     );
 }

@@ -1,7 +1,8 @@
 //! Structured `TransactionWire.extra` payloads (M2.2.x).
 //!
 //! Consensus `extra` is empty or an **`MFEX`** envelope with a payload
-//! (B-301 / B-302 / F5 P20).
+//! (B-301 / B-302 / F5 P20). Well-formed MFEX is storage-anchor only
+//! (B-304); transfers must keep `extra` empty.
 //! When `extra` begins with the **`MFEX`** magic, the remainder is a versioned container
 //! whose v1 body is a concatenation of zero or more self-delimiting
 //! **`MFCL`** authorship claim frames (see [`mfn_crypto::authorship`]).

@@ -65,8 +65,8 @@ pub struct TransferPlan<'a, R: FnMut() -> f64> {
     pub recipients: &'a [TransferRecipient],
     /// Public fee claimed by the producer.
     pub fee: u64,
-    /// Canonical extra: empty or well-formed MFEX. Opaque memos are
-    /// a typed refuse (F5 P20 / B-301).
+    /// Transfers must use empty extra. Well-formed MFEX is upload-only
+    /// (F5 P20 / B-304); opaque memos are a typed refuse (B-301).
     pub extra: &'a [u8],
     /// Anonymity-set size **including** the real input. The wallet
     /// asserts this is `>= 2`.
@@ -126,6 +126,11 @@ where
     }
     if !plan.extra.is_empty() && mfn_consensus::extra_codec::parse_mfex_extra(plan.extra).is_err() {
         return Err(WalletError::NonCanonicalTxExtra {
+            len: plan.extra.len(),
+        });
+    }
+    if !plan.extra.is_empty() {
+        return Err(WalletError::TransferTxExtraNotEmpty {
             len: plan.extra.len(),
         });
     }
@@ -449,6 +454,49 @@ mod tests {
                 assert_eq!(len, 5);
             }
             other => panic!("expected NonCanonicalTxExtra, got {other:?}"),
+        }
+    }
+
+    /// B-304 / P20: well-formed MFEX on a transfer is a typed refuse.
+    #[test]
+    fn b304_transfer_mfex_is_typed_reject() {
+        let input_a = owned(600_000);
+        let input_b = owned(500_000);
+        let refs = [&input_a, &input_b];
+        let decoys = pool(20);
+        let keys = wallet_from_seed(&[3u8; 32]);
+        let recipient = Recipient {
+            view_pub: keys.view_pub(),
+            spend_pub: keys.spend_pub(),
+        };
+        let recipients = [TransferRecipient {
+            recipient,
+            value: 100_000,
+        }];
+        let extra = mfn_consensus::build_mfex_extra_v2(
+            &[],
+            &[mfn_consensus::extra_codec::EndowmentOpening {
+                value: 1,
+                blinding: curve25519_dalek::scalar::Scalar::from(1u64),
+            }],
+        )
+        .expect("well-formed MFEX");
+        let mut r = mfn_crypto::seeded_rng(0xB304_0001);
+        let plan = TransferPlan {
+            inputs: &refs,
+            recipients: &recipients,
+            fee: 1_000,
+            extra: &extra,
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &decoys,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_transfer(plan) {
+            Err(WalletError::TransferTxExtraNotEmpty { len }) => {
+                assert_eq!(len, extra.len());
+            }
+            other => panic!("expected TransferTxExtraNotEmpty, got {other:?}"),
         }
     }
 

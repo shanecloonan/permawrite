@@ -401,6 +401,12 @@ impl Wallet {
         if recipients.is_empty() {
             return Err(WalletError::NoRecipients);
         }
+        if !extra.is_empty() {
+            if mfn_consensus::extra_codec::parse_mfex_extra(extra).is_err() {
+                return Err(WalletError::NonCanonicalTxExtra { len: extra.len() });
+            }
+            return Err(WalletError::TransferTxExtraNotEmpty { len: extra.len() });
+        }
         let target = recipients
             .iter()
             .map(|r| r.value)
