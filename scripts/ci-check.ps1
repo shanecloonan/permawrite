@@ -711,11 +711,42 @@ try {
         [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest with Path A economy holes")
         exit 1
     }
+    $overlayLieEvidence = Join-Path $signoffValidateDir "overlay-lie-economy.json"
+    $overlayLieObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $overlayLieObject.economy.subsidy_to_treasury_bps = 1000
+    $overlayLieObject.economy.min_storage_operator_bond = 1
+    $overlayLieObject.economy.path_a_experimental = $false
+    $overlayLieObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $overlayLieEvidence -Encoding utf8
+    $overlayLieSignoff = Join-Path $signoffValidateDir "overlay-lie-go.json"
+    $overlayLieSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $overlayLieSignoffObject.decision = "go"
+    $overlayLieSignoffObject.issues = @()
+    $overlayLieSignoffObject.release_evidence.path = $overlayLieEvidence
+    $overlayLieSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $overlayLieSignoff -Encoding utf8
+    $overlayLieStdout = Join-Path $signoffValidateDir "overlay-lie.out"
+    $overlayLieStderr = Join-Path $signoffValidateDir "overlay-lie.err"
+    $overlayLieProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $overlayLieSignoff
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $overlayLieStdout -RedirectStandardError $overlayLieStderr
+    if ($overlayLieProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest that only funded the evidence overlay")
+        exit 1
+    }
+    $fundedGenesis = Join-Path $signoffValidateDir "funded-genesis.json"
+    $fundedGenesisObject = Get-Content "mfn-node/testdata/public_devnet_v1.json" -Raw | ConvertFrom-Json
+    $fundedGenesisObject | Add-Member -NotePropertyName emission -NotePropertyValue ([pscustomobject]@{ subsidy_to_treasury_bps = 1000 }) -Force
+    $fundedGenesisObject.endowment.min_storage_operator_bond = 1
+    $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
     $fundedEvidence = Join-Path $signoffValidateDir "funded-economy.json"
     $fundedObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
     $fundedObject.economy.subsidy_to_treasury_bps = 1000
     $fundedObject.economy.min_storage_operator_bond = 1
     $fundedObject.economy.path_a_experimental = $false
+    $fundedObject.economy.genesis_path = $fundedGenesis
     $fundedObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedEvidence -Encoding utf8
     $badSignoff = Join-Path $signoffValidateDir "bad-signoff.json"
     $badSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
@@ -742,6 +773,7 @@ try {
     $nightlyFailEvidenceObject.economy.subsidy_to_treasury_bps = 1000
     $nightlyFailEvidenceObject.economy.min_storage_operator_bond = 1
     $nightlyFailEvidenceObject.economy.path_a_experimental = $false
+    $nightlyFailEvidenceObject.economy.genesis_path = $fundedGenesis
     $nightlyFailEvidenceObject.nightly.conclusion = "failure"
     $nightlyFailEvidenceObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $nightlyFailEvidence -Encoding utf8
     $nightlyFailSignoff = Join-Path $signoffValidateDir "nightly-fail-signoff.json"
@@ -768,6 +800,7 @@ try {
     $fundedGoEvidenceObject.economy.subsidy_to_treasury_bps = 1000
     $fundedGoEvidenceObject.economy.min_storage_operator_bond = 1
     $fundedGoEvidenceObject.economy.path_a_experimental = $false
+    $fundedGoEvidenceObject.economy.genesis_path = $fundedGenesis
     $fundedGoEvidenceObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGoEvidence -Encoding utf8
     $fundedGoSignoff = Join-Path $signoffValidateDir "funded-go.json"
     $fundedGoSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
@@ -992,11 +1025,17 @@ try {
 
 Decision: go
 '@ | Set-Content -LiteralPath $signoffInventory -Encoding utf8
+    $fundedGenesis = Join-Path $archiveDir "funded-genesis.json"
+    $fundedGenesisObject = Get-Content "mfn-node/testdata/public_devnet_v1.json" -Raw | ConvertFrom-Json
+    $fundedGenesisObject | Add-Member -NotePropertyName emission -NotePropertyValue ([pscustomobject]@{ subsidy_to_treasury_bps = 1000 }) -Force
+    $fundedGenesisObject.endowment.min_storage_operator_bond = 1
+    $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
     $fundedEvidence = Join-Path $archiveDir "funded-economy-evidence.json"
     $fundedObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
     $fundedObject.economy.subsidy_to_treasury_bps = 1000
     $fundedObject.economy.min_storage_operator_bond = 1
     $fundedObject.economy.path_a_experimental = $false
+    $fundedObject.economy.genesis_path = $fundedGenesis
     $fundedObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedEvidence -Encoding utf8
     $signoffJson = powershell -NoProfile -File scripts/public-devnet-v1/release-signoff-manifest.ps1 `
         -ReleaseEvidenceJson $fundedEvidence `
@@ -1060,6 +1099,52 @@ Decision: go
     $fundedNightlyCheck = $auditObject.checks | Where-Object { $_.name -eq "nightly" } | Select-Object -First 1
     if (-not $fundedNightlyCheck -or $fundedNightlyCheck.status -ne "pass") {
         [Console]::Error.WriteLine("release-audit-packet.ps1 funded packet missing passing nightly check")
+        exit 1
+    }
+    $overlayLieEvidence = Join-Path $archiveDir "overlay-lie-economy-evidence.json"
+    $overlayLieEvidenceObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $overlayLieEvidenceObject.economy.subsidy_to_treasury_bps = 1000
+    $overlayLieEvidenceObject.economy.min_storage_operator_bond = 1
+    $overlayLieEvidenceObject.economy.path_a_experimental = $false
+    $overlayLieEvidenceObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $overlayLieEvidence -Encoding utf8
+    $overlayLiePacket = Join-Path $archiveDir "overlay-lie-audit.json"
+    $overlayLieStdout = Join-Path $archiveDir "overlay-lie-audit.out"
+    $overlayLieStderr = Join-Path $archiveDir "overlay-lie-audit.err"
+    $overlayLieProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-audit-packet.ps1",
+        "-ReleaseEvidenceJson",
+        $overlayLieEvidence,
+        "-SignoffManifest",
+        "docs/release-signoff-manifest-v1.sample.json",
+        "-ArchiveDir",
+        $archiveRoot,
+        "-Inventory",
+        $signoffInventory,
+        "-CiMockRuns",
+        $signoffCiSuccess,
+        "-ParticipantRehearsalLog",
+        $participantLog,
+        "-ParticipantSupportBundle",
+        $participantBundle,
+        "-AllowDryRun",
+        "-Json",
+        "-OutputPath",
+        $overlayLiePacket
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $overlayLieStdout -RedirectStandardError $overlayLieStderr
+    if (-not (Test-Path -LiteralPath $overlayLiePacket -PathType Leaf)) {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 did not write an overlay-lie audit packet")
+        exit 1
+    }
+    $overlayLieAudit = Get-Content -LiteralPath $overlayLiePacket -Raw | ConvertFrom-Json
+    if ($overlayLieAudit.decision -ne "no-go") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 accepted a go packet that only funded the evidence overlay")
+        exit 1
+    }
+    $overlayLieEconomy = $overlayLieAudit.checks | Where-Object { $_.name -eq "path_a_economy" } | Select-Object -First 1
+    if (-not $overlayLieEconomy -or $overlayLieEconomy.status -ne "fail") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 overlay-lie packet missing failing path_a_economy check")
         exit 1
     }
     $nightlyFailEvidence = Join-Path $archiveDir "funded-nightly-fail-evidence.json"

@@ -119,6 +119,29 @@ def add_issue(message):
     issues.append(message)
 
 
+def genesis_economy(evidence_doc):
+    rel = ((evidence_doc.get("economy") or {}).get("genesis_path") or "").strip()
+    candidates = [rel, os.path.join(repo_root, rel)] if rel else []
+    genesis_path = next((candidate for candidate in candidates if candidate and os.path.isfile(candidate)), None)
+    if not genesis_path:
+        return None
+    with open(genesis_path, "r", encoding="utf-8-sig") as handle:
+        genesis = json.load(handle)
+    emission = genesis.get("emission") or {}
+    endowment = genesis.get("endowment") or {}
+    try:
+        subsidy_bps = int(emission.get("subsidy_to_treasury_bps") or 0)
+        bond_atoms = int(endowment.get("min_storage_operator_bond") or 0)
+    except (TypeError, ValueError):
+        subsidy_bps = 0
+        bond_atoms = 0
+    return {
+        "subsidy_to_treasury_bps": subsidy_bps,
+        "min_storage_operator_bond": bond_atoms,
+        "path_a_experimental": subsidy_bps == 0 or bond_atoms == 0,
+    }
+
+
 def run_tool(args):
     proc = subprocess.run(args, cwd=repo_root, text=True, capture_output=True)
     return {"exit_code": proc.returncode, "stdout": proc.stdout.strip(), "stderr": proc.stderr.strip()}
@@ -201,16 +224,11 @@ if decision == "go":
         add_issue("archive validation is required for go decision")
     if not inventory:
         add_issue("artifact inventory validation is required for go decision")
-    economy = evidence.get("economy") or {}
-    try:
-        subsidy_bps = int(economy.get("subsidy_to_treasury_bps") or 0)
-        bond_atoms = int(economy.get("min_storage_operator_bond") or 0)
-    except (TypeError, ValueError):
-        subsidy_bps = 0
-        bond_atoms = 0
-    path_a_experimental = bool(economy.get("path_a_experimental", True))
-    if subsidy_bps <= 0 or bond_atoms <= 0 or path_a_experimental is not False:
-        add_issue("go decision requires funded economy (subsidy>0, bond>0, path_a_experimental=false)")
+    genesis = genesis_economy(evidence)
+    if genesis is None:
+        add_issue("go decision requires readable genesis at economy.genesis_path")
+    elif genesis["subsidy_to_treasury_bps"] <= 0 or genesis["min_storage_operator_bond"] <= 0 or genesis["path_a_experimental"]:
+        add_issue("go decision requires funded genesis economy (subsidy>0, bond>0, path_a_experimental=false)")
     nightly = evidence.get("nightly") or {}
     if nightly.get("status") != "completed" or nightly.get("conclusion") != "success":
         add_issue("go decision requires completed successful Nightly on bound evidence")

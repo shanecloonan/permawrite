@@ -19,6 +19,33 @@ function Add-Issue {
     $script:issues.Add($Message) | Out-Null
 }
 
+function Read-GenesisEconomy {
+    param($Evidence)
+    $rel = ""
+    if ($Evidence.economy) { $rel = [string]$Evidence.economy.genesis_path }
+    $candidates = @()
+    if ($rel) {
+        $candidates += $rel
+        $candidates += (Join-Path $RepoRoot $rel)
+    }
+    $path = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+    if (-not $path) { return $null }
+    $genesis = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+    $subsidy = 0
+    $bond = 0
+    if ($genesis.emission -and $null -ne $genesis.emission.subsidy_to_treasury_bps) {
+        $subsidy = [int]$genesis.emission.subsidy_to_treasury_bps
+    }
+    if ($genesis.endowment -and $null -ne $genesis.endowment.min_storage_operator_bond) {
+        $bond = [int64]$genesis.endowment.min_storage_operator_bond
+    }
+    return [pscustomobject]@{
+        subsidy_to_treasury_bps = $subsidy
+        min_storage_operator_bond = $bond
+        path_a_experimental = ($subsidy -eq 0) -or ($bond -eq 0)
+    }
+}
+
 function Has-Property {
     param($Object, [string]$Name)
     return $null -ne $Object -and $Object.PSObject.Properties.Name -contains $Name
@@ -141,16 +168,11 @@ if ($doc.decision -eq "go") {
         Add-Issue "go decision requires readable release evidence"
     } else {
         $evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
-        $subsidyBps = 0
-        $bondAtoms = 0
-        $pathAExperimental = $true
-        if ($evidence.economy) {
-            if ($null -ne $evidence.economy.subsidy_to_treasury_bps) { $subsidyBps = [int]$evidence.economy.subsidy_to_treasury_bps }
-            if ($null -ne $evidence.economy.min_storage_operator_bond) { $bondAtoms = [int64]$evidence.economy.min_storage_operator_bond }
-            if ($null -ne $evidence.economy.path_a_experimental) { $pathAExperimental = [bool]$evidence.economy.path_a_experimental }
-        }
-        if ($subsidyBps -le 0 -or $bondAtoms -le 0 -or $pathAExperimental) {
-            Add-Issue "go decision requires funded economy (subsidy>0, bond>0, path_a_experimental=false)"
+        $genesisEconomy = Read-GenesisEconomy $evidence
+        if ($null -eq $genesisEconomy) {
+            Add-Issue "go decision requires readable genesis at economy.genesis_path"
+        } elseif ($genesisEconomy.subsidy_to_treasury_bps -le 0 -or $genesisEconomy.min_storage_operator_bond -le 0 -or $genesisEconomy.path_a_experimental) {
+            Add-Issue "go decision requires funded genesis economy (subsidy>0, bond>0, path_a_experimental=false)"
         }
         $nightly = $evidence.nightly
         if ($null -eq $nightly -or [string]$nightly.status -ne "completed" -or [string]$nightly.conclusion -ne "success") {

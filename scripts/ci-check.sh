@@ -535,7 +535,7 @@ if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest
   echo "release-signoff-manifest-validate.sh accepted a go manifest with Path A economy holes" >&2
   exit 1
 fi
-python3 - "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/bad-signoff.json" <<'PY'
+python3 - "$signoff_validate_dir/overlay-lie-economy.json" "$signoff_validate_dir/overlay-lie-go.json" <<'PY'
 import json
 import sys
 
@@ -552,8 +552,45 @@ with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8")
 doc["decision"] = "go"
 doc["issues"] = []
 doc["release_evidence"]["path"] = sys.argv[1]
-doc["gates"]["ci"]["conclusion"] = "failure"
 with open(sys.argv[2], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest "$signoff_validate_dir/overlay-lie-go.json" >/dev/null 2>&1; then
+  echo "release-signoff-manifest-validate.sh accepted a go manifest that only funded the evidence overlay" >&2
+  exit 1
+fi
+python3 - "$signoff_validate_dir/funded-genesis.json" "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/bad-signoff.json" <<'PY'
+import json
+import sys
+
+with open("mfn-node/testdata/public_devnet_v1.json", "r", encoding="utf-8") as handle:
+    genesis = json.load(handle)
+emission = genesis.get("emission") or {}
+emission["subsidy_to_treasury_bps"] = 1000
+genesis["emission"] = emission
+endowment = genesis.get("endowment") or {}
+endowment["min_storage_operator_bond"] = 1
+genesis["endowment"] = endowment
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(genesis, handle, indent=2)
+    handle.write("\n")
+with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as handle:
+    evidence = json.load(handle)
+evidence["economy"]["subsidy_to_treasury_bps"] = 1000
+evidence["economy"]["min_storage_operator_bond"] = 1
+evidence["economy"]["path_a_experimental"] = False
+evidence["economy"]["genesis_path"] = sys.argv[1]
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
+    json.dump(evidence, handle, indent=2)
+    handle.write("\n")
+with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["decision"] = "go"
+doc["issues"] = []
+doc["release_evidence"]["path"] = sys.argv[2]
+doc["gates"]["ci"]["conclusion"] = "failure"
+with open(sys.argv[3], "w", encoding="utf-8") as handle:
     json.dump(doc, handle, indent=2)
     handle.write("\n")
 PY
@@ -561,7 +598,7 @@ if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest
   echo "release-signoff-manifest-validate.sh accepted a go manifest with failing CI" >&2
   exit 1
 fi
-python3 - "$signoff_validate_dir/funded-nightly-fail.json" "$signoff_validate_dir/nightly-fail-signoff.json" <<'PY'
+python3 - "$signoff_validate_dir/funded-nightly-fail.json" "$signoff_validate_dir/nightly-fail-signoff.json" "$signoff_validate_dir/funded-genesis.json" <<'PY'
 import json
 import sys
 
@@ -570,6 +607,7 @@ with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as hand
 evidence["economy"]["subsidy_to_treasury_bps"] = 1000
 evidence["economy"]["min_storage_operator_bond"] = 1
 evidence["economy"]["path_a_experimental"] = False
+evidence["economy"]["genesis_path"] = sys.argv[3]
 evidence["nightly"]["conclusion"] = "failure"
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
     json.dump(evidence, handle, indent=2)
@@ -587,7 +625,7 @@ if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest
   echo "release-signoff-manifest-validate.sh accepted a go manifest without green Nightly" >&2
   exit 1
 fi
-python3 - "$signoff_validate_dir/funded-nightly-ok.json" "$signoff_validate_dir/funded-go.json" <<'PY'
+python3 - "$signoff_validate_dir/funded-nightly-ok.json" "$signoff_validate_dir/funded-go.json" "$signoff_validate_dir/funded-genesis.json" <<'PY'
 import json
 import sys
 
@@ -596,6 +634,7 @@ with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as hand
 evidence["economy"]["subsidy_to_treasury_bps"] = 1000
 evidence["economy"]["min_storage_operator_bond"] = 1
 evidence["economy"]["path_a_experimental"] = False
+evidence["economy"]["genesis_path"] = sys.argv[3]
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
     json.dump(evidence, handle, indent=2)
     handle.write("\n")
@@ -760,16 +799,28 @@ cat > "$archive_dir/signoff-inventory.md" <<'EOF'
 
 Decision: go
 EOF
-python3 - "$archive_dir/funded-economy-evidence.json" <<'PY'
+python3 - "$archive_dir/funded-genesis.json" "$archive_dir/funded-economy-evidence.json" <<'PY'
 import json
 import sys
 
+with open("mfn-node/testdata/public_devnet_v1.json", encoding="utf-8") as handle:
+    genesis = json.load(handle)
+emission = genesis.get("emission") or {}
+emission["subsidy_to_treasury_bps"] = 1000
+genesis["emission"] = emission
+endowment = genesis.get("endowment") or {}
+endowment["min_storage_operator_bond"] = 1
+genesis["endowment"] = endowment
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(genesis, handle, indent=2)
+    handle.write("\n")
 with open("docs/release-evidence-v1.sample.json", encoding="utf-8") as handle:
     doc = json.load(handle)
 doc["economy"]["subsidy_to_treasury_bps"] = 1000
 doc["economy"]["min_storage_operator_bond"] = 1
 doc["economy"]["path_a_experimental"] = False
-with open(sys.argv[1], "w", encoding="utf-8") as handle:
+doc["economy"]["genesis_path"] = sys.argv[1]
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
     json.dump(doc, handle, indent=2)
     handle.write("\n")
 PY
@@ -853,6 +904,54 @@ if not policy or policy.get("status") != "pass":
     print("release-audit-packet.sh did not validate participant smoke CI policy", file=sys.stderr)
     sys.exit(1)
 PY
+python3 - "$archive_dir/overlay-lie-economy-evidence.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-evidence-v1.sample.json", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["economy"]["subsidy_to_treasury_bps"] = 1000
+doc["economy"]["min_storage_operator_bond"] = 1
+doc["economy"]["path_a_experimental"] = False
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+set +e
+bash scripts/public-devnet-v1/release-audit-packet.sh \
+  --release-evidence-json "$archive_dir/overlay-lie-economy-evidence.json" \
+  --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
+  --archive-dir "$archive_root" \
+  --inventory "$archive_dir/signoff-inventory.md" \
+  --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
+  --participant-rehearsal-log "$archive_dir/participant-rehearsal.log" \
+  --participant-support-bundle "$participant_bundle" \
+  --allow-dry-run \
+  --json \
+  --output "$archive_dir/overlay-lie-audit.json" >/dev/null
+set -e
+if [[ ! -f "$archive_dir/overlay-lie-audit.json" ]]; then
+  echo "release-audit-packet.sh did not write an overlay-lie audit packet" >&2
+  exit 1
+fi
+if ! python3 - "$archive_dir/overlay-lie-audit.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+if doc.get("decision") != "no-go":
+    print("release-audit-packet.sh accepted a go packet that only funded the evidence overlay", file=sys.stderr)
+    sys.exit(1)
+checks = {check.get("name"): check for check in doc.get("checks", [])}
+economy = checks.get("path_a_economy")
+if not economy or economy.get("status") != "fail":
+    print("release-audit-packet.sh overlay-lie packet missing failing path_a_economy check", file=sys.stderr)
+    sys.exit(1)
+PY
+then
+  exit 1
+fi
 python3 - "$archive_dir/funded-economy-evidence.json" "$archive_dir/funded-nightly-fail-evidence.json" <<'PY'
 import json
 import sys

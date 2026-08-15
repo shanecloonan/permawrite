@@ -136,19 +136,31 @@ $evidence = Get-Content -LiteralPath $ReleaseEvidenceJson -Raw | ConvertFrom-Jso
 if (-not $Commit) { $Commit = [string]$evidence.commit.head }
 if (-not $Commit) { $Commit = (& git rev-parse HEAD).Trim() }
 
-$economy = $evidence.economy
+$genesisRel = ""
+if ($evidence.economy) { $genesisRel = [string]$evidence.economy.genesis_path }
+$genesisCandidates = @()
+if ($genesisRel) {
+    $genesisCandidates += $genesisRel
+    $genesisCandidates += (Join-Path $RepoRoot $genesisRel)
+}
+$genesisPath = $genesisCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
 $subsidyBps = 0
 $bondAtoms = 0
 $pathAExperimental = $true
-if ($economy) {
-    if ($null -ne $economy.subsidy_to_treasury_bps) { $subsidyBps = [int]$economy.subsidy_to_treasury_bps }
-    if ($null -ne $economy.min_storage_operator_bond) { $bondAtoms = [int64]$economy.min_storage_operator_bond }
-    if ($null -ne $economy.path_a_experimental) { $pathAExperimental = [bool]$economy.path_a_experimental }
+if ($genesisPath) {
+    $genesis = Get-Content -LiteralPath $genesisPath -Raw | ConvertFrom-Json
+    if ($genesis.emission -and $null -ne $genesis.emission.subsidy_to_treasury_bps) {
+        $subsidyBps = [int]$genesis.emission.subsidy_to_treasury_bps
+    }
+    if ($genesis.endowment -and $null -ne $genesis.endowment.min_storage_operator_bond) {
+        $bondAtoms = [int64]$genesis.endowment.min_storage_operator_bond
+    }
+    $pathAExperimental = ($subsidyBps -eq 0) -or ($bondAtoms -eq 0)
 }
 if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental) {
-    Add-Check -Name "path_a_economy" -Status "pass" -Message "subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms path_a_experimental=false"
+    Add-Check -Name "path_a_economy" -Status "pass" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms path_a_experimental=false"
 } else {
-    Add-Check -Name "path_a_economy" -Status "fail" -Message "subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
+    Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
 }
 $nightly = $evidence.nightly
 if ($null -ne $nightly -and [string]$nightly.status -eq "completed" -and [string]$nightly.conclusion -eq "success") {

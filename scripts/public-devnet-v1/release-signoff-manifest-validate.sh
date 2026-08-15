@@ -60,6 +60,29 @@ def issue(message):
     issues.append(message)
 
 
+def genesis_economy(evidence_doc):
+    rel = ((evidence_doc.get("economy") or {}).get("genesis_path") or "").strip()
+    candidates = [rel, os.path.join(repo_root, rel)] if rel else []
+    genesis_path = next((candidate for candidate in candidates if candidate and os.path.isfile(candidate)), None)
+    if not genesis_path:
+        return None
+    with open(genesis_path, "r", encoding="utf-8-sig") as handle:
+        genesis = json.load(handle)
+    emission = genesis.get("emission") or {}
+    endowment = genesis.get("endowment") or {}
+    try:
+        subsidy_bps = int(emission.get("subsidy_to_treasury_bps") or 0)
+        bond_atoms = int(endowment.get("min_storage_operator_bond") or 0)
+    except (TypeError, ValueError):
+        subsidy_bps = 0
+        bond_atoms = 0
+    return {
+        "subsidy_to_treasury_bps": subsidy_bps,
+        "min_storage_operator_bond": bond_atoms,
+        "path_a_experimental": subsidy_bps == 0 or bond_atoms == 0,
+    }
+
+
 def require_string(obj, key, path):
     if not isinstance(obj, dict) or not isinstance(obj.get(key), str) or not obj.get(key):
         issue(f"{path}.{key} is required")
@@ -158,16 +181,11 @@ if doc.get("decision") == "go":
     else:
         with open(evidence_path, "r", encoding="utf-8-sig") as handle:
             evidence = json.load(handle)
-        economy = evidence.get("economy") or {}
-        try:
-            subsidy_bps = int(economy.get("subsidy_to_treasury_bps") or 0)
-            bond_atoms = int(economy.get("min_storage_operator_bond") or 0)
-        except (TypeError, ValueError):
-            subsidy_bps = 0
-            bond_atoms = 0
-        path_a_experimental = bool(economy.get("path_a_experimental", True))
-        if subsidy_bps <= 0 or bond_atoms <= 0 or path_a_experimental is not False:
-            issue("go decision requires funded economy (subsidy>0, bond>0, path_a_experimental=false)")
+        genesis = genesis_economy(evidence)
+        if genesis is None:
+            issue("go decision requires readable genesis at economy.genesis_path")
+        elif genesis["subsidy_to_treasury_bps"] <= 0 or genesis["min_storage_operator_bond"] <= 0 or genesis["path_a_experimental"]:
+            issue("go decision requires funded genesis economy (subsidy>0, bond>0, path_a_experimental=false)")
         nightly = evidence.get("nightly") or {}
         if nightly.get("status") != "completed" or nightly.get("conclusion") != "success":
             issue("go decision requires completed successful Nightly on bound evidence")

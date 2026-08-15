@@ -19,11 +19,11 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat A RC audit Nightly-for-go. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**; seat B **Doing B-268b**; seat C **Doing B-42**.
+Synced at Seat A genesis-backed `go`. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**; seat B **Doing B-268b**; seat C **Doing B-42**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | RC audit `go` requires Nightly GREEN (this commit); signoff Nightly (`50e3d496`) | *Idle* | Watch B-268b Rust CI; do not steal B-268b |
+| **A** RC/CI | `go` re-reads genesis economy (this commit); RC Nightly (`5ebfc727`) | *Idle* | Watch B-268b Rust CI; do not steal B-268b |
 | **B** Protocol/Privacy | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; **B-35** pad; no B-13c; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-15 wave115** last_proven=**22467** (`46d9f86c`) | **B-42** live invite-load stagger (claim base: `46d9f86c`) | 2nd host B-32 |
 
@@ -56,7 +56,7 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done RC audit go requires Nightly / Doing idle / Next watch B-268b Rust CI
+3agent — Seat A: Done go re-reads genesis / Doing idle / Next watch B-268b Rust CI
 3agent — Seat B: Done B-268b activation-height plumbing / Doing idle / Next B-33/B-35; do not steal B-296
 3agent — Seat C: Done B-299 hub seed 19001 / Doing idle / Next B-42; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)

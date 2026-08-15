@@ -211,25 +211,35 @@ with open(os.path.join(repo_root, release_evidence_json) if not os.path.isabs(re
 if not commit:
     commit = (evidence.get("commit") or {}).get("head") or git_head()
 
-economy = evidence.get("economy") or {}
-try:
-    subsidy_bps = int(economy.get("subsidy_to_treasury_bps") or 0)
-    bond_atoms = int(economy.get("min_storage_operator_bond") or 0)
-except (TypeError, ValueError):
-    subsidy_bps = 0
-    bond_atoms = 0
-path_a_experimental = bool(economy.get("path_a_experimental", True))
+genesis_rel = ((evidence.get("economy") or {}).get("genesis_path") or "").strip()
+genesis_candidates = [genesis_rel, os.path.join(repo_root, genesis_rel)] if genesis_rel else []
+genesis_path = next((candidate for candidate in genesis_candidates if candidate and os.path.isfile(candidate)), None)
+subsidy_bps = 0
+bond_atoms = 0
+path_a_experimental = True
+if genesis_path:
+    with open(genesis_path, "r", encoding="utf-8-sig") as handle:
+        genesis = json.load(handle)
+    emission = genesis.get("emission") or {}
+    endowment = genesis.get("endowment") or {}
+    try:
+        subsidy_bps = int(emission.get("subsidy_to_treasury_bps") or 0)
+        bond_atoms = int(endowment.get("min_storage_operator_bond") or 0)
+    except (TypeError, ValueError):
+        subsidy_bps = 0
+        bond_atoms = 0
+    path_a_experimental = subsidy_bps == 0 or bond_atoms == 0
 if subsidy_bps > 0 and bond_atoms > 0 and path_a_experimental is False:
     add_check(
         "path_a_economy",
         "pass",
-        f"subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} path_a_experimental=false",
+        f"genesis subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} path_a_experimental=false",
     )
 else:
     add_check(
         "path_a_economy",
         "fail",
-        f"subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} "
+        f"genesis subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} "
         f"path_a_experimental={str(path_a_experimental).lower()} "
         "(Path A holes; not a funded-permanence RC)",
     )
