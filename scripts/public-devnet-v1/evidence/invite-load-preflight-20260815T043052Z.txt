@@ -1,0 +1,13 @@
+invite-load-smoke-rehearsal: preflight
+unit=B-257
+status=PASS
+serialize_with_reason=need_-Live_flag
+proxy_health=http://5.161.201.73:8787/health
+faucet_health=http://5.161.201.73:8788/health
+faucet_busy=False
+faucet_pending=0
+public_host=5.161.201.73
+seed_ports=19001,19002,19003
+p2p_forward_hygiene=ok
+live_armed=
+never=join-testnet-rehearsal_without_ALLOW_LIVE

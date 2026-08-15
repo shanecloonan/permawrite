@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane7 **B-298** CLOSE (this commit, `[skip ci]`). Path A ckpt **16622→22437**, outside-in lag **5820→6** OK. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Lane7 **B-299** CLOSE (this commit, `[skip ci]`). Public hub seed **19001 CLOSED→OPEN**; tip still advancing. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m; **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | **B-298** Path A tip-22437 + lag=6 (this commit); **B-296** (`9396b6cb`); **B-291** | *Idle* | **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | **B-299** hub seed 19001 OPEN (this commit); **B-298** (`0237a53d`); **B-296** | *Idle* | **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -341,7 +341,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-278 | Faucet wallet UTXO prune/rotate (unblock F122 fund path) | 7+2 | **Landed** (`b1ab1b17`) — prune 22062→32; HTTP dual-fund **done 99s**; evidence `b278-faucet-utxo-prune-20260814.md`; CLI O(n) pending-spend diff |
 | B-291 | Tall-tip mesh recover + skip-manifest-seeds + loopback peers (post-B-278) | 7 | **Landed** (`24ce61a9`) — tip stall root cause = public hairpins + cold replay; tip restored ~22350; evidence `b291-tall-tip-mesh-recover-20260815.md`; storm deferred to **B-296** |
 | B-296 | Dual-payment live storm + faucet-ops systemd rotate (post-B-291) | 7 | **Landed** (`9396b6cb`) — systemd `FAUCET_WALLET=faucet-ops.json`; HTTP dual-fund **76s**; storm landed **13**; observer user-tx **391→408**; evidence `b296-faucet-ops-rotate-storm-20260815.md` |
-| B-298 | Path A near-tip checkpoint republish after B-296 (lag ~5.8k) | 7 | **Landed** (this commit) — VPS timer already at 22437 (84 entries); repo land 16622→22437; outside-in **OK lag=6**; evidence `b298-path-a-tip-22437-20260815.md` |
+| B-298 | Path A near-tip checkpoint republish after B-296 (lag ~5.8k) | 7 | **Landed** (`0237a53d`) — VPS timer already at 22437 (84 entries); repo land 16622→22437; outside-in **OK lag=6**; evidence `b298-path-a-tip-22437-20260815.md` |
+| B-299 | Restore public hub seed 19001 after B-291 stop (B-254 hygiene) | 7 | **Landed** (this commit) — `systemctl start mfn-p2p-forward-hub` only; 19001 **CLOSED→OPEN**; tip 22446→22447; invite-load `--apply` PASS; evidence `b299-hub-seed-19001-20260815.md` |
 | B-247 | Outside-in tip-ckpt lag + public P2P/RPC posture refresh after tip-16293 | 7 | **Landed** (`0807bd93`; tip=16299 lag=6; seeds 19001-19003 OPEN; evidence `b247-outside-in-posture-tip-16299-20260806T132600Z.md`) |
 | B-248 | Invite-load smoke preflight harness (B-42 toward live; serialize-with-reason) | 7 | **Landed** (`5d941e07`; evidence `b248-invite-load-preflight-20260806T133000Z.md`) |
 | B-258 | Path A near-tip timer/default lag threshold 16→8 (JOIN soft-pin) | 7 | **Landed** (this commit; board text raced into B-246 `23749726`; VPS timer env=8; health tip=16336 lag=6; evidence `b258-path-a-lag-threshold-8-20260806T144200Z.md`) |
@@ -500,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - B-298 Path A tip-22437 land + lag close** (this commit): repo ckpt_max was **16622** vs live tip **22443** (lag=5821 FAIL). VPS timer already published tip=22437 (84 entries); `land-path-a-checkpoint-from-vps -Apply` + outside-in assert **OK lag=6** (threshold 8). Evidence `b298-path-a-tip-22437-20260815.md` + `outside-in-tip-ckpt-lag-20260815T042600Z.txt`. B-15-safe (no faucet/mfnd). `[skip ci]` — do not steal **B-268b**. Next: **B-42**; 2nd host B-32. *Observed (not staged):* lane6 B-268b Rust; release-evidence; `apply_block_proptest.rs`; `tx_storm.rs`.
+1. **2026-08-15 - lane 7 - B-299 restore public hub seed 19001** (this commit): B-291 left `mfn-p2p-forward-hub` stopped (exit 143 @ 02:04Z); outside TCP **19001 CLOSED**, 19002–19004 OPEN, hub still on `127.0.0.1:19101`. `systemctl start mfn-p2p-forward-hub` only (no mfnd/faucet). After: **19001 OPEN**, tip **22446→22447**, invite-load `-Apply` **PASS** (`invite-load-preflight-20260815T043052Z.txt`). Evidence `b299-hub-seed-19001-20260815.md`. `[skip ci]` — do not steal **B-268b**. Next: **B-42**; 2nd host B-32. *Observed (not staged):* lane6 B-268b Rust; release-evidence; `apply_block_proptest.rs`; `tx_storm.rs`.
+
+1. **2026-08-15 - lane 7 - B-298 Path A tip-22437 land + lag close** (`0237a53d`): repo ckpt_max was **16622** vs live tip **22443** (lag=5821 FAIL). VPS timer already published tip=22437 (84 entries); `land-path-a-checkpoint-from-vps -Apply` + outside-in assert **OK lag=6** (threshold 8). Evidence `b298-path-a-tip-22437-20260815.md` + `outside-in-tip-ckpt-lag-20260815T042600Z.txt`. B-15-safe (no faucet/mfnd). `[skip ci]` — do not steal **B-268b**. Next: **B-42**; 2nd host B-32. *Observed (not staged):* lane6 B-268b Rust; release-evidence; `apply_block_proptest.rs`; `tx_storm.rs`.
 
 1. **2026-08-15 - lane 7 - claim B-298** (board in this CLOSE): Path A republish + lag close. Claim base `9396b6cb`. SYNC: **B-296** landed `9396b6cb` but board still said Doing.
 
