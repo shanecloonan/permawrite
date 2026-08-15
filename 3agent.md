@@ -11,26 +11,26 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | Tip CI `#31860183965` in_progress on B-294 | *Idle* | Pin / Nightly; do not cancel `#31860183965` |
-| **B** Protocol/Privacy | **B-295** twentieth op1 re-slash (claim base: `0ecd19ce`) | Lane 4 protocol tests | Hold Rust until `#31860183965` GREEN; do not steal B-296 / B-268b |
-| **C** Testnet/Onboarding | **B-291** tall-tip mesh recover (`24ce61a9`) | *Idle* | **B-296** dual-payment storm; **B-42**; 2nd host B-32 |
+| **A** RC/CI | CI, Nightly, board integrity | Lanes 1–2 | **B-296**, protocol tests |
+| **B** Protocol/Privacy | Consensus / privacy surface | Lanes 4–5 | **B-296**, Nightly cancel |
+| **C** Testnet/Onboarding | VPS / JOIN / faucet / launch | Lanes 3+7 | Protocol tests, CI cancel |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-295 claim. Tip CI `#31860183965` in_progress on B-294; seat C owns **B-296**.
+Synced at Seat C B-296 claim. Tip CI `#31860183965` **GREEN** on B-294; Nightly `#31861932921` **GREEN** on `e5e1f65a`; seat C **Doing B-296**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Tip CI `#31860183965` in_progress on B-294 | *Idle* | Pin / Nightly; do not cancel `#31860183965` |
-| **B** Protocol/Privacy | **B-294** (`0ecd19ce`) | **B-295** twentieth op1 re-slash (claim base: `0ecd19ce`) | **B-297** settle-reset twenty-first; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-291** mesh recover (`24ce61a9`) | *Idle* | **B-296** dual-payment storm; **B-42**; 2nd host B-32 |
+| **A** RC/CI | CI `#31860183965` + Nightly `#31861932921` **GREEN** | *Idle* | Release-evidence on next Rust head; do not steal B-296 |
+| **B** Protocol/Privacy | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**) | **B-295** twentieth op1 re-slash (claim base: `0ecd19ce`) | **B-297** settle-reset twenty-first; after 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | **B-291** mesh recover (`24ce61a9`) | **B-296** dual-payment storm + faucet-ops rotate (claim base: `e5e1f65a`) | After B-296: **B-42**; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Lane6 **B-13a-512** landed; lane4 may push **B-246** after this tip CI settles.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#31860183965` GREEN; Nightly `#31861932921` GREEN.
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
@@ -56,8 +56,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done watch / Doing idle / Next pin+Nightly
-3agent — Seat B: Done B-259 seventeenth settle-reset / Doing B-261 dual settle (body ready) / Next land after GREEN
-3agent — Seat C: Done B-244 health + B-243 Path A / Doing idle / Next B-42 after B-15 clear
+3agent — Seat A: Done CI #31860183965 + Nightly #31861932921 GREEN / Doing idle / Next release-evidence on next Rust head
+3agent — Seat B: Done B-294 (CI GREEN) / Doing B-295 twentieth op1 re-slash / Next B-297; do not steal B-296
+3agent — Seat C: Done B-291 mesh recover / Doing B-296 dual-payment storm / Next B-42; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```
