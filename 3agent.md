@@ -11,20 +11,20 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
-| **A** RC/CI | Tip CI `#31857970110` GREEN on B-293 | *Idle* | Pin / Nightly; do not cancel healthy tip CI |
-| **B** Protocol/Privacy | **B-294** twentieth asymmetric re-slash (this commit) | Lane 4 protocol tests | **B-295** op1 re-slash; do not steal B-296 / B-268b |
+| **A** RC/CI | Tip CI `#31860183965` in_progress on B-294 | *Idle* | Pin / Nightly; do not cancel `#31860183965` |
+| **B** Protocol/Privacy | **B-295** twentieth op1 re-slash (claim base: `0ecd19ce`) | Lane 4 protocol tests | Hold Rust until `#31860183965` GREEN; do not steal B-296 / B-268b |
 | **C** Testnet/Onboarding | **B-291** tall-tip mesh recover (`24ce61a9`) | *Idle* | **B-296** dual-payment storm; **B-42**; 2nd host B-32 |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at B-294 CLOSE. Tip CI `#31857970110` GREEN on B-293; seat C owns **B-296**.
+Synced at B-295 claim. Tip CI `#31860183965` in_progress on B-294; seat C owns **B-296**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Tip CI `#31857970110` GREEN on B-293 | *Idle* | Pin / Nightly; do not cancel healthy tip CI |
-| **B** Protocol/Privacy | **B-294** (this commit) | *Idle* | **B-295** twentieth op1 re-slash; after 2 hosts: live **B-32** |
+| **A** RC/CI | Tip CI `#31860183965` in_progress on B-294 | *Idle* | Pin / Nightly; do not cancel `#31860183965` |
+| **B** Protocol/Privacy | **B-294** (`0ecd19ce`) | **B-295** twentieth op1 re-slash (claim base: `0ecd19ce`) | **B-297** settle-reset twenty-first; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-291** mesh recover (`24ce61a9`) | *Idle* | **B-296** dual-payment storm; **B-42**; 2nd host B-32 |
 
 ### Hard locks (all seats)
