@@ -245,6 +245,8 @@ jobs:
 
           with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
               doc = json.load(handle)
+          doc["decision"] = "go"
+          doc["issues"] = []
           doc["gates"]["ci"]["conclusion"] = "failure"
           with open(sys.argv[1], "w", encoding="utf-8") as handle:
               json.dump(doc, handle, indent=2)
@@ -845,6 +847,8 @@ jobs:
           try {
             $badSignoff = Join-Path $signoffValidateDir "bad-signoff.json"
             $badSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+            $badSignoffObject.decision = "go"
+            $badSignoffObject.issues = @()
             $badSignoffObject.gates.ci.conclusion = "failure"
             $badSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $badSignoff -Encoding utf8
             $badSignoffStdout = Join-Path $signoffValidateDir "bad-signoff.out"
