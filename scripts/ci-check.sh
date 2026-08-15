@@ -363,7 +363,7 @@ pwsh -NoProfile -Command '
   }
 '
 evidence_md="$(bash scripts/public-devnet-v1/release-evidence.sh --operator ci-smoke --skip-ci-lookup)"
-for required in "# Permawrite Release-Candidate Evidence" "## Commit And CI" "## RPC Posture" "## Operator Sign-Off"; do
+for required in "# Permawrite Release-Candidate Evidence" "## Commit And CI" "GitHub Nightly:" "## RPC Posture" "## Operator Sign-Off"; do
   if [[ "$evidence_md" != *"$required"* ]]; then
     echo "release-evidence.sh Markdown output missing '$required'" >&2
     exit 1
@@ -381,6 +381,7 @@ required_paths = [
     ("generated_utc",),
     ("commit", "head"),
     ("ci", "status"),
+    ("nightly", "status"),
     ("chain", "expected_genesis_id"),
     ("health", "status"),
     ("rpc", "endpoint"),
@@ -446,6 +447,21 @@ with open(sys.argv[1], "w", encoding="utf-8") as handle:
 PY
 if bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json "$schema_validate_dir/bad-evidence.json" >/dev/null 2>&1; then
   echo "release-json-schema-validate.sh accepted an unexpected release evidence field" >&2
+  exit 1
+fi
+python3 - "$schema_validate_dir/missing-nightly.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+del doc["nightly"]
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json "$schema_validate_dir/missing-nightly.json" >/dev/null 2>&1; then
+  echo "release-json-schema-validate.sh accepted release evidence without nightly" >&2
   exit 1
 fi
 python3 - "$schema_validate_dir/bad-audit.json" <<'PY'

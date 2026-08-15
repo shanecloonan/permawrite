@@ -50,16 +50,20 @@ path, allow_pending = sys.argv[1], sys.argv[2] == "1"
 with open(path, encoding="utf-8") as fh:
     obj = json.load(fh)
 ci = obj.get("ci") or {}
-ok = ci.get("status") == "completed" and ci.get("conclusion") == "success"
-if not ok and not allow_pending:
+nightly = obj.get("nightly") or {}
+ci_ok = ci.get("status") == "completed" and ci.get("conclusion") == "success"
+nightly_ok = nightly.get("status") == "completed" and nightly.get("conclusion") == "success"
+if (not ci_ok or not nightly_ok) and not allow_pending:
     raise SystemExit(
-        f"release-evidence-refresh-for-head: GitHub CI is not green "
-        f"(status={ci.get('status')} conclusion={ci.get('conclusion')}). "
-        f"Re-run with --allow-pending-ci to record pending CI anyway."
+        f"release-evidence-refresh-for-head: GitHub CI or Nightly is not green "
+        f"(ci={ci.get('status')}/{ci.get('conclusion')} "
+        f"nightly={nightly.get('status')}/{nightly.get('conclusion')}). "
+        f"Re-run with --allow-pending-ci to record pending runs anyway."
     )
 print(
     f"release-evidence-refresh-for-head: OK json={path} "
-    f"ci_status={ci.get('status')} ci_conclusion={ci.get('conclusion')}"
+    f"ci_status={ci.get('status')} ci_conclusion={ci.get('conclusion')} "
+    f"nightly_status={nightly.get('status')} nightly_conclusion={nightly.get('conclusion')}"
 )
 PY
 

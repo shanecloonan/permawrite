@@ -45,11 +45,12 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $evidenceObject = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
 $ciOk = ($evidenceObject.ci.status -eq "completed" -and $evidenceObject.ci.conclusion -eq "success")
-if (-not $ciOk -and -not $AllowPendingCi) {
-    throw "release-evidence-refresh-for-head: GitHub CI is not green for $head (status=$($evidenceObject.ci.status) conclusion=$($evidenceObject.ci.conclusion)). Re-run with -AllowPendingCi to record pending CI anyway."
+$nightlyOk = ($evidenceObject.nightly.status -eq "completed" -and $evidenceObject.nightly.conclusion -eq "success")
+if ((-not $ciOk -or -not $nightlyOk) -and -not $AllowPendingCi) {
+    throw "release-evidence-refresh-for-head: GitHub CI or Nightly is not green for $head (ci=$($evidenceObject.ci.status)/$($evidenceObject.ci.conclusion) nightly=$($evidenceObject.nightly.status)/$($evidenceObject.nightly.conclusion)). Re-run with -AllowPendingCi to record pending runs anyway."
 }
 
-Write-Host "release-evidence-refresh-for-head: OK json=$jsonPath md=$mdPath ci_status=$($evidenceObject.ci.status) ci_conclusion=$($evidenceObject.ci.conclusion)"
+Write-Host "release-evidence-refresh-for-head: OK json=$jsonPath md=$mdPath ci_status=$($evidenceObject.ci.status) ci_conclusion=$($evidenceObject.ci.conclusion) nightly_status=$($evidenceObject.nightly.status) nightly_conclusion=$($evidenceObject.nightly.conclusion)"
 
 if ($RunRcAuditDryRun) {
     $rcOutput = Join-Path $env:TEMP ("permawrite-rc-audit-refresh-" + [Guid]::NewGuid().ToString("N") + ".json")

@@ -527,7 +527,7 @@ Remove-Item -Recurse -Force $refreshDir -ErrorAction SilentlyContinue
 $evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $evidenceText = $evidenceMarkdown -join "`n"
-foreach ($required in @("# Permawrite Release-Candidate Evidence", "## Commit And CI", "## RPC Posture", "## Operator Sign-Off")) {
+foreach ($required in @("# Permawrite Release-Candidate Evidence", "## Commit And CI", "GitHub Nightly:", "## RPC Posture", "## Operator Sign-Off")) {
     if (-not $evidenceText.Contains($required)) {
         [Console]::Error.WriteLine("release-evidence.ps1 Markdown output missing '$required'")
         exit 1
@@ -536,7 +536,7 @@ foreach ($required in @("# Permawrite Release-Candidate Evidence", "## Commit An
 $evidenceJson = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -Json -SkipCiLookup
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $evidenceObject = $evidenceJson | ConvertFrom-Json
-foreach ($required in @($evidenceObject.schema_version, $evidenceObject.generated_utc, $evidenceObject.commit.head, $evidenceObject.ci.status, $evidenceObject.chain.expected_genesis_id, $evidenceObject.health.status, $evidenceObject.rpc.endpoint, $evidenceObject.rpc.current_in_flight, $evidenceObject.rpc.max_in_flight, $evidenceObject.rpc.p2p_session_count, $evidenceObject.rpc.p2p_peer_count)) {
+foreach ($required in @($evidenceObject.schema_version, $evidenceObject.generated_utc, $evidenceObject.commit.head, $evidenceObject.ci.status, $evidenceObject.nightly.status, $evidenceObject.chain.expected_genesis_id, $evidenceObject.health.status, $evidenceObject.rpc.endpoint, $evidenceObject.rpc.current_in_flight, $evidenceObject.rpc.max_in_flight, $evidenceObject.rpc.p2p_session_count, $evidenceObject.rpc.p2p_peer_count)) {
     if (-not $required) {
         [Console]::Error.WriteLine("release-evidence.ps1 JSON output is missing a required schema field")
         exit 1
@@ -599,6 +599,25 @@ try {
     ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badEvidenceStdout -RedirectStandardError $badEvidenceStderr
     if ($badEvidenceProcess.ExitCode -eq 0) {
         [Console]::Error.WriteLine("release-json-schema-validate.ps1 accepted an unexpected release evidence field")
+        exit 1
+    }
+    $missingNightly = Join-Path $schemaValidateDir "missing-nightly.json"
+    $missingNightlyObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $missingNightlyObject.PSObject.Properties.Remove("nightly")
+    $missingNightlyObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $missingNightly -Encoding utf8
+    $missingNightlyStdout = Join-Path $schemaValidateDir "missing-nightly.out"
+    $missingNightlyStderr = Join-Path $schemaValidateDir "missing-nightly.err"
+    $missingNightlyProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-json-schema-validate.ps1",
+        "-Schema",
+        "docs/release-evidence-v1.schema.json",
+        "-Json",
+        $missingNightly
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $missingNightlyStdout -RedirectStandardError $missingNightlyStderr
+    if ($missingNightlyProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-json-schema-validate.ps1 accepted release evidence without nightly")
         exit 1
     }
     $badAudit = Join-Path $schemaValidateDir "bad-audit.json"

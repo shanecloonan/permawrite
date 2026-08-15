@@ -62,15 +62,15 @@ stats_timestamp() {
   sed -n 's/^\*\*Generated (UTC):\*\* //p' "$STATS_PATH" | head -n 1
 }
 
-ci_status() {
-  local commit="$1" slug run probe depth parent
+workflow_status() {
+  local commit="$1" workflow="$2" api_file="$3" slug run probe depth parent
   slug="$(remote_slug || true)"
   if [[ -z "$slug" ]]; then
     echo "unknown||no github remote|"
     return
   fi
   if command -v gh >/dev/null 2>&1; then
-    run="$(gh run list --workflow CI --branch main --limit 20 --json headSha,status,conclusion,url 2>/dev/null | tr -d '\n' || true)"
+    run="$(gh run list --workflow "$workflow" --branch main --limit 20 --json headSha,status,conclusion,url 2>/dev/null | tr -d '\n' || true)"
     probe="$commit"
     for depth in $(seq 0 15); do
       if [[ "$depth" -gt 0 ]]; then
@@ -97,13 +97,13 @@ ci_status() {
     done
   fi
   if command -v python3 >/dev/null 2>&1; then
-    python3 - "$slug" "$commit" <<'PY'
+    python3 - "$slug" "$commit" "$api_file" <<'PY'
 import json
 import subprocess
 import sys
 import urllib.request
 
-slug, commit = sys.argv[1], sys.argv[2]
+slug, commit, api_file = sys.argv[1], sys.argv[2], sys.argv[3]
 repo_root = subprocess.check_output(
     ["git", "rev-parse", "--show-toplevel"], text=True
 ).strip()
@@ -125,7 +125,7 @@ for _ in range(15):
     probes.append(parent)
     probe = parent
 
-url = f"https://api.github.com/repos/{slug}/actions/workflows/ci.yml/runs?branch=main&per_page=20"
+url = f"https://api.github.com/repos/{slug}/actions/workflows/{api_file}/runs?branch=main&per_page=20"
 try:
     req = urllib.request.Request(url, headers={"User-Agent": "permawrite-release-evidence"})
     with urllib.request.urlopen(req, timeout=10) as resp:
@@ -216,10 +216,13 @@ if [[ -n "$DIRTY" ]]; then DIRTY_STATE="dirty"; fi
 STATS_GENERATED="$(stats_timestamp)"
 if (( SKIP_CI_LOOKUP == 1 )); then
   CI_INFO="unknown||skipped|"
+  NIGHTLY_INFO="unknown||skipped|"
 else
-  CI_INFO="$(ci_status "$HEAD_SHA")"
+  CI_INFO="$(workflow_status "$HEAD_SHA" "CI" "ci.yml")"
+  NIGHTLY_INFO="$(workflow_status "$HEAD_SHA" "Nightly" "nightly.yml")"
 fi
 IFS='|' read -r CI_STATE CI_CONCLUSION CI_SOURCE CI_URL <<< "$CI_INFO"
+IFS='|' read -r NIGHTLY_STATE NIGHTLY_CONCLUSION NIGHTLY_SOURCE NIGHTLY_URL <<< "$NIGHTLY_INFO"
 RPC_INFO="$(rpc_status_line "$RPC")"
 IFS='|' read -r RPC_ADDR RPC_GENESIS RPC_HEIGHT RPC_TIP RPC_LISTEN RPC_PUBLIC RPC_AUTH RPC_INFLIGHT RPC_P2P RPC_NOTE <<< "$RPC_INFO"
 RPC_CURRENT_IN_FLIGHT="${RPC_INFLIGHT%/*}"
@@ -246,6 +249,12 @@ if (( JSON_OUTPUT == 1 )); then
     echo "    \"conclusion\": \"$(json_escape "${CI_CONCLUSION:-}")\","
     echo "    \"source\": \"$(json_escape "${CI_SOURCE:-unknown}")\","
     echo "    \"url\": \"$(json_escape "${CI_URL:-}")\""
+    echo "  },"
+    echo "  \"nightly\": {"
+    echo "    \"status\": \"$(json_escape "${NIGHTLY_STATE:-unknown}")\","
+    echo "    \"conclusion\": \"$(json_escape "${NIGHTLY_CONCLUSION:-}")\","
+    echo "    \"source\": \"$(json_escape "${NIGHTLY_SOURCE:-unknown}")\","
+    echo "    \"url\": \"$(json_escape "${NIGHTLY_URL:-}")\""
     echo "  },"
     echo "  \"chain\": {"
     echo "    \"expected_genesis_id\": \"$(json_escape "$EXPECTED_GENESIS_ID")\""
@@ -298,6 +307,8 @@ fi
   echo "- CODEBASE_STATS generated UTC: \`${STATS_GENERATED:-missing}\`"
   echo "- GitHub CI: status=\`${CI_STATE:-unknown}\` conclusion=\`${CI_CONCLUSION:-}\` source=\`${CI_SOURCE:-unknown}\`"
   if [[ -n "${CI_URL:-}" ]]; then echo "- GitHub CI URL: $CI_URL"; fi
+  echo "- GitHub Nightly: status=\`${NIGHTLY_STATE:-unknown}\` conclusion=\`${NIGHTLY_CONCLUSION:-}\` source=\`${NIGHTLY_SOURCE:-unknown}\`"
+  if [[ -n "${NIGHTLY_URL:-}" ]]; then echo "- GitHub Nightly URL: $NIGHTLY_URL"; fi
   echo
   echo "## Chain And Health"
   echo

@@ -12,19 +12,19 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | Seat | Focus | Owns (lanes) | Does not steal |
 | --- | --- | --- | --- |
 | **A** RC/CI | CI, Nightly, board integrity | Lanes 1–2 | **B-296**, protocol tests |
-| **B** Protocol/Privacy | Consensus / privacy surface | Lanes 4–5 | **B-296**, Nightly cancel |
+| **B** Protocol/Privacy | Consensus / privacy / economics | Lanes 4–5–6 | **B-296**, Nightly cancel, VPS/faucet |
 | **C** Testnet/Onboarding | VPS / JOIN / faucet / launch | Lanes 3+7 | Protocol tests, CI cancel |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at Seat C B-296 claim. Tip CI `#31860183965` **GREEN** on B-294; Nightly `#31861932921` **GREEN** on `e5e1f65a`; seat C **Doing B-296**.
+Synced at Seat A release-evidence Nightly pin. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**; seat B **Doing B-268b**; seat C **Doing B-296**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | CI `#31860183965` + Nightly `#31861932921` **GREEN** | *Idle* | Release-evidence on next Rust head; do not steal B-296 |
-| **B** Protocol/Privacy | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**) | **B-295** twentieth op1 re-slash (claim base: `0ecd19ce`) | **B-297** settle-reset twenty-first; after 2 hosts: live **B-32** |
+| **A** RC/CI | release-evidence Nightly pin (this commit) | *Idle* | Watch B-268b Rust CI; do not steal B-296 |
+| **B** Protocol/Privacy | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; **B-35** pad; no B-13c; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-291** mesh recover (`24ce61a9`) | **B-296** dual-payment storm + faucet-ops rotate (claim base: `e5e1f65a`) | After B-296: **B-42**; 2nd host B-32 |
 
 ### Hard locks (all seats)
@@ -56,8 +56,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done CI #31860183965 + Nightly #31861932921 GREEN / Doing idle / Next release-evidence on next Rust head
-3agent — Seat B: Done B-294 (CI GREEN) / Doing B-295 twentieth op1 re-slash / Next B-297; do not steal B-296
+3agent — Seat A: Done release-evidence Nightly pin / Doing idle / Next watch B-268b Rust CI
+3agent — Seat B: Done B-268b activation-height plumbing / Doing idle / Next B-33/B-35; do not steal B-296
 3agent — Seat C: Done B-291 mesh recover / Doing B-296 dual-payment storm / Next B-42; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

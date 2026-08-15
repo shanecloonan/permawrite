@@ -9,6 +9,7 @@
     "generated_utc",
     "commit",
     "ci",
+    "nightly",
     "chain",
     "health",
     "rpc",
@@ -39,6 +40,17 @@
       }
     },
     "ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "conclusion", "source", "url"],
+      "properties": {
+        "status": { "type": "string" },
+        "conclusion": { "type": "string" },
+        "source": { "type": "string" },
+        "url": { "type": "string" }
+      }
+    },
+    "nightly": {
       "type": "object",
       "additionalProperties": false,
       "required": ["status", "conclusion", "source", "url"],

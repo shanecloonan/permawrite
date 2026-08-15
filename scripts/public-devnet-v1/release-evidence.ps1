@@ -43,29 +43,33 @@ function Get-CodebaseStatsTimestamp {
     return $line.Matches[0].Groups[1].Value
 }
 
-function Get-CiStatus {
-    param([string]$Commit)
+function Get-WorkflowStatus {
+    param(
+        [string]$Commit,
+        [string]$Workflow = "CI",
+        [string]$ApiWorkflowFile = "ci.yml"
+    )
     $slug = Get-RemoteSlug
     if (-not $slug) {
         return [pscustomobject]@{ Status = "unknown"; Conclusion = ""; Url = ""; Source = "no github remote" }
     }
 
-    function Find-CiRunForCommit {
+    function Find-RunForCommit {
         param([string]$Sha, [object[]]$Runs)
         return $Runs | Where-Object { $_.headSha -eq $Sha } | Select-Object -First 1
     }
 
-    function Get-RecentCiRuns {
+    function Get-RecentWorkflowRuns {
         try {
             if (Get-Command gh -ErrorAction SilentlyContinue) {
-                $json = gh run list --workflow CI --branch main --limit 20 --json databaseId,headSha,status,conclusion,url 2>$null
+                $json = gh run list --workflow $Workflow --branch main --limit 20 --json databaseId,headSha,status,conclusion,url 2>$null
                 if ($LASTEXITCODE -eq 0 -and $json) {
                     return @($json | ConvertFrom-Json)
                 }
             }
         } catch {}
         try {
-            $uri = "https://api.github.com/repos/$slug/actions/workflows/ci.yml/runs?branch=main&per_page=20"
+            $uri = "https://api.github.com/repos/$slug/actions/workflows/$ApiWorkflowFile/runs?branch=main&per_page=20"
             $resp = Invoke-RestMethod -Uri $uri -Headers @{ "User-Agent" = "permawrite-release-evidence" }
             return @($resp.workflow_runs | ForEach-Object {
                 [pscustomobject]@{
@@ -79,7 +83,7 @@ function Get-CiStatus {
         return @()
     }
 
-    $runs = Get-RecentCiRuns
+    $runs = Get-RecentWorkflowRuns
     if ($runs.Count -eq 0) {
         return [pscustomobject]@{ Status = "unknown"; Conclusion = ""; Url = ""; Source = "not found" }
     }
@@ -90,7 +94,7 @@ function Get-CiStatus {
             $probe = Invoke-GitText "rev-parse" "$probe~1"
             if (-not $probe) { break }
         }
-        $run = Find-CiRunForCommit -Sha $probe -Runs $runs
+        $run = Find-RunForCommit -Sha $probe -Runs $runs
         if ($run -and $run.status -eq "completed" -and $run.conclusion -eq "success") {
             $source = if ($probe -eq $Commit) { "gh" } else { "gh-ancestor:$probe" }
             return [pscustomobject]@{
@@ -145,11 +149,9 @@ $branch = Invoke-GitText "branch" "--show-current"
 $dirty = Invoke-GitText "status" "--short"
 $dirtyState = if ($dirty) { "dirty" } else { "clean" }
 $statsGenerated = Get-CodebaseStatsTimestamp
-$ci = if ($SkipCiLookup) {
-    [pscustomobject]@{ Status = "unknown"; Conclusion = ""; Url = ""; Source = "skipped" }
-} else {
-    Get-CiStatus $head
-}
+$skippedLookup = [pscustomobject]@{ Status = "unknown"; Conclusion = ""; Url = ""; Source = "skipped" }
+$ci = if ($SkipCiLookup) { $skippedLookup } else { Get-WorkflowStatus $head "CI" "ci.yml" }
+$nightly = if ($SkipCiLookup) { $skippedLookup } else { Get-WorkflowStatus $head "Nightly" "nightly.yml" }
 $health = Invoke-HealthEvidence
 $rpcStatus = Query-RpcStatus $Rpc
 $generatedAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -201,6 +203,12 @@ $evidence = [pscustomobject]@{
         source = $ci.Source
         url = $ci.Url
     }
+    nightly = [pscustomobject]@{
+        status = $nightly.Status
+        conclusion = if ($null -eq $nightly.Conclusion -or $nightly.Conclusion -eq "") { "" } else { [string]$nightly.Conclusion }
+        source = $nightly.Source
+        url = $nightly.Url
+    }
     chain = [pscustomobject]@{
         expected_genesis_id = $ExpectedGenesisId
     }
@@ -244,6 +252,8 @@ $lines.Add("- Working tree: ``$dirtyState``") | Out-Null
 $lines.Add("- CODEBASE_STATS generated UTC: ``$statsGenerated``") | Out-Null
 $lines.Add("- GitHub CI: status=``$($ci.Status)`` conclusion=``$($ci.Conclusion)`` source=``$($ci.Source)``") | Out-Null
 if ($ci.Url) { $lines.Add("- GitHub CI URL: $($ci.Url)") | Out-Null }
+$lines.Add("- GitHub Nightly: status=``$($nightly.Status)`` conclusion=``$($nightly.Conclusion)`` source=``$($nightly.Source)``") | Out-Null
+if ($nightly.Url) { $lines.Add("- GitHub Nightly URL: $($nightly.Url)") | Out-Null }
 $lines.Add("") | Out-Null
 $lines.Add("## Chain And Health") | Out-Null
 $lines.Add("") | Out-Null

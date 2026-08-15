@@ -134,16 +134,16 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Tip CI `#31860183965` **GREEN** on B-294 `0ecd19ce`. Nightly `#31861932921` **GREEN** on `e5e1f65a`. Lane4 **B-295** Doing; lane7 **B-296** Doing (claim base: `e5e1f65a`) — do not steal. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Lane2 release-evidence Nightly pin (this commit, `[skip ci]` — leave full CI for **B-268b** Rust). Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing; lane7 **B-296** Doing — do not steal. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (this commit); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-295) | CI/Nightly run IDs |
-| **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence on next full-CI Rust head (B-295); **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
+| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (this commit); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
+| **2** RC ops | release-evidence Nightly pin (this commit); **B-141** (`7e2746b`); **B-94**; R-1–R-4 | *Idle* | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; F122 fund path unblocked by B-278 | L4 checklist |
-| **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | **B-295** twentieth op1 re-slash (claim base: `0ecd19ce`) | **B-297** settle-reset twenty-first dual-slash; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-269** Path A timer 8m (this commit); **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | *Idle* — no B-268b / no B-13c | Tip CI GREEN `#31860183965`; after lane4 Ack: **B-268b**; human **B-33**; arm **B-40** day-of L4 | Emission sims |
+| **6** Permanence | **B-269** Path A timer 8m; **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | **B-291** tall-tip mesh recover+skip-seeds (`24ce61a9`); **B-278** (`b1ab1b17`); **B-277** (`af596d04`) | **B-296** dual-payment storm + faucet-ops rotate (claim base: `e5e1f65a`) | After B-296: **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
@@ -335,8 +335,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-292 | Twentieth dual-slash then op1 asymmetric settle drain (early B-24el) | 4 | **Landed** (this commit); elevates B-284; completes twentieth asymmetric pair with B-290; full CI |
 | B-293 | Twentieth dual-slash then empty both-miss (early B-24em) | 4 | **Landed** (this commit); elevates B-285; closes twentieth prove matrix; full CI |
 | B-294 | Twentieth-offense asymmetric then absentee re-slash (early B-24en) | 4 | **Landed** (`0ecd19ce`); elevates B-286; full CI |
-| B-295 | Twentieth-offense op1 asymmetric then absentee re-slash (early B-24eo) | 4 | **Doing** (this claim); elevates B-287; completes twentieth re-slash pair |
-| B-297 | Settle-reset then twenty-first dual-slash treasury identity (early B-24ep) | 4 | After B-295; elevates B-288 |
+| B-295 | Twentieth-offense op1 asymmetric then absentee re-slash (early B-24eo) | 4 | **Abandoned** — slash-clone matrix frozen; do not land |
+| B-297 | Settle-reset then twenty-first dual-slash treasury identity (early B-24ep) | 4 | **Frozen** — do not land; matrix closed |
 | B-277 | Live Path A onchain tx-storm + adversarial submit probes (observer-visible) | 7 | **Landed** (`af596d04`) — evidence `b277-live-tx-storm-20260807.md`; F120–F123; adv rejects OK; user txs blocked until B-278 |
 | B-278 | Faucet wallet UTXO prune/rotate (unblock F122 fund path) | 7+2 | **Landed** (`b1ab1b17`) — prune 22062→32; HTTP dual-fund **done 99s**; evidence `b278-faucet-utxo-prune-20260814.md`; CLI O(n) pending-spend diff |
 | B-291 | Tall-tip mesh recover + skip-manifest-seeds + loopback peers (post-B-278) | 7 | **Landed** (`24ce61a9`) — tip stall root cause = public hairpins + cold replay; tip restored ~22350; evidence `b291-tall-tip-mesh-recover-20260815.md`; storm deferred to **B-296** |
@@ -499,7 +499,13 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - claim B-296** (this commit): dual-payment live storm + faucet-ops systemd rotate after B-291 mesh recover. Claim base `e5e1f65a`. Tip CI `#31860183965` + Nightly `#31861932921` **GREEN** (absorbed uncommitted Seat A pin). Do not cancel; do not touch consensus tests. *Observed (not staged):* lane4 `apply_block_proptest.rs`; `mfn-wallet/tests/tx_storm.rs`; rc-audit-dry-run json. `[skip ci]`.
+1. **2026-08-15 - lane 2 - release-evidence Nightly pin** (this commit): `release-evidence.v1` requires `nightly` (same shape as `ci`); refresh-for-head fail-closed unless CI **and** Nightly are completed+success (ancestor walk); ci-check needles + missing-nightly schema reject. Live tip packet pins CI `#31860183965` + Nightly `#31861932921`. Local `ci-check -DocsOnly` green. `[skip ci]` so Seat B can take the full-CI window for **B-268b** Rust. Does not steal **B-268b** / **B-296**. *Observed (not staged):* lane6 B-268b Rust; `apply_block_proptest.rs`; `mfn-wallet/tests/tx_storm.rs`; `_b296_probe.*`; rc-audit-dry-run json.
+
+1. **2026-08-15 - lane 6 - B-268b body ready** (Seat B working-tree; not this commit): `effective_emission_params` + ckpt v12; no DEFAULT flip; no B-13c enable. Claim base `6e2e21a6`. Do not steal **B-296**.
+
+1. **2026-08-15 - lane 6 - claim B-268b** (board already claimed): `effective_emission_params` + ckpt v12 + apply_block wire. Abandon **B-295** (slash matrix frozen). Claim base `6e2e21a6`. Tip CI `#31860183965` + Nightly `#31861932921` **GREEN**. No B-13c enable; no DEFAULT flip. Do not steal **B-296**. *Observed (not staged):* `apply_block_proptest.rs`; `mfn-wallet/tests/tx_storm.rs`; rc-audit-dry-run json; `_b296_probe.*`. `[skip ci]`.
+
+1. **2026-08-15 - lane 7 - claim B-296** (`6e2e21a6`): dual-payment live storm + faucet-ops systemd rotate after B-291 mesh recover. Claim base `e5e1f65a`. Tip CI `#31860183965` + Nightly `#31861932921` **GREEN** (absorbed uncommitted Seat A pin). Do not cancel; do not touch consensus tests. *Observed (not staged):* lane4 `apply_block_proptest.rs`; `mfn-wallet/tests/tx_storm.rs`; rc-audit-dry-run json. `[skip ci]`.
 
 1. **2026-08-15 - lane 1+2 - pin CI `#31860183965` + Nightly `#31861932921` GREEN** (working-tree SYNC, landed with B-296 claim): board said CI in_progress; full matrix SUCCESS on B-294 `0ecd19ce`. Nightly `#31861932921` **GREEN** on `e5e1f65a`. Release evidence waits for next full-CI Rust head. Seat A does not steal **B-296** / protocol tests. *Observed (not staged):* lane4 `apply_block_proptest.rs`; `mfn-wallet/tests/tx_storm.rs`; rc-audit-dry-run json. `[skip ci]`.
 
@@ -715,6 +721,6 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 
-| B-268b | Implement effective_emission_params + ckpt v12 + boundary sims | 6+4 | After tip CI GREEN + lane4 Ack; no B-13c enable |
+| B-268b | Implement effective_emission_params + ckpt v12 + boundary sims | 6+4 | **Landed** (this commit); no B-13c enable |
 | B-269 | Path A near-tip timer 30m→8m (match lag threshold=8) | 6+7 | **Landed** (
 3f97603); VPS timer active 8m |
