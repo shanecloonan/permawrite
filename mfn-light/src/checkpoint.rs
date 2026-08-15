@@ -34,7 +34,7 @@
 //!   versions may keep accepting older checkpoint versions by
 //!   gating decode logic on the version word.
 //!
-//! ## Wire layout (version 1)
+//! ## Wire layout (version 2; version 1 omits the subsidy trailer)
 //!
 //! Big-endian everywhere unless noted. `varint` is LEB128, matching
 //! [`mfn_crypto::codec`]. All hashes / IDs are 32 bytes; the BLS
@@ -44,7 +44,7 @@
 //!
 //! ```text
 //!   magic          : 4 bytes = b"MFLC"
-//!   version        : u32 (currently 1)
+//!   version        : u32 (currently 2; decode accepts 1 and 2)
 //!   tip_height     : u32
 //!   tip_id         : [u8; 32]
 //!   genesis_id     : [u8; 32]
@@ -86,6 +86,9 @@
 //!     bond_epoch_entry_count  : u32
 //!     bond_epoch_exit_count   : u32
 //!     next_validator_index    : u32
+//!   subsidy_schedule (v2+):
+//!     activation_height : u32
+//!     activation_value  : u16
 //!   checksum : 32 bytes = dhash(LIGHT_CHECKPOINT, all bytes above)
 //! ```
 //!
@@ -103,7 +106,8 @@ use mfn_consensus::checkpoint_codec::{
     CheckpointReadError,
 };
 use mfn_consensus::{
-    BondEpochCounters, BondingParams, ConsensusParams, PendingUnbond, Validator, ValidatorStats,
+    BondEpochCounters, BondingParams, ConsensusParams, PendingUnbond, SubsidyBpsSchedule,
+    Validator, ValidatorStats,
 };
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::LIGHT_CHECKPOINT;
@@ -116,9 +120,9 @@ use mfn_crypto::hash::dhash;
 /// 4-byte magic header. ASCII "MFLC" = "M(oney)F(und) L(ight) C(heckpoint)".
 pub const LIGHT_CHECKPOINT_MAGIC: [u8; 4] = *b"MFLC";
 
-/// Currently-supported checkpoint format version. Bumped only on
-/// wire-incompatible changes.
-pub const LIGHT_CHECKPOINT_VERSION: u32 = 1;
+/// Current checkpoint format version. Decode accepts `1..=` this
+/// value. v2 appends the subsidy overlay after `bond_counters`.
+pub const LIGHT_CHECKPOINT_VERSION: u32 = 2;
 
 /* ----------------------------------------------------------------------- *
  *  Error type                                                              *
@@ -143,7 +147,7 @@ pub enum LightCheckpointError {
     },
 
     /// The version word names a version this build doesn't support.
-    #[error("unsupported checkpoint version {got}; this build supports {supported}", supported = LIGHT_CHECKPOINT_VERSION)]
+    #[error("unsupported checkpoint version {got}; this build supports 1..={supported}", supported = LIGHT_CHECKPOINT_VERSION)]
     UnsupportedVersion {
         /// The version word parsed from the payload.
         got: u32,
@@ -211,6 +215,8 @@ pub struct CheckpointParts {
     pub pending_unbonds: BTreeMap<u32, PendingUnbond>,
     /// Bond-epoch counters mirroring `mfn-consensus::ChainState`.
     pub bond_counters: BondEpochCounters,
+    /// Same-chain subsidy overlay (v2+; v1 decodes as inactive).
+    pub subsidy_schedule: SubsidyBpsSchedule,
 }
 
 /* ----------------------------------------------------------------------- *
@@ -268,6 +274,10 @@ pub fn encode_checkpoint_bytes(parts: &CheckpointParts) -> Vec<u8> {
     w.u32(parts.bond_counters.bond_epoch_entry_count);
     w.u32(parts.bond_counters.bond_epoch_exit_count);
     w.u32(parts.bond_counters.next_validator_index);
+
+    // ---- Subsidy overlay (v2) ----
+    w.u32(parts.subsidy_schedule.activation_height);
+    w.push(&parts.subsidy_schedule.activation_value.to_be_bytes());
 
     // ---- Trailing integrity tag ----
     let payload = w.into_bytes();
@@ -344,7 +354,7 @@ pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightChe
         return Err(LightCheckpointError::BadMagic { got: magic });
     }
     let version = read_u32(&mut r, "version")?;
-    if version != LIGHT_CHECKPOINT_VERSION {
+    if version == 0 || version > LIGHT_CHECKPOINT_VERSION {
         return Err(LightCheckpointError::UnsupportedVersion { got: version });
     }
 
@@ -400,6 +410,17 @@ pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightChe
         next_validator_index: read_u32(&mut r, "bond_counters.next_validator_index")?,
     };
 
+    let subsidy_schedule = if version >= 2 {
+        let activation_height = read_u32(&mut r, "subsidy_schedule.activation_height")?;
+        let activation_value: [u8; 2] = read_fixed(&mut r, "subsidy_schedule.activation_value")?;
+        SubsidyBpsSchedule {
+            activation_height,
+            activation_value: u16::from_be_bytes(activation_value),
+        }
+    } else {
+        SubsidyBpsSchedule::default()
+    };
+
     // After the last declared field there must be exactly zero
     // bytes left in the payload reader. (The trailing tag was
     // already stripped before the Reader was constructed.)
@@ -424,6 +445,7 @@ pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightChe
         validator_stats,
         pending_unbonds,
         bond_counters,
+        subsidy_schedule,
     })
 }
 
@@ -512,6 +534,7 @@ mod tests {
                 bond_epoch_exit_count: 0,
                 next_validator_index,
             },
+            subsidy_schedule: SubsidyBpsSchedule::default(),
         }
     }
 
@@ -556,6 +579,7 @@ mod tests {
                 bond_epoch_exit_count: 0,
                 next_validator_index: 0,
             },
+            subsidy_schedule: SubsidyBpsSchedule::default(),
         };
         let bytes = encode_checkpoint_bytes(&parts);
         let decoded = decode_checkpoint_bytes(&bytes).expect("decode");
@@ -599,6 +623,7 @@ mod tests {
             decoded.bond_counters.next_validator_index,
             parts.bond_counters.next_validator_index
         );
+        assert_eq!(decoded.subsidy_schedule, parts.subsidy_schedule);
     }
 
     /// f64 round-trips through `to_bits` / `from_bits` exactly,
@@ -648,6 +673,26 @@ mod tests {
             }
             other => panic!("expected BadMagic, got {other:?}"),
         }
+    }
+
+    /// v1 payloads (no schedule trailer) decode as an inactive overlay.
+    #[test]
+    fn checkpoint_v1_decodes_inactive_schedule() {
+        let mut parts = sample_parts(1, 0);
+        parts.subsidy_schedule = SubsidyBpsSchedule {
+            activation_height: 1,
+            activation_value: 1000,
+        };
+        let v2 = encode_checkpoint_bytes(&parts);
+        let payload_len = v2.len() - 32;
+        // v2 appends u32 height + u16 value after bond_counters.
+        let mut v1_payload = v2[..payload_len - 6].to_vec();
+        v1_payload[4..8].copy_from_slice(&1u32.to_be_bytes());
+        let tag = dhash(LIGHT_CHECKPOINT, &[&v1_payload]);
+        let mut v1 = v1_payload;
+        v1.extend_from_slice(&tag);
+        let decoded = decode_checkpoint_bytes(&v1).expect("v1 decode");
+        assert_eq!(decoded.subsidy_schedule, SubsidyBpsSchedule::default());
     }
 
     /// Bumped version → typed UnsupportedVersion.

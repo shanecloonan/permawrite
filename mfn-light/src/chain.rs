@@ -61,9 +61,9 @@ use mfn_consensus::{
     apply_bond_ops_evolution, apply_equivocation_slashings, apply_liveness_evolution,
     apply_unbond_settlements, block_id, build_genesis, finality_bitmap_from_header,
     verify_block_body, verify_header, Block, BlockHeader, BodyVerifyError, BondEpochCounters,
-    BondOp, BondOpError, BondingParams, ConsensusParams, GenesisConfig, HeaderCheck,
-    HeaderVerifyError, PendingUnbond, SlashEvidence, Validator, ValidatorStats,
-    DEFAULT_BONDING_PARAMS, DEFAULT_EMISSION_PARAMS,
+    BondOp, BondOpError, BondingParams, ConsensusParams, EmissionParams, GenesisConfig,
+    HeaderCheck, HeaderVerifyError, PendingUnbond, SlashEvidence, SubsidyBpsSchedule, Validator,
+    ValidatorStats, DEFAULT_BONDING_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -79,13 +79,27 @@ use mfn_consensus::{
 pub struct LightChainConfig {
     /// The genesis configuration to bootstrap from.
     pub genesis: GenesisConfig,
+    /// Same-chain subsidy overlay. `activation_height == 0` is inactive
+    /// (Path A today). Must match the full node's checkpointed schedule
+    /// or light slash evolution diverges after `H_act` (**B-268d**).
+    pub subsidy_schedule: SubsidyBpsSchedule,
 }
 
 impl LightChainConfig {
-    /// Build a config from a bare [`GenesisConfig`].
+    /// Build a config from a bare [`GenesisConfig`] (inactive overlay).
     #[must_use]
     pub fn new(genesis: GenesisConfig) -> Self {
-        Self { genesis }
+        Self {
+            genesis,
+            subsidy_schedule: SubsidyBpsSchedule::default(),
+        }
+    }
+
+    /// Set the same-chain subsidy overlay (does not mutate genesis emission).
+    #[must_use]
+    pub fn with_subsidy_schedule(mut self, subsidy_schedule: SubsidyBpsSchedule) -> Self {
+        self.subsidy_schedule = subsidy_schedule;
+        self
     }
 }
 
@@ -273,9 +287,11 @@ pub struct LightChain {
     genesis_id: [u8; 32],
     tip_height: u32,
     tip_id: [u8; 32],
-    // ---- Consensus / bonding params (frozen at genesis) ----
+    // ---- Consensus / bonding / emission params (frozen at genesis) ----
     params: ConsensusParams,
     bonding_params: BondingParams,
+    emission_params: EmissionParams,
+    subsidy_schedule: SubsidyBpsSchedule,
     // ---- Trusted validator set + shadow state for evolution (M2.0.8) ----
     trusted_validators: Vec<Validator>,
     validator_stats: Vec<ValidatorStats>,
@@ -310,7 +326,10 @@ impl LightChain {
     /// that contract explicit.
     #[must_use]
     pub fn from_genesis(cfg: LightChainConfig) -> Self {
-        let LightChainConfig { genesis: cfg } = cfg;
+        let LightChainConfig {
+            genesis: cfg,
+            subsidy_schedule,
+        } = cfg;
         let genesis_block = build_genesis(&cfg);
         let genesis_id = block_id(&genesis_block.header);
 
@@ -338,6 +357,8 @@ impl LightChain {
             tip_id: genesis_id,
             params: cfg.params,
             bonding_params,
+            emission_params: cfg.emission_params,
+            subsidy_schedule,
             trusted_validators: cfg.validators,
             validator_stats,
             pending_unbonds: BTreeMap::new(),
@@ -380,6 +401,7 @@ impl LightChain {
             validator_stats: self.validator_stats.clone(),
             pending_unbonds: self.pending_unbonds.clone(),
             bond_counters: self.bond_counters,
+            subsidy_schedule: self.subsidy_schedule,
         };
         crate::checkpoint::encode_checkpoint_bytes(&parts)
     }
@@ -419,6 +441,10 @@ impl LightChain {
             tip_id: parts.tip_id,
             params: parts.params,
             bonding_params: parts.bonding_params,
+            // Base emission is still DEFAULT on restore (Path A / same-chain
+            // B-13c keep DEFAULT). Schedule persists in v2.
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            subsidy_schedule: parts.subsidy_schedule,
             trusted_validators: parts.validators,
             validator_stats: parts.validator_stats,
             pending_unbonds: parts.pending_unbonds,
@@ -584,8 +610,8 @@ impl LightChain {
         let eq = apply_equivocation_slashings(
             &mut staged_validators,
             &block.slashings,
-            &DEFAULT_EMISSION_PARAMS,
-            mfn_consensus::SubsidyBpsSchedule::default(),
+            &self.emission_params,
+            self.subsidy_schedule,
             block.header.height,
             block.header.version,
         );
@@ -700,8 +726,8 @@ impl LightChain {
         let eq = apply_equivocation_slashings(
             &mut staged_validators,
             slashings,
-            &DEFAULT_EMISSION_PARAMS,
-            mfn_consensus::SubsidyBpsSchedule::default(),
+            &self.emission_params,
+            self.subsidy_schedule,
             header.height,
             header.version,
         );
@@ -830,6 +856,26 @@ impl LightChain {
     #[must_use]
     pub fn bonding_params(&self) -> &BondingParams {
         &self.bonding_params
+    }
+
+    /// Base emission params (frozen at genesis; never mutated at `H_act`).
+    #[must_use]
+    pub fn emission_params(&self) -> &EmissionParams {
+        &self.emission_params
+    }
+
+    /// Same-chain subsidy overlay (`activation_height == 0` is inactive).
+    #[must_use]
+    pub fn subsidy_schedule(&self) -> SubsidyBpsSchedule {
+        self.subsidy_schedule
+    }
+
+    /// Height-aware emission params for fraud/slash verify (same overlay
+    /// rule as full-node `ChainState::effective_emission_params`).
+    #[must_use]
+    pub fn effective_emission_params(&self, height: u32) -> EmissionParams {
+        self.subsidy_schedule
+            .effective(&self.emission_params, height)
     }
 
     /// Sum of stake of all trusted validators.
@@ -1045,6 +1091,92 @@ mod tests {
         let b = LightChain::from_genesis(LightChainConfig::new(cfg));
         assert_eq!(a.genesis_id(), b.genesis_id());
         assert_eq!(a.tip_id(), b.tip_id());
+    }
+
+    /// Light must overlay subsidy at `H_act` from its stored schedule, not
+    /// `DEFAULT_EMISSION_PARAMS`. Otherwise an honest post-activation
+    /// coinbase looks like fraud and light slash evolution diverges.
+    #[test]
+    fn b268d_light_schedule_overlays_subsidy_not_default() {
+        use mfn_consensus::{
+            producer_portion_amount, verify_coinbase_amount_fraud_proof, CoinbaseAmountFraudProof,
+            CoinbaseAmountFraudVerdict, FraudProofError, COINBASE_FRAUD_PROOF_VERSION,
+        };
+
+        let (cfg, _s0, _params, _v0) = single_validator_cfg();
+        let schedule = SubsidyBpsSchedule {
+            activation_height: 1,
+            activation_value: 1000,
+        };
+        let light = LightChain::from_genesis(
+            LightChainConfig::new(cfg.clone()).with_subsidy_schedule(schedule),
+        );
+        assert_eq!(light.emission_params(), &cfg.emission_params);
+        assert_eq!(light.subsidy_schedule(), schedule);
+        assert_eq!(
+            light.effective_emission_params(0).subsidy_to_treasury_bps,
+            0
+        );
+        assert_eq!(
+            light.effective_emission_params(1).subsidy_to_treasury_bps,
+            1000
+        );
+        assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+
+        let w = stealth_gen();
+        let payout = PayoutAddress {
+            view_pub: w.view_pub,
+            spend_pub: w.spend_pub,
+        };
+        let overlay = light.effective_emission_params(1);
+        let honest_amt = producer_portion_amount(1, &overlay, 0);
+        let default_amt = producer_portion_amount(1, &DEFAULT_EMISSION_PARAMS, 0);
+        assert_ne!(honest_amt, default_amt);
+
+        let honest_cb = build_coinbase(1, honest_amt, &payout).expect("cb");
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).expect("genesis");
+        let header = build_unsealed_header(
+            &state,
+            std::slice::from_ref(&honest_cb),
+            &[],
+            &[],
+            &[],
+            1,
+            1,
+        );
+        let block = seal_block(header, vec![honest_cb], vec![], vec![], vec![], vec![]);
+        let proof = CoinbaseAmountFraudProof {
+            version: COINBASE_FRAUD_PROOF_VERSION,
+            block,
+            fee_sum: 0,
+            producer_payout: payout,
+            accepted_settlements: Vec::new(),
+        };
+        assert!(
+            matches!(
+                verify_coinbase_amount_fraud_proof(&proof, &DEFAULT_EMISSION_PARAMS),
+                Ok(CoinbaseAmountFraudVerdict::ValidFraud { .. })
+            ),
+            "DEFAULT must false-positive an honest overlay coinbase"
+        );
+        assert_eq!(
+            verify_coinbase_amount_fraud_proof(&proof, &light.effective_emission_params(1)),
+            Err(FraudProofError::NotFraud)
+        );
+
+        let restored = LightChain::decode_checkpoint(&light.encode_checkpoint()).expect("ckpt");
+        assert_eq!(
+            restored.subsidy_schedule(),
+            schedule,
+            "v2 light checkpoint must persist the subsidy overlay"
+        );
+        assert_eq!(
+            restored
+                .effective_emission_params(1)
+                .subsidy_to_treasury_bps,
+            1000
+        );
     }
 
     /// Real signed block 1 must apply through the light chain.
@@ -1589,6 +1721,8 @@ mod tests {
             restored.bonding_params().min_validator_stake,
             light.bonding_params().min_validator_stake,
         );
+        assert_eq!(restored.emission_params(), light.emission_params());
+        assert_eq!(restored.subsidy_schedule(), light.subsidy_schedule());
         // Validator set: byte-for-byte equal under the canonical
         // validator-set Merkle root (which already pins index +
         // stake + vrf_pk + bls_pk + payout).

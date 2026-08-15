@@ -1,6 +1,6 @@
 # B-268 — Same-chain subsidy activation-height (work package)
 
-**Status:** **B-268b** landed `ee3739e7` (helper + ckpt v12 + apply_block/producer). **B-268c** wires fraud/slash/gossip to overlay at the *contested* height (not applying-era / not `DEFAULT`). **Not** B-13c enable.
+**Status:** **B-268b** landed `ee3739e7` (helper + ckpt v12 + apply_block/producer). **B-268c** wires fraud/slash/gossip to overlay at the *contested* height. **B-268d** light slash uses genesis emission + stored schedule; light checkpoint **v2** persists `(H_act, bps)` (v1 decodes inactive). **Not** B-13c enable.
 **Owner:** lane 6 (emission helpers + sims) · **Review:** lane 4 (`apply_block` / fraud / producer seal)
 **Depends on:** **B-265** genesis `emission` JSON merge · **B-13a** sims · human **B-33** before enable
 **Blocks:** honest same-chain **B-13c** on live Path A (JSON alone cannot rewrite checkpoint emission)
@@ -139,6 +139,8 @@ equivalent height-aware `&EmissionParams`) once the helper exists. Surveyed
 | `mfn-consensus/src/fraud_proof.rs` | `verify_coinbase_amount_fraud_proof` / interactive verify | callers pass **effective** params for *contested* `proof.block.header.height` (**B-268c**) |
 | `mfn-consensus/src/slashing.rs` | `verify_invalid_block_evidence` | `SubsidyBpsSchedule.effective(base, evidence.height)` — not applying-block overlay |
 | `mfn-node/src/p2p_gossip.rs` | `on_fraud_proof_v1` | `chain.state().effective_emission_params(contested_height)` — not `DEFAULT` |
+| `mfn-light/src/chain.rs` | `apply_block` / `apply_trusted_evolution` | **B-268d:** genesis `emission_params` + stored schedule — not `DEFAULT` |
+| `mfn-light/src/checkpoint.rs` | encode/decode | **B-268d:** `LIGHT_CHECKPOINT_VERSION` 1→2; persist schedule; v1 → `(0,0)` |
 
 ### Producer seal — must mirror apply_block
 

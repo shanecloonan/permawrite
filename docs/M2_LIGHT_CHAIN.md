@@ -45,7 +45,7 @@ hex           = "0.4"
 
 ```rust
 pub struct LightChain { /* trusted_validators, params, tip_height, tip_id, genesis_id */ }
-pub struct LightChainConfig { pub genesis: GenesisConfig }
+pub struct LightChainConfig { pub genesis: GenesisConfig, pub subsidy_schedule: SubsidyBpsSchedule }
 pub struct LightChainStats { /* height, tip_id, genesis_id, validator_count, total_stake */ }
 
 pub struct AppliedHeader {

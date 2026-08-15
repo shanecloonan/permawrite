@@ -115,14 +115,14 @@ private state through `CheckpointParts`. Two wins:
   to inspect / cross-validate checkpoints without holding a
   `LightChain` instance.
 
-### Wire layout (format version 1)
+### Wire layout (format version 2; v1 omits the subsidy trailer)
 
 Big-endian everywhere. `varint` is LEB128 matching `mfn-crypto`'s
 canonical codec.
 
 ```text
 magic          : 4 bytes = b"MFLC"
-version        : u32 (currently 1)
+version        : u32 (currently 2; decode accepts 1 and 2)
 tip_height     : u32
 tip_id         : [u8; 32]
 genesis_id     : [u8; 32]
@@ -164,6 +164,9 @@ bond_counters:
   bond_epoch_entry_count  : u32
   bond_epoch_exit_count   : u32
   next_validator_index    : u32
+subsidy_schedule (v2+):
+  activation_height : u32
+  activation_value  : u16
 checksum : 32 bytes = dhash(LIGHT_CHECKPOINT, all bytes above)
 ```
 
@@ -182,7 +185,8 @@ right contract for any deterministic codec.
 #### Integrity tag
 
 The trailing 32 bytes are `dhash(LIGHT_CHECKPOINT, &[payload])` where
-payload = every byte from `magic` through `bond_counters` inclusive.
+payload = every byte from `magic` through the last declared field
+(v2: `subsidy_schedule`; v1: `bond_counters`) inclusive.
 Decode verifies this tag *first* (before any field-level parsing) so
 arbitrary corruption surfaces as a single typed error
 (`IntegrityCheckFailed`) rather than as a misleading mid-decode panic.
@@ -294,9 +298,8 @@ Each of these is its own clean follow-on slice:
 - **Persistent storage adapter for checkpoints.** This crate
   produces bytes; whether a caller writes them to disk / S3 /
   IPFS / Arweave is intentionally outside `mfn-light`'s remit.
-- **Multi-version codec.** Today version 1 is the only known
-  version. When we bump it (e.g. to add a new shadow field), the
-  decode switch on `version` is the natural extension point.
+- **Multi-version codec.** Decode accepts v1 (inactive schedule) and
+  v2 (persisted subsidy overlay). Further bumps switch on `version`.
 - **Client ports.** The checkpoint format is Rust-owned today. If another client catches up, this doc's wire-layout section is the spec.
 
 ## What's next

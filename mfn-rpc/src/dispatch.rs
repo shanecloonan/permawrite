@@ -8,7 +8,8 @@ use mfn_consensus::block::{StorageEntry, UtxoEntry};
 use mfn_consensus::{
     block_header_bytes, block_id, decode_block_header, decode_transaction, encode_block,
     encode_bond_op, encode_slash_evidence, encode_transaction, tx_id, validator_set_root,
-    AuthorshipClaimRecord, Block, BondEpochCounters, ConsensusParams, GenesisConfig, Validator,
+    AuthorshipClaimRecord, Block, BondEpochCounters, ConsensusParams, GenesisConfig,
+    SubsidyBpsSchedule, Validator,
 };
 use mfn_crypto::dhash;
 use mfn_crypto::domain::LIGHT_CHECKPOINT;
@@ -280,6 +281,10 @@ fn light_snapshot_hex(chain: &Chain) -> String {
             bond_epoch_entry_count: s.bond_epoch_entry_count,
             bond_epoch_exit_count: s.bond_epoch_exit_count,
             next_validator_index: s.next_validator_index,
+        },
+        subsidy_schedule: SubsidyBpsSchedule {
+            activation_height: s.subsidy_bps_activation_height,
+            activation_value: s.subsidy_bps_activation_value,
         },
     };
     hex::encode(encode_checkpoint_bytes(&parts))
