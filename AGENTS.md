@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-14):** Claiming **B-293** twentieth empty both-miss. Tip CI `#31856003083` in_progress on B-292 `37882c4e`. Lane7 **B-291** claimed — do not steal / do not cancel tip CI. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-14):** Landing **B-293** twentieth empty both-miss. Tip CI `#31856003083` **GREEN** on B-292 `37882c4e`. Lane7 **B-291** claimed — do not steal. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-136** tip-ckpt health_ok FAIL reason (`85f48ce`); **B-135** (`2151d02`); **B-134** (`04295ea`); **B-133** (`62357ae`); **B-129**; **B-96**; **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch tip CI `#31848492528` | CI/Nightly run IDs |
 | **2** RC ops | **B-141** 3agent cockpit + §8 repair (`7e2746b`); **B-94** (`598a853`); R-1–R-4 | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave114** (hugo last_proven=6848; faucet-F101b; lag=1549; post-F115) | **B-15** wave115+ permanence density | Human SUMMARY; F122 fund path unblocked by B-278 | L4 checklist |
-| **4** Protocol | **B-292** (`37882c4e`; watch CI `#31856003083`); **B-290** GREEN `#31853372971` | **B-293** twentieth empty both-miss (claim base: `37882c4e`) | **B-294** twentieth asymmetric re-slash; after 2 hosts: live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-293** (this commit); **B-292** GREEN `#31856003083`; **B-290** GREEN `#31853372971` | *Idle* | **B-294** twentieth asymmetric re-slash; after 2 hosts: live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-269** Path A timer 8m (this commit); **B-268** WP+call-sites; **B-267**; **B-265** (`14f6b177`) | *Idle* — no B-268b / no B-13c | After tip GREEN + lane4 Ack: **B-268b**; human **B-33**; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | **B-278** faucet prune+HTTP fund 99s (`b1ab1b17`); **B-277** (`af596d04`) | **B-291** dual-payment live storm + faucet-ops rotate (claim base: `b1ab1b17`) | **B-42**; 2nd host B-32 | `launch-go-no-go` + observer |
@@ -333,7 +333,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-289 | Twentieth dual-slash then dual settle drain (early B-24ej) | 4 | **Landed** (this commit); elevates B-282; full CI |
 | B-290 | Twentieth dual-slash then asymmetric settle drain (early B-24ek) | 4 | **Landed** (this commit); elevates B-283; full CI |
 | B-292 | Twentieth dual-slash then op1 asymmetric settle drain (early B-24el) | 4 | **Landed** (this commit); elevates B-284; completes twentieth asymmetric pair with B-290; full CI |
-| B-293 | Twentieth dual-slash then empty both-miss (early B-24em) | 4 | **Doing** (this claim); elevates B-285; closes twentieth prove matrix |
+| B-293 | Twentieth dual-slash then empty both-miss (early B-24em) | 4 | **Landed** (this commit); elevates B-285; closes twentieth prove matrix; full CI |
 | B-294 | Twentieth-offense asymmetric then absentee re-slash (early B-24en) | 4 | After B-293; elevates B-286 |
 | B-277 | Live Path A onchain tx-storm + adversarial submit probes (observer-visible) | 7 | **Landed** (`af596d04`) — evidence `b277-live-tx-storm-20260807.md`; F120–F123; adv rejects OK; user txs blocked until B-278 |
 | B-278 | Faucet wallet UTXO prune/rotate (unblock F122 fund path) | 7+2 | **Landed** (`b1ab1b17`) — prune 22062→32; HTTP dual-fund **done 99s**; evidence `b278-faucet-utxo-prune-20260814.md`; CLI O(n) pending-spend diff |
@@ -496,7 +496,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-14 - lane 4 - claim B-293** (this commit): early B-24em twentieth dual-slash then empty both-miss while tip CI `#31856003083` runs on B-292 `37882c4e`. Claim base `37882c4e`. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs; rc-audit-dry-run json. Lane7 **B-291** claimed. `[skip ci]`.
+1. **2026-08-14 - lane 4 - B-293 twentieth dual-slash->empty both-miss** (this commit): early B-24em `b293_b5_twentieth_dual_slash_then_empty_both_miss_no_drain_identity`; local exact PASS. Tip CI `#31856003083` **GREEN** on B-292. Elevates B-285; closes twentieth prove matrix {00,01,10,11}. Full CI (no skip). Next: **B-294** twentieth asymmetric re-slash. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs; rc-audit-dry-run json. Lane7 **B-291** claimed — not staged.
+
+1. **2026-08-14 - lane 4 - claim B-293** (`852af6e1`): early B-24em twentieth dual-slash then empty both-miss while tip CI `#31856003083` ran on B-292 `37882c4e`. Claim base `37882c4e`. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs; rc-audit-dry-run json. Lane7 **B-291** claimed. `[skip ci]`.
 
 1. **2026-08-14 - lane 4 - B-292 twentieth dual-slash->op1 asymmetric settle** (`37882c4e`): early B-24el `b292_b5_twentieth_dual_slash_then_op1_asymmetric_settle_drain_identity`; local exact PASS. Tip CI `#31853372971` **GREEN** on B-290. Elevates B-284; completes twentieth asymmetric pair with B-290. Full CI (no skip). Next: **B-293** twentieth empty both-miss. Still blocked on 2nd host for live **B-32**. *Observed (not staged):* mfn-wallet/tests/tx_storm.rs; rc-audit-dry-run json. Lane7 **B-291** claimed — not staged.
 
