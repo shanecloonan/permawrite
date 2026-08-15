@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Landing **B-268d** Rust (full CI). B-268c `#31870566481` rust/clippy/wasm/audit + all OS tests **GREEN**; scripts FAIL is Seat A. Nightly `#31861932921` **GREEN**. Lane7 hub EAGAIN claim stands. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Tip CI `#31872756568` **in_progress** on **B-268d** `6015797c` — do not cancel. B-268c `#31870566481` rust GREEN / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Lane7 hub EAGAIN claim stands. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
 | **2** RC ops | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL scripts); **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 2nd JOIN last_proven=**22492** (`985e594e`); iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-268d** (this commit); **B-268c** (`342ffbf8`; rust GREEN `#31870566481`) | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-268d** (`6015797c`); **B-268c** (`342ffbf8`) | **B-268e** overlay bps>10000 fail-closed (claim base: `6015797c`) | After body: **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | **B-42** 2nd JOIN last_proven **22492** (`985e594e`); iris **22487**; Path A **22486** | **hub EAGAIN recover + faucet fund prove** (claim base: `985e594e`) | 2nd host B-32; Path A if lag≥8 | `launch-go-no-go` + observer |
@@ -501,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 4 - B-268d light slash uses genesis emission + schedule** (this commit): light `apply_equivocation` no longer uses `DEFAULT` + empty schedule. `get_light_snapshot` / light ckpt **v2** persist `(H_act, bps)`; v1 decodes inactive. `b268d_light_schedule_overlays_subsidy_not_default` PASS (DEFAULT ValidFraud; light overlay NotFraud; v2 restore keeps schedule). Local `ci-check -RustOnly` green. B-268c `#31870566481` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** pad. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C hub EAGAIN claim.
+1. **2026-08-15 - lane 4 - claim B-268e** (this commit): chain/light checkpoint decode still accept `activation_value > 10000`, so a restored overlay can take more than 100% of subsidy. Claim base `6015797c`. Body after tip CI `#31872756568` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C hub EAGAIN.
+
+1. **2026-08-15 - lane 4 - B-268d light slash uses genesis emission + schedule** (`6015797c`): light `apply_equivocation` no longer uses `DEFAULT` + empty schedule. `get_light_snapshot` / light ckpt **v2** persist `(H_act, bps)`; v1 decodes inactive. `b268d_light_schedule_overlays_subsidy_not_default` PASS (DEFAULT ValidFraud; light overlay NotFraud; v2 restore keeps schedule). Local `ci-check -RustOnly` green. B-268c `#31870566481` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-268e** overlay fail-closed. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C hub EAGAIN claim.
 
 1. **2026-08-15 - lane 7 - claim hub EAGAIN recover + faucet fund prove** (`e3dfa6c8`): hub `:18731` get_tip TIMEOUT, mfnd-hub 95% CPU; faucet `/health` ok but keepalive tip EAGAIN and wallet **14** behind (scan 22479 / tip 22493). Recover `mfn-p2p-forward-hub` only (no mfnd/faucet). Then prove faucet catch-up + HTTP dual-fund. Claim base `985e594e`. Tip CI `#31870566481` in_progress — `[skip ci]`. *Observed (not staged):* Seat B B-268d light; `tx_storm.rs`; rc-audit json.
 
