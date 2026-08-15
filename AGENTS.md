@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Tip CI `#31897824126` **in_progress** on B-301 `a55d5869` — do not cancel. `#31893770179` FAIL scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 claiming **B-42 3rd staggered JOIN** (last_proven 22492 vs tip 22545). **B-302** claim (empty MFEX). Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Tip CI `#31897824126` on B-301 `a55d5869` rust **GREEN** / scripts **FAIL** (Seat A). `#31893770179` FAIL scripts. Nightly `#31861932921` **GREEN**. Lane7 **B-42 3rd JOIN** last_proven **22560**. **B-302** claim (empty MFEX). Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Watch B-301 tip CI; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | `go` requires `gates.ci.commit` == manifest commit (`b0bd1caa`); VRF `edd1bc65`; GHA needle `93c93dc6` | *Idle* | Fix scripts FAIL `#31893770179`; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-42** 2nd JOIN last_proven=**22492** (`985e594e`); iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
+| **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **B-301** (`a55d5869`) | **B-302** empty-MFEX fail-closed (claim base: `a55d5869`) | After B-302: **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | Path A **22535** (`8425c601`; lag **OK=1**); faucet F7 **`f77a4048` 73s**; last_proven **22492** | **B-42 3rd staggered JOIN** last_proven catch-up (claim base: `8425c601`) | 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | **B-42** 3rd JOIN last_proven **22560** (this commit; `6a1468fc`); Path A **22535**; faucet F7 **`f77a4048` 73s** | *Idle* | Path A lag (ckpt 22535 vs tip 22560); 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -249,7 +249,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | **Runbook** + **D0 preflight helper** landed; arm day-of L4
 | B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd :1910x + socat :1900x; EXT 19001–19003 OPEN; tip~4031 |
-| B-42 | Invite-load smoke before TL-9 | 3+7 | Preflight PASS; serialize `bda9a419`; staggered JOINs last_proven **22487** (iris) + **22492** (join-a `ea7cba7c`, this commit). Concurrent rehearsal x2 still open — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
+| B-42 | Invite-load smoke before TL-9 | 3+7 | Preflight PASS; serialize `bda9a419`; staggered JOINs last_proven **22487** (iris) + **22492** (join-a `ea7cba7c`) + **22560** (join-b `6a1468fc`, this commit). Concurrent rehearsal x2 still open — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | **Draft** — `docs/PATH_B_GENESIS_FREEZE.md`; human cells TBD; no ceremony |
 | B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
 | B-45 | B3 operator-salted challenge/prove/pool path | 4 | **Landed** — unblocks honest multi-op SPoRA on salted genesis; Hetzner mfnd roll = lane 7 |
@@ -504,7 +504,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - claim B-42 3rd staggered JOIN** (this commit): public newest last_proven still **22492** (`ea7cba7c`) vs tip **22545**. One observer upload+prove (no parallel rehearsal). Skeptic: `list_recent_uploads` last_proven > 22492. Claim base `8425c601`. Tip CI `#31897824126` in_progress — `[skip ci]`. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 7 - B-42 3rd staggered JOIN last_proven 22560** (this commit): payout→`b42-join-b` two 2e6 via hub; B-50 pin observer; upload `6a1468fc` mined+proven in **22560** (proxy total 96→97). Distinct from iris `24e62a5a` @ 22487 and join-a `ea7cba7c` @ 22492. No mfnd/faucet restart. Evidence `b42-join-b-last-proven-22560-20260815.md`. B-301 `#31897824126` rust GREEN / scripts FAIL (Seat A) — `[skip ci]`. Next: Path A lag (ckpt 22535 vs tip 22560); 2nd host B-32. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 7 - claim B-42 3rd staggered JOIN** (`06693556`): public newest last_proven still **22492** (`ea7cba7c`) vs tip **22545**. One observer upload+prove (no parallel rehearsal). Skeptic: `list_recent_uploads` last_proven > 22492. Claim base `8425c601`. Tip CI `#31897824126` in_progress — `[skip ci]`. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 7 - Path A tip-22504→22535 lag close** (`8425c601`): VPS timer already at **22535** (94 entries). `land-path-a-checkpoint-from-vps -Apply`; outside-in **OK lag=1** tip=22536. last_proven still **22492**. Evidence `outside-in-tip-ckpt-lag-20260815T174345Z.txt` + `b-path-a-tip-22535-20260815.md`. Tip CI `#31897824126` in_progress — `[skip ci]`. Next: 2nd host B-32. *Observed (not staged):* B-302; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
