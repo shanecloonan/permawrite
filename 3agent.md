@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat A Path A economy honesty. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**; seat B **Doing B-268b**; seat C **Doing B-296**.
+Synced at Seat C B-298 CLOSE. Path A lag 5820→6. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**; seat B **Doing B-268b**; seat C idle.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Path A economy honesty (this commit) | *Idle* | Watch B-268b Rust CI; do not steal B-268b / B-296 |
+| **A** RC/CI | Path A economy honesty (tip) | *Idle* | Watch B-268b Rust CI; do not steal B-268b |
 | **B** Protocol/Privacy | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**) | **B-268b** effective_emission_params + ckpt v12 (claim base: `6e2e21a6`) | Human **B-33**; **B-35** pad; no B-13c; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-291** mesh recover (`24ce61a9`) | **B-296** dual-payment storm + faucet-ops rotate (claim base: `e5e1f65a`) | After B-296: **B-42**; 2nd host B-32 |
+| **C** Testnet/Onboarding | **B-298** Path A tip-22437 lag=6 (this commit) | *Idle* | **B-42**; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
