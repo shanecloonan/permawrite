@@ -150,6 +150,14 @@ if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental) {
 } else {
     Add-Check -Name "path_a_economy" -Status "fail" -Message "subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
 }
+$nightly = $evidence.nightly
+if ($null -ne $nightly -and [string]$nightly.status -eq "completed" -and [string]$nightly.conclusion -eq "success") {
+    Add-Check -Name "nightly" -Status "pass" -Message "status=completed conclusion=success"
+} else {
+    $nightlyStatus = if ($null -eq $nightly) { "missing" } else { [string]$nightly.status }
+    $nightlyConclusion = if ($null -eq $nightly) { "" } else { [string]$nightly.conclusion }
+    Add-Check -Name "nightly" -Status "fail" -Message "status=$nightlyStatus conclusion=$nightlyConclusion (Nightly must be completed+success for RC go)"
+}
 
 Add-ToolCheck -Name "release evidence schema" -FilePath "powershell" -ArgumentList @("-NoProfile", "-File", (Join-Path $ScriptDir "release-json-schema-validate.ps1"), "-Schema", "docs/release-evidence-v1.schema.json", "-Json", $ReleaseEvidenceJson)
 Add-ToolCheck -Name "signoff manifest schema" -FilePath "powershell" -ArgumentList @("-NoProfile", "-File", (Join-Path $ScriptDir "release-json-schema-validate.ps1"), "-Schema", "docs/release-signoff-manifest-v1.schema.json", "-Json", $SignoffManifest)

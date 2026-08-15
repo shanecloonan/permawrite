@@ -840,6 +840,10 @@ economy = checks.get("path_a_economy")
 if not economy or economy.get("status") != "pass":
     print("release-audit-packet.sh funded packet missing passing path_a_economy check", file=sys.stderr)
     sys.exit(1)
+nightly = checks.get("nightly")
+if not nightly or nightly.get("status") != "pass":
+    print("release-audit-packet.sh funded packet missing passing nightly check", file=sys.stderr)
+    sys.exit(1)
 participant = checks.get("participant rehearsal evidence")
 if not participant or participant.get("status") != "pass" or "commitment_hash=" not in participant.get("message", ""):
     print("release-audit-packet.sh did not validate participant rehearsal evidence", file=sys.stderr)
@@ -849,6 +853,57 @@ if not policy or policy.get("status") != "pass":
     print("release-audit-packet.sh did not validate participant smoke CI policy", file=sys.stderr)
     sys.exit(1)
 PY
+python3 - "$archive_dir/funded-economy-evidence.json" "$archive_dir/funded-nightly-fail-evidence.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    evidence = json.load(handle)
+evidence["nightly"]["conclusion"] = "failure"
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
+    json.dump(evidence, handle, indent=2)
+    handle.write("\n")
+PY
+set +e
+bash scripts/public-devnet-v1/release-audit-packet.sh \
+  --release-evidence-json "$archive_dir/funded-nightly-fail-evidence.json" \
+  --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
+  --archive-dir "$archive_root" \
+  --inventory "$archive_dir/signoff-inventory.md" \
+  --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
+  --participant-rehearsal-log "$archive_dir/participant-rehearsal.log" \
+  --participant-support-bundle "$participant_bundle" \
+  --allow-dry-run \
+  --json \
+  --output "$archive_dir/nightly-fail-audit.json" >/dev/null
+nightly_fail_code=$?
+set -e
+if [[ ! -f "$archive_dir/nightly-fail-audit.json" ]]; then
+  echo "release-audit-packet.sh did not write a Nightly-fail audit packet" >&2
+  exit 1
+fi
+if ! python3 - "$archive_dir/nightly-fail-audit.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+if doc.get("decision") != "no-go":
+    print("release-audit-packet.sh accepted a go packet without green Nightly", file=sys.stderr)
+    sys.exit(1)
+checks = {check.get("name"): check for check in doc.get("checks", [])}
+nightly = checks.get("nightly")
+if not nightly or nightly.get("status") != "fail":
+    print("release-audit-packet.sh Nightly-fail packet missing failing nightly check", file=sys.stderr)
+    sys.exit(1)
+PY
+then
+  exit 1
+fi
+if [[ "$nightly_fail_code" -eq 0 ]]; then
+  echo "release-audit-packet.sh exited 0 for a Nightly-fail no-go packet" >&2
+  exit 1
+fi
 printf '%s\n' "$audit_json" > "$archive_dir/release-audit-packet.generated.json"
 bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json "$archive_dir/release-audit-packet.generated.json" >/dev/null
 bash scripts/public-devnet-v1/release-json-schema-draft202012.sh --schema docs/release-audit-packet-v1.schema.json --json "$archive_dir/release-audit-packet.generated.json" >/dev/null

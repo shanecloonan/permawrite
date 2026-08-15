@@ -1057,6 +1057,59 @@ Decision: go
         [Console]::Error.WriteLine("release-audit-packet.ps1 funded packet missing passing path_a_economy check")
         exit 1
     }
+    $fundedNightlyCheck = $auditObject.checks | Where-Object { $_.name -eq "nightly" } | Select-Object -First 1
+    if (-not $fundedNightlyCheck -or $fundedNightlyCheck.status -ne "pass") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 funded packet missing passing nightly check")
+        exit 1
+    }
+    $nightlyFailEvidence = Join-Path $archiveDir "funded-nightly-fail-evidence.json"
+    $nightlyFailEvidenceObject = Get-Content -LiteralPath $fundedEvidence -Raw | ConvertFrom-Json
+    $nightlyFailEvidenceObject.nightly.conclusion = "failure"
+    $nightlyFailEvidenceObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $nightlyFailEvidence -Encoding utf8
+    $nightlyFailPacket = Join-Path $archiveDir "nightly-fail-audit.json"
+    $nightlyFailStdout = Join-Path $archiveDir "nightly-fail-audit.out"
+    $nightlyFailStderr = Join-Path $archiveDir "nightly-fail-audit.err"
+    $nightlyFailProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-audit-packet.ps1",
+        "-ReleaseEvidenceJson",
+        $nightlyFailEvidence,
+        "-SignoffManifest",
+        "docs/release-signoff-manifest-v1.sample.json",
+        "-ArchiveDir",
+        $archiveRoot,
+        "-Inventory",
+        $signoffInventory,
+        "-CiMockRuns",
+        $signoffCiSuccess,
+        "-ParticipantRehearsalLog",
+        $participantLog,
+        "-ParticipantSupportBundle",
+        $participantBundle,
+        "-AllowDryRun",
+        "-Json",
+        "-OutputPath",
+        $nightlyFailPacket
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $nightlyFailStdout -RedirectStandardError $nightlyFailStderr
+    if (-not (Test-Path -LiteralPath $nightlyFailPacket -PathType Leaf)) {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 did not write a Nightly-fail audit packet")
+        exit 1
+    }
+    $nightlyFailAudit = Get-Content -LiteralPath $nightlyFailPacket -Raw | ConvertFrom-Json
+    if ($nightlyFailAudit.decision -ne "no-go") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 accepted a go packet without green Nightly")
+        exit 1
+    }
+    $nightlyFailCheck = $nightlyFailAudit.checks | Where-Object { $_.name -eq "nightly" } | Select-Object -First 1
+    if (-not $nightlyFailCheck -or $nightlyFailCheck.status -ne "fail") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 Nightly-fail packet missing failing nightly check")
+        exit 1
+    }
+    if ($nightlyFailProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 exited 0 for a Nightly-fail no-go packet")
+        exit 1
+    }
     $participantCheck = $auditObject.checks | Where-Object { $_.name -eq "participant rehearsal evidence" } | Select-Object -First 1
     if (-not $participantCheck -or $participantCheck.status -ne "pass" -or $participantCheck.message -notmatch "commitment_hash=") {
         [Console]::Error.WriteLine("release-audit-packet.ps1 did not validate participant rehearsal evidence")

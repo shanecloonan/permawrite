@@ -134,12 +134,12 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane2 signoff `go` requires Nightly GREEN (this commit, `[skip ci]` — leave full CI for **B-268b** Rust). Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Lane7 **B-42** claimed. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Lane2 RC audit `go` requires Nightly GREEN (this commit, `[skip ci]` — leave full CI for **B-268b** Rust). Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** Doing — do not steal. Lane7 **B-42** claimed. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
-| **2** RC ops | signoff `go` requires Nightly GREEN (this commit); Path A go-forbid (`eaa822a8`); RC no-go (`0845655d`) | *Idle* | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
+| **2** RC ops | RC audit `go` requires Nightly GREEN (this commit); signoff Nightly (`50e3d496`); Path A go-forbid (`eaa822a8`) | *Idle* | Watch B-268b Rust CI; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave115** last_proven=**22467** (`46d9f86c`); **B-15 wave114** (hugo 6848) | *Idle* | Human SUMMARY; **B-42** | L4 checklist |
 | **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
@@ -501,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 2 - signoff go requires Nightly GREEN** (this commit): emit + validate refuse `decision=go` unless bound `evidence.nightly` is completed+success (in addition to funded economy + CI). ci-check: funded go + `nightly.conclusion=failure` reject; funded + Nightly success still accept. SYNC: wave115 `46d9f86c` on main; lane7 **B-42** Doing (not this body). Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 2 - RC audit go requires Nightly GREEN** (this commit): `release-audit-packet` fails `nightly` unless bound evidence is completed+success, so funded+red-Nightly cannot emit `decision=go`. ci-check: funded packet still `go` with Nightly success; funded + `nightly.conclusion=failure` is `no-go` + failing `nightly`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 2 - signoff go requires Nightly GREEN** (`50e3d496`): emit + validate refuse `decision=go` unless bound `evidence.nightly` is completed+success (in addition to funded economy + CI). ci-check: funded go + `nightly.conclusion=failure` reject; funded + Nightly success still accept. SYNC: wave115 `46d9f86c` on main; lane7 **B-42** Doing (not this body). Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` so Seat B keeps **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 7 - claim B-42** (Seat C working-tree): live invite-load stagger after B-15 wave115. Claim base `46d9f86c`. Faucet-ops owned=1 (need second UTXO before JOIN). No parallel JOIN until this unit runs staggered pair. `[skip ci]` — do not steal **B-268b**. *Observed (not staged):* lane6 B-268b Rust; `tx_storm.rs`; lane2 signoff scripts.
 

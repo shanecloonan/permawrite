@@ -233,6 +233,16 @@ else:
         f"path_a_experimental={str(path_a_experimental).lower()} "
         "(Path A holes; not a funded-permanence RC)",
     )
+nightly = evidence.get("nightly") or {}
+if nightly.get("status") == "completed" and nightly.get("conclusion") == "success":
+    add_check("nightly", "pass", "status=completed conclusion=success")
+else:
+    add_check(
+        "nightly",
+        "fail",
+        f"status={nightly.get('status') or 'missing'} conclusion={nightly.get('conclusion') or ''} "
+        "(Nightly must be completed+success for RC go)",
+    )
 
 add_tool_check("release evidence schema", ["bash", os.path.join(script_dir, "release-json-schema-validate.sh"), "--schema", "docs/release-evidence-v1.schema.json", "--json", release_evidence_json])
 add_tool_check("signoff manifest schema", ["bash", os.path.join(script_dir, "release-json-schema-validate.sh"), "--schema", "docs/release-signoff-manifest-v1.schema.json", "--json", signoff_manifest])
