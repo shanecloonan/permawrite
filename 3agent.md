@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat C faucet HTTP F7 **done 73s** (tip 22522). Tip CI `#31897824126` in_progress — do not cancel. Nightly `#31861932921` **GREEN**. **B-302** claim stands.
+Synced at Seat C Path A **22535** CLOSE (lag OK=1). Tip CI `#31897824126` in_progress — do not cancel. Nightly `#31861932921` **GREEN**. **B-302** claim stands.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | `go` requires `gates.ci.commit` == manifest commit (`b0bd1caa`); VRF `edd1bc65` | *Idle* | Fix scripts FAIL `#31893770179`; **B-26** after B-15 |
 | **B** Protocol/Privacy | **B-301** (`a55d5869`) | **B-302** empty-MFEX fail-closed (claim base `a55d5869`) | Body after tip CI GREEN; no B-13c; no B-35 |
-| **C** Testnet/Onboarding | faucet HTTP F7 job **`f77a4048` done 73s**; tip **22522** | *Idle* | Path A lag close; 2nd host B-32 |
+| **C** Testnet/Onboarding | Path A **22535** (lag OK=1); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 |
 
 ### Hard locks (all seats)
 
@@ -58,6 +58,6 @@ L4 public testnet harden
 ```text
 3agent — Seat A: Done go requires gates.ci.commit == manifest commit / Doing idle / Next fix scripts FAIL #31893770179
 3agent — Seat B: Done B-301 (`a55d5869`) / Doing B-302 empty-MFEX fail-closed / Next body after tip CI GREEN
-3agent — Seat C: Done faucet HTTP F7 job f77a4048 done 73s / Doing idle / Next Path A lag close; 2nd host B-32
+3agent — Seat C: Done Path A tip-22535 lag OK=1 / Doing idle / Next 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```
