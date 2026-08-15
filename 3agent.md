@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat B **B-304** land. `#31904265430` rust GREEN / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**.
+Synced at Seat B claim **B-305** (base `848a40ff`). Tip CI `#31907077988` in_progress — do not cancel. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | `go` requires `gates.ci.commit` == manifest commit (`b0bd1caa`); VRF `edd1bc65` | *Idle* | Fix scripts FAIL `#31904265430`; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-304** (this commit); **B-303** (`4e1fb020`) | *Idle* | **B-35** still Phase 3 / B-25; no B-13c |
+| **B** Protocol/Privacy | **B-304** (`848a40ff`) | **B-305** unused MFEO refuse (claim base `848a40ff`) | Body after tip CI GREEN; no B-13c; no B-35 |
 | **C** Testnet/Onboarding | Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* | 2nd host B-32 |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. This land is full CI (B-304 Rust). Nightly `#31861932921` GREEN.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#31907077988` in_progress — do not cancel; Nightly `#31861932921` GREEN.
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done go requires gates.ci.commit == manifest commit / Doing idle / Next fix scripts FAIL #31904265430
-3agent — Seat B: Done B-304 transfer MFEX refuse / Doing idle / Next B-35 still Phase 3
+3agent — Seat B: Done B-304 (`848a40ff`) / Doing B-305 unused MFEO refuse / Next body after tip CI GREEN
 3agent — Seat C: Done Path A tip-22565 lag OK=7 / Doing idle / Next 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```
