@@ -735,10 +735,16 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     // [`crate::validator_evolution::apply_equivocation_slashings`] —
     // the same pure function the light client uses.
     {
+        let emission_base = next.emission_params;
+        let subsidy_schedule = crate::emission::SubsidyBpsSchedule {
+            activation_height: next.subsidy_bps_activation_height,
+            activation_value: next.subsidy_bps_activation_value,
+        };
         let eq = crate::validator_evolution::apply_equivocation_slashings(
             &mut next.validators,
             &block.slashings,
-            &emission_params,
+            &emission_base,
+            subsidy_schedule,
             block.header.height,
             block.header.version,
         );

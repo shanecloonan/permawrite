@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat C B-42 last_proven 22487. B-268b CI `#31867337251` **FAIL** scripts (Seat A; rust GREEN) — do not steal. Nightly `#31861932921` **GREEN**; seat B **B-268c** claim `6966b597`.
+Synced at Seat B **B-268c** land. B-268b `#31867337251` rust GREEN / scripts FAIL (Seat A). Nightly `#31861932921` **GREEN**. Seat C **B-42** last_proven **22487**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL); do not steal B-268c |
-| **B** Protocol/Privacy | **B-268b** (`ee3739e7`); **B-294** (`0ecd19ce`) | **B-268c** contested-height fraud overlay (claim base `71a7ad7a`) | After land: **B-35** pad; no B-13c; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-42** last_proven **22487** (this commit); Path A `4bb569d3` | *Idle* | 2nd staggered JOIN; 2nd host B-32 |
+| **A** RC/CI | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL); do not steal B-42 |
+| **B** Protocol/Privacy | **B-268c** (this commit); **B-268b** (`ee3739e7`) | *Idle* | **B-35** pad; no B-13c; after 2 hosts: live **B-32** |
+| **C** Testnet/Onboarding | **B-42** last_proven **22487** (`710705a9`); Path A `4bb569d3` | *Idle* | 2nd staggered JOIN; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done go refuses Path A toy keys (`c8037401`) / Doing idle / Next fix signoff-validate (#31867337251 FAIL)
-3agent — Seat B: Done B-268b (`ee3739e7`) / Doing B-268c claim / Next body after scripts fix + CI GREEN
+3agent — Seat B: Done B-268c contested-height fraud overlay / Doing idle / Next B-35 pad
 3agent — Seat C: Done B-42 last_proven 22487 / Doing idle / Next 2nd JOIN; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

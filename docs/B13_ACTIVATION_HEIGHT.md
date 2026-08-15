@@ -1,6 +1,6 @@
 # B-268 — Same-chain subsidy activation-height (work package)
 
-**Status:** **B-268b** implemented (helper + ckpt v12 + apply_block/producer wire) — **not** B-13c enable.
+**Status:** **B-268b** landed `ee3739e7` (helper + ckpt v12 + apply_block/producer). **B-268c** wires fraud/slash/gossip to overlay at the *contested* height (not applying-era / not `DEFAULT`). **Not** B-13c enable.
 **Owner:** lane 6 (emission helpers + sims) · **Review:** lane 4 (`apply_block` / fraud / producer seal)
 **Depends on:** **B-265** genesis `emission` JSON merge · **B-13a** sims · human **B-33** before enable
 **Blocks:** honest same-chain **B-13c** on live Path A (JSON alone cannot rewrite checkpoint emission)
@@ -136,7 +136,9 @@ equivalent height-aware `&EmissionParams`) once the helper exists. Surveyed
 | `mfn-consensus/src/block/apply.rs` | ~478, ~485 | fee→treasury using `next.emission_params.fee_to_treasury_bps` |
 | `mfn-consensus/src/block/apply.rs` | ~740 | emission passed into slash/evidence path |
 | `mfn-consensus/src/block/apply.rs` | ~1069–1115 | settlement: `treasury_fee`, `subsidy_treasury_credit`, `block_coinbase_specs` |
-| `mfn-consensus/src/fraud_proof.rs` | `verify_coinbase_amount_fraud_proof` / interactive verify | callers must pass **effective** params for `proof.block.header.height` |
+| `mfn-consensus/src/fraud_proof.rs` | `verify_coinbase_amount_fraud_proof` / interactive verify | callers pass **effective** params for *contested* `proof.block.header.height` (**B-268c**) |
+| `mfn-consensus/src/slashing.rs` | `verify_invalid_block_evidence` | `SubsidyBpsSchedule.effective(base, evidence.height)` — not applying-block overlay |
+| `mfn-node/src/p2p_gossip.rs` | `on_fraud_proof_v1` | `chain.state().effective_emission_params(contested_height)` — not `DEFAULT` |
 
 ### Producer seal — must mirror apply_block
 

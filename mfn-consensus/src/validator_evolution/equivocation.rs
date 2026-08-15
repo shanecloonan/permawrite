@@ -52,6 +52,7 @@ pub fn apply_equivocation_slashings(
     validators: &mut [Validator],
     slashings: &[SlashEvidence],
     emission_params: &crate::emission::EmissionParams,
+    subsidy_schedule: crate::emission::SubsidyBpsSchedule,
     applying_block_height: u32,
     header_version: u32,
 ) -> EquivocationOutcome {
@@ -71,6 +72,7 @@ pub fn apply_equivocation_slashings(
             &ev,
             validators,
             emission_params,
+            subsidy_schedule,
             applying_block_height,
             header_version,
         ) {
@@ -96,6 +98,7 @@ pub fn apply_equivocation_slashings(
     validators: &mut [Validator],
     slashings: &[SlashEvidence],
     _emission_params: &crate::emission::EmissionParams,
+    _subsidy_schedule: crate::emission::SubsidyBpsSchedule,
     _applying_block_height: u32,
     _header_version: u32,
 ) -> EquivocationOutcome {

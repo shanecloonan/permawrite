@@ -54,6 +54,7 @@ fn equivocation_empty_input_is_noop() {
         &mut validators,
         &[],
         &DEFAULT_EMISSION_PARAMS,
+        crate::emission::SubsidyBpsSchedule::default(),
         1,
         HEADER_VERSION,
     );

@@ -330,6 +330,23 @@ pub fn storage_proof_coinbase_bonus(
         .fold(0u128, u128::saturating_add)
 }
 
+/// Checkpointed subsidy overlay. `activation_height == 0` is inactive.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SubsidyBpsSchedule {
+    /// Height at which [`Self::activation_value`] overlays base bps.
+    pub activation_height: u32,
+    /// Overlay `subsidy_to_treasury_bps` at/after [`Self::activation_height`].
+    pub activation_value: u16,
+}
+
+impl SubsidyBpsSchedule {
+    /// [`effective_emission_params`] for `height` against `base`.
+    #[must_use]
+    pub fn effective(self, base: &EmissionParams, height: u32) -> EmissionParams {
+        effective_emission_params(base, height, self.activation_height, self.activation_value)
+    }
+}
+
 /// Height-aware emission params: copy `base`, then overlay
 /// `subsidy_to_treasury_bps` when `activation_height != 0` and
 /// `height >= activation_height`.

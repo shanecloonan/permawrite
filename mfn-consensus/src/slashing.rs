@@ -406,6 +406,7 @@ pub fn verify_invalid_block_evidence(
     evidence: &InvalidBlockEvidence,
     validators: &[Validator],
     emission_params: &crate::emission::EmissionParams,
+    subsidy_schedule: crate::emission::SubsidyBpsSchedule,
     applying_block_height: u32,
     header_version: u32,
 ) -> InvalidBlockEvidenceCheck {
@@ -424,7 +425,8 @@ pub fn verify_invalid_block_evidence(
     if validators[idx].stake == 0 {
         return InvalidBlockEvidenceCheck::AlreadySlashed;
     }
-    if verify_interactive_fraud_proof(&evidence.fraud_proof_wire, emission_params).is_err() {
+    let contested_params = subsidy_schedule.effective(emission_params, evidence.height);
+    if verify_interactive_fraud_proof(&evidence.fraud_proof_wire, &contested_params).is_err() {
         return InvalidBlockEvidenceCheck::FraudProofInvalid;
     }
     let Some((f_height, f_block_id, f_producer)) =
@@ -447,6 +449,7 @@ pub fn verify_slash_evidence(
     evidence: &SlashEvidence,
     validators: &[Validator],
     emission_params: &crate::emission::EmissionParams,
+    subsidy_schedule: crate::emission::SubsidyBpsSchedule,
     applying_block_height: u32,
     header_version: u32,
 ) -> Result<(), SlashRejectReason> {
@@ -464,6 +467,7 @@ pub fn verify_slash_evidence(
                 ev,
                 validators,
                 emission_params,
+                subsidy_schedule,
                 applying_block_height,
                 header_version,
             );
@@ -797,6 +801,7 @@ mod tests {
                 &ev,
                 std::slice::from_ref(&val),
                 &DEFAULT_EMISSION_PARAMS,
+                crate::emission::SubsidyBpsSchedule::default(),
                 1,
                 HEADER_VERSION_FRAUD_SLASH,
             ),
@@ -807,6 +812,7 @@ mod tests {
                 &ev,
                 std::slice::from_ref(&val),
                 &DEFAULT_EMISSION_PARAMS,
+                crate::emission::SubsidyBpsSchedule::default(),
                 2,
                 HEADER_VERSION,
             ),

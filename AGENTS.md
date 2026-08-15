@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane7 B-42 last_proven **22467→22487** (this commit, `[skip ci]`). B-268b CI `#31867337251` **FAIL** = public-devnet scripts / signoff-validate (Seat A; rust tests GREEN) — do not steal. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** `ee3739e7`; lane4 **B-268c** claim `6966b597`. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Landing **B-268c** Rust (full CI). B-268b `#31867337251` rust/clippy/wasm/audit **GREEN**; scripts FAIL is Seat A (signoff go+red-CI). Nightly `#31861932921` **GREEN**. Lane7 **B-42** last_proven **22487**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
 | **2** RC ops | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL scripts); **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** last_proven=**22487** (this commit); **B-15 wave115** (`46d9f86c`) | *Idle* | Human SUMMARY; 2nd JOIN / B-32 | L4 checklist |
-| **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | **B-268c** fraud/slash/gossip use effective params at *contested* height (claim base: `71a7ad7a`) | After land: **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-268c** (this commit); **B-294** (`0ecd19ce`; rust GREEN `#31867337251`) | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
 | **7** Testnet launch | **B-42** last_proven **22487** (this commit); Path A tip-**22486** (`4bb569d3`); **B-299** (`30ff27b0`) | *Idle* | 2nd staggered JOIN when hub quiet; 2nd host B-32 | `launch-go-no-go` + observer |
@@ -501,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - B-42 last_proven 22467→22487** (this commit): iris observer upload `24e62a5a` mined+proven in **22487** (proxy total 94→95, user_tx 418→419). No mfnd/faucet restart. Path A ckpt 22486 lag=1 OK. Evidence `b42-join-last-proven-22487-20260815.md`. B-268b CI `#31867337251` **FAIL** scripts (Seat A). `[skip ci]`. Next: 2nd staggered JOIN; 2nd host B-32. *Observed (not staged):* Seat B B-268c Rust; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 4 - B-268c contested-height fraud overlay** (this commit): slash/gossip use `SubsidyBpsSchedule.effective(base, contested_height)` not applying-era overlay / not `DEFAULT`. `b268c_default_params_false_positive_honest_overlay_coinbase` PASS (DEFAULT ValidFraud; overlay NotFraud; wrong-era ValidFraud). Local ci-check OK. No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** pad. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 7 - B-42 last_proven 22467→22487** (`710705a9`): iris observer upload `24e62a5a` mined+proven in **22487** (proxy total 94→95, user_tx 418→419). No mfnd/faucet restart. Path A ckpt 22486 lag=1 OK. Evidence `b42-join-last-proven-22487-20260815.md`. B-268b CI `#31867337251` **FAIL** scripts (Seat A). `[skip ci]`. Next: 2nd staggered JOIN; 2nd host B-32. *Observed (not staged):* Seat B B-268c Rust; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 7 - hub OOM stall recover + Path A tip-22486** (`4bb569d3`): hub OOM 05:36Z; tip stuck **22484**; proposal 22485 starved. No mfnd/faucet restart. Stop+start `mfn-p2p-forward-hub` only; tip **22486**. Path A publish via observer RPC; land jsonl; outside-in **OK lag=0**. B-42 JOIN upload `24e62a5a` still mempool-only; last_proven **22467**. Evidence `b42-hub-oom-path-a-22486-20260815.md` + `outside-in-tip-ckpt-lag-20260815T061243Z.txt`. B-268b CI `#31867337251` **FAIL** scripts (Seat A; rust GREEN). `[skip ci]`. Next: JOIN retry when hub produce quiet; 2nd host B-32. *Observed (not staged):* Seat B B-268c Rust; `tx_storm.rs`; rc-audit json.
 
@@ -766,6 +768,6 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 
 | B-268b | Implement effective_emission_params + ckpt v12 + boundary sims | 6+4 | **Landed** `ee3739e7`; no B-13c enable |
-| B-268c | Fraud/slash/gossip use effective params at contested height | 4+6 | Claimed; body after B-268b CI GREEN |
+| B-268c | Fraud/slash/gossip use effective params at contested height | 4+6 | **Landed** (this commit); no B-13c enable |
 | B-269 | Path A near-tip timer 30m→8m (match lag threshold=8) | 6+7 | **Landed** (
 3f97603); VPS timer active 8m |

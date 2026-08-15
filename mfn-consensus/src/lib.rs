@@ -158,8 +158,8 @@ pub use emission::{
     effective_emission_params, emission_at_height, pre_tail_supply_cap, producer_coinbase_amount,
     producer_portion_amount, storage_payout_amount, storage_proof_coinbase_bonus,
     storage_proof_operator_settlements, subsidy_producer_amount, subsidy_treasury_credit,
-    validate_emission_params, EmissionError, EmissionParams, DEFAULT_EMISSION_PARAMS, MFN_BASE,
-    MFN_DECIMALS,
+    validate_emission_params, EmissionError, EmissionParams, SubsidyBpsSchedule,
+    DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS,
 };
 #[cfg(feature = "bls")]
 pub use fraud_proof::{

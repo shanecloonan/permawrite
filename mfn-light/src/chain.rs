@@ -585,6 +585,7 @@ impl LightChain {
             &mut staged_validators,
             &block.slashings,
             &DEFAULT_EMISSION_PARAMS,
+            mfn_consensus::SubsidyBpsSchedule::default(),
             block.header.height,
             block.header.version,
         );
@@ -700,6 +701,7 @@ impl LightChain {
             &mut staged_validators,
             slashings,
             &DEFAULT_EMISSION_PARAMS,
+            mfn_consensus::SubsidyBpsSchedule::default(),
             header.height,
             header.version,
         );

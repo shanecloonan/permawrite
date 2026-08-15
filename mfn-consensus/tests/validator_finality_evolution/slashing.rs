@@ -439,6 +439,7 @@ fn invalid_block_slash_zeros_producer_on_coinbase_fraud() {
             },
             &st1.validators,
             &DEFAULT_EMISSION_PARAMS,
+            mfn_consensus::SubsidyBpsSchedule::default(),
             2,
             st1.header_version,
         ),

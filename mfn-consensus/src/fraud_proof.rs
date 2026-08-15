@@ -1127,6 +1127,106 @@ mod tests {
         verify_interactive_fraud_proof(&wire, &DEFAULT_EMISSION_PARAMS).expect("interactive");
     }
 
+    fn seal_coinbase_only_block(coinbase: crate::transaction::TransactionWire) -> Block {
+        let genesis = build_genesis(&GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            initial_storage_operators: Vec::new(),
+            validators: Vec::new(),
+            params: TEST_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+            header_version: HEADER_VERSION,
+        });
+        let state = apply_genesis(
+            &genesis,
+            &GenesisConfig {
+                timestamp: 0,
+                initial_outputs: Vec::new(),
+                initial_storage: Vec::new(),
+                initial_storage_operators: Vec::new(),
+                validators: Vec::new(),
+                params: TEST_CONSENSUS_PARAMS,
+                emission_params: DEFAULT_EMISSION_PARAMS,
+                endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+                bonding_params: None,
+                header_version: HEADER_VERSION,
+            },
+        )
+        .expect("genesis");
+        let header =
+            build_unsealed_header(&state, std::slice::from_ref(&coinbase), &[], &[], &[], 1, 1);
+        seal_block(header, vec![coinbase], vec![], vec![], vec![], vec![])
+    }
+
+    #[test]
+    fn b268c_default_params_false_positive_honest_overlay_coinbase() {
+        use crate::coinbase::{build_coinbase, PayoutAddress};
+        use crate::emission::{producer_portion_amount, SubsidyBpsSchedule};
+        use mfn_crypto::stealth::stealth_gen;
+
+        let w = stealth_gen();
+        let payout = PayoutAddress {
+            view_pub: w.view_pub,
+            spend_pub: w.spend_pub,
+        };
+        let height = 1u32;
+        let schedule = SubsidyBpsSchedule {
+            activation_height: 1,
+            activation_value: 1000,
+        };
+        let overlay = schedule.effective(&DEFAULT_EMISSION_PARAMS, height);
+        assert_eq!(overlay.subsidy_to_treasury_bps, 1000);
+        assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+
+        let fee_sum = 0u128;
+        let honest_amt = producer_portion_amount(u64::from(height), &overlay, fee_sum);
+        let default_amt =
+            producer_portion_amount(u64::from(height), &DEFAULT_EMISSION_PARAMS, fee_sum);
+        assert_ne!(
+            honest_amt, default_amt,
+            "overlay must change producer coinbase"
+        );
+
+        let honest_cb = build_coinbase(u64::from(height), honest_amt, &payout).expect("cb");
+        let proof = CoinbaseAmountFraudProof {
+            version: COINBASE_FRAUD_PROOF_VERSION,
+            block: seal_coinbase_only_block(honest_cb),
+            fee_sum,
+            producer_payout: payout,
+            accepted_settlements: Vec::new(),
+        };
+        assert!(
+            matches!(
+                verify_coinbase_amount_fraud_proof(&proof, &DEFAULT_EMISSION_PARAMS),
+                Ok(CoinbaseAmountFraudVerdict::ValidFraud { .. })
+            ),
+            "DEFAULT params must false-positive an honest post-H_act coinbase"
+        );
+        assert_eq!(
+            verify_coinbase_amount_fraud_proof(&proof, &overlay),
+            Err(FraudProofError::NotFraud)
+        );
+
+        let wrong_era = build_coinbase(u64::from(height), default_amt, &payout).expect("cb");
+        let wrong_proof = CoinbaseAmountFraudProof {
+            version: COINBASE_FRAUD_PROOF_VERSION,
+            block: seal_coinbase_only_block(wrong_era),
+            fee_sum,
+            producer_payout: payout,
+            accepted_settlements: Vec::new(),
+        };
+        assert!(
+            matches!(
+                verify_coinbase_amount_fraud_proof(&wrong_proof, &overlay),
+                Ok(CoinbaseAmountFraudVerdict::ValidFraud { .. })
+            ),
+            "effective params must catch a pre-activation coinbase at H_act"
+        );
+    }
+
     #[test]
     fn clsag_fraud_round_trip_and_detect() {
         use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};

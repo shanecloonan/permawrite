@@ -7,7 +7,7 @@ use mfn_consensus::{
     block_id, decode_block, decode_transaction, fraud_proof_contested_block,
     fraud_proof_producer_slash_hint, tx_id, verify_interactive_fraud_proof,
     verify_validity_proof_v1, CoinbaseAmountFraudVerdict, FraudProofVerdict,
-    InteractiveFraudVerdict, TxFraudVerdict, ValidityProofVerdict, DEFAULT_EMISSION_PARAMS,
+    InteractiveFraudVerdict, TxFraudVerdict, ValidityProofVerdict,
 };
 use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
 use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool, ProofPool};
@@ -147,6 +147,20 @@ impl P2pGossipHandler {
             Err(e) => format!("rejected:chunk_inbox:{e}"),
         }
     }
+
+    fn emission_params_for_fraud_wire(
+        &self,
+        consensus_wire: &[u8],
+    ) -> Result<mfn_consensus::EmissionParams, String> {
+        let height = fraud_proof_contested_block(consensus_wire)
+            .map(|(h, _, _)| h)
+            .unwrap_or(0);
+        let chain = self
+            .chain
+            .lock()
+            .map_err(|_| "rejected:chain_mutex".to_string())?;
+        Ok(chain.state().effective_emission_params(height))
+    }
 }
 
 impl BlockSyncApplier for P2pGossipHandler {
@@ -262,7 +276,11 @@ impl GossipHandler for P2pGossipHandler {
     }
 
     fn on_fraud_proof_v1(&self, consensus_wire: &[u8]) -> String {
-        let label = match verify_interactive_fraud_proof(consensus_wire, &DEFAULT_EMISSION_PARAMS) {
+        let emission_params = match self.emission_params_for_fraud_wire(consensus_wire) {
+            Ok(p) => p,
+            Err(label) => return label,
+        };
+        let label = match verify_interactive_fraud_proof(consensus_wire, &emission_params) {
             Ok(InteractiveFraudVerdict::BodyRoot(FraudProofVerdict::ValidFraud {
                 kind, ..
             })) => {
