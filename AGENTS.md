@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Landing **B-268g** Rust (full CI). B-268f `#31879672133` rust/clippy/wasm/audit + all OS tests **GREEN**; scripts FAIL is Seat A. Nightly `#31861932921` **GREEN**. Lane7 tip-22495 stall recover stands. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** B-268g `#31881362071` **FAIL** scripts (Seat A; rust GREEN on B-268f `#31879672133`). Nightly `#31861932921` **GREEN**. Lane7 claiming **B-300 VPS apply** (tip still 22495; VPS HEAD `b1ab1b1`). No CI in_progress. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
 | **2** RC ops | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL scripts); **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 2nd JOIN last_proven=**22492** (`985e594e`); iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-268g** (this commit); **B-268f** (`74923cc5`; rust GREEN `#31879672133`) | *Idle* — slash matrix frozen | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-268g** (`247b5198`; rust GREEN `#31881362071`) | **B-301** P20 opaque extra fail-closed (claim base: `247b5198`) | **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | Path A **22495** (`a6cd75f6`); **B-42** last_proven **22492** | **tip-22495 stall recover** (claim base: `a6cd75f6`) | faucet HTTP F7 (owned=1); 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | 19001 **OPEN** + CLOSE-WAIT diagnosed (`46134591`); Path A **22495**; last_proven **22492** | **B-300 VPS apply** tip-22495 unstick (claim base: `247b5198`) | faucet HTTP F7; 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -240,6 +240,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-96 | Soak evidence requires Nightly+CI pins (assert + soak fail-closed) | 1 | **Landed** (this commit) — assert `# nnightly_run=`/`# ci_run=`; soak fail-closed; tip 4820->4822 evidence |
 | B-94 | Spent-debris prune + gitignore tighten (M2.5.39 follow-up) | 2 | **Landed** (this commit) — delete 5 tracked spent one-shots; ignore `_*.py` / lane WIP / nightly dumps / live-testnet-data* / evidence `_*` |
 
+| B-301 | F5 P20: consensus-reject opaque non-MFEX `tx.extra` | 4+5 | **Claimed** this session; empty or well-formed MFEX only |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -502,7 +503,11 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 4 - B-268g light apply overlay bps>10000 fail-closed** (this commit): light `apply_block` / `apply_trusted_evolution` reject `activation_value > 10000` (active overlay + height-0 bomb). `b268g_apply_block_rejects_overlay_bps_above_10000` PASS; Path A `(0,0)` still applies. Local `ci-check -RustOnly` green. B-268f `#31879672133` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** pad. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 4 - claim B-301 P20 opaque extra fail-closed** (`247b5198` board): `parse_mfex_extra` / `verify_transaction` still accept non-empty non-MFEX `tx.extra` (`hello-memo`), so a hostile wallet can partition the anonymity set. Claim base `247b5198`. Body after this claim. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C B-300 VPS claim.
+
+1. **2026-08-15 - lane 7 - claim B-300 VPS apply** (working-tree): public tip still **22495**; VPS HEAD `b1ab1b1` (pre-B-300); `:19101` **47 CLOSE-WAIT** + `inbound_cap_reached` at 14:50Z; no `producer_sealed`. Roll existing `vps-roll-mfnd` (B-300 hello 3s). Skeptic: `get_tip` > 22495. Claim base `247b5198`. B-268g `#31881362071` FAIL scripts (Seat A). *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 4 - B-268g light apply overlay bps>10000 fail-closed** (`247b5198`): light `apply_block` / `apply_trusted_evolution` reject `activation_value > 10000` (active overlay + height-0 bomb). `b268g_apply_block_rejects_overlay_bps_above_10000` PASS; Path A `(0,0)` still applies. Local `ci-check -RustOnly` green. B-268f `#31879672133` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** pad. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 4 - claim B-268g** (`c628bfa7`): light `apply_block` / `apply_trusted_evolution` still accept `with_subsidy_schedule(activation_value > 10000)` (B-268e decode + B-268f full-node apply only). Claim base `74923cc5`. Body after tip CI `#31879672133` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
