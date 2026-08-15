@@ -29,7 +29,7 @@ while [[ $# -gt 0 ]]; do
 done
 if (( PLAN_ONLY )); then
   echo "faucet-rotate-from-payout: plan payout=$PAYOUT_WALLET new=$NEW_WALLET fund_atoms=$FUND_ATOMS"
-  echo "  flow=tip-pin new wallet -> payout send fund -> wait tip -> light-scan new -> FAUCET_WALLET hint"
+  echo "  flow=tip-pin new wallet -> payout send fund (twice if owned<2 for F7) -> wait tip -> light-scan new -> FAUCET_WALLET hint"
   echo "  systemd=Environment=FAUCET_WALLET=$NEW_WALLET then systemctl restart faucet-http when busy=false"
   exit 0
 fi
@@ -73,16 +73,35 @@ open(wpath, "a", encoding="utf-8").write("\n")
 print(f"faucet-rotate-from-payout: tip-pinned new wallet at {tip}")
 PY
 fi
-echo "faucet-rotate-from-payout: funding $FUND_ATOMS -> $ADDR"
-"$MFN_CLI" --rpc "$RPC" --wallet "$PAYOUT_WALLET" wallet send "$ADDR" "$FUND_ATOMS" --fee "$FEE" --ring-size "$RING" --json
-echo "faucet-rotate-from-payout: waiting for tip advance..."
-for _ in 1 2 3 4 5 6 7 8; do
-  sleep 15
-  NEW_TIP="$("$MFN_CLI" --rpc "$RPC" tip 2>/dev/null | parse_kv tip_height)"
-  if [[ -n "$NEW_TIP" && -n "$TIP_H" && "$NEW_TIP" -gt "$TIP_H" ]]; then
-    break
+fund_once() {
+  local atoms="$1"
+  echo "faucet-rotate-from-payout: funding $atoms -> $ADDR"
+  "$MFN_CLI" --rpc "$RPC" --wallet "$PAYOUT_WALLET" wallet send "$ADDR" "$atoms" --fee "$FEE" --ring-size "$RING" --json
+  local pre_tip
+  pre_tip="$("$MFN_CLI" --rpc "$RPC" tip 2>/dev/null | parse_kv tip_height)"
+  echo "faucet-rotate-from-payout: waiting for tip advance..."
+  local _
+  for _ in 1 2 3 4 5 6 7 8; do
+    sleep 15
+    local now
+    now="$("$MFN_CLI" --rpc "$RPC" tip 2>/dev/null | parse_kv tip_height)"
+    if [[ -n "$now" && -n "$pre_tip" && "$now" -gt "$pre_tip" ]]; then
+      break
+    fi
+  done
+  "$MFN_CLI" --rpc "$RPC" --wallet "$NEW_WALLET" wallet light-scan
+}
+
+# F7 faucet dual-send needs >=2 owned UTXOs on the ops wallet.
+fund_once "$FUND_ATOMS"
+OWNED="$("$MFN_CLI" --rpc "$RPC" --wallet "$NEW_WALLET" wallet status 2>&1 | parse_kv owned_count_cached)"
+if [[ -z "$OWNED" || "$OWNED" -lt 2 ]]; then
+  SECOND="$FUND_ATOMS"
+  if [[ "$SECOND" -gt 30000000000 ]]; then
+    SECOND=30000000000
   fi
-done
-"$MFN_CLI" --rpc "$RPC" --wallet "$NEW_WALLET" wallet light-scan
+  echo "faucet-rotate-from-payout: owned=$OWNED < 2; second fund $SECOND (F7)"
+  fund_once "$SECOND" || echo "faucet-rotate-from-payout: second fund skipped (payout short?)"
+fi
 "$MFN_CLI" --rpc "$RPC" --wallet "$NEW_WALLET" wallet status
 echo "faucet-rotate-from-payout: PASS set FAUCET_WALLET=$NEW_WALLET and restart faucet-http when idle"

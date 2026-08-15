@@ -1,4 +1,6 @@
 # Fund alice via public faucet, then ping-pong dual-payment transfers on the live chain.
+# B-296: AmountEach=50000 deadlocks after the first hop (dest has 2x50k=100k < 110k need).
+# Default 10000 keeps both sides above the F7 two-UTXO + fee floor.
 # Uses a local TCP JSON-RPC tunnel to VPS hub/observer (default 127.0.0.1:18731 hub).
 # Prefer hub for submit_tx under load; observer proxy is for public visibility checks.
 # Never restarts faucet/mfnd.
@@ -10,8 +12,8 @@ param(
   [string]$Rpc = "127.0.0.1:18731",
   [string]$FaucetUrl = "http://5.161.201.73:8788",
   [string]$WalletDir = "",
-  [int]$Count = 200,
-  [int]$AmountEach = 50000,
+  [int]$Count = 12,
+  [int]$AmountEach = 10000,
   [int]$Fee = 10000,
   [switch]$SkipBuild
 )
