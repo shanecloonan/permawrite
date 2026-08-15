@@ -50,11 +50,16 @@ function Read-GenesisEconomy {
         $bond = [int64]$genesis.endowment.min_storage_operator_bond
     }
     $bonded = 0
+    $payouts = New-Object 'System.Collections.Generic.HashSet[string]'
     if ($bond -gt 0) {
         foreach ($op in @($genesis.storage_operators)) {
             $amount = 0
             if ($null -ne $op -and $null -ne $op.bond_amount) { $amount = [int64]$op.bond_amount }
-            if ($amount -ge $bond) { $bonded++ }
+            if ($amount -ge $bond) {
+                $bonded++
+                $seed = ([string]$op.payout_seed_hex).Trim().ToLowerInvariant() -replace '^0x', '' -replace '\s', ''
+                [void]$payouts.Add($seed)
+            }
         }
     }
     return [pscustomobject]@{
@@ -62,6 +67,7 @@ function Read-GenesisEconomy {
         min_storage_operator_bond = $bond
         path_a_experimental = ($subsidy -eq 0) -or ($bond -eq 0)
         bonded_operators = $bonded
+        distinct_bonded_payouts = $payouts.Count
         path_a_toy_keys = Test-PathAToyKeys $genesis
     }
 }
@@ -200,6 +206,8 @@ if ($Decision -eq "go") {
         Add-Issue "go decision requires funded genesis economy (subsidy>0, bond>0, path_a_experimental=false)"
     } elseif ($genesisEconomy.bonded_operators -lt 2) {
         Add-Issue "go decision requires >=2 genesis storage_operators bonded at min_storage_operator_bond"
+    } elseif ($genesisEconomy.distinct_bonded_payouts -lt 2) {
+        Add-Issue "go decision requires >=2 distinct bonded operator payout seeds"
     } elseif ($genesisEconomy.path_a_toy_keys) {
         Add-Issue "go decision requires genesis operator/validator seeds that are not repeating-byte toy keys"
     }

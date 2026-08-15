@@ -182,6 +182,7 @@ $subsidyBps = 0
 $bondAtoms = 0
 $pathAExperimental = $true
 $bondedOperators = 0
+$distinctBondedPayouts = 0
 $pathAToyKeys = $true
 if ($genesisPath) {
     $genesis = Get-Content -LiteralPath $genesisPath -Raw | ConvertFrom-Json
@@ -192,19 +193,25 @@ if ($genesisPath) {
         $bondAtoms = [int64]$genesis.endowment.min_storage_operator_bond
     }
     $pathAExperimental = ($subsidyBps -eq 0) -or ($bondAtoms -eq 0)
+    $payouts = New-Object 'System.Collections.Generic.HashSet[string]'
     if ($bondAtoms -gt 0) {
         foreach ($op in @($genesis.storage_operators)) {
             $amount = 0
             if ($null -ne $op -and $null -ne $op.bond_amount) { $amount = [int64]$op.bond_amount }
-            if ($amount -ge $bondAtoms) { $bondedOperators++ }
+            if ($amount -ge $bondAtoms) {
+                $bondedOperators++
+                $seed = ([string]$op.payout_seed_hex).Trim().ToLowerInvariant() -replace '^0x', '' -replace '\s', ''
+                [void]$payouts.Add($seed)
+            }
         }
     }
+    $distinctBondedPayouts = $payouts.Count
     $pathAToyKeys = Test-PathAToyKeys $genesis
 }
-if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental -and $bondedOperators -ge 2 -and -not $pathAToyKeys) {
-    Add-Check -Name "path_a_economy" -Status "pass" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators toy_keys=false path_a_experimental=false"
+if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental -and $bondedOperators -ge 2 -and $distinctBondedPayouts -ge 2 -and -not $pathAToyKeys) {
+    Add-Check -Name "path_a_economy" -Status "pass" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators distinct_payouts=$distinctBondedPayouts toy_keys=false path_a_experimental=false"
 } else {
-    Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators toy_keys=$pathAToyKeys path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
+    Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators distinct_payouts=$distinctBondedPayouts toy_keys=$pathAToyKeys path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
 }
 $evidenceCi = $evidence.ci
 if ($null -ne $evidenceCi -and [string]$evidenceCi.status -eq "completed" -and [string]$evidenceCi.conclusion -eq "success") {

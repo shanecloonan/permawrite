@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat A RC audit `go` requires bound evidence CI GREEN. Tip CI `#31891608943` in_progress on `a4af1500` — do **not** cancel. Nightly `#31861932921` **GREEN**. **B-301** is claim `42b0bf49` only (Seat B working-tree, not on main). Seat C **B-300 VPS apply** stands.
+Synced at Seat C **B-300 VPS apply** CLOSE: public tip **22495→22502**. Tip CI `#31891608943` in_progress — do **not** cancel. Nightly `#31861932921` **GREEN**. **B-301** is claim `42b0bf49` only (Seat B working-tree).
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | RC audit `go` requires bound evidence CI GREEN (this commit); signoff `a4af1500` | *Idle* | Watch CI `#31891608943`; **B-26** after B-15 |
 | **B** Protocol/Privacy | **B-268g** (`247b5198`); claim **B-301** (`42b0bf49`) | Seat B working-tree (not this commit) | **B-35** after B-301 land; no B-13c |
-| **C** Testnet/Onboarding | 19001 **OPEN** (`46134591`); last_proven **22492** | **B-300 VPS apply** (claim base `247b5198`) | faucet HTTP F7; 2nd host B-32 |
+| **C** Testnet/Onboarding | **B-300** tip **22495→22502**; 19001 **OPEN**; last_proven **22492** | *Idle* | faucet HTTP F7; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
@@ -58,6 +58,6 @@ L4 public testnet harden
 ```text
 3agent — Seat A: Done RC audit go requires bound evidence CI GREEN / Doing idle / Next watch CI `#31891608943`
 3agent — Seat B: Done B-268g; claim B-301 (`42b0bf49`, body not on main) / Doing working-tree / Next B-35 after B-301 land
-3agent — Seat C: Done 19001 OPEN + CLOSE-WAIT diagnosed / Doing B-300 VPS apply / Next faucet HTTP F7; 2nd host B-32
+3agent — Seat C: Done B-300 VPS apply tip 22495→22502 / Doing idle / Next faucet HTTP F7; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

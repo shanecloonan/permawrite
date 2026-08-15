@@ -159,6 +159,7 @@ def genesis_economy(evidence_doc):
         subsidy_bps = 0
         bond_atoms = 0
     bonded = 0
+    payouts = set()
     if bond_atoms > 0:
         for op in genesis.get("storage_operators") or []:
             try:
@@ -167,11 +168,16 @@ def genesis_economy(evidence_doc):
                 amount = 0
             if amount >= bond_atoms:
                 bonded += 1
+                seed = "".join(str((op or {}).get("payout_seed_hex") or "").split()).lower()
+                if seed.startswith("0x"):
+                    seed = seed[2:]
+                payouts.add(seed)
     return {
         "subsidy_to_treasury_bps": subsidy_bps,
         "min_storage_operator_bond": bond_atoms,
         "path_a_experimental": subsidy_bps == 0 or bond_atoms == 0,
         "bonded_operators": bonded,
+        "distinct_bonded_payouts": len(payouts),
         "path_a_toy_keys": genesis_has_toy_keys(genesis),
     }
 
@@ -265,6 +271,8 @@ if decision == "go":
         add_issue("go decision requires funded genesis economy (subsidy>0, bond>0, path_a_experimental=false)")
     elif genesis["bonded_operators"] < 2:
         add_issue("go decision requires >=2 genesis storage_operators bonded at min_storage_operator_bond")
+    elif genesis["distinct_bonded_payouts"] < 2:
+        add_issue("go decision requires >=2 distinct bonded operator payout seeds")
     elif genesis["path_a_toy_keys"]:
         add_issue("go decision requires genesis operator/validator seeds that are not repeating-byte toy keys")
     evidence_ci = evidence.get("ci") or {}

@@ -218,6 +218,7 @@ subsidy_bps = 0
 bond_atoms = 0
 path_a_experimental = True
 bonded_operators = 0
+distinct_bonded_payouts = 0
 path_a_toy_keys = True
 
 def is_toy_seed(value):
@@ -244,6 +245,7 @@ if genesis_path:
         subsidy_bps = 0
         bond_atoms = 0
     path_a_experimental = subsidy_bps == 0 or bond_atoms == 0
+    payouts = set()
     if bond_atoms > 0:
         for op in genesis.get("storage_operators") or []:
             try:
@@ -252,6 +254,11 @@ if genesis_path:
                 amount = 0
             if amount >= bond_atoms:
                 bonded_operators += 1
+                seed = "".join(str((op or {}).get("payout_seed_hex") or "").split()).lower()
+                if seed.startswith("0x"):
+                    seed = seed[2:]
+                payouts.add(seed)
+    distinct_bonded_payouts = len(payouts)
     seeds = []
     for op in genesis.get("storage_operators") or []:
         seeds.append((op or {}).get("payout_seed_hex"))
@@ -259,19 +266,21 @@ if genesis_path:
         seeds.append((val or {}).get("vrf_seed_hex"))
         seeds.append((val or {}).get("bls_seed_hex"))
     path_a_toy_keys = (not seeds) or any(is_toy_seed(seed) for seed in seeds)
-if subsidy_bps > 0 and bond_atoms > 0 and path_a_experimental is False and bonded_operators >= 2 and not path_a_toy_keys:
+if subsidy_bps > 0 and bond_atoms > 0 and path_a_experimental is False and bonded_operators >= 2 and distinct_bonded_payouts >= 2 and not path_a_toy_keys:
     add_check(
         "path_a_economy",
         "pass",
         f"genesis subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} "
-        f"bonded_operators={bonded_operators} toy_keys=false path_a_experimental=false",
+        f"bonded_operators={bonded_operators} distinct_payouts={distinct_bonded_payouts} "
+        f"toy_keys=false path_a_experimental=false",
     )
 else:
     add_check(
         "path_a_economy",
         "fail",
         f"genesis subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} "
-        f"bonded_operators={bonded_operators} toy_keys={str(path_a_toy_keys).lower()} "
+        f"bonded_operators={bonded_operators} distinct_payouts={distinct_bonded_payouts} "
+        f"toy_keys={str(path_a_toy_keys).lower()} "
         f"path_a_experimental={str(path_a_experimental).lower()} "
         "(Path A holes; not a funded-permanence RC)",
     )

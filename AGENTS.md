@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane2 RC audit `go` requires bound `evidence.ci` GREEN (this commit, `[skip ci]`). Do **not** cancel tip CI `#31891608943` on `a4af1500`. Nightly `#31861932921` **GREEN**. **B-301** is Seat B working-tree (claim `42b0bf49`, not on main). Lane7 **B-300 VPS apply** stands. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Do **not** cancel tip CI `#31891608943` on `a4af1500`. Nightly `#31861932921` **GREEN**. Lane7 **B-300 VPS apply** CLOSE: public tip **22495→22502**. **B-301** is Seat B working-tree (claim `42b0bf49`, not on main). Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-268g** (`247b5198`; rust GREEN `#31881362071`); claim **B-301** (`42b0bf49`) | Seat B working-tree (not this commit) | **B-35** after B-301 land; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | 19001 **OPEN** + CLOSE-WAIT diagnosed (`46134591`); Path A **22495**; last_proven **22492** | **B-300 VPS apply** tip-22495 unstick (claim base: `247b5198`) | faucet HTTP F7; 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | **B-300 VPS apply** tip **22495→22502** (this commit); 19001 **OPEN**; last_proven **22492** | *Idle* | faucet HTTP F7 (scan 22479); 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -503,7 +503,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 2 - RC audit go requires bound evidence CI GREEN** (this commit): `release-audit-packet` fails `ci` unless bound evidence is completed+success, so funded+red-CI cannot emit `decision=go` even with green Nightly + green CI mock. ci-check: funded packet still `go` with CI success; funded + `ci.conclusion=failure` is `no-go` + failing `ci`. Board SYNC: **B-301** is claim `42b0bf49` only — not on main (Seat B working-tree). Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — do not cancel tip CI `#31891608943`. *Observed (not staged):* B-301 Rust; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C `vps-roll-mfnd.sh`.
+1. **2026-08-15 - lane 7 - B-300 VPS apply tip 22495→22502** (this commit): VPS was `b1ab1b1` (pre-B-300) with **47 CLOSE-WAIT** + `inbound_cap_reached`. `vps-prebuild-mfnd --apply` then `vps-roll-mfnd --apply --skip-pull --skip-build` (`MFN_ROLL_ALLOW_RED_CI=1`; rust GREEN / scripts FAIL is Seat A). Hub sealed **22496–22502**; public `get_tip` **22502**; `:19101` CLOSE-WAIT **47→1**; cap_n=0. Roll RPC wait 300s→**900s** (tall-tip replay). 19001 **OPEN**. last_proven still **22492**. Faucet idle, scan 22479. Evidence `b300-vps-apply-tip-22502-20260815.md`. Tip CI `#31891608943` in_progress — `[skip ci]`. Next: faucet F7; 2nd host B-32. *Observed (not staged):* B-301 Rust; Seat A signoff; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 2 - RC audit go requires bound evidence CI GREEN** (`371379ff`): `release-audit-packet` fails `ci` unless bound evidence is completed+success, so funded+red-CI cannot emit `decision=go` even with green Nightly + green CI mock. ci-check: funded packet still `go` with CI success; funded + `ci.conclusion=failure` is `no-go` + failing `ci`. Board SYNC: **B-301** is claim `42b0bf49` only — not on main (Seat B working-tree). Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — do not cancel tip CI `#31891608943`. *Observed (not staged):* B-301 Rust; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C `vps-roll-mfnd.sh`.
 
 1. **2026-08-15 - lane 4 - B-301 P20 opaque extra fail-closed** (board raced this commit; **not on main**): claim is `42b0bf49`; body remains Seat B working-tree. Do not treat as landed.
 

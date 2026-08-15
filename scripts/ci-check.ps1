@@ -801,6 +801,31 @@ try {
         $valIdx++
     }
     $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
+    $ops = @($fundedGenesisObject.storage_operators)
+    $savedSecondPayout = $ops[1].payout_seed_hex
+    $ops[1].payout_seed_hex = $ops[0].payout_seed_hex
+    $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
+    $clonePayoutSignoff = Join-Path $signoffValidateDir "clone-payout-go.json"
+    $clonePayoutSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $clonePayoutSignoffObject.decision = "go"
+    $clonePayoutSignoffObject.issues = @()
+    $clonePayoutSignoffObject.release_evidence.path = $fundedEvidence
+    $clonePayoutSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $clonePayoutSignoff -Encoding utf8
+    $clonePayoutStdout = Join-Path $signoffValidateDir "clone-payout.out"
+    $clonePayoutStderr = Join-Path $signoffValidateDir "clone-payout.err"
+    $clonePayoutProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $clonePayoutSignoff
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $clonePayoutStdout -RedirectStandardError $clonePayoutStderr
+    if ($clonePayoutProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest with cloned bonded operator payout seeds")
+        exit 1
+    }
+    $ops[1].payout_seed_hex = $savedSecondPayout
+    $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
     $badCiEvidence = Join-Path $signoffValidateDir "funded-ci-fail.json"
     $badCiEvidenceObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
     $badCiEvidenceObject.economy.subsidy_to_treasury_bps = 1000
