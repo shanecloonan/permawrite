@@ -206,6 +206,14 @@ if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental -and $b
 } else {
     Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators toy_keys=$pathAToyKeys path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
 }
+$evidenceCi = $evidence.ci
+if ($null -ne $evidenceCi -and [string]$evidenceCi.status -eq "completed" -and [string]$evidenceCi.conclusion -eq "success") {
+    Add-Check -Name "ci" -Status "pass" -Message "status=completed conclusion=success"
+} else {
+    $ciStatus = if ($null -eq $evidenceCi) { "missing" } else { [string]$evidenceCi.status }
+    $ciConclusion = if ($null -eq $evidenceCi) { "" } else { [string]$evidenceCi.conclusion }
+    Add-Check -Name "ci" -Status "fail" -Message "status=$ciStatus conclusion=$ciConclusion (bound evidence CI must be completed+success for RC go)"
+}
 $nightly = $evidence.nightly
 if ($null -ne $nightly -and [string]$nightly.status -eq "completed" -and [string]$nightly.conclusion -eq "success") {
     Add-Check -Name "nightly" -Status "pass" -Message "status=completed conclusion=success"

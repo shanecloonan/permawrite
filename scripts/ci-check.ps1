@@ -1175,6 +1175,11 @@ Decision: go
         [Console]::Error.WriteLine("release-audit-packet.ps1 funded packet missing passing nightly check")
         exit 1
     }
+    $fundedCiCheck = $auditObject.checks | Where-Object { $_.name -eq "ci" } | Select-Object -First 1
+    if (-not $fundedCiCheck -or $fundedCiCheck.status -ne "pass") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 funded packet missing passing ci check")
+        exit 1
+    }
     $overlayLieEvidence = Join-Path $archiveDir "overlay-lie-economy-evidence.json"
     $overlayLieEvidenceObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
     $overlayLieEvidenceObject.economy.subsidy_to_treasury_bps = 1000
@@ -1267,6 +1272,54 @@ Decision: go
     }
     if ($nightlyFailProcess.ExitCode -eq 0) {
         [Console]::Error.WriteLine("release-audit-packet.ps1 exited 0 for a Nightly-fail no-go packet")
+        exit 1
+    }
+    $ciFailEvidence = Join-Path $archiveDir "funded-ci-fail-evidence.json"
+    $ciFailEvidenceObject = Get-Content -LiteralPath $fundedEvidence -Raw | ConvertFrom-Json
+    $ciFailEvidenceObject.ci.conclusion = "failure"
+    $ciFailEvidenceObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $ciFailEvidence -Encoding utf8
+    $ciFailPacket = Join-Path $archiveDir "ci-fail-audit.json"
+    $ciFailStdout = Join-Path $archiveDir "ci-fail-audit.out"
+    $ciFailStderr = Join-Path $archiveDir "ci-fail-audit.err"
+    $ciFailProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-audit-packet.ps1",
+        "-ReleaseEvidenceJson",
+        $ciFailEvidence,
+        "-SignoffManifest",
+        "docs/release-signoff-manifest-v1.sample.json",
+        "-ArchiveDir",
+        $archiveRoot,
+        "-Inventory",
+        $signoffInventory,
+        "-CiMockRuns",
+        $signoffCiSuccess,
+        "-ParticipantRehearsalLog",
+        $participantLog,
+        "-ParticipantSupportBundle",
+        $participantBundle,
+        "-AllowDryRun",
+        "-Json",
+        "-OutputPath",
+        $ciFailPacket
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $ciFailStdout -RedirectStandardError $ciFailStderr
+    if (-not (Test-Path -LiteralPath $ciFailPacket -PathType Leaf)) {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 did not write a CI-fail audit packet")
+        exit 1
+    }
+    $ciFailAudit = Get-Content -LiteralPath $ciFailPacket -Raw | ConvertFrom-Json
+    if ($ciFailAudit.decision -ne "no-go") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 accepted a go packet without green bound evidence CI")
+        exit 1
+    }
+    $ciFailCheck = $ciFailAudit.checks | Where-Object { $_.name -eq "ci" } | Select-Object -First 1
+    if (-not $ciFailCheck -or $ciFailCheck.status -ne "fail") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 CI-fail packet missing failing ci check")
+        exit 1
+    }
+    if ($ciFailProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 exited 0 for a CI-fail no-go packet")
         exit 1
     }
     $participantCheck = $auditObject.checks | Where-Object { $_.name -eq "participant rehearsal evidence" } | Select-Object -First 1

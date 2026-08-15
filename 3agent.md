@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat B **B-301** CLOSE. Nightly `#31861932921` **GREEN**. Seat C **B-300 VPS apply** stands. Seat A scripts FAIL remains their land — do not cancel this Rust CI.
+Synced at Seat A RC audit `go` requires bound evidence CI GREEN. Tip CI `#31891608943` in_progress on `a4af1500` — do **not** cancel. Nightly `#31861932921` **GREEN**. **B-301** is claim `42b0bf49` only (Seat B working-tree, not on main). Seat C **B-300 VPS apply** stands.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI; do not cancel B-301 |
-| **B** Protocol/Privacy | **B-301** (this commit); **B-268g** (`247b5198`) | *Idle* | **B-35** pad; no B-13c |
+| **A** RC/CI | RC audit `go` requires bound evidence CI GREEN (this commit); signoff `a4af1500` | *Idle* | Watch CI `#31891608943`; **B-26** after B-15 |
+| **B** Protocol/Privacy | **B-268g** (`247b5198`); claim **B-301** (`42b0bf49`) | Seat B working-tree (not this commit) | **B-35** after B-301 land; no B-13c |
 | **C** Testnet/Onboarding | 19001 **OPEN** (`46134591`); last_proven **22492** | **B-300 VPS apply** (claim base `247b5198`) | faucet HTTP F7; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Landing B-301 full CI; do not cancel. Nightly `#31861932921` GREEN.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#31891608943` in_progress; do not cancel. Nightly `#31861932921` GREEN.
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
@@ -56,8 +56,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done go refuses Path A toy keys (`c8037401`) / Doing idle / Next fix signoff-validate; do not cancel B-301
-3agent — Seat B: Done B-301 P20 opaque extra fail-closed / Doing idle / Next B-35 pad
+3agent — Seat A: Done RC audit go requires bound evidence CI GREEN / Doing idle / Next watch CI `#31891608943`
+3agent — Seat B: Done B-268g; claim B-301 (`42b0bf49`, body not on main) / Doing working-tree / Next B-35 after B-301 land
 3agent — Seat C: Done 19001 OPEN + CLOSE-WAIT diagnosed / Doing B-300 VPS apply / Next faucet HTTP F7; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

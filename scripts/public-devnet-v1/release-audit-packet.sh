@@ -275,6 +275,16 @@ else:
         f"path_a_experimental={str(path_a_experimental).lower()} "
         "(Path A holes; not a funded-permanence RC)",
     )
+evidence_ci = evidence.get("ci") or {}
+if evidence_ci.get("status") == "completed" and evidence_ci.get("conclusion") == "success":
+    add_check("ci", "pass", "status=completed conclusion=success")
+else:
+    add_check(
+        "ci",
+        "fail",
+        f"status={evidence_ci.get('status') or 'missing'} conclusion={evidence_ci.get('conclusion') or ''} "
+        "(bound evidence CI must be completed+success for RC go)",
+    )
 nightly = evidence.get("nightly") or {}
 if nightly.get("status") == "completed" and nightly.get("conclusion") == "success":
     add_check("nightly", "pass", "status=completed conclusion=success")
