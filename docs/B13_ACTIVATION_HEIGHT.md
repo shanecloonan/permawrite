@@ -88,7 +88,8 @@ Never change `DEFAULT_EMISSION_PARAMS`.
 
 - Keep Path A `genesis_id` (same-chain).
 - Validate **base** emission via constitution; also validate post-activation
-  overlay with `validate_emission_params`.
+  overlay with `validate_emission_params`. **B-268e:** checkpoint decode
+  refuses `activation_value > 10000` (chain v12 + light v2).
 - One lever only: schedule may change `subsidy_to_treasury_bps`; keep
   `fee_to_treasury_bps = 9000` (**B-20** later).
 

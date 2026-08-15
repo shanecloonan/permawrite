@@ -117,6 +117,24 @@ fn v12_schedule_round_trip() {
 }
 
 #[test]
+fn b268e_v12_rejects_overlay_bps_above_10000() {
+    let mut s = fresh_state();
+    s.subsidy_bps_activation_height = 1;
+    s.subsidy_bps_activation_value = 10_001;
+    let bytes = encode_chain_checkpoint(&ChainCheckpoint {
+        genesis_id: [4u8; 32],
+        state: s,
+    });
+    match decode_chain_checkpoint(&bytes) {
+        Err(ChainCheckpointError::BadSubsidySchedule(crate::EmissionError::BadSubsidyBps {
+            got: 10_001,
+        })) => {}
+        other => panic!("expected BadSubsidySchedule, got {other:?}"),
+    }
+    assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+}
+
+#[test]
 fn v11_decode_defaults_schedule_inactive() {
     let mut w = Writer::new();
     w.push(&CHAIN_CHECKPOINT_MAGIC);

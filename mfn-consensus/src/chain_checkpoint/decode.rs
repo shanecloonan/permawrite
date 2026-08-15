@@ -354,6 +354,11 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     } else {
         (0, 0)
     };
+    crate::emission::SubsidyBpsSchedule {
+        activation_height: subsidy_bps_activation_height,
+        activation_value: subsidy_bps_activation_value,
+    }
+    .validate()?;
 
     let treasury = read_u128(&mut r, "treasury")?;
 

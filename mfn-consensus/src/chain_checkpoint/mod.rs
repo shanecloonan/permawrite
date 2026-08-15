@@ -216,6 +216,10 @@ pub enum ChainCheckpointError {
     #[error("chain-checkpoint authorship claim wire: {0}")]
     AuthorshipClaimWire(String),
 
+    /// Subsidy overlay `activation_value` is outside `[0, 10000]`.
+    #[error("chain-checkpoint subsidy overlay unconstitutional: {0}")]
+    BadSubsidySchedule(#[from] crate::emission::EmissionError),
+
     /// A `StorageEntry.commit` failed to decode.
     #[error("chain-checkpoint storage[{index}]: invalid storage commitment: {source}")]
     InvalidStorageCommitment {

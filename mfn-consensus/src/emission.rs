@@ -345,6 +345,21 @@ impl SubsidyBpsSchedule {
     pub fn effective(self, base: &EmissionParams, height: u32) -> EmissionParams {
         effective_emission_params(base, height, self.activation_height, self.activation_value)
     }
+
+    /// Refuse an overlay that would take more than 100% of subsidy.
+    ///
+    /// `activation_height == 0` is inactive, but a stored
+    /// `activation_value > 10000` is still rejected so a later height
+    /// flip cannot arm an illegal split. Does not mutate
+    /// [`DEFAULT_EMISSION_PARAMS`].
+    pub fn validate(self) -> Result<(), EmissionError> {
+        if self.activation_value > 10_000 {
+            return Err(EmissionError::BadSubsidyBps {
+                got: self.activation_value,
+            });
+        }
+        Ok(())
+    }
 }
 
 /// Height-aware emission params: copy `base`, then overlay
@@ -449,6 +464,36 @@ mod tests {
 
     #[test]
     fn default_subsidy_bps_stays_zero() {
+        assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+    }
+
+    #[test]
+    fn b268e_schedule_rejects_bps_above_10000() {
+        let bad = SubsidyBpsSchedule {
+            activation_height: 1,
+            activation_value: 10_001,
+        };
+        assert_eq!(
+            bad.validate(),
+            Err(EmissionError::BadSubsidyBps { got: 10_001 })
+        );
+        let inactive_bomb = SubsidyBpsSchedule {
+            activation_height: 0,
+            activation_value: 10_001,
+        };
+        assert_eq!(
+            inactive_bomb.validate(),
+            Err(EmissionError::BadSubsidyBps { got: 10_001 })
+        );
+        assert_eq!(
+            SubsidyBpsSchedule {
+                activation_height: 1,
+                activation_value: 1000,
+            }
+            .validate(),
+            Ok(())
+        );
+        assert_eq!(SubsidyBpsSchedule::default().validate(), Ok(()));
         assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
     }
 

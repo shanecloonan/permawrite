@@ -159,6 +159,10 @@ pub enum LightCheckpointError {
     #[error(transparent)]
     Read(#[from] CheckpointReadError),
 
+    /// Subsidy overlay `activation_value` is outside `[0, 10000]`.
+    #[error("light-checkpoint subsidy overlay unconstitutional: {0}")]
+    BadSubsidySchedule(#[from] mfn_consensus::EmissionError),
+
     /// `pending_unbonds[i].validator_index` doesn't match the
     /// embedded `validator_index` field (would be impossible from
     /// honest encoding; defensive check on decode).
@@ -420,6 +424,7 @@ pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightChe
     } else {
         SubsidyBpsSchedule::default()
     };
+    subsidy_schedule.validate()?;
 
     // After the last declared field there must be exactly zero
     // bytes left in the payload reader. (The trailing tag was
@@ -693,6 +698,22 @@ mod tests {
         v1.extend_from_slice(&tag);
         let decoded = decode_checkpoint_bytes(&v1).expect("v1 decode");
         assert_eq!(decoded.subsidy_schedule, SubsidyBpsSchedule::default());
+    }
+
+    #[test]
+    fn b268e_v2_rejects_overlay_bps_above_10000() {
+        let mut parts = sample_parts(1, 0);
+        parts.subsidy_schedule = SubsidyBpsSchedule {
+            activation_height: 1,
+            activation_value: 10_001,
+        };
+        let bytes = encode_checkpoint_bytes(&parts);
+        match decode_checkpoint_bytes(&bytes) {
+            Err(LightCheckpointError::BadSubsidySchedule(
+                mfn_consensus::EmissionError::BadSubsidyBps { got: 10_001 },
+            )) => {}
+            other => panic!("expected BadSubsidySchedule, got {other:?}"),
+        }
     }
 
     /// Bumped version → typed UnsupportedVersion.
