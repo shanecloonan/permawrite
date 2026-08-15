@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** `#31891608943` **FAIL** scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 claiming Path A tip-22504 land (repo 22495, VPS timer 22504, live ~22507, lag≥8). **B-301** Seat B working-tree. No CI in_progress. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Tip CI `#31893770179` **in_progress** on `93c93dc6` — do not cancel. `#31891608943` FAIL scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 Path A **22504** land (lag 12→4). **B-301** Seat B working-tree. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-268g** (`247b5198`; rust GREEN `#31881362071`); claim **B-301** (`42b0bf49`) | Seat B working-tree (not this commit) | **B-35** after B-301 land; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | **B-300 VPS apply** tip **22495→22502** (`6157f3a0`); 19001 **OPEN**; last_proven **22492** | **Path A tip-22504 land** (claim base: `6157f3a0`) | faucet HTTP F7; 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | Path A **22504** (this commit; lag **OK=4**); **B-300** tip **22495→22502**; last_proven **22492** | *Idle* | faucet HTTP F7 (scan 22479); 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -503,7 +503,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - claim Path A tip-22504 land** (this commit): repo ckpt **22495** vs VPS timer **22504** vs live tip **~22507** (lag≥8). Observer OOM-restart 15:36Z (replay; proxy 502) — wait, do not thrash. Land existing `land-path-a-checkpoint-from-vps`. Skeptic: outside-in lag **OK**. Claim base `6157f3a0`. `#31891608943` FAIL scripts (Seat A) — `[skip ci]`. *Observed (not staged):* B-301 Rust; Seat A `ci.yml`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 7 - Path A tip-22495→22504 lag close** (this commit): VPS timer already at **22504** (91 entries). `land-path-a-checkpoint-from-vps -Apply`; outside-in **OK lag=4** tip=22508. Observer OOM 15:36Z recovered (no agent restart). last_proven still **22492**. Evidence `outside-in-tip-ckpt-lag-20260815T155404Z.txt` + `b-path-a-tip-22504-20260815.md`. Tip CI `#31893770179` in_progress — `[skip ci]`. Next: faucet F7; 2nd host B-32. *Observed (not staged):* B-301 Rust; Seat A signoff/`ci.yml`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 7 - claim Path A tip-22504 land** (`93c93dc6` board): repo ckpt **22495** vs VPS timer **22504** vs live tip **~22507** (lag≥8). Observer OOM-restart 15:36Z (replay; proxy 502) — wait, do not thrash. Land existing `land-path-a-checkpoint-from-vps`. Skeptic: outside-in lag **OK**. Claim base `6157f3a0`. `#31891608943` FAIL scripts (Seat A) — `[skip ci]`. *Observed (not staged):* B-301 Rust; Seat A `ci.yml`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 7 - B-300 VPS apply evidence + tall-tip roll wait** (`6157f3a0`): live tip **22495→22502** already sealed; this land is `b300-vps-apply-tip-22502-20260815.md` + `vps-roll-mfnd` RPC wait 300s→**900s**. Board CLOSE text raced `7a7ca482`. `[skip ci]` — do not cancel `#31891608943` / Seat A needle CI. Next: faucet F7; 2nd host B-32. *Observed (not staged):* B-301 Rust; Seat A `ci.yml`/signoff; `tx_storm.rs`; rc-audit json.
 

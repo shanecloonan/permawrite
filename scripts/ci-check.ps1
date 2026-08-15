@@ -826,6 +826,32 @@ try {
     }
     $ops[1].payout_seed_hex = $savedSecondPayout
     $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
+    $vals = @($fundedGenesisObject.validators)
+    $savedVrfs = @($vals | ForEach-Object { $_.vrf_seed_hex })
+    $cloneVrf = $vals[0].vrf_seed_hex
+    foreach ($val in $vals) { $val.vrf_seed_hex = $cloneVrf }
+    $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
+    $cloneVrfSignoff = Join-Path $signoffValidateDir "clone-vrf-go.json"
+    $cloneVrfSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $cloneVrfSignoffObject.decision = "go"
+    $cloneVrfSignoffObject.issues = @()
+    $cloneVrfSignoffObject.release_evidence.path = $fundedEvidence
+    $cloneVrfSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $cloneVrfSignoff -Encoding utf8
+    $cloneVrfStdout = Join-Path $signoffValidateDir "clone-vrf.out"
+    $cloneVrfStderr = Join-Path $signoffValidateDir "clone-vrf.err"
+    $cloneVrfProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $cloneVrfSignoff
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $cloneVrfStdout -RedirectStandardError $cloneVrfStderr
+    if ($cloneVrfProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest with cloned validator VRF seeds")
+        exit 1
+    }
+    for ($i = 0; $i -lt $vals.Count; $i++) { $vals[$i].vrf_seed_hex = $savedVrfs[$i] }
+    $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
     $badCiEvidence = Join-Path $signoffValidateDir "funded-ci-fail.json"
     $badCiEvidenceObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
     $badCiEvidenceObject.economy.subsidy_to_treasury_bps = 1000

@@ -73,6 +73,16 @@ def is_toy_seed(value):
     return len(set(raw)) <= 1
 
 
+def distinct_validator_vrfs(genesis):
+    vrfs = set()
+    for val in genesis.get("validators") or []:
+        seed = "".join(str((val or {}).get("vrf_seed_hex") or "").split()).lower()
+        if seed.startswith("0x"):
+            seed = seed[2:]
+        vrfs.add(seed)
+    return len(vrfs)
+
+
 def genesis_has_toy_keys(genesis):
     seeds = []
     for op in genesis.get("storage_operators") or []:
@@ -119,6 +129,7 @@ def genesis_economy(evidence_doc):
         "path_a_experimental": subsidy_bps == 0 or bond_atoms == 0,
         "bonded_operators": bonded,
         "distinct_bonded_payouts": len(payouts),
+        "distinct_validator_vrfs": distinct_validator_vrfs(genesis),
         "path_a_toy_keys": genesis_has_toy_keys(genesis),
     }
 
@@ -230,6 +241,8 @@ if doc.get("decision") == "go":
             issue("go decision requires >=2 genesis storage_operators bonded at min_storage_operator_bond")
         elif genesis["distinct_bonded_payouts"] < 2:
             issue("go decision requires >=2 distinct bonded operator payout seeds")
+        elif genesis["distinct_validator_vrfs"] < 2:
+            issue("go decision requires >=2 distinct validator VRF seeds")
         elif genesis["path_a_toy_keys"]:
             issue("go decision requires genesis operator/validator seeds that are not repeating-byte toy keys")
         evidence_ci = evidence.get("ci") or {}

@@ -58,6 +58,7 @@ function Read-GenesisEconomy {
         path_a_experimental = ($subsidy -eq 0) -or ($bond -eq 0)
         bonded_operators = $bonded
         distinct_bonded_payouts = $payouts.Count
+        distinct_validator_vrfs = (Count-DistinctValidatorVrfs $genesis)
         path_a_toy_keys = Test-PathAToyKeys $genesis
     }
 }
@@ -75,6 +76,17 @@ function Test-RepeatingByteHex {
         return $true
     }
     return $unique.Count -le 1
+}
+
+function Count-DistinctValidatorVrfs {
+    param($Genesis)
+    $vrfs = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($val in @($Genesis.validators)) {
+        if ($null -eq $val) { continue }
+        $seed = ([string]$val.vrf_seed_hex).Trim().ToLowerInvariant() -replace '^0x', '' -replace '\s', ''
+        [void]$vrfs.Add($seed)
+    }
+    return $vrfs.Count
 }
 
 function Test-PathAToyKeys {
@@ -227,6 +239,8 @@ if ($doc.decision -eq "go") {
             Add-Issue "go decision requires >=2 genesis storage_operators bonded at min_storage_operator_bond"
         } elseif ($genesisEconomy.distinct_bonded_payouts -lt 2) {
             Add-Issue "go decision requires >=2 distinct bonded operator payout seeds"
+        } elseif ($genesisEconomy.distinct_validator_vrfs -lt 2) {
+            Add-Issue "go decision requires >=2 distinct validator VRF seeds"
         } elseif ($genesisEconomy.path_a_toy_keys) {
             Add-Issue "go decision requires genesis operator/validator seeds that are not repeating-byte toy keys"
         }

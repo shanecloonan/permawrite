@@ -183,6 +183,7 @@ $bondAtoms = 0
 $pathAExperimental = $true
 $bondedOperators = 0
 $distinctBondedPayouts = 0
+$distinctValidatorVrfs = 0
 $pathAToyKeys = $true
 if ($genesisPath) {
     $genesis = Get-Content -LiteralPath $genesisPath -Raw | ConvertFrom-Json
@@ -206,12 +207,19 @@ if ($genesisPath) {
         }
     }
     $distinctBondedPayouts = $payouts.Count
+    $vrfs = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($val in @($genesis.validators)) {
+        if ($null -eq $val) { continue }
+        $seed = ([string]$val.vrf_seed_hex).Trim().ToLowerInvariant() -replace '^0x', '' -replace '\s', ''
+        [void]$vrfs.Add($seed)
+    }
+    $distinctValidatorVrfs = $vrfs.Count
     $pathAToyKeys = Test-PathAToyKeys $genesis
 }
-if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental -and $bondedOperators -ge 2 -and $distinctBondedPayouts -ge 2 -and -not $pathAToyKeys) {
-    Add-Check -Name "path_a_economy" -Status "pass" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators distinct_payouts=$distinctBondedPayouts toy_keys=false path_a_experimental=false"
+if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental -and $bondedOperators -ge 2 -and $distinctBondedPayouts -ge 2 -and $distinctValidatorVrfs -ge 2 -and -not $pathAToyKeys) {
+    Add-Check -Name "path_a_economy" -Status "pass" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators distinct_payouts=$distinctBondedPayouts distinct_vrfs=$distinctValidatorVrfs toy_keys=false path_a_experimental=false"
 } else {
-    Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators distinct_payouts=$distinctBondedPayouts toy_keys=$pathAToyKeys path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
+    Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators distinct_payouts=$distinctBondedPayouts distinct_vrfs=$distinctValidatorVrfs toy_keys=$pathAToyKeys path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
 }
 $evidenceCi = $evidence.ci
 if ($null -ne $evidenceCi -and [string]$evidenceCi.status -eq "completed" -and [string]$evidenceCi.conclusion -eq "success") {
