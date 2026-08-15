@@ -801,11 +801,19 @@ try {
         $valIdx++
     }
     $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
+    $badCiEvidence = Join-Path $signoffValidateDir "funded-ci-fail.json"
+    $badCiEvidenceObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $badCiEvidenceObject.economy.subsidy_to_treasury_bps = 1000
+    $badCiEvidenceObject.economy.min_storage_operator_bond = 1
+    $badCiEvidenceObject.economy.path_a_experimental = $false
+    $badCiEvidenceObject.economy.genesis_path = $fundedGenesis
+    $badCiEvidenceObject.ci.conclusion = "failure"
+    $badCiEvidenceObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $badCiEvidence -Encoding utf8
     $badSignoff = Join-Path $signoffValidateDir "bad-signoff.json"
     $badSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
     $badSignoffObject.decision = "go"
     $badSignoffObject.issues = @()
-    $badSignoffObject.release_evidence.path = $fundedEvidence
+    $badSignoffObject.release_evidence.path = $badCiEvidence
     $badSignoffObject.gates.ci.conclusion = "failure"
     $badSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $badSignoff -Encoding utf8
     $badSignoffStdout = Join-Path $signoffValidateDir "bad-signoff.out"

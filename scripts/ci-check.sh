@@ -621,7 +621,7 @@ if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest
   echo "release-signoff-manifest-validate.sh accepted a go manifest with Path A repeating-byte toy keys" >&2
   exit 1
 fi
-python3 - "$signoff_validate_dir/funded-genesis.json" "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/bad-signoff.json" <<'PY'
+python3 - "$signoff_validate_dir/funded-genesis.json" "$signoff_validate_dir/funded-ci-fail.json" "$signoff_validate_dir/bad-signoff.json" <<'PY'
 import json
 import sys
 
@@ -635,6 +635,16 @@ for i, val in enumerate(genesis.get("validators") or []):
     val["bls_seed_hex"] = f"{0xc0 + i:02x}" + suffix
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
     json.dump(genesis, handle, indent=2)
+    handle.write("\n")
+with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as handle:
+    evidence = json.load(handle)
+evidence["economy"]["subsidy_to_treasury_bps"] = 1000
+evidence["economy"]["min_storage_operator_bond"] = 1
+evidence["economy"]["path_a_experimental"] = False
+evidence["economy"]["genesis_path"] = sys.argv[1]
+evidence["ci"]["conclusion"] = "failure"
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
+    json.dump(evidence, handle, indent=2)
     handle.write("\n")
 with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
     doc = json.load(handle)

@@ -224,6 +224,9 @@ if doc.get("decision") == "go":
             issue("go decision requires >=2 genesis storage_operators bonded at min_storage_operator_bond")
         elif genesis["path_a_toy_keys"]:
             issue("go decision requires genesis operator/validator seeds that are not repeating-byte toy keys")
+        evidence_ci = evidence.get("ci") or {}
+        if evidence_ci.get("status") != "completed" or evidence_ci.get("conclusion") != "success":
+            issue("go decision requires completed successful CI on bound evidence")
         nightly = evidence.get("nightly") or {}
         if nightly.get("status") != "completed" or nightly.get("conclusion") != "success":
             issue("go decision requires completed successful Nightly on bound evidence")

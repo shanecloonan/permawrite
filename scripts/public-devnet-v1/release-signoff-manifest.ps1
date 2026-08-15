@@ -203,6 +203,10 @@ if ($Decision -eq "go") {
     } elseif ($genesisEconomy.path_a_toy_keys) {
         Add-Issue "go decision requires genesis operator/validator seeds that are not repeating-byte toy keys"
     }
+    $evidenceCi = $evidence.ci
+    if ($null -eq $evidenceCi -or [string]$evidenceCi.status -ne "completed" -or [string]$evidenceCi.conclusion -ne "success") {
+        Add-Issue "go decision requires completed successful CI on bound evidence"
+    }
     $nightly = $evidence.nightly
     if ($null -eq $nightly -or [string]$nightly.status -ne "completed" -or [string]$nightly.conclusion -ne "success") {
         Add-Issue "go decision requires completed successful Nightly on bound evidence"
