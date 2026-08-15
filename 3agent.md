@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat A toy-key `go` refuse. B-268b CI `#31867337251` in_progress — do not cancel. Nightly `#31861932921` **GREEN**; seat B **B-268c** claim `6966b597`; seat C **B-42** `bda9a419`.
+Synced at Seat C Path A tip-22486 + hub OOM recover. B-268b CI `#31867337251` **FAIL** scripts (Seat A; rust GREEN) — do not steal. Nightly `#31861932921` **GREEN**; seat B **B-268c** claim `6966b597`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | `go` refuses Path A toy keys (this commit); bonded ops (`71a7ad7a`) | *Idle* | Watch B-268b CI `#31867337251`; do not steal B-268c |
+| **A** RC/CI | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL); do not steal B-268c |
 | **B** Protocol/Privacy | **B-268b** (`ee3739e7`); **B-294** (`0ecd19ce`) | **B-268c** contested-height fraud overlay (claim base `71a7ad7a`) | After land: **B-35** pad; no B-13c; after 2 hosts: live **B-32** |
-| **C** Testnet/Onboarding | **B-42** serialize-with-reason (`bda9a419`) | *Idle* | Retry JOIN when observer quiet; 2nd host B-32 |
+| **C** Testnet/Onboarding | Path A tip-**22486** + hub OOM recover (this commit); **B-42** `bda9a419` | *Idle* | JOIN retry when hub quiet; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
@@ -56,8 +56,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done go refuses Path A toy keys / Doing idle / Next watch B-268b CI #31867337251
-3agent — Seat B: Done B-268b (`ee3739e7`) / Doing B-268c claim / Next body after tip CI GREEN
-3agent — Seat C: Done B-42 serialize (`bda9a419`) / Doing idle / Next JOIN retry; 2nd host B-32
+3agent — Seat A: Done go refuses Path A toy keys (`c8037401`) / Doing idle / Next fix signoff-validate (#31867337251 FAIL)
+3agent — Seat B: Done B-268b (`ee3739e7`) / Doing B-268c claim / Next body after scripts fix + CI GREEN
+3agent — Seat C: Done Path A 22486 + hub OOM recover / Doing idle / Next JOIN retry; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Lane2 `go` refuses Path A toy keys (this commit, `[skip ci]`). Do **not** cancel B-268b CI `#31867337251`. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** `ee3739e7`; lane4 **B-268c** claim `6966b597`; lane7 **B-42** `bda9a419`. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Lane7 Path A tip-**22486** + hub OOM recover (this commit, `[skip ci]`). B-268b CI `#31867337251` **FAIL** = public-devnet scripts / signoff-validate (Seat A; rust tests GREEN) — do not steal. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** `ee3739e7`; lane4 **B-268c** claim `6966b597`. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
-| **2** RC ops | `go` refuses Path A toy keys (this commit); bonded ops (`71a7ad7a`) | *Idle* | Watch B-268b CI `#31867337251`; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
-| **3** Onboarding | **B-15 wave115** last_proven=**22467** (`46d9f86c`); **B-15 wave114** (hugo 6848) | *Idle* | Human SUMMARY; **B-42** | L4 checklist |
+| **2** RC ops | `go` refuses Path A toy keys (`c8037401`); bonded ops (`71a7ad7a`) | *Idle* | Fix signoff-validate go+red-CI (`#31867337251` FAIL scripts); **B-26** after B-15 | Board + encoding guards |
+| **3** Onboarding | **B-15 wave115** last_proven=**22467** (`46d9f86c`); **B-15 wave114** (hugo 6848) | *Idle* | Human SUMMARY; JOIN retry after hub quiet | L4 checklist |
 | **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | **B-268c** fraud/slash/gossip use effective params at *contested* height (claim base: `71a7ad7a`) | After land: **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | **B-42** serialize-with-reason (`bda9a419`); Path A tip-**22475**; **B-299** (`30ff27b0`) | *Idle* | Retry JOIN when observer quiet; 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | Path A tip-**22486** + hub OOM recover (this commit); **B-42** serialize (`bda9a419`); **B-299** (`30ff27b0`) | *Idle* | JOIN retry when hub produce quiet (iris upload still mempool); 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -246,7 +246,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | **Runbook** + **D0 preflight helper** landed; arm day-of L4
 | B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd :1910x + socat :1900x; EXT 19001–19003 OPEN; tip~4031 |
-| B-42 | Invite-load smoke before TL-9 | 3+7 | Preflight PASS; **live JOIN serialized** (this commit): snapshot 300s timeout + hub EAGAIN. Retry when observer quiet — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
+| B-42 | Invite-load smoke before TL-9 | 3+7 | Preflight PASS; serialize `bda9a419`; hub OOM+stall recover + Path A **22486** (this commit). Live JOIN still open (last_proven=22467; iris upload mempool-only) — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | **Draft** — `docs/PATH_B_GENESIS_FREEZE.md`; human cells TBD; no ceremony |
 | B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
 | B-45 | B3 operator-salted challenge/prove/pool path | 4 | **Landed** — unblocks honest multi-op SPoRA on salted genesis; Hetzner mfnd roll = lane 7 |
@@ -501,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 2 - go refuses Path A toy keys** (this commit): signoff + RC audit refuse `go` if any operator `payout_seed_hex` or validator `vrf`/`bls` seed is repeating-byte (Path A `c3c3…` / `0101…` pattern). Funded+bonded lab genesis is still Path A. ci-check: toy-keys reject; detoy'd temp genesis still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — do not cancel B-268b CI `#31867337251`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat B B-268c claim.
+1. **2026-08-15 - lane 7 - hub OOM stall recover + Path A tip-22486** (this commit): hub OOM 05:36Z; tip stuck **22484**; proposal 22485 starved. No mfnd/faucet restart. Stop+start `mfn-p2p-forward-hub` only; tip **22486**. Path A publish via observer RPC; land jsonl; outside-in **OK lag=0**. B-42 JOIN upload `24e62a5a` still mempool-only; last_proven **22467**. Evidence `b42-hub-oom-path-a-22486-20260815.md` + `outside-in-tip-ckpt-lag-20260815T061243Z.txt`. B-268b CI `#31867337251` **FAIL** scripts (Seat A; rust GREEN). `[skip ci]`. Next: JOIN retry when hub produce quiet; 2nd host B-32. *Observed (not staged):* Seat B B-268c Rust; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 2 - go refuses Path A toy keys** (`c8037401`): signoff + RC audit refuse `go` if any operator `payout_seed_hex` or validator `vrf`/`bls` seed is repeating-byte (Path A `c3c3…` / `0101…` pattern). Funded+bonded lab genesis is still Path A. ci-check: toy-keys reject; detoy'd temp genesis still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — do not cancel B-268b CI `#31867337251`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat B B-268c claim.
 
 1. **2026-08-15 - lane 4 - claim B-268c** (`6966b597`): fraud/slash/gossip must use `effective_emission_params` at the *contested* block height (B-268b apply/producer use applying height; gossip still `DEFAULT`; slash reuses applying-era overlay). Claim base `71a7ad7a`. Body after B-268b CI `#31867337251` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
