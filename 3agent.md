@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat C **B-300 VPS apply** CLOSE: public tip **22495→22502**. Tip CI `#31891608943` in_progress — do **not** cancel. Nightly `#31861932921` **GREEN**. **B-301** is claim `42b0bf49` only (Seat B working-tree).
+Synced at Seat A GHA signoff red-CI needle fix. `#31891608943` **FAIL** scripts (sample `no-go` + gates.ci needle). Nightly `#31861932921` **GREEN**. **B-301** is claim `42b0bf49` only (Seat B working-tree). Seat C **B-300** evidence not on main.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | RC audit `go` requires bound evidence CI GREEN (this commit); signoff `a4af1500` | *Idle* | Watch CI `#31891608943`; **B-26** after B-15 |
+| **A** RC/CI | GHA signoff red-CI needle requires `decision=go` (this commit); clone-payout `7a7ca482` | *Idle* | Watch this-commit CI; **B-26** after B-15 |
 | **B** Protocol/Privacy | **B-268g** (`247b5198`); claim **B-301** (`42b0bf49`) | Seat B working-tree (not this commit) | **B-35** after B-301 land; no B-13c |
-| **C** Testnet/Onboarding | **B-300** tip **22495→22502**; 19001 **OPEN**; last_proven **22492** | *Idle* | faucet HTTP F7; 2nd host B-32 |
+| **C** Testnet/Onboarding | **B-300** tip **22495→22502** (working-tree evidence); 19001 **OPEN**; last_proven **22492** | *Idle* | faucet HTTP F7; 2nd host B-32 |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#31891608943` in_progress; do not cancel. Nightly `#31861932921` GREEN.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. `#31891608943` completed FAIL scripts; this land takes full CI. Nightly `#31861932921` GREEN.
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
@@ -56,7 +56,7 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done RC audit go requires bound evidence CI GREEN / Doing idle / Next watch CI `#31891608943`
+3agent — Seat A: Done GHA signoff red-CI needle requires decision=go / Doing idle / Next watch this-commit CI
 3agent — Seat B: Done B-268g; claim B-301 (`42b0bf49`, body not on main) / Doing working-tree / Next B-35 after B-301 land
 3agent — Seat C: Done B-300 VPS apply tip 22495→22502 / Doing idle / Next faucet HTTP F7; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)

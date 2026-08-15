@@ -149,8 +149,8 @@ sleep 6
 echo "vps-roll-mfnd: restart hub only (quoted MFN_P2P_DIAL_EXTRA expected)"
 systemctl restart mfnd-hub.service
 
-echo "vps-roll-mfnd: waiting for hub RPC listen (cold load of chain.blocks can take minutes)..."
-rpc_deadline=$((SECONDS + 300))
+echo "vps-roll-mfnd: waiting for hub RPC listen (tall-tip chain.blocks replay can take 10-15 min)..."
+rpc_deadline=$((SECONDS + 900))
 rpc_up=0
 while (( SECONDS < rpc_deadline )); do
   if ss -lntp 2>/dev/null | grep -q "127.0.0.1:18731"; then
@@ -167,13 +167,13 @@ while (( SECONDS < rpc_deadline )); do
   sleep 5
 done
 if (( rpc_up == 0 )); then
-  echo "vps-roll-mfnd: hub RPC not up within 300s after restart — refuse thrash; check journal" >&2
+  echo "vps-roll-mfnd: hub RPC not up within 900s after restart — refuse thrash; check journal" >&2
   journalctl -u mfnd-hub -n 40 --no-pager || true
   exit 5
 fi
 
 echo "vps-roll-mfnd: waiting for hub tip advance..."
-deadline=$((SECONDS + 240))
+deadline=$((SECONDS + 720))
 advanced=0
 while (( SECONDS < deadline )); do
   if [[ -n "${BEFORE:-}" && "$BEFORE" =~ ^[0-9]+$ ]]; then
@@ -198,7 +198,7 @@ systemctl is-active mfnd-hub mfnd-v1 mfnd-v2 >/dev/null
 systemctl is-active faucet-http >/dev/null
 
 if (( advanced == 0 )); then
-  echo "vps-roll-mfnd: WARN tip did not advance within 180s — check hub dials / quarantine (B-46)" >&2
+  echo "vps-roll-mfnd: WARN tip did not advance within 720s — check hub dials / quarantine (B-46)" >&2
   journalctl -u mfnd-hub -n 40 --no-pager || true
   exit 2
 fi
