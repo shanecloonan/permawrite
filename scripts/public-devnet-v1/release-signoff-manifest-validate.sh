@@ -206,6 +206,8 @@ if doc.get("decision") == "go":
     ci = gates.get("ci")
     if not isinstance(ci, dict) or ci.get("status") != "completed" or ci.get("conclusion") != "success":
         issue("go decision requires completed successful CI")
+    if not isinstance(ci, dict) or not ci.get("commit") or ci.get("commit") != doc.get("commit"):
+        issue("go decision requires gates.ci.commit to match manifest commit")
     if not isinstance(gates.get("archive_validation"), dict) or gates["archive_validation"].get("status") != "pass":
         issue("go decision requires passing archive validation")
     if not isinstance(gates.get("artifact_inventory"), dict) or gates["artifact_inventory"].get("status") != "pass":

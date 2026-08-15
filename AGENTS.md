@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Tip CI `#31893770179` **in_progress** on `93c93dc6` — do not cancel. `#31891608943` FAIL scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 Path A **22504** land (lag 12→4). **B-301** Seat B working-tree. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Tip CI `#31893770179` **in_progress** on `93c93dc6` — do not cancel. `#31891608943` FAIL scripts (Seat A). Nightly `#31861932921` **GREEN**. Lane7 claiming **faucet HTTP F7** (scan 22479 / tip 22508). **B-301** Seat B working-tree. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Watch tip CI `#31891608943`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
-| **2** RC ops | RC audit `go` requires bound evidence CI GREEN (this commit); signoff `a4af1500` | *Idle* | Watch CI `#31891608943`; **B-26** after B-15 | Board + encoding guards |
+| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Watch tip CI `#31893770179`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
+| **2** RC ops | `go` requires `gates.ci.commit` == manifest commit (this commit); VRF `edd1bc65`; GHA needle `93c93dc6` | *Idle* | Watch CI `#31893770179`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 2nd JOIN last_proven=**22492** (`985e594e`); iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **B-268g** (`247b5198`; rust GREEN `#31881362071`); claim **B-301** (`42b0bf49`) | Seat B working-tree (not this commit) | **B-35** after B-301 land; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
-| **7** Testnet launch | Path A **22504** (this commit; lag **OK=4**); **B-300** tip **22495→22502**; last_proven **22492** | *Idle* | faucet HTTP F7 (scan 22479); 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | Path A **22504** (`e0cc06f1`; lag **OK=4**); **B-300** tip **22502**; last_proven **22492** | **faucet HTTP F7** (claim base: `e0cc06f1`) | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
 
@@ -503,7 +503,11 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 7 - Path A tip-22495→22504 lag close** (this commit): VPS timer already at **22504** (91 entries). `land-path-a-checkpoint-from-vps -Apply`; outside-in **OK lag=4** tip=22508. Observer OOM 15:36Z recovered (no agent restart). last_proven still **22492**. Evidence `outside-in-tip-ckpt-lag-20260815T155404Z.txt` + `b-path-a-tip-22504-20260815.md`. Board text raced `edd1bc65`. Tip CI `#31893770179` in_progress — `[skip ci]`. Next: faucet F7; 2nd host B-32. *Observed (not staged):* B-301 Rust; Seat A signoff; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 2 - go requires gates.ci.commit == manifest commit** (this commit): validate+emit refuse `go` if `gates.ci.commit` is a different SHA than the release commit, so a green CI pin from another head cannot unlock `go`. ci-check: funded go still accepts; funded + only `gates.ci.commit=ffff…` rejects. Path A **22504** is on main `e0cc06f1`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — do not cancel tip CI `#31893770179`. *Observed (not staged):* B-301 Rust; `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat C faucet F7 claim.
+
+1. **2026-08-15 - lane 7 - claim faucet HTTP F7** (Seat C working-tree; not this commit): faucet-ops scan **22479** / tip **22508** (29 behind, lock held). Claim base `e0cc06f1`. Tip CI `#31893770179` in_progress — `[skip ci]`.
+
+1. **2026-08-15 - lane 7 - Path A tip-22495→22504 lag close** (`e0cc06f1`): VPS timer already at **22504** (91 entries). `land-path-a-checkpoint-from-vps -Apply`; outside-in **OK lag=4** tip=22508. Observer OOM 15:36Z recovered (no agent restart). last_proven still **22492**. Evidence `outside-in-tip-ckpt-lag-20260815T155404Z.txt` + `b-path-a-tip-22504-20260815.md`. Board text raced `edd1bc65`. Tip CI `#31893770179` in_progress — `[skip ci]`. Next: faucet F7; 2nd host B-32. *Observed (not staged):* B-301 Rust; Seat A signoff; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 7 - claim Path A tip-22504 land** (`93c93dc6` board): repo ckpt **22495** vs VPS timer **22504** vs live tip **~22507** (lag≥8). Observer OOM-restart 15:36Z (replay; proxy 502) — wait, do not thrash. Land existing `land-path-a-checkpoint-from-vps`. Skeptic: outside-in lag **OK**. Claim base `6157f3a0`. `#31891608943` FAIL scripts (Seat A) — `[skip ci]`. *Observed (not staged):* B-301 Rust; Seat A `ci.yml`; `tx_storm.rs`; rc-audit json.
 

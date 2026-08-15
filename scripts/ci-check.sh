@@ -769,6 +769,21 @@ if ! bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manife
   echo "release-signoff-manifest-validate.sh rejected a funded go manifest with green Nightly" >&2
   exit 1
 fi
+python3 - "$signoff_validate_dir/funded-go.json" "$signoff_validate_dir/wrong-ci-commit.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["gates"]["ci"]["commit"] = "ffffffffffffffffffffffffffffffffffffffff"
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest "$signoff_validate_dir/wrong-ci-commit.json" >/dev/null 2>&1; then
+  echo "release-signoff-manifest-validate.sh accepted go with gates.ci.commit != manifest commit" >&2
+  exit 1
+fi
 rm -rf "$signoff_validate_dir"
 ci_watch_dir="$(mktemp -d)"
 ci_watch_commit="0123456789abcdef0123456789abcdef01234567"

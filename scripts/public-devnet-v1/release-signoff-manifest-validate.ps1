@@ -197,6 +197,9 @@ if ($doc.decision -eq "go") {
     if ($null -eq $doc.gates.ci -or [string]$doc.gates.ci.status -ne "completed" -or [string]$doc.gates.ci.conclusion -ne "success") {
         Add-Issue "go decision requires completed successful CI"
     }
+    if (-not [string]$doc.gates.ci.commit -or [string]$doc.gates.ci.commit -ne [string]$doc.commit) {
+        Add-Issue "go decision requires gates.ci.commit to match manifest commit"
+    }
     if ($doc.gates.archive_validation.status -ne "pass") {
         Add-Issue "go decision requires passing archive validation"
     }

@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat C Path A **22504** CLOSE (lag OK=4). Tip CI `#31893770179` in_progress — do not cancel. Nightly `#31861932921` **GREEN**. **B-301** claim `42b0bf49` only.
+Synced at Seat C claim **faucet HTTP F7** (base `e0cc06f1`). Tip CI `#31893770179` in_progress — do not cancel. Nightly `#31861932921` **GREEN**. **B-301** claim `42b0bf49` only.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | GHA signoff red-CI needle requires `decision=go` (this commit); clone-payout `7a7ca482` | *Idle* | Watch this-commit CI; **B-26** after B-15 |
+| **A** RC/CI | `go` requires `gates.ci.commit` == manifest commit (this commit); VRF `edd1bc65` | *Idle* | Watch CI `#31893770179`; **B-26** after B-15 |
 | **B** Protocol/Privacy | **B-268g** (`247b5198`); claim **B-301** (`42b0bf49`) | Seat B working-tree (not this commit) | **B-35** after B-301 land; no B-13c |
-| **C** Testnet/Onboarding | Path A **22504** (lag OK=4); **B-300** tip **22502**; last_proven **22492** | *Idle* | faucet HTTP F7; 2nd host B-32 |
+| **C** Testnet/Onboarding | Path A **22504** (`e0cc06f1`); last_proven **22492** | **faucet HTTP F7** (claim base `e0cc06f1`) | 2nd host B-32 |
 
 ### Hard locks (all seats)
 
@@ -56,8 +56,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done GHA signoff red-CI needle requires decision=go / Doing idle / Next watch this-commit CI
+3agent — Seat A: Done go requires gates.ci.commit == manifest commit / Doing idle / Next watch CI #31893770179
 3agent — Seat B: Done B-268g; claim B-301 (`42b0bf49`, body not on main) / Doing working-tree / Next B-35 after B-301 land
-3agent — Seat C: Done Path A tip-22504 lag OK=4 / Doing idle / Next faucet HTTP F7; 2nd host B-32
+3agent — Seat C: Done Path A tip-22504 / Doing faucet HTTP F7 / Next 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

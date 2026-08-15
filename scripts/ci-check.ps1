@@ -933,6 +933,23 @@ try {
         [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 rejected a funded go manifest with green Nightly")
         exit 1
     }
+    $wrongCiCommit = Join-Path $signoffValidateDir "wrong-ci-commit.json"
+    $wrongCiObject = Get-Content -LiteralPath $fundedGoSignoff -Raw | ConvertFrom-Json
+    $wrongCiObject.gates.ci.commit = "ffffffffffffffffffffffffffffffffffffffff"
+    $wrongCiObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $wrongCiCommit -Encoding utf8
+    $wrongCiStdout = Join-Path $signoffValidateDir "wrong-ci-commit.out"
+    $wrongCiStderr = Join-Path $signoffValidateDir "wrong-ci-commit.err"
+    $wrongCiProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $wrongCiCommit
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $wrongCiStdout -RedirectStandardError $wrongCiStderr
+    if ($wrongCiProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted go with gates.ci.commit != manifest commit")
+        exit 1
+    }
     $global:LASTEXITCODE = 0
 } finally {
     Remove-Item -Recurse -Force $signoffValidateDir -ErrorAction SilentlyContinue

@@ -288,6 +288,9 @@ if decision == "go":
         add_issue("go decision requires >=2 distinct validator VRF seeds")
     elif genesis["path_a_toy_keys"]:
         add_issue("go decision requires genesis operator/validator seeds that are not repeating-byte toy keys")
+    watched_commit = (ci_object or {}).get("commit") if isinstance(ci_object, dict) else ""
+    if not watched_commit or watched_commit != commit:
+        add_issue("go decision requires gates.ci.commit to match the release commit")
     evidence_ci = evidence.get("ci") or {}
     if evidence_ci.get("status") != "completed" or evidence_ci.get("conclusion") != "success":
         add_issue("go decision requires completed successful CI on bound evidence")
