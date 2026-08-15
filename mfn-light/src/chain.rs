@@ -253,6 +253,17 @@ pub enum LightChainError {
         /// Human-readable reason.
         message: String,
     },
+
+    /// Overlay `activation_value` exceeds 10000 bps (B-268g).
+    ///
+    /// Checkpoint decode already refuses this (B-268e). Light apply is
+    /// the live gate for `with_subsidy_schedule` / B-13c inject that
+    /// never went through restore.
+    #[error("subsidy overlay activation_value {got} exceeds 10000")]
+    BadSubsidySchedule {
+        /// Configured overlay value.
+        got: u16,
+    },
 }
 
 fn hex_id(id: &[u8; 32]) -> String {
@@ -560,6 +571,7 @@ impl LightChain {
     ///   the body doesn't match one of the four header-bound body
     ///   roots.
     pub fn apply_block(&mut self, block: &Block) -> Result<AppliedBlock, LightChainError> {
+        self.ensure_subsidy_schedule_ok()?;
         // (1) Height must be the strict successor.
         let expected_height = self.tip_height.saturating_add(1);
         if block.header.height != expected_height {
@@ -703,6 +715,7 @@ impl LightChain {
         slashings: &[SlashEvidence],
         bond_ops: &[BondOp],
     ) -> Result<[u8; 32], LightChainError> {
+        self.ensure_subsidy_schedule_ok()?;
         let expected_height = self.tip_height.saturating_add(1);
         if header.height != expected_height {
             return Err(LightChainError::HeightMismatch {
@@ -876,6 +889,15 @@ impl LightChain {
     pub fn effective_emission_params(&self, height: u32) -> EmissionParams {
         self.subsidy_schedule
             .effective(&self.emission_params, height)
+    }
+
+    fn ensure_subsidy_schedule_ok(&self) -> Result<(), LightChainError> {
+        if self.subsidy_schedule.validate().is_err() {
+            return Err(LightChainError::BadSubsidySchedule {
+                got: self.subsidy_schedule.activation_value,
+            });
+        }
+        Ok(())
     }
 
     /// Sum of stake of all trusted validators.
@@ -1300,6 +1322,45 @@ mod tests {
         assert_eq!(light.tip_id(), &applied.block_id);
         assert_eq!(applied.check.producer_index, 0);
         assert_eq!(applied.check.signing_stake, 1_000_000);
+    }
+
+    #[test]
+    fn b268g_apply_block_rejects_overlay_bps_above_10000() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let block = produce_block(&state, &v0, &s0, params, 1);
+
+        let mut path_a = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        path_a
+            .apply_block(&block)
+            .expect("Path A (0,0) must still apply");
+        assert_eq!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps, 0);
+
+        let mut bomb = LightChain::from_genesis(
+            LightChainConfig::new(cfg.clone()).with_subsidy_schedule(SubsidyBpsSchedule {
+                activation_height: 1,
+                activation_value: 10_001,
+            }),
+        );
+        let err = bomb.apply_block(&block).expect_err("overlay 10001");
+        assert!(
+            matches!(err, LightChainError::BadSubsidySchedule { got: 10_001 }),
+            "overlay 10001 must fail-closed: {err:?}"
+        );
+        assert_eq!(bomb.tip_height(), 0, "state must be untouched on rejection");
+
+        let mut inactive = LightChain::from_genesis(
+            LightChainConfig::new(cfg).with_subsidy_schedule(SubsidyBpsSchedule {
+                activation_height: 0,
+                activation_value: 10_001,
+            }),
+        );
+        let err0 = inactive.apply_block(&block).expect_err("height-0 bomb");
+        assert!(
+            matches!(err0, LightChainError::BadSubsidySchedule { got: 10_001 }),
+            "height-0 bomb must fail-closed: {err0:?}"
+        );
     }
 
     /// Tampered `tx_root` in the *header* (body still original) →

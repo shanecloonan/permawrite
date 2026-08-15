@@ -90,7 +90,9 @@ Never change `DEFAULT_EMISSION_PARAMS`.
 - Validate **base** emission via constitution; also validate post-activation
   overlay with `validate_emission_params`. **B-268e:** checkpoint decode
   refuses `activation_value > 10000` (chain v12 + light v2). **B-268f:**
-  `apply_block` refuses the same overlay (live / inject path).
+  `apply_block` refuses the same overlay (live / inject path). **B-268g:**
+  light `apply_block` / `apply_trusted_evolution` refuse the same overlay
+  (`with_subsidy_schedule` / B-13c inject).
 - One lever only: schedule may change `subsidy_to_treasury_bps`; keep
   `fee_to_treasury_bps = 9000` (**B-20** later).
 
