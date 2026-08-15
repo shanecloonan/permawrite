@@ -119,6 +119,29 @@ def add_issue(message):
     issues.append(message)
 
 
+def is_toy_seed(value):
+    text = "".join(str(value or "").split()).lower()
+    if text.startswith("0x"):
+        text = text[2:]
+    if len(text) < 32 or len(text) % 2:
+        return True
+    try:
+        raw = bytes.fromhex(text)
+    except ValueError:
+        return True
+    return len(set(raw)) <= 1
+
+
+def genesis_has_toy_keys(genesis):
+    seeds = []
+    for op in genesis.get("storage_operators") or []:
+        seeds.append((op or {}).get("payout_seed_hex"))
+    for val in genesis.get("validators") or []:
+        seeds.append((val or {}).get("vrf_seed_hex"))
+        seeds.append((val or {}).get("bls_seed_hex"))
+    return (not seeds) or any(is_toy_seed(seed) for seed in seeds)
+
+
 def genesis_economy(evidence_doc):
     rel = ((evidence_doc.get("economy") or {}).get("genesis_path") or "").strip()
     candidates = [rel, os.path.join(repo_root, rel)] if rel else []
@@ -149,6 +172,7 @@ def genesis_economy(evidence_doc):
         "min_storage_operator_bond": bond_atoms,
         "path_a_experimental": subsidy_bps == 0 or bond_atoms == 0,
         "bonded_operators": bonded,
+        "path_a_toy_keys": genesis_has_toy_keys(genesis),
     }
 
 
@@ -241,6 +265,8 @@ if decision == "go":
         add_issue("go decision requires funded genesis economy (subsidy>0, bond>0, path_a_experimental=false)")
     elif genesis["bonded_operators"] < 2:
         add_issue("go decision requires >=2 genesis storage_operators bonded at min_storage_operator_bond")
+    elif genesis["path_a_toy_keys"]:
+        add_issue("go decision requires genesis operator/validator seeds that are not repeating-byte toy keys")
     nightly = evidence.get("nightly") or {}
     if nightly.get("status") != "completed" or nightly.get("conclusion") != "success":
         add_issue("go decision requires completed successful Nightly on bound evidence")

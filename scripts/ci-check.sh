@@ -597,7 +597,7 @@ if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest
   echo "release-signoff-manifest-validate.sh accepted a go manifest with unbonded genesis operators" >&2
   exit 1
 fi
-python3 - "$signoff_validate_dir/funded-genesis.json" "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/bad-signoff.json" <<'PY'
+python3 - "$signoff_validate_dir/funded-genesis.json" "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/toy-keys-go.json" <<'PY'
 import json
 import sys
 
@@ -605,6 +605,34 @@ with open(sys.argv[1], "r", encoding="utf-8") as handle:
     genesis = json.load(handle)
 for op in genesis.get("storage_operators") or []:
     op["bond_amount"] = 1
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(genesis, handle, indent=2)
+    handle.write("\n")
+with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["decision"] = "go"
+doc["issues"] = []
+doc["release_evidence"]["path"] = sys.argv[2]
+with open(sys.argv[3], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest "$signoff_validate_dir/toy-keys-go.json" >/dev/null 2>&1; then
+  echo "release-signoff-manifest-validate.sh accepted a go manifest with Path A repeating-byte toy keys" >&2
+  exit 1
+fi
+python3 - "$signoff_validate_dir/funded-genesis.json" "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/bad-signoff.json" <<'PY'
+import json
+import sys
+
+suffix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    genesis = json.load(handle)
+for i, op in enumerate(genesis.get("storage_operators") or []):
+    op["payout_seed_hex"] = f"{0xa0 + i:02x}" + suffix
+for i, val in enumerate(genesis.get("validators") or []):
+    val["vrf_seed_hex"] = f"{0xb0 + i:02x}" + suffix
+    val["bls_seed_hex"] = f"{0xc0 + i:02x}" + suffix
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
     json.dump(genesis, handle, indent=2)
     handle.write("\n")
@@ -837,6 +865,12 @@ endowment["min_storage_operator_bond"] = 1
 genesis["endowment"] = endowment
 for op in genesis.get("storage_operators") or []:
     op["bond_amount"] = 1
+suffix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"
+for i, op in enumerate(genesis.get("storage_operators") or []):
+    op["payout_seed_hex"] = f"{0xa0 + i:02x}" + suffix
+for i, val in enumerate(genesis.get("validators") or []):
+    val["vrf_seed_hex"] = f"{0xb0 + i:02x}" + suffix
+    val["bls_seed_hex"] = f"{0xc0 + i:02x}" + suffix
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
     json.dump(genesis, handle, indent=2)
     handle.write("\n")

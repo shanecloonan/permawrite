@@ -769,6 +769,38 @@ try {
     }
     foreach ($op in @($fundedGenesisObject.storage_operators)) { $op.bond_amount = 1 }
     $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
+    $toyKeySignoff = Join-Path $signoffValidateDir "toy-keys-go.json"
+    $toyKeySignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $toyKeySignoffObject.decision = "go"
+    $toyKeySignoffObject.issues = @()
+    $toyKeySignoffObject.release_evidence.path = $fundedEvidence
+    $toyKeySignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $toyKeySignoff -Encoding utf8
+    $toyKeyStdout = Join-Path $signoffValidateDir "toy-keys.out"
+    $toyKeyStderr = Join-Path $signoffValidateDir "toy-keys.err"
+    $toyKeyProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $toyKeySignoff
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $toyKeyStdout -RedirectStandardError $toyKeyStderr
+    if ($toyKeyProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest with Path A repeating-byte toy keys")
+        exit 1
+    }
+    $seedSuffix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"
+    $opIdx = 0
+    foreach ($op in @($fundedGenesisObject.storage_operators)) {
+        $op.payout_seed_hex = ("{0:x2}" -f (0xa0 + $opIdx)) + $seedSuffix
+        $opIdx++
+    }
+    $valIdx = 0
+    foreach ($val in @($fundedGenesisObject.validators)) {
+        $val.vrf_seed_hex = ("{0:x2}" -f (0xb0 + $valIdx)) + $seedSuffix
+        $val.bls_seed_hex = ("{0:x2}" -f (0xc0 + $valIdx)) + $seedSuffix
+        $valIdx++
+    }
+    $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
     $badSignoff = Join-Path $signoffValidateDir "bad-signoff.json"
     $badSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
     $badSignoffObject.decision = "go"
@@ -1051,6 +1083,18 @@ Decision: go
     $fundedGenesisObject | Add-Member -NotePropertyName emission -NotePropertyValue ([pscustomobject]@{ subsidy_to_treasury_bps = 1000 }) -Force
     $fundedGenesisObject.endowment.min_storage_operator_bond = 1
     foreach ($op in @($fundedGenesisObject.storage_operators)) { $op.bond_amount = 1 }
+    $seedSuffix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"
+    $opIdx = 0
+    foreach ($op in @($fundedGenesisObject.storage_operators)) {
+        $op.payout_seed_hex = ("{0:x2}" -f (0xa0 + $opIdx)) + $seedSuffix
+        $opIdx++
+    }
+    $valIdx = 0
+    foreach ($val in @($fundedGenesisObject.validators)) {
+        $val.vrf_seed_hex = ("{0:x2}" -f (0xb0 + $valIdx)) + $seedSuffix
+        $val.bls_seed_hex = ("{0:x2}" -f (0xc0 + $valIdx)) + $seedSuffix
+        $valIdx++
+    }
     $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
     $fundedEvidence = Join-Path $archiveDir "funded-economy-evidence.json"
     $fundedObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json

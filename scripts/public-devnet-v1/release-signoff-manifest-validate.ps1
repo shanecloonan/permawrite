@@ -52,7 +52,42 @@ function Read-GenesisEconomy {
         min_storage_operator_bond = $bond
         path_a_experimental = ($subsidy -eq 0) -or ($bond -eq 0)
         bonded_operators = $bonded
+        path_a_toy_keys = Test-PathAToyKeys $genesis
     }
+}
+
+function Test-RepeatingByteHex {
+    param([string]$Hex)
+    $text = ([string]$Hex).Trim().ToLowerInvariant() -replace '^0x', '' -replace '\s', ''
+    if ($text.Length -lt 32 -or ($text.Length % 2) -ne 0) { return $true }
+    $unique = New-Object 'System.Collections.Generic.HashSet[byte]'
+    try {
+        for ($i = 0; $i -lt $text.Length; $i += 2) {
+            [void]$unique.Add([Convert]::ToByte($text.Substring($i, 2), 16))
+        }
+    } catch {
+        return $true
+    }
+    return $unique.Count -le 1
+}
+
+function Test-PathAToyKeys {
+    param($Genesis)
+    $seeds = New-Object System.Collections.Generic.List[string]
+    foreach ($op in @($Genesis.storage_operators)) {
+        if ($null -ne $op) { $seeds.Add([string]$op.payout_seed_hex) | Out-Null }
+    }
+    foreach ($val in @($Genesis.validators)) {
+        if ($null -ne $val) {
+            $seeds.Add([string]$val.vrf_seed_hex) | Out-Null
+            $seeds.Add([string]$val.bls_seed_hex) | Out-Null
+        }
+    }
+    if ($seeds.Count -eq 0) { return $true }
+    foreach ($seed in $seeds) {
+        if (Test-RepeatingByteHex $seed) { return $true }
+    }
+    return $false
 }
 
 function Has-Property {
@@ -184,6 +219,8 @@ if ($doc.decision -eq "go") {
             Add-Issue "go decision requires funded genesis economy (subsidy>0, bond>0, path_a_experimental=false)"
         } elseif ($genesisEconomy.bonded_operators -lt 2) {
             Add-Issue "go decision requires >=2 genesis storage_operators bonded at min_storage_operator_bond"
+        } elseif ($genesisEconomy.path_a_toy_keys) {
+            Add-Issue "go decision requires genesis operator/validator seeds that are not repeating-byte toy keys"
         }
         $nightly = $evidence.nightly
         if ($null -eq $nightly -or [string]$nightly.status -ne "completed" -or [string]$nightly.conclusion -ne "success") {

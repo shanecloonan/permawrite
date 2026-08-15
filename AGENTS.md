@@ -134,12 +134,12 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Do **not** cancel B-268b CI `#31867337251`. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** `ee3739e7`; lane2 bonded-ops `go` `71a7ad7a`; lane7 **B-42** `bda9a419`. Seat B claiming **B-268c** (fraud/slash/gossip contested-height overlay). Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-15):** Lane2 `go` refuses Path A toy keys (this commit, `[skip ci]`). Do **not** cancel B-268b CI `#31867337251`. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**. Lane6 **B-268b** `ee3739e7`; lane4 **B-268c** claim `6966b597`; lane7 **B-42** `bda9a419`. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Participant JOIN half after B-15 SUMMARY (lane 3); watch next Rust CI (B-268b) | CI/Nightly run IDs |
-| **2** RC ops | `go` requires >=2 bonded genesis operators (this commit); genesis re-read (`dd6fdd71`) | *Idle* | Watch B-268b CI `#31867337251`; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
+| **2** RC ops | `go` refuses Path A toy keys (this commit); bonded ops (`71a7ad7a`) | *Idle* | Watch B-268b CI `#31867337251`; **B-26** after B-15; keep `3agent.md` mirrored | Board + encoding guards |
 | **3** Onboarding | **B-15 wave115** last_proven=**22467** (`46d9f86c`); **B-15 wave114** (hugo 6848) | *Idle* | Human SUMMARY; **B-42** | L4 checklist |
 | **4** Protocol | **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**); **B-293** GREEN `#31857970110` | **B-268c** fraud/slash/gossip use effective params at *contested* height (claim base: `71a7ad7a`) | After land: **B-35** pad; after 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
@@ -501,7 +501,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 4 - claim B-268c** (this commit): fraud/slash/gossip must use `effective_emission_params` at the *contested* block height (B-268b apply/producer use applying height; gossip still `DEFAULT`; slash reuses applying-era overlay). Claim base `71a7ad7a`. Body after B-268b CI `#31867337251` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-15 - lane 2 - go refuses Path A toy keys** (this commit): signoff + RC audit refuse `go` if any operator `payout_seed_hex` or validator `vrf`/`bls` seed is repeating-byte (Path A `c3c3…` / `0101…` pattern). Funded+bonded lab genesis is still Path A. ci-check: toy-keys reject; detoy'd temp genesis still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — do not cancel B-268b CI `#31867337251`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json; Seat B B-268c claim.
+
+1. **2026-08-15 - lane 4 - claim B-268c** (`6966b597`): fraud/slash/gossip must use `effective_emission_params` at the *contested* block height (B-268b apply/producer use applying height; gossip still `DEFAULT`; slash reuses applying-era overlay). Claim base `71a7ad7a`. Body after B-268b CI `#31867337251` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 2 - go requires bonded genesis operators** (`71a7ad7a`): signoff + RC audit refuse `go` unless genesis has >=2 `storage_operators` with `bond_amount >= min_storage_operator_bond`. Funded min-bond with $0 operators is still Path A. ci-check: unbonded-ops reject; bonded temp genesis still `go`. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — do not cancel B-268b CI `#31867337251`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 

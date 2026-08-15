@@ -31,6 +31,40 @@ if ($ParticipantEvidenceDir) {
 
 $checks = New-Object System.Collections.Generic.List[object]
 
+function Test-RepeatingByteHex {
+    param([string]$Hex)
+    $text = ([string]$Hex).Trim().ToLowerInvariant() -replace '^0x', '' -replace '\s', ''
+    if ($text.Length -lt 32 -or ($text.Length % 2) -ne 0) { return $true }
+    $unique = New-Object 'System.Collections.Generic.HashSet[byte]'
+    try {
+        for ($i = 0; $i -lt $text.Length; $i += 2) {
+            [void]$unique.Add([Convert]::ToByte($text.Substring($i, 2), 16))
+        }
+    } catch {
+        return $true
+    }
+    return $unique.Count -le 1
+}
+
+function Test-PathAToyKeys {
+    param($Genesis)
+    $seeds = New-Object System.Collections.Generic.List[string]
+    foreach ($op in @($Genesis.storage_operators)) {
+        if ($null -ne $op) { $seeds.Add([string]$op.payout_seed_hex) | Out-Null }
+    }
+    foreach ($val in @($Genesis.validators)) {
+        if ($null -ne $val) {
+            $seeds.Add([string]$val.vrf_seed_hex) | Out-Null
+            $seeds.Add([string]$val.bls_seed_hex) | Out-Null
+        }
+    }
+    if ($seeds.Count -eq 0) { return $true }
+    foreach ($seed in $seeds) {
+        if (Test-RepeatingByteHex $seed) { return $true }
+    }
+    return $false
+}
+
 function Invoke-Tool {
     param([string]$FilePath, [string[]]$ArgumentList)
     $stdout = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-audit-" + [System.Guid]::NewGuid().ToString("N") + ".out")
@@ -148,6 +182,7 @@ $subsidyBps = 0
 $bondAtoms = 0
 $pathAExperimental = $true
 $bondedOperators = 0
+$pathAToyKeys = $true
 if ($genesisPath) {
     $genesis = Get-Content -LiteralPath $genesisPath -Raw | ConvertFrom-Json
     if ($genesis.emission -and $null -ne $genesis.emission.subsidy_to_treasury_bps) {
@@ -164,11 +199,12 @@ if ($genesisPath) {
             if ($amount -ge $bondAtoms) { $bondedOperators++ }
         }
     }
+    $pathAToyKeys = Test-PathAToyKeys $genesis
 }
-if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental -and $bondedOperators -ge 2) {
-    Add-Check -Name "path_a_economy" -Status "pass" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators path_a_experimental=false"
+if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental -and $bondedOperators -ge 2 -and -not $pathAToyKeys) {
+    Add-Check -Name "path_a_economy" -Status "pass" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators toy_keys=false path_a_experimental=false"
 } else {
-    Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
+    Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators toy_keys=$pathAToyKeys path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
 }
 $nightly = $evidence.nightly
 if ($null -ne $nightly -and [string]$nightly.status -eq "completed" -and [string]$nightly.conclusion -eq "success") {
