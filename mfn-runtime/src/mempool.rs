@@ -705,6 +705,15 @@ impl Mempool {
                     });
                 }
             }
+        } else if let Ok(parsed) = mfn_consensus::extra_codec::parse_mfex_extra(&tx.extra) {
+            // B-305: unused MFEO when opening is not required.
+            if !parsed.endowment_openings.is_empty() {
+                return Err(AdmitError::EndowmentOpeningCountMismatch {
+                    tx_id_hex: hex_prefix(&tx_id),
+                    expected: 0,
+                    got: parsed.endowment_openings.len(),
+                });
+            }
         }
 
         // (6c) B-11 phase 2: endowment surplus range proof (mirrors `apply_block`).
@@ -768,6 +777,15 @@ impl Mempool {
                         output: *oi,
                     });
                 }
+            }
+        } else if let Ok(parsed) = mfn_consensus::extra_codec::parse_mfex_extra(&tx.extra) {
+            // B-305: unused MFER when range proof is not required.
+            if !parsed.endowment_range_proofs.is_empty() {
+                return Err(AdmitError::EndowmentRangeProofCountMismatch {
+                    tx_id_hex: hex_prefix(&tx_id),
+                    expected: 0,
+                    got: parsed.endowment_range_proofs.len(),
+                });
             }
         }
 

@@ -317,7 +317,7 @@ fn build_upload_extra_wire(
     } else if plan.extra.is_empty() {
         Ok(Vec::new())
     } else {
-        Ok(plan.extra.to_vec())
+        Err(WalletError::UploadExtraConflictsWithAuthorshipClaims)
     }
 }
 
@@ -365,10 +365,7 @@ where
             len: plan.extra.len(),
         });
     }
-    let synthesizing_mfex = !plan.authorship_claims.is_empty()
-        || plan.endowment_params.require_endowment_opening != 0
-        || plan.endowment_params.require_endowment_range_proof != 0;
-    if synthesizing_mfex && !plan.extra.is_empty() {
+    if !plan.extra.is_empty() {
         return Err(WalletError::UploadExtraConflictsWithAuthorshipClaims);
     }
 
@@ -825,6 +822,50 @@ mod tests {
             chunk_size: None,
             endowment_blinding: None,
             endowment_params: &params,
+            fee_to_treasury_bps: 9000,
+            change_recipients: &[],
+            fee: 1_000_000,
+            extra: &extra,
+            authorship_claims: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &pool,
+            current_height: 1,
+            rng: &mut r,
+        };
+        match build_storage_upload(plan) {
+            Err(crate::WalletError::UploadExtraConflictsWithAuthorshipClaims) => {}
+            other => panic!("expected UploadExtraConflictsWithAuthorshipClaims, got {other:?}"),
+        }
+    }
+
+    /// B-305: Path A (`require_opening = 0`) refuses well-formed caller
+    /// MFEX — unused MFEO never reaches the wire.
+    #[test]
+    fn b305_path_a_refuses_caller_mfex_extra() {
+        let (anchor_recipient, _keys) = alice_recipient();
+        let (owned_a, owned_b) = two_real_owned_outputs(50_000_000_000);
+        let inputs = [&owned_a, &owned_b];
+        let pool = decoy_pool(20);
+        let extra = mfn_consensus::build_mfex_extra_v2(
+            &[],
+            &[mfn_consensus::extra_codec::EndowmentOpening {
+                value: 1,
+                blinding: Scalar::from(1u64),
+            }],
+        )
+        .expect("well-formed MFEX");
+        let mut r = rng();
+        let plan = StorageUploadPlan {
+            inputs: &inputs,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: 100_000,
+            },
+            data: b"unused-mfeo-refuse",
+            replication: 3,
+            chunk_size: None,
+            endowment_blinding: None,
+            endowment_params: &DEFAULT_ENDOWMENT_PARAMS,
             fee_to_treasury_bps: 9000,
             change_recipients: &[],
             fee: 1_000_000,

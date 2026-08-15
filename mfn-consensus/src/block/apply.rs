@@ -581,6 +581,18 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                     }
                 }
             }
+        } else if tx_storage_ok {
+            // B-305: unused MFEO when opening is not required fingerprints
+            // Path A uploads against honest empty extra.
+            if let Ok(parsed) = crate::extra_codec::parse_mfex_extra(&tx.extra) {
+                if !parsed.endowment_openings.is_empty() {
+                    errors.push(BlockError::EndowmentOpeningCountMismatch {
+                        tx: ti,
+                        expected: 0,
+                        got: parsed.endowment_openings.len(),
+                    });
+                }
+            }
         }
 
         // ---- B-11 phase 2: Pedersen endowment surplus range proof ----
@@ -655,6 +667,17 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                             reason: e.to_string(),
                         });
                     }
+                }
+            }
+        } else if tx_storage_ok {
+            // B-305: unused MFER when range proof is not required.
+            if let Ok(parsed) = crate::extra_codec::parse_mfex_extra(&tx.extra) {
+                if !parsed.endowment_range_proofs.is_empty() {
+                    errors.push(BlockError::EndowmentRangeProofCountMismatch {
+                        tx: ti,
+                        expected: 0,
+                        got: parsed.endowment_range_proofs.len(),
+                    });
                 }
             }
         }

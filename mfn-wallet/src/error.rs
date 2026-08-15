@@ -41,10 +41,10 @@ pub enum WalletError {
         max: usize,
     },
 
-    /// Non-empty `extra` cannot be combined with wallet-synthesized MFEX
-    /// (authorship claims, MFEO opening, or MFER range proof). The wallet
-    /// never silently drops caller extra.
-    #[error("cannot set `extra` when the wallet will synthesize MFEX")]
+    /// Non-empty caller `extra` on a storage upload. The wallet owns MFEX
+    /// synthesis (claims / MFEO / MFER) and Path A empty extra; never
+    /// silently drops or passthroughs caller extra (F5 P20 / B-305).
+    #[error("cannot set `extra` on storage uploads; the wallet owns MFEX synthesis")]
     UploadExtraConflictsWithAuthorshipClaims,
 
     /// Privacy transfers must use empty `tx.extra`. MFEX is only for

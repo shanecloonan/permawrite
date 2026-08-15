@@ -3295,6 +3295,14 @@ fn apply_block_rejects_non_uniform_ring_sizes_across_inputs() {
 /// Build a fresh single-signer genesis, sign one storage-anchoring tx
 /// carrying `sc`, and run `apply_block` on it (**M5.49**).
 fn apply_block_with_storage_output(sc: StorageCommitment, fee: u64) -> ApplyOutcome {
+    apply_block_with_storage_output_and_extra(sc, fee, Vec::new())
+}
+
+fn apply_block_with_storage_output_and_extra(
+    sc: StorageCommitment,
+    fee: u64,
+    extra: Vec<u8>,
+) -> ApplyOutcome {
     use curve25519_dalek::scalar::Scalar;
     use mfn_crypto::clsag::ClsagRing;
     use mfn_crypto::point::{generator_g, generator_h};
@@ -3376,7 +3384,7 @@ fn apply_block_with_storage_output(sc: StorageCommitment, fee: u64) -> ApplyOutc
             },
         ],
         fee,
-        Vec::new(),
+        extra,
     )
     .expect("sign storage upload");
 
@@ -3491,6 +3499,45 @@ fn apply_block_accepts_storage_commitment_with_consistent_shape() {
             assert!(state.storage.contains_key(&commit_hash));
         }
         ApplyOutcome::Err { errors, .. } => panic!("consistent shape must apply: {errors:?}"),
+    }
+}
+
+/// B-305: Path A (`require_endowment_opening = 0`) still rejects unused
+/// MFEO so a hostile wallet cannot fingerprint uploads against honest
+/// empty extra.
+#[test]
+fn b305_apply_block_rejects_unused_mfeo_when_opening_not_required() {
+    let sc = StorageCommitment {
+        data_root: [7u8; 32],
+        size_bytes: 1024,
+        chunk_size: 256,
+        num_chunks: 4,
+        replication: 3,
+        endowment: mfn_crypto::point::generator_g(),
+    };
+    let extra = build_mfex_extra_v2(
+        &[],
+        &[mfn_consensus::extra_codec::EndowmentOpening {
+            value: 1,
+            blinding: Scalar::from(1u64),
+        }],
+    )
+    .expect("well-formed unused MFEO");
+    match apply_block_with_storage_output_and_extra(sc, 100_000, extra) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| matches!(
+                    e,
+                    BlockError::EndowmentOpeningCountMismatch {
+                        expected: 0,
+                        got: 1,
+                        ..
+                    }
+                )),
+                "expected EndowmentOpeningCountMismatch expected=0, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("unused MFEO on Path A must reject the block"),
     }
 }
 
