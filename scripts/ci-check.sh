@@ -560,7 +560,7 @@ if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest
   echo "release-signoff-manifest-validate.sh accepted a go manifest that only funded the evidence overlay" >&2
   exit 1
 fi
-python3 - "$signoff_validate_dir/funded-genesis.json" "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/bad-signoff.json" <<'PY'
+python3 - "$signoff_validate_dir/funded-genesis.json" "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/unbonded-ops-go.json" <<'PY'
 import json
 import sys
 
@@ -583,6 +583,30 @@ evidence["economy"]["path_a_experimental"] = False
 evidence["economy"]["genesis_path"] = sys.argv[1]
 with open(sys.argv[2], "w", encoding="utf-8") as handle:
     json.dump(evidence, handle, indent=2)
+    handle.write("\n")
+with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["decision"] = "go"
+doc["issues"] = []
+doc["release_evidence"]["path"] = sys.argv[2]
+with open(sys.argv[3], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest "$signoff_validate_dir/unbonded-ops-go.json" >/dev/null 2>&1; then
+  echo "release-signoff-manifest-validate.sh accepted a go manifest with unbonded genesis operators" >&2
+  exit 1
+fi
+python3 - "$signoff_validate_dir/funded-genesis.json" "$signoff_validate_dir/funded-economy.json" "$signoff_validate_dir/bad-signoff.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    genesis = json.load(handle)
+for op in genesis.get("storage_operators") or []:
+    op["bond_amount"] = 1
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(genesis, handle, indent=2)
     handle.write("\n")
 with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
     doc = json.load(handle)
@@ -811,6 +835,8 @@ genesis["emission"] = emission
 endowment = genesis.get("endowment") or {}
 endowment["min_storage_operator_bond"] = 1
 genesis["endowment"] = endowment
+for op in genesis.get("storage_operators") or []:
+    op["bond_amount"] = 1
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
     json.dump(genesis, handle, indent=2)
     handle.write("\n")

@@ -147,6 +147,7 @@ $genesisPath = $genesisCandidates | Where-Object { $_ -and (Test-Path -LiteralPa
 $subsidyBps = 0
 $bondAtoms = 0
 $pathAExperimental = $true
+$bondedOperators = 0
 if ($genesisPath) {
     $genesis = Get-Content -LiteralPath $genesisPath -Raw | ConvertFrom-Json
     if ($genesis.emission -and $null -ne $genesis.emission.subsidy_to_treasury_bps) {
@@ -156,11 +157,18 @@ if ($genesisPath) {
         $bondAtoms = [int64]$genesis.endowment.min_storage_operator_bond
     }
     $pathAExperimental = ($subsidyBps -eq 0) -or ($bondAtoms -eq 0)
+    if ($bondAtoms -gt 0) {
+        foreach ($op in @($genesis.storage_operators)) {
+            $amount = 0
+            if ($null -ne $op -and $null -ne $op.bond_amount) { $amount = [int64]$op.bond_amount }
+            if ($amount -ge $bondAtoms) { $bondedOperators++ }
+        }
+    }
 }
-if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental) {
-    Add-Check -Name "path_a_economy" -Status "pass" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms path_a_experimental=false"
+if ($subsidyBps -gt 0 -and $bondAtoms -gt 0 -and -not $pathAExperimental -and $bondedOperators -ge 2) {
+    Add-Check -Name "path_a_economy" -Status "pass" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators path_a_experimental=false"
 } else {
-    Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
+    Add-Check -Name "path_a_economy" -Status "fail" -Message "genesis subsidy_bps=$subsidyBps min_storage_operator_bond=$bondAtoms bonded_operators=$bondedOperators path_a_experimental=$pathAExperimental (Path A holes; not a funded-permanence RC)"
 }
 $nightly = $evidence.nightly
 if ($null -ne $nightly -and [string]$nightly.status -eq "completed" -and [string]$nightly.conclusion -eq "success") {

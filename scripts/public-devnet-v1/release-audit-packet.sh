@@ -217,6 +217,7 @@ genesis_path = next((candidate for candidate in genesis_candidates if candidate 
 subsidy_bps = 0
 bond_atoms = 0
 path_a_experimental = True
+bonded_operators = 0
 if genesis_path:
     with open(genesis_path, "r", encoding="utf-8-sig") as handle:
         genesis = json.load(handle)
@@ -229,17 +230,27 @@ if genesis_path:
         subsidy_bps = 0
         bond_atoms = 0
     path_a_experimental = subsidy_bps == 0 or bond_atoms == 0
-if subsidy_bps > 0 and bond_atoms > 0 and path_a_experimental is False:
+    if bond_atoms > 0:
+        for op in genesis.get("storage_operators") or []:
+            try:
+                amount = int((op or {}).get("bond_amount") or 0)
+            except (TypeError, ValueError):
+                amount = 0
+            if amount >= bond_atoms:
+                bonded_operators += 1
+if subsidy_bps > 0 and bond_atoms > 0 and path_a_experimental is False and bonded_operators >= 2:
     add_check(
         "path_a_economy",
         "pass",
-        f"genesis subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} path_a_experimental=false",
+        f"genesis subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} "
+        f"bonded_operators={bonded_operators} path_a_experimental=false",
     )
 else:
     add_check(
         "path_a_economy",
         "fail",
         f"genesis subsidy_bps={subsidy_bps} min_storage_operator_bond={bond_atoms} "
+        f"bonded_operators={bonded_operators} "
         f"path_a_experimental={str(path_a_experimental).lower()} "
         "(Path A holes; not a funded-permanence RC)",
     )

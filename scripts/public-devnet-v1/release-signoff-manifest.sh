@@ -135,10 +135,20 @@ def genesis_economy(evidence_doc):
     except (TypeError, ValueError):
         subsidy_bps = 0
         bond_atoms = 0
+    bonded = 0
+    if bond_atoms > 0:
+        for op in genesis.get("storage_operators") or []:
+            try:
+                amount = int((op or {}).get("bond_amount") or 0)
+            except (TypeError, ValueError):
+                amount = 0
+            if amount >= bond_atoms:
+                bonded += 1
     return {
         "subsidy_to_treasury_bps": subsidy_bps,
         "min_storage_operator_bond": bond_atoms,
         "path_a_experimental": subsidy_bps == 0 or bond_atoms == 0,
+        "bonded_operators": bonded,
     }
 
 
@@ -229,6 +239,8 @@ if decision == "go":
         add_issue("go decision requires readable genesis at economy.genesis_path")
     elif genesis["subsidy_to_treasury_bps"] <= 0 or genesis["min_storage_operator_bond"] <= 0 or genesis["path_a_experimental"]:
         add_issue("go decision requires funded genesis economy (subsidy>0, bond>0, path_a_experimental=false)")
+    elif genesis["bonded_operators"] < 2:
+        add_issue("go decision requires >=2 genesis storage_operators bonded at min_storage_operator_bond")
     nightly = evidence.get("nightly") or {}
     if nightly.get("status") != "completed" or nightly.get("conclusion") != "success":
         add_issue("go decision requires completed successful Nightly on bound evidence")

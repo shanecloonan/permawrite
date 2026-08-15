@@ -748,6 +748,27 @@ try {
     $fundedObject.economy.path_a_experimental = $false
     $fundedObject.economy.genesis_path = $fundedGenesis
     $fundedObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedEvidence -Encoding utf8
+    $unbondedSignoff = Join-Path $signoffValidateDir "unbonded-ops-go.json"
+    $unbondedSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $unbondedSignoffObject.decision = "go"
+    $unbondedSignoffObject.issues = @()
+    $unbondedSignoffObject.release_evidence.path = $fundedEvidence
+    $unbondedSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $unbondedSignoff -Encoding utf8
+    $unbondedStdout = Join-Path $signoffValidateDir "unbonded-ops.out"
+    $unbondedStderr = Join-Path $signoffValidateDir "unbonded-ops.err"
+    $unbondedProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $unbondedSignoff
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $unbondedStdout -RedirectStandardError $unbondedStderr
+    if ($unbondedProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest with unbonded genesis operators")
+        exit 1
+    }
+    foreach ($op in @($fundedGenesisObject.storage_operators)) { $op.bond_amount = 1 }
+    $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
     $badSignoff = Join-Path $signoffValidateDir "bad-signoff.json"
     $badSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
     $badSignoffObject.decision = "go"
@@ -1029,6 +1050,7 @@ Decision: go
     $fundedGenesisObject = Get-Content "mfn-node/testdata/public_devnet_v1.json" -Raw | ConvertFrom-Json
     $fundedGenesisObject | Add-Member -NotePropertyName emission -NotePropertyValue ([pscustomobject]@{ subsidy_to_treasury_bps = 1000 }) -Force
     $fundedGenesisObject.endowment.min_storage_operator_bond = 1
+    foreach ($op in @($fundedGenesisObject.storage_operators)) { $op.bond_amount = 1 }
     $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
     $fundedEvidence = Join-Path $archiveDir "funded-economy-evidence.json"
     $fundedObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json

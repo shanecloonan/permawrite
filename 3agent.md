@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat B B-268b land. Tip CI `#31860183965` **GREEN**; Nightly `#31861932921` **GREEN**; seat C **B-42** `bda9a419`. Slash-clone matrix frozen.
+Synced at Seat A bonded-operator `go`. B-268b CI `#31867337251` in_progress — do not cancel. Nightly `#31861932921` **GREEN**; seat B **B-268b** `ee3739e7`; seat C **B-42** `bda9a419`.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | genesis re-read (`dd6fdd71`); Nightly pin (`d4af3743`) | *Idle* — bonded-operator `go` WIP | Watch B-268b Rust CI; do not steal B-42 |
-| **B** Protocol/Privacy | **B-268b** (this commit); **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**) | *Idle* | Human **B-33**; **B-35** pad; no B-13c; after 2 hosts: live **B-32** |
+| **A** RC/CI | `go` requires >=2 bonded genesis operators (this commit); genesis re-read (`dd6fdd71`) | *Idle* | Watch B-268b CI `#31867337251`; do not steal B-42 |
+| **B** Protocol/Privacy | **B-268b** (`ee3739e7`); **B-294** (`0ecd19ce`; **CI `#31860183965` GREEN**) | *Idle* | Human **B-33**; **B-35** pad; no B-13c; after 2 hosts: live **B-32** |
 | **C** Testnet/Onboarding | **B-42** serialize-with-reason (`bda9a419`) | *Idle* | Retry JOIN when observer quiet; 2nd host B-32 |
 
 ### Hard locks (all seats)
@@ -56,8 +56,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done genesis re-read / Doing idle (bonded-operator go WIP) / Next watch B-268b Rust CI
-3agent — Seat B: Done B-268b activation-height plumbing / Doing idle / Next B-33/B-35; do not steal B-42
+3agent — Seat A: Done go requires bonded operators / Doing idle / Next watch B-268b CI #31867337251
+3agent — Seat B: Done B-268b (`ee3739e7`) / Doing idle / Next B-33/B-35; do not steal B-42
 3agent — Seat C: Done B-42 serialize (`bda9a419`) / Doing idle / Next JOIN retry; 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

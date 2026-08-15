@@ -49,10 +49,19 @@ function Read-GenesisEconomy {
     if ($genesis.endowment -and $null -ne $genesis.endowment.min_storage_operator_bond) {
         $bond = [int64]$genesis.endowment.min_storage_operator_bond
     }
+    $bonded = 0
+    if ($bond -gt 0) {
+        foreach ($op in @($genesis.storage_operators)) {
+            $amount = 0
+            if ($null -ne $op -and $null -ne $op.bond_amount) { $amount = [int64]$op.bond_amount }
+            if ($amount -ge $bond) { $bonded++ }
+        }
+    }
     return [pscustomobject]@{
         subsidy_to_treasury_bps = $subsidy
         min_storage_operator_bond = $bond
         path_a_experimental = ($subsidy -eq 0) -or ($bond -eq 0)
+        bonded_operators = $bonded
     }
 }
 
@@ -154,6 +163,8 @@ if ($Decision -eq "go") {
         Add-Issue "go decision requires readable genesis at economy.genesis_path"
     } elseif ($genesisEconomy.subsidy_to_treasury_bps -le 0 -or $genesisEconomy.min_storage_operator_bond -le 0 -or $genesisEconomy.path_a_experimental) {
         Add-Issue "go decision requires funded genesis economy (subsidy>0, bond>0, path_a_experimental=false)"
+    } elseif ($genesisEconomy.bonded_operators -lt 2) {
+        Add-Issue "go decision requires >=2 genesis storage_operators bonded at min_storage_operator_bond"
     }
     $nightly = $evidence.nightly
     if ($null -eq $nightly -or [string]$nightly.status -ne "completed" -or [string]$nightly.conclusion -ne "success") {
