@@ -15,8 +15,9 @@ A file uploaded to Permawrite has these guarantees:
 
 The user does **not** get:
 
+- **The file inside the block.** The chain stores a `data_root`, not the payload. A year later you watch the video only if an operator replica still has the chunks — unlike Arweave, where the weave transaction *is* the copy. Clear comparison: [`ECONOMICS.md § 12.0`](./ECONOMICS.md#120-data-availability--the-weave-is-the-copy-vs-commitment--replicas).
 - **An SLA on retrieval time.** Retrieval is a separate concern handled by the (off-chain) gateway layer.
-- **Hidden file contents by default.** Upload plaintext, get plaintext on-chain. Encrypt locally if you need confidentiality.
+- **Hidden file contents by default.** The protocol does not encrypt your payload; “plaintext” here is not “the bytes live in the block.” Encrypt locally if you need confidentiality.
 - **Ability to delete.** Permanence is an explicit commitment. There is no `unannounce_file()`.
 
 ### Anonymity vs optional authorship

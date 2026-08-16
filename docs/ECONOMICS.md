@@ -583,12 +583,57 @@ For full type signatures see the per-crate READMEs.
 
 ## 12. Permanence durability vs Arweave — is this model more likely to break?
 
-Honest comparison as of 2026-07. Both projects share the same core bet:
+Honest comparison as of 2026-08. Both projects share the same core bet:
 **pay once upfront, assume real storage costs decline (Kryder's law), and let
 the endowment's purchasing power compound.** Permawrite deliberately
 calibrated to Arweave-comparable upload pricing (~$4.50/GB at equivalent token
 prices). The endowment *math* is not the weak link. The differences are in
-**where ongoing money comes from** and **what happens under stress**.
+**where the bytes live**, **where ongoing money comes from**, and **what
+happens under stress**.
+
+### 12.0 Data availability — the weave is the copy vs commitment + replicas
+
+This is the difference people mean when they say “on Arweave I can watch the
+video a year later; on Permawrite I only see a hash.”
+
+**Arweave: the weave transaction *is* the canonical copy.** Upload a video and
+the payload is the transaction body. A node (or archive) that kept that part of
+the weave has the file. A gateway (`arweave.net/<id>`) serves those bytes. You
+are not reconstructing the video from a Merkle root plus a side store. Miners
+still sample recall blocks and do not all hold the entire weave — but the
+**authoritative object is the data in the weave**, not a pointer to it.
+
+**Permawrite: the chain stores a commitment; operators store the file.** Upload
+a video and `apply_block` records an 81-byte `StorageCommitment` (`data_root`,
+size, chunking, replication, Pedersen endowment). The video bytes live in
+operator `chunk-inbox/` / wallet artifacts ([`STORAGE.md`](./STORAGE.md)).
+`data_root` is the file’s identity, like an Arweave tx id — it is **not** the
+video. Playback is: fetch every 256 KiB chunk from a replica, Merkle-check it
+against `data_root`, stitch, play. Each successful SPoRA prove embeds **one**
+challenged chunk (~256 KiB) in that block. That is an audit sample, not a
+full-file archive. A large video is not reconstructible from the ledger alone.
+
+| If this happens | Arweave | Permawrite |
+|---|---|---|
+| You have the id / `data_root` only | Not enough — you still need the weave tx body (usually from a gateway or weaver) | Not enough — you still need the chunks from a replica |
+| A gateway / RPC is honest and the copy exists | You watch the video | You watch the video (reconstructed from chunks) |
+| Every miner / operator drops that file | Anyone who archived **that weave transaction** still has the video | The root stays on-chain forever; the video is gone unless some replica (or a complete set of prove-chunks, which a large file will not have) still holds the bytes |
+| One host, `bond = 0` (Path A today) | n/a — not this network | Availability **is** that host. The explorer hash is not a backup of the file |
+| Many bonded replicas answering SPoRA | Weave copies + economic recall | Designed robustness: missing a chunk is a slashable audit miss, not a silent pin expiry |
+
+**Permanence robustness (availability, not endowment math).** Arweave is
+stronger on “I can get the file from the ledger’s own data object.” Permawrite
+is stronger only if **independent bonded operators still have the chunks** —
+SPoRA makes that auditable; it does not put the video in every full node.
+Putting every upload into every block would make validators into archive farms
+and put plaintext in the public history, which this chain refuses so privacy
+and consumer operators stay possible.
+
+Path A is a lab: toy keys, `subsidy_bps = 0`, `bond = 0`, one operator host.
+Do not read a live `data_root` as “the video is safe the way an Arweave tx is
+safe.” Closing that gap is more replicas + real bonds (B-32, B-13/B-25), not a
+weave rewrite. Mechanics: [`STORAGE.md § StorageCommitment`](./STORAGE.md#2-storagecommitment).
+Economics under stress continue in §12.1–12.6 below.
 
 ### 12.1 What is structurally the same
 
@@ -597,6 +642,7 @@ prices). The endowment *math* is not the weak link. The differences are in
 | Payment model | One-time endowment at upload | One-time endowment at upload |
 | Solvency bet | Storage costs decline over time | Storage costs decline over time (2% floor vs Arweave's 0.5% Kryder+ assumption) |
 | Audit primitive | Recall / mining proofs | SPoRA Merkle proofs every block |
+| Canonical copy | Weave transaction body | Off-chain replicas; chain stores `data_root` (§12.0) |
 | On-chain anchor | Permanent, no delete | Permanent, no delete |
 | Token-price risk | Endowment buys less real storage if AR falls | Same for MFN |
 

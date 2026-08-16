@@ -134,12 +134,12 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-15):** Landing **B-305** Rust (full CI). `#31907077988` rust **GREEN** / scripts **FAIL** (Seat A). Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-16):** **B-305** landed `704280f7`. Tip CI `#31909490680` **FAIL** scripts (rust GREEN on prior). Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Watch B-305 tip CI; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
-| **2** RC ops | `go` requires `gates.ci.commit` == manifest commit (`b0bd1caa`); VRF `edd1bc65`; GHA needle `93c93dc6` | *Idle* | Fix scripts FAIL `#31893770179`; **B-26** after B-15 | Board + encoding guards |
+| **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
+| **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (this commit); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **B-305** (this commit); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
@@ -507,7 +507,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-15 - lane 4 - B-305 unused MFEO refuse** (this commit): `apply_block` / mempool reject unused MFEO/MFER when opening/range flags are 0 (`EndowmentOpeningCountMismatch` / `EndowmentRangeProofCountMismatch` expected=0). Wallet refuses all caller upload `extra`. `b305_apply_block_rejects_unused_mfeo_when_opening_not_required` + `b305_path_a_refuses_caller_mfex_extra` PASS. Local `ci-check -RustOnly` green. `#31907077988` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** still Phase 3 / B-25. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-16 - lane 2 - Arweave weave-is-the-copy vs replica availability** (this commit): `ECONOMICS.md` §12.0 states the canonical-copy split (weave tx body vs `data_root` + operator chunks); STORAGE / PRIVACY_AND_PERMANENCE / docs README point at it. Path A one-host / bond=0 called out. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — tip `#31909490680` already FAIL scripts. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-15 - lane 4 - B-305 unused MFEO refuse** (`704280f7`): `apply_block` / mempool reject unused MFEO/MFER when opening/range flags are 0 (`EndowmentOpeningCountMismatch` / `EndowmentRangeProofCountMismatch` expected=0). Wallet refuses all caller upload `extra`. `b305_apply_block_rejects_unused_mfeo_when_opening_not_required` + `b305_path_a_refuses_caller_mfex_extra` PASS. Local `ci-check -RustOnly` green. `#31907077988` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** still Phase 3 / B-25. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 4 - claim B-305 unused MFEO refuse** (`f91e07d3`): `apply_block` / wallet still accept well-formed MFEO on Path A uploads (`require_opening=0`), so a hostile wallet can partition vs honest empty extra. Claim base `848a40ff`. Body after tip CI `#31907077988` GREEN. No B-13c; no DEFAULT flip; slash matrix frozen. Do not invent B-35. `[skip ci]`. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 

@@ -67,9 +67,9 @@ Unlike mining-based recall, SPoRA does **not** require specialized hardware, pac
 | **Centralized cloud** | Convenience, SLA | Recurring payment + identity trail; data dies with account or company |
 | **IPFS / pinning services** | Distribution | No on-chain permanence guarantee; pins are voluntary and expirable |
 | **Filecoin / Sia** | Market-priced storage deals | Transparent payments; **contracts expire** — permanence requires perpetual re-deal renewal |
-| **Arweave** | One-time endowment permanence | Strong permanence economics, but **transparent funding**; mining-style recall favors datacenter hardware |
+| **Arweave** | One-time endowment permanence | Strong permanence economics; the **weave tx is the canonical copy**. Transparent funding; mining-style recall favors datacenter hardware |
 | **Bitcoin inscriptions** | Censorship-resistant anchoring | No dedicated storage incentive layer; replication is social, not economically enforced |
-| **Permawrite** | Privacy + permanence in one chain | One-time endowment + **anonymous** payment + **SPoRA** block audits + treasury-funded operator rewards |
+| **Permawrite** | Privacy + permanence in one chain | One-time endowment + **anonymous** payment + **SPoRA** audits. Canonical copy is **operator replicas**, not the block body ([`ECONOMICS.md § 12.0`](./ECONOMICS.md#120-data-availability--the-weave-is-the-copy-vs-commitment--replicas)) |
 
 Arweave proved that **deflation-funded endowments** (pay once, rely on falling storage costs) can work. Permawrite inherits that math but changes two things that matter for human rights use cases: **who can afford to store** (consumer-grade SPoRA instead of mining hardware) and **who can afford to be seen paying** (ring-confidential uploads instead of transparent wallets).
 
