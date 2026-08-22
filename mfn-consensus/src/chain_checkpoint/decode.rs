@@ -76,6 +76,11 @@ fn decode_endowment_params(
         } else {
             0
         },
+        deflation_funded_drip: if checkpoint_version >= 13 {
+            read_u8(r, "endowment_params.deflation_funded_drip")?
+        } else {
+            0
+        },
     })
 }
 

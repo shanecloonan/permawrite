@@ -123,6 +123,12 @@ pub struct EndowmentParams {
     /// Pedersen endowment opens to at least `required_endowment(...)` without
     /// revealing over-payment (B-11 phase 2). Inert until wired in `apply_block`.
     pub require_endowment_range_proof: u8,
+    /// When `1` and `real_yield_ppb == 0`, [`accrue_proof_reward`] / [`payout_per_slot`]
+    /// drip the first-year storage cost `C₀` across `slots_per_year` instead of
+    /// paying 0 from the endowment principal (**B-306**). Default `0` preserves
+    /// Path A: operators are paid from treasury inflows + `storage_proof_reward`.
+    /// Ignored when `real_yield_ppb > 0`. Must be 0 or 1.
+    pub deflation_funded_drip: u8,
 }
 
 /// Canonical defaults.
@@ -141,6 +147,7 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     operator_audit_missed_cap: 0,
     operator_slash_bps: 0,
     require_endowment_range_proof: 0,
+    deflation_funded_drip: 0, // B-306 inert; Path A keeps fee+backstop payouts
 };
 
 /* ----------------------------------------------------------------------- *
@@ -214,6 +221,11 @@ pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentErr
     }
     if p.require_endowment_range_proof != 0 && p.require_endowment_opening != 0 {
         return Err(EndowmentError::EndowmentRangeProofExclusiveWithOpening);
+    }
+    if p.deflation_funded_drip > 1 {
+        return Err(EndowmentError::InvalidDeflationFundedDrip {
+            got: p.deflation_funded_drip,
+        });
     }
     Ok(())
 }
@@ -294,6 +306,41 @@ pub fn required_endowment(
     Ok(ceil_div(numerator, denominator))
 }
 
+/// First-year storage cost `C₀` in base units (floor).
+///
+/// `C₀ = floor(cost_per_byte_year_ppb · size_bytes · replication / PPB)`.
+/// This is the annual drip target when [`EndowmentParams::deflation_funded_drip`]
+/// is on and `real_yield_ppb == 0` (**B-306**).
+///
+/// # Errors
+///
+/// Same range / overflow / validation errors as [`required_endowment`].
+pub fn first_year_cost_base_units(
+    size_bytes: u64,
+    replication: u8,
+    params: &EndowmentParams,
+) -> Result<u128, EndowmentError> {
+    validate_endowment_params(params)?;
+    if replication < params.min_replication || replication > params.max_replication {
+        return Err(EndowmentError::ReplicationOutOfRange {
+            got: replication,
+            min: params.min_replication,
+            max: params.max_replication,
+        });
+    }
+    let num = u128::from(params.cost_per_byte_year_ppb)
+        .checked_mul(u128::from(size_bytes))
+        .and_then(|x| x.checked_mul(u128::from(replication)))
+        .ok_or(EndowmentError::Overflow)?;
+    Ok(num / PPB)
+}
+
+/// `true` when r=0 proofs should drip `C₀` instead of paying 0 from principal.
+#[must_use]
+pub fn deflation_drip_active(params: &EndowmentParams) -> bool {
+    params.real_yield_ppb == 0 && params.deflation_funded_drip != 0
+}
+
 /* ----------------------------------------------------------------------- *
  *  Treasury payout (per-slot, cumulative)                                  *
  * ----------------------------------------------------------------------- */
@@ -301,12 +348,16 @@ pub fn required_endowment(
 /// How many base units the treasury pays out for a single slot, given an
 /// endowment of size `endowment`.
 ///
-/// `per_slot = floor(endowment · real_yield_ppb / (PPB · slots_per_year))`.
-/// Floor so the treasury never overdraws.
+/// - **Yield-bearing** (`r > 0`):
+///   `per_slot = floor(endowment · real_yield_ppb / (PPB · slots_per_year))`.
+/// - **Deflation drip** (`r = 0` and `deflation_funded_drip = 1`):
+///   invert `E₀ = C₀ · (PPB + i) / (PPB · d)` so
+///   `C₀ = endowment · inflation_ppb / (PPB + inflation_ppb)`, then
+///   `per_slot = floor(C₀ / slots_per_year)`.
+/// - **Legacy r=0** (`deflation_funded_drip = 0`, Path A default): always 0;
+///   operators are paid from treasury inflows + `storage_proof_reward`.
 ///
-/// When `real_yield_ppb == 0` (deflation-funded mode) this is always 0:
-/// operators are paid from fresh treasury inflows (fees + emission backstop)
-/// rather than from yield on individual endowments.
+/// Floor so the treasury never overdraws.
 ///
 /// # Errors
 ///
@@ -319,11 +370,29 @@ pub fn payout_per_slot(
     if slots_per_year == 0 {
         return Err(EndowmentError::SlotsPerYearZero);
     }
+    if params.real_yield_ppb > 0 {
+        let num = endowment
+            .checked_mul(u128::from(params.real_yield_ppb))
+            .ok_or(EndowmentError::Overflow)?;
+        let den = PPB
+            .checked_mul(u128::from(slots_per_year))
+            .ok_or(EndowmentError::Overflow)?;
+        return Ok(num / den);
+    }
+    if params.deflation_funded_drip == 0 {
+        return Ok(0);
+    }
+    let inflation = u128::from(params.inflation_ppb);
+    if inflation == 0 {
+        return Ok(0);
+    }
+    // C₀ = E₀ · d / (1 + i) = endowment · inflation / (PPB + inflation)
     let num = endowment
-        .checked_mul(u128::from(params.real_yield_ppb))
+        .checked_mul(inflation)
         .ok_or(EndowmentError::Overflow)?;
     let den = PPB
-        .checked_mul(u128::from(slots_per_year))
+        .checked_add(inflation)
+        .and_then(|x| x.checked_mul(u128::from(slots_per_year)))
         .ok_or(EndowmentError::Overflow)?;
     Ok(num / den)
 }
@@ -333,9 +402,9 @@ pub fn payout_per_slot(
 /// inside the division so the per-slot fraction isn't lost.
 ///
 /// Matches `accrue_proof_reward.payout` exactly when run against an empty
-/// accumulator and `slots ≤ proof_reward_window_slots`.
-///
-/// When `real_yield_ppb == 0` this is always 0 (see [`payout_per_slot`]).
+/// accumulator and `slots ≤ proof_reward_window_slots` **in yield-bearing
+/// mode**. Deflation drip uses size-based `C₀` in [`accrue_proof_reward`],
+/// so this helper stays the endowment-inverse form (same as [`payout_per_slot`]).
 ///
 /// # Errors
 ///
@@ -352,12 +421,30 @@ pub fn cumulative_payout(
     if slots_per_year == 0 {
         return Err(EndowmentError::SlotsPerYearZero);
     }
+    if params.real_yield_ppb > 0 {
+        let num = u128::from(slots)
+            .checked_mul(endowment)
+            .and_then(|x| x.checked_mul(u128::from(params.real_yield_ppb)))
+            .ok_or(EndowmentError::Overflow)?;
+        let den = PPB
+            .checked_mul(u128::from(slots_per_year))
+            .ok_or(EndowmentError::Overflow)?;
+        return Ok(num / den);
+    }
+    if params.deflation_funded_drip == 0 {
+        return Ok(0);
+    }
+    let inflation = u128::from(params.inflation_ppb);
+    if inflation == 0 {
+        return Ok(0);
+    }
     let num = u128::from(slots)
         .checked_mul(endowment)
-        .and_then(|x| x.checked_mul(u128::from(params.real_yield_ppb)))
+        .and_then(|x| x.checked_mul(inflation))
         .ok_or(EndowmentError::Overflow)?;
     let den = PPB
-        .checked_mul(u128::from(slots_per_year))
+        .checked_add(inflation)
+        .and_then(|x| x.checked_mul(u128::from(slots_per_year)))
         .ok_or(EndowmentError::Overflow)?;
     Ok(num / den)
 }
@@ -397,10 +484,12 @@ pub struct AccrueResult {
 
 /// Per-proof reward accrual with a PPB-precision accumulator.
 ///
-/// **Why an accumulator.** At default params (r=0), the per-endowment yield
-/// component is zero; operators are compensated from ongoing treasury inflows.
-/// The accumulator + formulas remain in place so the same code path works for
-/// both r>0 and r=0 modes, and for future parameter changes.
+/// **Why an accumulator.** At default Path A params (`r = 0`,
+/// `deflation_funded_drip = 0`) the per-endowment component is zero and
+/// operators are paid from treasury inflows + `storage_proof_reward`.
+/// When `deflation_funded_drip = 1` and `r = 0`, each credited slot drips
+/// `C₀ / slots_per_year` from the sized principal (**B-306**). Yield-bearing
+/// mode (`r > 0`) is unchanged.
 ///
 /// **Anti-hoarding.** Without a cap on `elapsed_slots`, a prover could
 /// lie dormant for a year and submit one proof for a year's yield.
@@ -425,18 +514,7 @@ pub fn accrue_proof_reward(args: AccrueArgs<'_>) -> Result<AccrueResult, Endowme
     let required_e = required_endowment(args.size_bytes, args.replication, args.params)?;
     let elapsed_raw = args.current_slot - args.last_proven_slot;
     let credited = elapsed_raw.min(args.params.proof_reward_window_slots);
-    let incoming_ppb: u128 = if credited == 0 {
-        0
-    } else {
-        // PPB-per-slot accumulator:
-        //   per_slot_ppb = endowment · real_yield / slots_per_year
-        //   total_ppb    = credited · endowment · real_yield / slots_per_year
-        u128::from(credited)
-            .checked_mul(required_e)
-            .and_then(|x| x.checked_mul(u128::from(args.params.real_yield_ppb)))
-            .ok_or(EndowmentError::Overflow)?
-            / u128::from(args.params.slots_per_year)
-    };
+    let incoming_ppb = incoming_ppb_for_credited(credited, required_e, &args)?;
     let total_ppb = args
         .pending_ppb
         .checked_add(incoming_ppb)
@@ -518,6 +596,35 @@ fn ceil_div(numerator: u128, denominator: u128) -> u128 {
     numerator.div_ceil(denominator)
 }
 
+fn incoming_ppb_for_credited(
+    credited: u64,
+    required_e: u128,
+    args: &AccrueArgs<'_>,
+) -> Result<u128, EndowmentError> {
+    if credited == 0 {
+        return Ok(0);
+    }
+    let slots = u128::from(args.params.slots_per_year);
+    if args.params.real_yield_ppb > 0 {
+        let num = u128::from(credited)
+            .checked_mul(required_e)
+            .and_then(|x| x.checked_mul(u128::from(args.params.real_yield_ppb)))
+            .ok_or(EndowmentError::Overflow)?;
+        return Ok(num / slots);
+    }
+    if args.params.deflation_funded_drip == 0 {
+        return Ok(0);
+    }
+    // C₀ drip: incoming_ppb = credited · cost · size · repl / slots_per_year
+    // so payout = incoming_ppb / PPB = credited · C₀ / slots_per_year.
+    let num = u128::from(credited)
+        .checked_mul(u128::from(args.params.cost_per_byte_year_ppb))
+        .and_then(|x| x.checked_mul(u128::from(args.size_bytes)))
+        .and_then(|x| x.checked_mul(u128::from(args.replication)))
+        .ok_or(EndowmentError::Overflow)?;
+    Ok(num / slots)
+}
+
 /* ----------------------------------------------------------------------- *
  *  Errors                                                                  *
  * ----------------------------------------------------------------------- */
@@ -597,6 +704,12 @@ pub enum EndowmentError {
     /// Range-proof binding and MFEO opening reveal are mutually exclusive modes.
     #[error("require_endowment_range_proof and require_endowment_opening cannot both be enabled")]
     EndowmentRangeProofExclusiveWithOpening,
+    /// `deflation_funded_drip` must be 0 or 1.
+    #[error("deflation_funded_drip must be 0 or 1, got {got}")]
+    InvalidDeflationFundedDrip {
+        /// Caller-supplied flag.
+        got: u8,
+    },
     /// An intermediate `u128` product overflowed.
     #[error("u128 overflow in endowment math")]
     Overflow,
@@ -868,5 +981,104 @@ mod tests {
             assert!(e >= prev, "size {s}: {e} should ≥ prev {prev}");
             prev = e;
         }
+    }
+
+    #[test]
+    fn b306_default_drip_flag_is_inert() {
+        assert_eq!(DEFAULT_ENDOWMENT_PARAMS.deflation_funded_drip, 0);
+        assert!(!deflation_drip_active(&p()));
+        let e = required_endowment(1 << 30, 3, &p()).unwrap();
+        assert_eq!(payout_per_slot(e, p().slots_per_year, &p()).unwrap(), 0);
+        let res = accrue_proof_reward(AccrueArgs {
+            size_bytes: 1 << 30,
+            replication: 3,
+            pending_ppb: 0,
+            last_proven_slot: 0,
+            current_slot: p().proof_reward_window_slots,
+            params: &p(),
+        })
+        .unwrap();
+        assert_eq!(res.payout, 0);
+        assert_eq!(res.new_pending_ppb, 0);
+    }
+
+    #[test]
+    fn b306_rejects_drip_flag_above_one() {
+        let mut bad = p();
+        bad.deflation_funded_drip = 2;
+        assert!(matches!(
+            validate_endowment_params(&bad),
+            Err(EndowmentError::InvalidDeflationFundedDrip { got: 2 })
+        ));
+    }
+
+    #[test]
+    fn b306_deflation_drip_year_matches_first_year_cost() {
+        let mut drip = p();
+        drip.deflation_funded_drip = 1;
+        assert!(deflation_drip_active(&drip));
+        let size = 1u64 << 30;
+        let c0 = first_year_cost_base_units(size, 3, &drip).unwrap();
+        assert!(c0 > 0);
+
+        let mut pending = 0u128;
+        let mut total_payout = 0u128;
+        let mut slot = 0u64;
+        let window = drip.proof_reward_window_slots;
+        while slot < drip.slots_per_year {
+            let next = (slot + window).min(drip.slots_per_year);
+            let res = accrue_proof_reward(AccrueArgs {
+                size_bytes: size,
+                replication: 3,
+                pending_ppb: pending,
+                last_proven_slot: slot,
+                current_slot: next,
+                params: &drip,
+            })
+            .unwrap();
+            total_payout += res.payout;
+            pending = res.new_pending_ppb;
+            slot = next;
+        }
+        assert_eq!(
+            total_payout, c0,
+            "year of C0 drip should pay first-year cost (got {total_payout}, want {c0})"
+        );
+        assert!(pending < PPB);
+    }
+
+    #[test]
+    fn b306_drip_ignored_when_real_yield_positive() {
+        let mut both = p();
+        both.real_yield_ppb = 40_000_000;
+        both.deflation_funded_drip = 1;
+        assert!(!deflation_drip_active(&both));
+        let size = 1u64 << 20;
+        let required = required_endowment(size, 3, &both).unwrap();
+        let from_yield = accrue_proof_reward(AccrueArgs {
+            size_bytes: size,
+            replication: 3,
+            pending_ppb: 0,
+            last_proven_slot: 0,
+            current_slot: both.proof_reward_window_slots,
+            params: &both,
+        })
+        .unwrap();
+        let mut yield_only = both;
+        yield_only.deflation_funded_drip = 0;
+        let control = accrue_proof_reward(AccrueArgs {
+            size_bytes: size,
+            replication: 3,
+            pending_ppb: 0,
+            last_proven_slot: 0,
+            current_slot: both.proof_reward_window_slots,
+            params: &yield_only,
+        })
+        .unwrap();
+        assert_eq!(from_yield, control);
+        assert_eq!(
+            payout_per_slot(required, both.slots_per_year, &both).unwrap(),
+            payout_per_slot(required, both.slots_per_year, &yield_only).unwrap()
+        );
     }
 }

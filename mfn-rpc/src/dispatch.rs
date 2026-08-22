@@ -373,6 +373,7 @@ fn chain_params_json(chain: &Chain) -> Value {
             "proof_reward_window_slots": end.proof_reward_window_slots,
             "require_endowment_opening": end.require_endowment_opening,
             "require_endowment_range_proof": end.require_endowment_range_proof,
+            "deflation_funded_drip": end.deflation_funded_drip,
             "operator_salted_challenges": end.operator_salted_challenges,
             "require_registered_operators": end.require_registered_operators,
         },
@@ -1762,6 +1763,10 @@ mod tests {
         assert_eq!(
             v["result"]["endowment"]["require_endowment_range_proof"],
             json!(DEFAULT_ENDOWMENT_PARAMS.require_endowment_range_proof)
+        );
+        assert_eq!(
+            v["result"]["endowment"]["deflation_funded_drip"],
+            json!(DEFAULT_ENDOWMENT_PARAMS.deflation_funded_drip)
         );
         assert_eq!(v["result"]["mfn_decimals"], json!(MFN_DECIMALS));
         assert_eq!(v["result"]["mfn_base"], json!(MFN_BASE));

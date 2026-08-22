@@ -35,6 +35,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model, [§ 12 Arweave durability](./ECONOMICS.md#12-permanence-durability-vs-arweave--is-this-model-more-likely-to-break) ([§ 12.0 weave-is-the-copy vs replicas](./ECONOMICS.md#120-data-availability--the-weave-is-the-copy-vs-commitment--replicas), [§ 12.6 zero privacy demand](./ECONOMICS.md#126-hardware-deflation-and-zero-privacy-demand)).
 - 💸 [**FEES.md**](./FEES.md) — plain-language transaction fees: what you pay, where it goes (90/10 split), upload endowment pricing, and the 2026-07 parameter review.
 - ✅ [**B13_SUBSIDY_FORK_SIGNOFF.md**](./B13_SUBSIDY_FORK_SIGNOFF.md) — **B-33** human gate before enabling `subsidy_to_treasury_bps=1000` on Path A (**B-13c**).
+- ✅ [**B306_ENDOWMENT_DRIP.md**](./B306_ENDOWMENT_DRIP.md) — **B-306** r=0 C₀ drip (inert flag; Path A stays 0).
 - ✅ [**B40_PERMANENCE_WEEK.md**](./B40_PERMANENCE_WEEK.md) — **B-40** first permanence week runbook (arm day-of L4; B-13a pre-armed).
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
 - 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.

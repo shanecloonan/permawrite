@@ -22,17 +22,17 @@ This remains a genuine hole for bondless deployments: the permanence guarantee s
 
 ### 2. r = 0 default makes permanence heavily dependent on continuous high privacy transaction volume
 
-> **Status: open (by design)** — permanence **does not stop** when fees dry up: the emission backstop mints operator payouts when the treasury is short ([`apply_block`](../mfn-consensus/src/block/apply.rs) settlement; `emission_backstop_only_when_treasury_short` in CI). What varies is **inflation character** (scheduled fee/treasury inflow vs emergency backstop spikes). Approved but **not yet shipped:** route 10% of block subsidy to treasury ([`FEES.md` § 5.4](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury), [`ECONOMICS.md` § 12](./ECONOMICS.md#12-permanence-durability-vs-arweave--is-this-model-more-likely-to-break)) — see [§ 19](#19-subsidy-tail-split-approved-but-not-in-consensus-yet).
+> **Status: mitigation designed, not enabled (B-306)** — [`deflation_funded_drip`](../mfn-storage/src/endowment.rs) (checkpoint **v13**) makes r=0 proofs drip first-year cost `C₀` from the sized principal, so already-uploaded data does not depend on later privacy volume. Default remains **`0`** (Path A unchanged; enabling is a coinbase fork). Residual: the flat `storage_proof_reward` (0.1 MFN/proof) still dwarfs `C₀` drip — **B-306c**. Approved but **not yet shipped:** 10% subsidy → treasury ([`FEES.md` § 5.4](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury)) — see [§ 19](#19-subsidy-tail-split-approved-but-not-in-consensus-yet). Design: [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md).
 
-After the shift to `real_yield_ppb = 0` as the expected/default case (see the two-mode endowment model), storage operators no longer receive yield harvested from individual endowments. Payouts come from:
+After the shift to `real_yield_ppb = 0` as the expected/default case (see the two-mode endowment model), storage operators no longer receive yield harvested from individual endowments **unless** `deflation_funded_drip = 1`. On Path A, payouts still come from:
 
 - 90% of priority fees flowing into the treasury, then out as storage rewards.
 - The tiny per-proof emission backstop (`storage_proof_reward = 0.1 MFN` per accepted proof).
 - **When treasury is empty:** settlement mints the storage-reward shortfall unconditionally (backstop).
 
-The "endowment" an uploader pays is now largely a large one-time capitalization of the treasury rather than a self-sustaining principal whose yield covers future costs. If privacy-preserving transaction volume (the primary long-term source of treasury inflows) declines or never reaches sufficient scale, the treasury drains and operator revenue relies more on the **emission backstop** — solvency holds, but inflation becomes spikier and less predictable.
+The "endowment" an uploader pays is now largely a large one-time capitalization of the treasury rather than a self-sustaining principal whose yield covers future costs. If privacy-preserving transaction volume (the primary long-term source of treasury inflows **on Path A**) declines or never reaches sufficient scale, the treasury drains and operator revenue relies more on the **emission backstop** — solvency holds, but inflation becomes spikier and less predictable.
 
-This is not a hidden assumption — it is the explicit economic thesis of the project ("privacy demand funds permanence"). It is also a real concentration risk: the storage side of the system has a single point of failure in sustained high-value private economic activity.
+This is not a hidden assumption — it is the explicit economic thesis of the project ("privacy demand funds permanence"). It is also a real concentration risk: the storage side of the system has a single point of failure in sustained high-value private economic activity **until B-306 drip + B-13 subsidy split are enabled**. The intended blend keeps privacy fees as *surplus*, not as the thing that keeps old data alive.
 
 ### 3. Permanent tail emission is large in absolute terms and creates ongoing dilution
 

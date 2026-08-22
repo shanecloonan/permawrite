@@ -59,6 +59,10 @@ fn public_devnet_v1_requires_endowment_range_proof() {
         "public devnet must enforce MFER surplus range proofs (B1 phase 2d)"
     );
     assert_eq!(
+        cfg.endowment_params.deflation_funded_drip, 0,
+        "B-306 drip stays off on Path A genesis"
+    );
+    assert_eq!(
         cfg.endowment_params.require_endowment_opening, 0,
         "MFER and MFEO are mutually exclusive on public devnet"
     );

@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat A Arweave **weave-is-the-copy** availability docs. **B-305** `704280f7`. `#31909490680` FAIL scripts. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**.
+Synced at Seat B **B-306** r=0 C₀ drip inert. **B-305** `704280f7`. `#31909490680` FAIL scripts. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Arweave weave-is-the-copy availability (this commit); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-305** unused MFEO refuse (this commit) | *Idle* | **B-35** still Phase 3 / B-25; no B-13c |
+| **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 |
+| **B** Protocol/Privacy | **B-306** r=0 C₀ drip inert (this commit); **B-305** unused MFEO refuse | *Idle* | **B-306b** after B-25 / Path B; **B-35** still Phase 3; no B-13c |
 | **C** Testnet/Onboarding | Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* | 2nd host B-32 |
 
 ### Hard locks (all seats)
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done B-305 unused MFEO refuse / Doing idle / Next B-35 still Phase 3
+3agent — Seat B: Done B-306 r=0 C0 drip inert / Doing idle / Next B-306b after B-25 / Path B (no B-13c)
 3agent — Seat C: Done Path A tip-22565 lag OK=7 / Doing idle / Next 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

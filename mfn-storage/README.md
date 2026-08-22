@@ -138,7 +138,7 @@ pub const DEFAULT_CHUNK_SIZE: usize = 256 * 1024;   // 256 KiB
 pub const PPB: u128 = 1_000_000_000;
 ```
 
-Worked example: **1 GB at 3× replication** → `E₀ ≈ 0.306 MFN` (using 2% as assumed deflation rate `d`). See [`docs/STORAGE.md`](../docs/STORAGE.md) for the full two-mode explanation.
+Worked example: **1 GB at 3× replication** → `E₀ ≈ 0.306 MFN` (using 2% as assumed deflation rate `d`). See [`docs/STORAGE.md`](../docs/STORAGE.md) for the full two-mode explanation. **B-306** `deflation_funded_drip` defaults to `0` (Path A); when `1` and `r = 0`, proofs drip `C₀` from that principal.
 
 ---
 

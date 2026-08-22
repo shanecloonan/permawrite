@@ -736,13 +736,20 @@ Arweave does not replicate.
 
 Ordered by leverage:
 
-1. **Ship `subsidy_to_treasury_bps`** (10% tail → treasury; F6 phase 2) —
+1. **Ship `deflation_funded_drip`** (**B-306**, math + inert flag this unit) —
+   r=0 proofs drip `C₀` from the sized principal so already-uploaded data is
+   funded like Arweave's endowment faucet. Path A stays flag=`0` (no fork).
+   Enable on Path B / after B-25 as **B-306b**. See [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md).
+2. **Shrink `storage_proof_reward` toward a true backstop** (**B-306c**) —
+   today's 0.1 MFN/proof still dwarfs the C₀ drip, so the prize pool—not the
+   principal—dominates operator income until this lever moves.
+3. **Ship `subsidy_to_treasury_bps`** (10% tail → treasury; F6 phase 2) —
    scheduled permanence inflow independent of privacy demand.
-2. **Operator bonding + slashing at scale** — skin in the game for replicas
+4. **Operator bonding + slashing at scale** — skin in the game for replicas
    (partially shipped on public devnet; default bond still 0).
-3. **Mainnet telemetry** — watch `treasury_base_units` and backstop frequency;
+5. **Mainnet telemetry** — watch `treasury_base_units` and backstop frequency;
    [`treasury-telemetry-watch.sh`](../scripts/public-devnet-v1/treasury-telemetry-watch.sh).
-4. **Audit + time** — the implementation-risk gap vs Arweave closes only with
+6. **Audit + time** — the implementation-risk gap vs Arweave closes only with
    production evidence, not parameter tuning.
 
 ### 12.6 Hardware deflation and zero privacy demand
@@ -782,10 +789,12 @@ Arweave's locked AR principal uses. The benefit is **proportional** because:
 
 **What differs is payout plumbing, not the deflation bet.** Arweave drips
 yield from each upload's locked endowment principal. Permawrite with `r = 0`
-does **not** accrue per-file yield (`payout_per_slot_ppb` is always 0); the
-upload endowment capitalizes a **shared treasury** that pays all operators.
-Hardware cheapening still sizes `E₀` correctly at upload time; it does not
-create a separate per-file drip on Permawrite today.
+and `deflation_funded_drip = 0` (Path A default) does **not** accrue per-file
+yield (`payout_per_slot` is 0); the upload endowment capitalizes a **shared
+treasury** that pays all operators. **B-306** ships the C₀ drip path behind an
+inert flag so a later genesis can match Arweave's principal faucet without
+changing Path A coinbase. Hardware cheapening still sizes `E₀` correctly at
+upload time.
 
 Arweave additionally relies on hardware cheapening for **mining economics**
 (recall proofs favor cheap dense storage). Permawrite routes that benefit

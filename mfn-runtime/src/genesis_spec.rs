@@ -294,6 +294,8 @@ struct EndowmentSection {
     operator_audit_missed_cap: Option<u8>,
     operator_slash_bps: Option<u32>,
     require_endowment_range_proof: Option<u8>,
+    /// B-306 C₀ drip when r=0. Default `0` (Path A). Must not flip public_devnet_v1.
+    deflation_funded_drip: Option<u8>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -423,6 +425,9 @@ fn merge_endowment(base: EndowmentParams, file: Option<EndowmentSection>) -> End
         require_endowment_range_proof: e
             .require_endowment_range_proof
             .unwrap_or(base.require_endowment_range_proof),
+        deflation_funded_drip: e
+            .deflation_funded_drip
+            .unwrap_or(base.deflation_funded_drip),
     }
 }
 
@@ -881,5 +886,9 @@ mod tests {
         assert_eq!(cfg.emission_params.subsidy_to_treasury_bps, 0);
         assert_eq!(cfg.emission_params, DEFAULT_EMISSION_PARAMS);
         assert_eq!(state.emission_params.subsidy_to_treasury_bps, 0);
+        assert_eq!(
+            cfg.endowment_params.deflation_funded_drip, 0,
+            "B-306 drip stays off on Path A genesis"
+        );
     }
 }

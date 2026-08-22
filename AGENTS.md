@@ -134,16 +134,16 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-16):** **B-305** landed `704280f7`. Tip CI `#31909490680` **FAIL** scripts (rust GREEN on prior). Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-08-22):** **B-306** r=0 C₀ drip inert (this commit). Tip CI `#31909490680` **FAIL** scripts (rust GREEN on prior). Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
-| **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (this commit); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
+| **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-305** (this commit); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-305** (`704280f7`); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-268b** (`ee3739e7`); **B-269**; **B-268** WP; **B-267**; **B-265** (`14f6b177`) | *Idle* — B-268c is lane 4 | Human **B-33**; no B-13c enable; arm **B-40** day-of L4 | Emission sims |
+| **6** Permanence | **B-306** r=0 C₀ drip inert (this commit); **B-268b** (`ee3739e7`); **B-269**; **B-268** WP | *Idle* | **B-306b** enable after B-25 / Path B; **B-306c** prize-size; human **B-33**; no B-13c enable | Emission sims |
 | **7** Testnet launch | Path A **22565** (`160a9b07`; lag **OK=7**); **B-42** 3rd JOIN last_proven **22560** (`6a1468fc`); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
@@ -244,7 +244,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-302 | F5 P20: reject empty MFEX envelope (magic+version, no payload) | 4+5 | **Landed** `d01b4df5`; no B-13c enable |
 | B-303 | Wallet refuse caller `extra` when synthesizing MFEX (MFEO/MFER/claims) | 4+5 | **Landed** `4e1fb020`; no B-13c enable |
 | B-304 | F5 P20: reject well-formed MFEX on non-storage (transfer) txs | 4+5 | **Landed** `848a40ff`; no B-13c enable |
-| B-305 | F5 P20: reject unused MFEO/MFER when opening/range not required | 4+5 | **Landed** (this commit); no B-13c enable |
+| B-305 | F5 P20: reject unused MFEO/MFER when opening/range not required | 4+5 | **Landed** `704280f7`; no B-13c enable |
+| B-306 | r=0 endowment C₀ drip (`deflation_funded_drip`, ckpt v13) | 6 | **Landed** (this commit) — inert default; Path A stays 0; enable = **B-306b** |
+| B-306b | Enable `deflation_funded_drip = 1` on Path B / after B-25 | 6+7+human | Coinbase fork if flipped on Path A; see [`B306_ENDOWMENT_DRIP.md`](docs/B306_ENDOWMENT_DRIP.md) |
+| B-306c | Size `storage_proof_reward` as true backstop (not 0.1 MFN prize) | 6 | After drip enable; do not DEFAULT-flip Path A |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -507,7 +510,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-16 - lane 2 - Arweave weave-is-the-copy vs replica availability** (this commit): `ECONOMICS.md` §12.0 states the canonical-copy split (weave tx body vs `data_root` + operator chunks); STORAGE / PRIVACY_AND_PERMANENCE / docs README point at it. Path A one-host / bond=0 called out. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — tip `#31909490680` already FAIL scripts. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-22 - lane 6 - B-306 r=0 endowment C₀ drip inert** (this commit): `deflation_funded_drip` flag + `first_year_cost_base_units` / accrue drip when r=0; checkpoint **v13**; genesis/RPC/WASM merge; Path A genesis stays 0 (no coinbase fork). `b306_*` + v12 decode default 0 + v13 round-trip + Path A pin + RPC/WASM merge tests PASS. `cargo fmt --all --check` + `cargo clippy --workspace --all-targets --all-features -- -D warnings` + `cargo audit` green. Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen. Next: **B-306b** enable after B-25 / Path B; **B-306c** prize-size. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-16 - lane 2 - Arweave weave-is-the-copy vs replica availability** (`7464ad8d`): `ECONOMICS.md` §12.0 states the canonical-copy split (weave tx body vs `data_root` + operator chunks); STORAGE / PRIVACY_AND_PERMANENCE / docs README point at it. Path A one-host / bond=0 called out. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — tip `#31909490680` already FAIL scripts. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-15 - lane 4 - B-305 unused MFEO refuse** (`704280f7`): `apply_block` / mempool reject unused MFEO/MFER when opening/range flags are 0 (`EndowmentOpeningCountMismatch` / `EndowmentRangeProofCountMismatch` expected=0). Wallet refuses all caller upload `extra`. `b305_apply_block_rejects_unused_mfeo_when_opening_not_required` + `b305_path_a_refuses_caller_mfex_extra` PASS. Local `ci-check -RustOnly` green. `#31907077988` rust GREEN / scripts FAIL (Seat A). No B-13c; no DEFAULT flip. Full CI (no skip). Next: **B-35** still Phase 3 / B-25. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 

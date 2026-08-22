@@ -86,6 +86,8 @@ struct EndowmentPlanJson {
     #[serde(default)]
     require_endowment_range_proof: Option<u8>,
     #[serde(default)]
+    deflation_funded_drip: Option<u8>,
+    #[serde(default)]
     operator_salted_challenges: Option<u8>,
     #[serde(default)]
     require_registered_operators: Option<u8>,
@@ -125,6 +127,9 @@ fn merge_endowment_params(plan: &EndowmentPlanJson) -> Result<EndowmentParams, W
     }
     if let Some(v) = plan.require_endowment_range_proof {
         p.require_endowment_range_proof = v;
+    }
+    if let Some(v) = plan.deflation_funded_drip {
+        p.deflation_funded_drip = v;
     }
     if let Some(v) = plan.operator_salted_challenges {
         p.operator_salted_challenges = v;
@@ -532,6 +537,16 @@ mod merge_tests {
         };
         let p = merge_endowment_params(&plan).expect("merge");
         assert_eq!(p.require_endowment_range_proof, 1);
+    }
+
+    #[test]
+    fn merge_endowment_params_accepts_deflation_drip_flag() {
+        let plan = EndowmentPlanJson {
+            deflation_funded_drip: Some(1),
+            ..Default::default()
+        };
+        let p = merge_endowment_params(&plan).expect("merge");
+        assert_eq!(p.deflation_funded_drip, 1);
     }
 
     #[test]

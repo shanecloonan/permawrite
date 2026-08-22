@@ -395,7 +395,11 @@ Because `real_yield_ppb = 0`, there is **no per-endowment yield payout** to oper
 per_slot_payout_ppb = E₀ × real_yield_ppb / slots_per_year
 ```
 
-At the default `real_yield_ppb = 0` this component is **zero** for every commitment. Storage operators are compensated from fresh treasury revenue (fees + emission) rather than from yield harvested on individual endowments. The formulas and accumulator remain for compatibility with positive-yield parameter sets and for future upgrades.
+At the default `real_yield_ppb = 0` this component is **zero** unless
+`deflation_funded_drip = 1` (**B-306**), in which case proofs drip `C₀ / slots_per_year`
+from the sized principal. Path A keeps the flag at `0`: operators are paid from
+fresh treasury revenue (fees + emission) rather than from the endowment
+principal. See [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md).
 
 (The old 4% example would have produced ~0.465 base units/slot on a 30.6 M endowment; that path is still supported if a future parameter update sets a positive `real_yield_ppb` that beats `inflation_ppb`.)
 

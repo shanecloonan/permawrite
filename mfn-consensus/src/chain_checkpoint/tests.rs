@@ -171,6 +171,65 @@ fn v11_decode_defaults_schedule_inactive() {
     assert_eq!(cp.state.subsidy_bps_activation_height, 0);
     assert_eq!(cp.state.subsidy_bps_activation_value, 0);
     assert_eq!(cp.state.emission_params.subsidy_to_treasury_bps, 0);
+    assert_eq!(cp.state.endowment_params.deflation_funded_drip, 0);
+}
+
+#[test]
+fn v12_decode_defaults_deflation_drip_off() {
+    let mut w = Writer::new();
+    w.push(&CHAIN_CHECKPOINT_MAGIC);
+    w.u32(12);
+    w.push(&[0u8; 32]);
+    w.u8(0);
+    w.varint(0);
+    encode_consensus_params(&mut w, &DEFAULT_CONSENSUS_PARAMS);
+    encode_bonding_params(&mut w, &DEFAULT_BONDING_PARAMS);
+    encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS, 12);
+    encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS, 12);
+    w.u32(0);
+    w.push(&0u16.to_be_bytes());
+    encode_u128(&mut w, 0);
+    w.u64(0);
+    w.u32(0);
+    w.u32(0);
+    w.u32(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    w.varint(0);
+    let tree = encode_utxo_tree_state(&empty_utxo_tree());
+    w.varint(tree.len() as u64);
+    w.push(&tree);
+    let payload = w.into_bytes();
+    let tag = dhash(CHAIN_CHECKPOINT, &[&payload]);
+    let mut bytes = payload;
+    bytes.extend_from_slice(&tag);
+    let cp = decode_chain_checkpoint(&bytes).expect("v12 decode");
+    assert_eq!(cp.state.endowment_params.deflation_funded_drip, 0);
+    assert_eq!(cp.state.subsidy_bps_activation_height, 0);
+}
+
+#[test]
+fn b306_deflation_drip_param_roundtrip() {
+    let mut s = fresh_state();
+    s.endowment_params = EndowmentParams {
+        deflation_funded_drip: 1,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let cp = ChainCheckpoint {
+        genesis_id: [0xD6; 32],
+        state: s,
+    };
+    let bytes = encode_chain_checkpoint(&cp);
+    let restored = decode_chain_checkpoint(&bytes).expect("roundtrip");
+    assert_eq!(restored.state.endowment_params.deflation_funded_drip, 1);
+    assert_eq!(restored.state.endowment_params, cp.state.endowment_params);
+    assert_eq!(DEFAULT_ENDOWMENT_PARAMS.deflation_funded_drip, 0);
 }
 
 fn rich_state() -> ChainState {

@@ -51,6 +51,9 @@ pub(crate) fn encode_endowment_params(
     if checkpoint_version >= 10 {
         w.u8(p.require_endowment_range_proof);
     }
+    if checkpoint_version >= 13 {
+        w.u8(p.deflation_funded_drip);
+    }
 }
 
 pub(crate) fn encode_u128(w: &mut Writer, v: u128) {

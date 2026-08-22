@@ -98,7 +98,7 @@ Permawrite does the same thing for your data, with one important update:
 1. You upload a file. Along with the file, you pay an **endowment fee** in MFN.
 2. The endowment is sized under the protocol's current `EndowmentParams`.
 3. By default (`real_yield_ppb = 0`) the network does **not** assume it can earn real yield on the locked principal. Instead it relies on the same mechanism Arweave uses: **storage costs continue to fall** (Kryder's law). A large one-time payment at today's prices, combined with declining real costs in the future, keeps the commitment solvent forever.
-4. Storage operators are still required to repeatedly prove they hold the data (SPoRA). They are compensated primarily from ongoing treasury inflows (fees + emission backstop) rather than from "yield" harvested per-endowment.
+4. Storage operators are still required to repeatedly prove they hold the data (SPoRA). On Path A they are compensated primarily from ongoing treasury inflows (fees + emission backstop). **B-306** adds an inert `deflation_funded_drip` flag so r=0 proofs can instead drip the first-year storage cost from the endowment principal — Arweave-style, with privacy fees as surplus. It is **not** enabled on public devnet (enabling forks coinbase). See [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md).
 
 The math supports both a classical yield-bearing mode (`r > i`) and the deflation-funded mode (`r = 0`, the default). The same `required_endowment` / `accrue_proof_reward` functions work in either regime.
 

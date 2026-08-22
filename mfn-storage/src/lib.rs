@@ -10,7 +10,8 @@
 //!   block.
 //! - [`endowment`] — monetary policy for permanence: the
 //!   `E₀ = C₀·(1+i)/(r−i)` (r>0) or `E₀ = C₀·(1+i)/d` (r=0, deflation mode)
-//!   formula, per-slot payouts (0 when r=0), and the PPB-precision accumulator.
+//!   formula, per-slot payouts (0 at r=0 unless `deflation_funded_drip`), and
+//!   the PPB-precision accumulator.
 //!
 //! ## Layering
 //!
@@ -38,9 +39,9 @@ pub use commitment::{
     validate_storage_commitment_shape, CommitmentShapeError, StorageCommitment,
 };
 pub use endowment::{
-    accrue_proof_reward, cumulative_payout, max_bytes_for_endowment, payout_per_slot,
-    required_endowment, validate_endowment_params, AccrueArgs, AccrueResult, EndowmentError,
-    EndowmentParams, DEFAULT_ENDOWMENT_PARAMS, PPB,
+    accrue_proof_reward, cumulative_payout, deflation_drip_active, first_year_cost_base_units,
+    max_bytes_for_endowment, payout_per_slot, required_endowment, validate_endowment_params,
+    AccrueArgs, AccrueResult, EndowmentError, EndowmentParams, DEFAULT_ENDOWMENT_PARAMS, PPB,
 };
 pub use spora::{
     build_endowment_surplus_range_proof, build_storage_commitment, build_storage_proof,
