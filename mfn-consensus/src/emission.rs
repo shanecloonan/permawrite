@@ -330,6 +330,59 @@ pub fn storage_proof_coinbase_bonus(
         .fold(0u128, u128::saturating_add)
 }
 
+/// B-28 Path A draft treasury floor (base units). Ops alert if live
+/// `treasury_base_units` falls below this while the tip advances.
+pub const B28_PATH_A_TREASURY_FLOOR_BASE_UNITS: u128 = 1_000_000;
+
+/// **B-20** / FEES §5.5 stressed-runway fee→treasury step (basis points).
+/// Upper end of the drafted +500–1000 range; saturates at 10000.
+pub const RECOMMENDED_FEE_SHIFT_STEP_BPS: u16 = 1_000;
+
+/// Rolling-window observation for [`recommended_fee_to_treasury_bps`].
+///
+/// Not an on-chain oracle (**PM22** research). Callers feed B-28 / telemetry
+/// numbers; this helper only names the one-lever fee split.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FeeShiftObservation {
+    /// Live treasury balance (base units).
+    pub treasury_base_units: u128,
+    /// Floor to compare against (Path A draft: [`B28_PATH_A_TREASURY_FLOOR_BASE_UNITS`]).
+    pub treasury_floor_base_units: u128,
+    /// Blocks in the window that included ≥1 accepted storage proof.
+    pub proof_blocks: u64,
+    /// Proof blocks whose storage payout required emission backstop minting.
+    pub backstop_blocks: u64,
+}
+
+impl FeeShiftObservation {
+    /// Treasury at/under the floor **and** backstop funded a majority of
+    /// proof blocks. An empty window is not stress (no evidence).
+    #[must_use]
+    pub fn permanence_runway_stressed(&self) -> bool {
+        if self.proof_blocks == 0 {
+            return false;
+        }
+        let near_floor = self.treasury_base_units <= self.treasury_floor_base_units;
+        let backstop_majority = self.backstop_blocks.saturating_mul(2) >= self.proof_blocks;
+        near_floor && backstop_majority
+    }
+}
+
+/// Recommend `fee_to_treasury_bps` for a later **B-20** parameter fork.
+///
+/// Healthy runway → hold `current_bps`. Stressed runway →
+/// `min(10000, current_bps + RECOMMENDED_FEE_SHIFT_STEP_BPS)`.
+/// Does not mutate [`DEFAULT_EMISSION_PARAMS`] and is not read by `apply_block`.
+#[must_use]
+pub fn recommended_fee_to_treasury_bps(current_bps: u16, obs: &FeeShiftObservation) -> u16 {
+    if !obs.permanence_runway_stressed() {
+        return current_bps;
+    }
+    current_bps
+        .saturating_add(RECOMMENDED_FEE_SHIFT_STEP_BPS)
+        .min(10_000)
+}
+
 /// Checkpointed subsidy overlay. `activation_height == 0` is inactive.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SubsidyBpsSchedule {
@@ -674,5 +727,95 @@ mod tests {
         let early = annualized_inflation_ppb(1_000_000, bpy, &p);
         let later = annualized_inflation_ppb(40_000_000, bpy, &p);
         assert!(later < early);
+    }
+
+    fn obs(
+        treasury: u128,
+        floor: u128,
+        proof_blocks: u64,
+        backstop_blocks: u64,
+    ) -> FeeShiftObservation {
+        FeeShiftObservation {
+            treasury_base_units: treasury,
+            treasury_floor_base_units: floor,
+            proof_blocks,
+            backstop_blocks,
+        }
+    }
+
+    #[test]
+    fn b309_hold_when_treasury_above_floor() {
+        let current = DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps;
+        let healthy = obs(2_909_711, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS, 100, 80);
+        assert!(!healthy.permanence_runway_stressed());
+        assert_eq!(recommended_fee_to_treasury_bps(current, &healthy), current);
+    }
+
+    #[test]
+    fn b309_hold_when_backstop_not_majority() {
+        let current = DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps;
+        let drought_fees_but_treasury_covers =
+            obs(500_000, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS, 100, 10);
+        assert!(!drought_fees_but_treasury_covers.permanence_runway_stressed());
+        assert_eq!(
+            recommended_fee_to_treasury_bps(current, &drought_fees_but_treasury_covers),
+            current
+        );
+    }
+
+    #[test]
+    fn b309_empty_window_is_not_stress() {
+        let current = DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps;
+        let empty = obs(0, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS, 0, 0);
+        assert!(!empty.permanence_runway_stressed());
+        assert_eq!(recommended_fee_to_treasury_bps(current, &empty), current);
+    }
+
+    #[test]
+    fn b309_stress_adds_step_and_saturates_at_10000() {
+        let current = DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps;
+        let stress = obs(500_000, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS, 100, 60);
+        assert!(stress.permanence_runway_stressed());
+        assert_eq!(
+            recommended_fee_to_treasury_bps(current, &stress),
+            10_000,
+            "9000 + 1000 = 10000 (all fees to treasury; producer keeps subsidy/tail)"
+        );
+        assert_eq!(recommended_fee_to_treasury_bps(9_500, &stress), 10_000);
+        assert_eq!(recommended_fee_to_treasury_bps(10_000, &stress), 10_000);
+    }
+
+    #[test]
+    fn b309_path_a_default_stays_9000() {
+        assert_eq!(DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps, 9000);
+        assert_eq!(RECOMMENDED_FEE_SHIFT_STEP_BPS, 1_000);
+        let stress = obs(1, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS, 2, 2);
+        let rec =
+            recommended_fee_to_treasury_bps(DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps, &stress);
+        assert_ne!(
+            rec, DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps,
+            "helper is a real lever; Path A must not silently enable it"
+        );
+        assert!(validate_emission_params(&DEFAULT_EMISSION_PARAMS).is_ok());
+        let mut shifted = DEFAULT_EMISSION_PARAMS;
+        shifted.fee_to_treasury_bps = rec;
+        assert!(validate_emission_params(&shifted).is_ok());
+        assert_eq!(shifted.subsidy_to_treasury_bps, 0);
+    }
+
+    #[test]
+    fn b309_fee_split_identity_conserves_fee_sum() {
+        let fee_sum = 10_000u128;
+        let hold = DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps;
+        let stress = obs(0, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS, 1, 1);
+        let shifted = recommended_fee_to_treasury_bps(hold, &stress);
+        let hold_treasury = fee_sum * u128::from(hold) / 10_000;
+        let hold_producer = fee_sum.saturating_sub(hold_treasury);
+        let shift_treasury = fee_sum * u128::from(shifted) / 10_000;
+        let shift_producer = fee_sum.saturating_sub(shift_treasury);
+        assert_eq!(hold_treasury + hold_producer, fee_sum);
+        assert_eq!(shift_treasury + shift_producer, fee_sum);
+        assert!(shift_treasury > hold_treasury);
+        assert!(shift_producer < hold_producer);
     }
 }

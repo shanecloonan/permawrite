@@ -254,12 +254,12 @@ behavior are the telemetry inputs. Read-only helper:
 `subsidy_to_treasury_bps=0`). **B-13a** sims + clippy fix-forward tip
 **CI `#31077911423` GREEN** on `4860a8d1` (body `bbd50ce3`). HTTP watch tip **CI `#31090099572` GREEN** on `360f690b`.
 
-### 5.5 Producer↔treasury runway fee-shift (**B-20** — draft policy)
+### 5.5 Producer↔treasury runway fee-shift (**B-20** — helper landed, not armed)
 
-**Status:** economics review draft after **B-13a**. **Do not** change
+**Status:** [`recommended_fee_to_treasury_bps`](../mfn-consensus/src/emission.rs) **B-309** helper + Path A pin. **Do not** change
 `fee_to_treasury_bps` until **B-13c** has soaked and **B-25** (or named human
 waiver) says the permanence week is green. Distinct from F6 telemetry / B-13
-subsidy split.
+subsidy split. Design: [`B309_FEE_SHIFT.md`](./B309_FEE_SHIFT.md).
 
 **Problem.** After the subsidy tail feeds the treasury, producer income is
 ~10% lower at the tail. If fee volume is also drought-low, security budget
@@ -272,7 +272,7 @@ and treasury runway can pull in opposite directions. A later fee-shift
 | Observation (rolling ~7d via `treasury-telemetry-watch`) | Proposed action | Notes |
 | --- | --- | --- |
 | Treasury above B-28 floor + backstop rare + producer fee share healthy | **Hold** `fee_to_treasury_bps = 9000` | Default after B-13c |
-| Treasury pinned near B-28 floor **and** backstop majority of proof blocks | Consider **+500–1000 bps** fee→treasury (separate fork) | Only after B-25 / human go; one lever |
+| Treasury pinned near B-28 floor **and** backstop majority of proof blocks | **B-309:** `recommended_fee_to_treasury_bps` → `min(10000, current+1000)` (9000→**10000**) | Only after B-25 / human go; one lever; not `apply_block` |
 | Treasury growing fast **and** producer security complaints with evidence | Consider **−500 bps** fee→treasury (separate fork) | Prefer not to starve permanence |
 
 **Hard rules:**

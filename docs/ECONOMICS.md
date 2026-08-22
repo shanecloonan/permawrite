@@ -195,6 +195,7 @@ treasury_share = fee × fee_to_treasury_bps           / 10_000
 ```
 
 Default `fee_to_treasury_bps = 9000` ⇒ 90% treasury, 10% producer.
+Path A keeps that split. [`recommended_fee_to_treasury_bps`](../mfn-consensus/src/emission.rs) (**B-309**) names the drought coupling (9000→10000 when treasury ≤ B-28 floor and backstop is majority); arming is **B-20** after B-13c + B-25.
 
 ### Producer revenue per block
 

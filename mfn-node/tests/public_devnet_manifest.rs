@@ -3,7 +3,8 @@
 use std::path::PathBuf;
 
 use mfn_consensus::{
-    try_produce_slot, SlotContext, Validator, ValidatorSecrets, DEFAULT_EMISSION_PARAMS, MFN_BASE,
+    recommended_fee_to_treasury_bps, try_produce_slot, FeeShiftObservation, SlotContext, Validator,
+    ValidatorSecrets, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS, DEFAULT_EMISSION_PARAMS, MFN_BASE,
 };
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_node::{
@@ -83,6 +84,25 @@ fn public_devnet_v1_requires_endowment_range_proof() {
     assert_eq!(
         cfg.emission_params.storage_proof_reward,
         DEFAULT_EMISSION_PARAMS.storage_proof_reward
+    );
+    assert_eq!(
+        cfg.emission_params.fee_to_treasury_bps, 9000,
+        "B-309: Path A keeps 90% fee→treasury (not the stressed 10000 split)"
+    );
+    assert_eq!(
+        cfg.emission_params.fee_to_treasury_bps,
+        DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps
+    );
+    let stress = FeeShiftObservation {
+        treasury_base_units: 0,
+        treasury_floor_base_units: B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
+        proof_blocks: 1,
+        backstop_blocks: 1,
+    };
+    let rec = recommended_fee_to_treasury_bps(cfg.emission_params.fee_to_treasury_bps, &stress);
+    assert!(
+        rec > cfg.emission_params.fee_to_treasury_bps,
+        "B-309 helper is a real lever; Path A must not silently enable it"
     );
     assert_eq!(
         cfg.endowment_params.require_endowment_opening, 0,

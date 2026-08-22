@@ -347,10 +347,10 @@ powershell -File scripts/public-devnet-v1/treasury-telemetry-watch.ps1 -Rpc http
 ```
 
 
-### B-20 — Fee-shift policy (**draft** — after B-13c / B-25)
+### B-20 — Fee-shift policy (**helper landed B-309** — arm after B-13c / B-25)
 
-See [`docs/FEES.md`](../../docs/FEES.md) §5.5. Do **not** change
-`fee_to_treasury_bps` in the same fork as **B-13c**. Arm only after permanence
+See [`docs/B309_FEE_SHIFT.md`](../../docs/B309_FEE_SHIFT.md) and [`docs/FEES.md`](../../docs/FEES.md) §5.5. Do **not** change
+`fee_to_treasury_bps` in the same fork as **B-13c**. Path A stays **9000**. Arm only after permanence
 week evidence.
 
 

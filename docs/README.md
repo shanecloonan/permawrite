@@ -39,6 +39,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - ✅ [**B306C_PROOF_REWARD_BACKSTOP.md**](./B306C_PROOF_REWARD_BACKSTOP.md) — **B-306c** proof-prize → C₀ backstop helper (Path A prize stays 0.1 MFN).
 - ✅ [**B307_OPERATOR_BOND.md**](./B307_OPERATOR_BOND.md) — **B-307** min operator bond helper so B5 slashing has collateral (Path A bond stays 0).
 - ✅ [**B308_SPORA_LOTTERY.md**](./B308_SPORA_LOTTERY.md) — **B-308** windowed SPoRA ranking helper (Path A stays first-to-publish; wire = **B-44**).
+- ✅ [**B309_FEE_SHIFT.md**](./B309_FEE_SHIFT.md) — **B-309** producer↔treasury runway fee-shift helper (Path A stays 9000; arm = **B-20**).
 - ✅ [**B40_PERMANENCE_WEEK.md**](./B40_PERMANENCE_WEEK.md) — **B-40** first permanence week runbook (arm day-of L4; B-13a pre-armed).
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
 - 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.

@@ -779,6 +779,32 @@ mod tests {
     }
 
     #[test]
+    fn b309_path_a_fee_split_stays_9000() {
+        use mfn_consensus::{
+            recommended_fee_to_treasury_bps, FeeShiftObservation,
+            B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
+        };
+        let s = r#"{"version":1,"timestamp":0,"validators":[]}"#;
+        let g = genesis_config_from_json_bytes(s.as_bytes()).expect("parse");
+        assert_eq!(g.emission_params.fee_to_treasury_bps, 9000);
+        assert_eq!(
+            DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps, 9000,
+            "B-309 must not DEFAULT-flip the 90/10 fee split"
+        );
+        let rec = recommended_fee_to_treasury_bps(
+            g.emission_params.fee_to_treasury_bps,
+            &FeeShiftObservation {
+                treasury_base_units: 0,
+                treasury_floor_base_units: B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
+                proof_blocks: 1,
+                backstop_blocks: 1,
+            },
+        );
+        assert_eq!(rec, 10_000);
+        assert_ne!(rec, g.emission_params.fee_to_treasury_bps);
+    }
+
+    #[test]
     fn emission_section_rejects_bad_subsidy_bps() {
         let s = r#"{"version":1,"timestamp":0,"emission":{"subsidy_to_treasury_bps":10001},"validators":[]}"#;
         assert!(matches!(

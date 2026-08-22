@@ -482,7 +482,7 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **PM19** | Persistent proof obligation for cold data + repair bounty escalation | 6 | After PM3; couples to B4 repair sweep (shipped) |
 | **Header v2** | Path B `header_version: 2` (`utxo_root` in BLS signing bytes) on **new** chain only | 4+7 | [`PROBLEMS.md` §12](./PROBLEMS.md#12-utxo_root-is-not-covered-by-the-finality-signature-partially-resolved); sequenced with TL Path B (Phase 4) |
 | **B-28 / Treasury watch** | Sustained `treasury-telemetry-watch` on VPS + **numeric** alert thresholds in OPERATORS | 2+7 | F6 telemetry shipped; thresholds after B-13c modeled bounds |
-| **B-20** | F6 coupling: producer revenue ↔ treasury runway fee-shift policy ([`F5.md`](./F5.md) F6 — distinct from F6 telemetry field) | 6 | **Draft** in [`FEES.md`](./FEES.md) §5.5; arm after B-13c + B-25 |
+| **B-20** | F6 coupling: producer revenue ↔ treasury runway fee-shift policy ([`F5.md`](./F5.md) F6 — distinct from F6 telemetry field) | 6 | **B-309** helper landed — [`B309_FEE_SHIFT.md`](./B309_FEE_SHIFT.md); arm after B-13c + B-25 |
 | **B-23** | F18: privacy/permanence regression gate in `ci-check` (ring/endowment/SPoRA invariants) | 2 | After L4; supports permanence-first CI |
 | **B-38 / Repair/soak** | Long-horizon internet soak with staleness → repair fan-out evidence + assert | 1+7 | B4 repair sweep shipped; give this a B-ID so it cannot drop vs B-13 |
 | **M7.10** | One-command `push-all-chunks` replication to manifest peers | 3 | ✓ **Shipped** (`c1e0373`) — document in JOIN/OPERATORS onboarding |
@@ -492,7 +492,8 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **B-306** | r=0 endowment C₀ drip (`deflation_funded_drip`, ckpt v13); Path A flag stays 0 | 6 | **Landed** — [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md); enable = **B-306b**; prize-size = **B-306c** |
 | **B-306c** | Size `storage_proof_reward` as window-capped C₀ backstop helper; Path A prize stays 0.1 MFN | 6 | **Landed** `45f1e8f5` — [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md); apply on Path B with **B-306b** |
 | **B-307** | Size `min_storage_operator_bond` so one B5 slash covers C₀(1 GiB); Path A bond stays 0 | 6 | **Landed** `2cf8b9b2` — [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md); enable = **PM1** |
-| **B-308** | Windowed SPoRA lottery ranking helper; Path A stays first-to-publish | 6 | **Landed** (this commit) — [`B308_SPORA_LOTTERY.md`](./B308_SPORA_LOTTERY.md); wire = **B-44** after **B-32** |
+| **B-308** | Windowed SPoRA lottery ranking helper; Path A stays first-to-publish | 6 | **Landed** `18cd1539` — [`B308_SPORA_LOTTERY.md`](./B308_SPORA_LOTTERY.md); wire = **B-44** after **B-32** |
+| **B-309** | Producer↔treasury runway fee-shift helper; Path A stays 9000 | 6 | **Landed** (this commit) — [`B309_FEE_SHIFT.md`](./B309_FEE_SHIFT.md); arm = **B-20** after B-13c + B-25 |
 | **B-13c** | Enable Path A schedule `H_act` + ops announce (B-265 loader for wipe path only) | 7 | After B-13a + **B-33** + **B-265** + **B-268b**; no DEFAULT_EMISSION change |
 | **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
 | **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
@@ -726,6 +727,8 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-306** r=0 endowment C₀ drip (inert flag) | Phase 1 | 6 |
 | **B-306c** proof-prize → C₀ backstop helper (Path A stays 0.1 MFN) | Phase 1 | 6 |
 | **B-307** min operator bond helper (Path A stays 0; enable = PM1) | Phase 4 / Path B | 6 |
+| **B-308** SPoRA lottery ranking helper (Path A stays first-to-publish; wire = B-44) | Phase 1 | 6 |
+| **B-309** fee-shift helper (Path A stays 9000; arm = B-20) | Phase 1 | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 | 4 |
 | **B-19** Decoy-RNG entropy contract | Phase 3 | 5 |
