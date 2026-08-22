@@ -53,6 +53,8 @@ A rational producer's direct revenue still does not depend on the health of the 
 
 ### 5. Adverse selection on which data actually gets reliably stored
 
+> **Status: mitigation designed, not wired (B-314)** — [`recommended_min_proof_interval_slots`](../mfn-storage/src/cold_proof.rs) / [`cold_proof_overdue`](../mfn-storage/src/cold_proof.rs) name a **per-commitment** deadline (hot window at age 0; ~30 days at age ≥ 1 year; never 0). [`recommended_cold_reward_multiplier_bps`](../mfn-storage/src/cold_proof.rs) escalates 1.0× → 2.0× after missed windows. Path A B5 stays **global any-stale** (prove a hot file, reset miss, ignore archives). Wire after **PM1**. Design: [`B314_COLD_PROOF.md`](./B314_COLD_PROOF.md).
+
 Larger endowments and "hot" (frequently challenged / recently uploaded) files are more economically attractive to store and prove against. Cold archival data, small files, or files whose owners are no longer active have weaker incentives for operators to prioritize. While the protocol enforces minimum replication at upload time, nothing forces ongoing economic interest in every anchored commitment years later.
 
 ## Architectural and Viability Concerns

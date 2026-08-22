@@ -479,7 +479,7 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **F6 telemetry** | `subsidy_to_treasury_bps` field in treasury telemetry RPC | 6 | ✓ **Shipped** (`0d1b9ec`) — **Treasury watch** ops row uses it |
 | **PM3** | Windowed SPoRA lottery vs first-past-the-post ([`PROBLEMS.md` §6](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race), [`DECENTRALIZATION.md`](./DECENTRALIZATION.md)) | 6 | **B-308** ranking helper landed; wire = **B-44** after **B-32**; Path A stays first-to-publish |
 | **PM2** | Enforce protocol-min replication at anchor + pay per distinct operator | 4+6 | B3 registry live (genesis ✓); multi-op evidence |
-| **PM19** | Persistent proof obligation for cold data + repair bounty escalation | 6 | After PM3; couples to B4 repair sweep (shipped) |
+| **PM19** | Persistent proof obligation for cold data + repair bounty escalation | 6 | **B-314** cadence helper landed; Path A B5 stays global any-stale; wire after **PM1** |
 | **Header v2** | Path B `header_version: 2` (`utxo_root` in BLS signing bytes) on **new** chain only | 4+7 | [`PROBLEMS.md` §12](./PROBLEMS.md#12-utxo_root-is-not-covered-by-the-finality-signature-partially-resolved); sequenced with TL Path B (Phase 4) |
 | **B-28 / Treasury watch** | Sustained `treasury-telemetry-watch` on VPS + **numeric** alert thresholds in OPERATORS | 2+7 | F6 telemetry shipped; thresholds after B-13c modeled bounds |
 | **B-20** | F6 coupling: producer revenue ↔ treasury runway fee-shift policy ([`F5.md`](./F5.md) F6 — distinct from F6 telemetry field) | 6 | **B-309** helper landed — [`B309_FEE_SHIFT.md`](./B309_FEE_SHIFT.md); arm after B-13c + B-25 |
@@ -497,7 +497,8 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **B-310** | PM8 state-retention inventory (maps stay; bodies below ckpt only); Path A does not prune | 6 | **Landed** `98e3adde` — [`B310_STATE_RETENTION.md`](./B310_STATE_RETENTION.md); wire = later store change |
 | **B-311** | PM41 backstop mint cap (1% of annual tail); Path A stays unbounded | 6 | **Landed** `6c0d4a84` — [`B311_BACKSTOP_CAP.md`](./B311_BACKSTOP_CAP.md); wire after **B-306b** |
 | **B-312** | PM22 treasury runway metric (treasury / trailing payout); not RPC | 6 | **Landed** `4720c245` — [`B312_TREASURY_RUNWAY.md`](./B312_TREASURY_RUNWAY.md) |
-| **B-313** | Tail-emission size helper (`>> 9`); Path A stays `>> 8` | 6 | **Landed** (this commit) — [`B313_TAIL_EMISSION.md`](./B313_TAIL_EMISSION.md); enable = Path B / post-B-25 |
+| **B-313** | Tail-emission size helper (`>> 9`); Path A stays `>> 8` | 6 | **Landed** `9028debb` — [`B313_TAIL_EMISSION.md`](./B313_TAIL_EMISSION.md); enable = Path B / post-B-25 |
+| **B-314** | PM19 per-commitment cold-proof cadence + bounty helper; Path A B5 stays global | 6 | **Landed** (this commit) — [`B314_COLD_PROOF.md`](./B314_COLD_PROOF.md); wire after **PM1** |
 | **B-13c** | Enable Path A schedule `H_act` + ops announce (B-265 loader for wipe path only) | 7 | After B-13a + **B-33** + **B-265** + **B-268b**; no DEFAULT_EMISSION change |
 | **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
 | **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
@@ -737,6 +738,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-311** PM41 backstop mint-cap helper (Path A unbounded; wire after B-306b) | Phase 1 | 6 |
 | **B-312** PM22 treasury-runway metric (not RPC) | Phase 1 | 6 |
 | **B-313** tail-emission size helper (Path A stays `>> 8`; recommended `>> 9`) | Phase 1 | 6 |
+| **B-314** PM19 cold-proof cadence helper (Path A B5 stays global any-stale) | Phase 1 | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 | 4 |
 | **B-19** Decoy-RNG entropy contract | Phase 3 | 5 |
@@ -821,7 +823,7 @@ Honest gaps mapped to roadmap phases so nothing falls through the cracks:
 | §2 | Fee-volume treasury dependency | 1 | **B-13** tail subsidy |
 | §3 | Tail emission dilution | 4+6 | **B-313** helper landed; Path A stays `>> 8`; PM13 still forbids 0 |
 | §4 | Producer vs operator incentive split | 1 | B-13 + direct payouts (shipped) |
-| §5 | Cold-data operator interest | 1 | **PM19** |
+| §5 | Cold-data operator interest | 1 | **B-314** / **PM19** helper landed; Path A B5 stays global any-stale |
 | §6 | SPoRA latency race | 1 | **PM3** |
 | §7 | State growth | 5+6 | Light clients + archive (PM10); **B-310** maps stay / bodies-below-ckpt only; Path A full log |
 | §8 | Complexity / audit surface | 5 | External audit |
@@ -868,7 +870,7 @@ Items from [`F5.md`](./F5.md) and [`PROBLEMS.md`](./PROBLEMS.md) that belong on 
 | **PM7** | Historical-chunk availability sampling for light clients | Permanence + security | F5 validity path |
 | **PM8** | Checkpointed pruning with permanence carve-out | Permanence | **B-310** inventory landed; wire after PM10 archival-node role (never decoys/storage) |
 | **PM11** | Data-availability sampling at consensus | Permanence | B3 multi-operator proofs on internet |
-| **PM12** | Self-healing replication market | Permanence | PM19 + PM3 |
+| **PM12** | Self-healing replication market | Permanence | **B-314** bounty helper + **PM3**; wire after PM1 |
 | **PM18** | Endowment top-up without re-anchoring | Permanence economics | B-11 shipped; wire design |
 | **PM22** | Treasury runway oracle | Permanence | **B-312** metric landed; RPC/UI after B-28 watch (not consensus) |
 | **PM41** | Emission backstop circuit breaker | Permanence | **B-311** helper landed; wire after B-306b prize shrink (Path A 0.1 MFN prize exceeds cap) |

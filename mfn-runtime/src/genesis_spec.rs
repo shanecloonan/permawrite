@@ -860,6 +860,26 @@ mod tests {
     }
 
     #[test]
+    fn b314_path_a_b5_window_unchanged_cold_proof_helper() {
+        use mfn_storage::{
+            recommended_min_proof_interval_slots, DEFAULT_ENDOWMENT_PARAMS,
+            RECOMMENDED_COLD_PROOF_MAX_INTERVAL_SLOTS,
+        };
+        let s = r#"{"version":1,"timestamp":0,"validators":[]}"#;
+        let g = genesis_config_from_json_bytes(s.as_bytes()).expect("parse");
+        assert_eq!(g.endowment_params.proof_reward_window_slots, 7_200);
+        assert_eq!(
+            DEFAULT_ENDOWMENT_PARAMS.proof_reward_window_slots, 7_200,
+            "B-314 must not DEFAULT-flip the Path A proof window"
+        );
+        assert_eq!(
+            recommended_min_proof_interval_slots(0, &g.endowment_params),
+            7_200
+        );
+        assert!(RECOMMENDED_COLD_PROOF_MAX_INTERVAL_SLOTS > 7_200);
+    }
+
+    #[test]
     fn emission_section_rejects_bad_subsidy_bps() {
         let s = r#"{"version":1,"timestamp":0,"emission":{"subsidy_to_treasury_bps":10001},"validators":[]}"#;
         assert!(matches!(

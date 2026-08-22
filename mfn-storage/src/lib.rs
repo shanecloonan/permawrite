@@ -14,6 +14,8 @@
 //!   the PPB-precision accumulator.
 //! - [`lottery`] — **B-308** windowed SPoRA ranking helper (not wired into
 //!   `apply_block`; Path A stays first-to-publish).
+//! - [`cold_proof`] — **B-314** / **PM19** per-commitment proof cadence +
+//!   bounty helper (not wired; Path A B5 stays global any-stale).
 //!
 //! ## Layering
 //!
@@ -31,11 +33,18 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+pub mod cold_proof;
 pub mod commitment;
 pub mod endowment;
 pub mod lottery;
 pub mod spora;
 
+pub use cold_proof::{
+    cold_proof_overdue, missed_proof_windows, recommended_cold_reward_multiplier_bps,
+    recommended_min_proof_interval_slots, RECOMMENDED_COLD_AGE_SLOTS,
+    RECOMMENDED_COLD_BOUNTY_BASE_BPS, RECOMMENDED_COLD_BOUNTY_CAP_BPS,
+    RECOMMENDED_COLD_BOUNTY_STEP_BPS, RECOMMENDED_COLD_PROOF_MAX_INTERVAL_SLOTS,
+};
 pub use commitment::{
     decode_storage_commitment, encode_storage_commitment, expected_num_chunks,
     pad_to_storage_size_bucket, storage_commitment_hash, storage_size_bucket,

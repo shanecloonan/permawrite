@@ -18,6 +18,7 @@ For the *what* and *why*, see [`docs/STORAGE.md`](../docs/STORAGE.md). For the e
 | [`spora`](src/spora.rs) | **SPoRA — Succinct Proofs of Random Access.** Chunking, the per-block deterministic challenge derivation, and the `StorageProof` build/verify pipeline. M2.0.2 — `storage_proof_leaf_hash` / `storage_proof_merkle_root` for the per-block `storage_proof_root` commitment under the new `STORAGE_PROOF_LEAF` domain. M2.0.10 tightens `decode_storage_proof`: trailing bytes reject, and Merkle side flags must be exactly `0` or `1`. |
 | [`endowment`](src/endowment.rs) | The `E₀ = C₀·(1+i)/(r−i)` formula, per-slot payouts, and the PPB-precision yield accumulator. |
 | [`lottery`](src/lottery.rs) | **B-308** windowed SPoRA ranking helper. Path A `apply_block` still pays first-to-publish; **B-44** wires consensus after **B-32**. |
+| [`cold_proof`](src/cold_proof.rs) | **B-314** / **PM19** per-commitment proof cadence + bounty helper. Path A B5 stays global any-stale; not wired. |
 
 ---
 
