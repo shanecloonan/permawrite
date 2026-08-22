@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-22):** **B-309** fee-shift helper (this commit). Tip CI `#32568097779` on B-308 `18cd1539` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
+**CI gate (2026-08-22):** **B-310** PM8 state-retention helper (this commit). Tip CI `#32569850902` on B-309 `873e6b1e` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **B-305** (`704280f7`); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-309** fee-shift helper (this commit); **B-308** (`18cd1539`); **B-307** (`2cf8b9b2`); **B-306c** (`45f1e8f5`); **B-306** (`6a685dae`) | *Idle* | **B-306b** drip+backstop after B-25 / Path B; **PM1** enable bond floor; **B-20** arm fee-shift after B-13c + B-25; **B-44** wire lottery after B-32 (lane 4); human **B-33**; no B-13c enable | Emission sims |
+| **6** Permanence | **B-310** PM8 state-retention helper (this commit); **B-309** (`873e6b1e`); **B-308** (`18cd1539`); **B-307** (`2cf8b9b2`); **B-306c** (`45f1e8f5`) | *Idle* | **B-306b** drip+backstop after B-25 / Path B; **PM1** enable bond floor; **B-20** arm fee-shift after B-13c + B-25; **B-44** wire lottery after B-32 (lane 4); PM8 store wire after archival role; human **B-33**; no B-13c enable | Emission sims |
 | **7** Testnet launch | Path A **22565** (`160a9b07`; lag **OK=7**); **B-42** 3rd JOIN last_proven **22560** (`6a1468fc`); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 6 | 4 | **B-310 PM8 bodies:** when wiring prune, call `historical_block_body_may_prune`; never drop storage / UTXO / spent key images. Path A stays full `chain.blocks` until an archival-node role exists. | **Open** |
 | 6 | 4 | **B-308 lottery ranking:** wire `rank_spora_lottery` / `spora_lottery_window_seed(prior_block_id, …)` in `apply_block` after **B-32**. Do not invent a second hash; do not seed from producer VRF (leader bias). Path A stays body-order until **B-44**. | **Open** |
 | 7 | 4 | **Hub inbound CLOSE-WAIT leak:** `:19101` fills `P2P_MAX_INBOUND_HANDLERS=48` (`inbound_cap_reached`); silent/half-closed inbound holds the slot for the 30s hello timeout; vote fanout EAGAIN; tip stuck **22495**. | **Done** (B-300 inbound hello 3s + shutdown + session IO timeout) |
 | 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push ssert-b28-treasury-thresholds --mode post / -Mode post + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Done** (landed this commit; tip CI watch) |
@@ -251,7 +252,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-306c | Size `storage_proof_reward` as true backstop (not 0.1 MFN prize) | 6 | **Landed** `45f1e8f5` — helper + Path A pin; do not DEFAULT-flip |
 | B-307 | Size `min_storage_operator_bond` so one B5 slash covers C₀(1 GiB) | 6 | **Landed** `2cf8b9b2` — helper + Path A pin; enable = **PM1**; do not DEFAULT-flip |
 | B-308 | Windowed SPoRA lottery ranking helper (not wired) | 6 | **Landed** `18cd1539` — `rank_spora_lottery`; Path A stays first-to-publish; wire = **B-44** after B-32 |
-| B-309 | Producer↔treasury runway fee-shift helper (not armed) | 6 | **Landed** (this commit) — `recommended_fee_to_treasury_bps`; Path A stays 9000; arm = **B-20** |
+| B-309 | Producer↔treasury runway fee-shift helper (not armed) | 6 | **Landed** `873e6b1e` — `recommended_fee_to_treasury_bps`; Path A stays 9000; arm = **B-20** |
+| B-310 | PM8 state-retention inventory (not pruning) | 6 | **Landed** (this commit) — `archive_retention`; Path A keeps full log; maps never prune |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -514,7 +516,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-22 - lane 6 - B-309 fee-shift helper** (this commit): `recommended_fee_to_treasury_bps` holds 9000 unless treasury ≤ B-28 floor **and** backstop is majority of proof blocks, then +1000 saturating at 10000. Path A `fee_to_treasury_bps` stays **9000**. `b309_*` + Path A genesis pin PASS; clippy `-D warnings` green. Docs: [`B309_FEE_SHIFT.md`](docs/B309_FEE_SHIFT.md). Waited for tip CI `#32568097779` on B-308 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not B-20 arm**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-22 - lane 6 - B-310 PM8 state-retention helper** (this commit): `archive_retention` classifies all 24 `ChainState` fields (PermanenceKeep / PrivacyKeep / ConsensusKeep). Spent UTXOs stay decoys; storage never prunes; only `chain.blocks` bodies with `h < finalized checkpoint` are candidates. Path A does not drop the log. `b310_*` PASS; clippy `-D warnings` green. Docs: [`B310_STATE_RETENTION.md`](docs/B310_STATE_RETENTION.md). Waited for tip CI `#32569850902` on B-309 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not PM8 wire**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-22 - lane 6 - B-309 fee-shift helper** (`873e6b1e`): `recommended_fee_to_treasury_bps` holds 9000 unless treasury ≤ B-28 floor **and** backstop is majority of proof blocks, then +1000 saturating at 10000. Path A `fee_to_treasury_bps` stays **9000**. `b309_*` + Path A genesis pin PASS; clippy `-D warnings` green. Docs: [`B309_FEE_SHIFT.md`](docs/B309_FEE_SHIFT.md). Waited for tip CI `#32568097779` on B-308 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not B-20 arm**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-22 - lane 6 - B-308 SPoRA lottery ranking helper** (`18cd1539`): `rank_spora_lottery` + `spora_lottery_window_seed` (`MFBN-1/spora-lottery`). Ranking is permutation-invariant; two operators both win across seeds. Path A `apply_block` stays body-order (first-to-publish). `b308_*` PASS; clippy `-D warnings` green. Docs: [`B308_SPORA_LOTTERY.md`](docs/B308_SPORA_LOTTERY.md). Waited for tip CI `#32566389029` on B-307 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not B-44**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 

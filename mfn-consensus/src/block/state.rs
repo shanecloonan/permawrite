@@ -258,11 +258,16 @@ pub const TEST_CONSENSUS_PARAMS: ConsensusParams = ConsensusParams {
 };
 
 /// The mutable state of a Permawrite chain.
+///
+/// Field retention for PM8 is named in [`crate::archive_retention`] (**B-310**):
+/// no `ChainState` map is a prune candidate.
 #[derive(Clone, Debug)]
 pub struct ChainState {
     /// Height of the last applied block (`None` before genesis).
     pub height: Option<u32>,
     /// Live UTXO set, keyed by compressed one-time-address bytes.
+    /// Spent outputs are **not** removed: they remain CLSAG decoys
+    /// ([`crate::archive_retention::utxo_may_prune`] is always `false`).
     pub utxo: HashMap<[u8; 32], UtxoEntry>,
     /// Spent key images, keyed by compressed point bytes. Cross-block
     /// double-spend gate.

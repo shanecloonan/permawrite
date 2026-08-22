@@ -137,7 +137,7 @@ Hardware accessibility is necessary but not sufficient. Documented pressures tha
 |---|---|---|
 | **Validator stake concentration** | Bond-on-register + liveness requirements | Capital barrier, not CPU barrier |
 | **SPoRA latency race** | First valid proof to a producer wins | Favors low-latency paths to producers ([`PROBLEMS.md § 6`](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race)) |
-| **State growth** | Permanent `StorageCommitment` entries + privacy UTXO set | Full nodes need more disk over time ([`PROBLEMS.md § 7`](./PROBLEMS.md#7-state-growth-is-fundamentally-linear-with-usage-and-difficult-to-prune)) |
+| **State growth** | Permanent `StorageCommitment` entries + privacy UTXO set (spent outputs stay as decoys) | Full nodes need more disk over time ([`PROBLEMS.md § 7`](./PROBLEMS.md#7-state-growth-is-fundamentally-linear-with-usage-and-difficult-to-prune); **B-310** names body-only PM8, Path A does not prune) |
 | **Fee-volume dependence** | Treasury funds storage; fees fund treasury | Economic, not hardware — but low fees mean fewer operators can justify disk |
 | **Weak operator defection penalty** | No bonds/slashing for storage operators today | Easy entry, easy exit — good for accessibility, weaker for SLA |
 | **Replication floor** | `min_replication = 3` at upload | Needs ≥3 independent operators per file, not 3 machines in one rack |
@@ -152,7 +152,7 @@ Each pressure in §3.2 has a **packaging-first** path that preserves absolute pr
 |---|---|---|---|
 | **Stake concentration** | Public devnet runbooks, prebuilt binaries, validator onboarding docs | Lower bond floor (weakens per-validator security) | Remove validator bonds |
 | **SPoRA latency race** | RPC-only operators, many observers, `push-all-chunks` replication breadth | Latency-fair inclusion (Phase C / **B-44**; ranking helper **B-308** landed, not wired) | Skip SPoRA verification |
-| **State growth** | Observer vs validator role docs; light clients avoid full state | Checkpoint distribution (research) | On-chain payloads |
+| **State growth** | Observer vs validator role docs; light clients avoid full state | **B-310** body-only prune carve-out (not wired; maps stay) | On-chain payloads; dropping decoys or storage |
 | **Fee-volume dependence** | Privacy UX, WASM wallet path — drives fee demand | — | Subsidize storage by dropping `min_replication` |
 | **Weak operator defection** | Bondless entry preserves accessibility; direct operator payouts | Tiered bonding (optional premium tier) | Merge storage into validators |
 | **Replication floor** | Manifest `replication_peers`, `push-chunks`, `push-all-chunks` | Erasure-coded replication (research) | Drop `min_replication` |

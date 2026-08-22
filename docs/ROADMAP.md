@@ -493,7 +493,8 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **B-306c** | Size `storage_proof_reward` as window-capped C₀ backstop helper; Path A prize stays 0.1 MFN | 6 | **Landed** `45f1e8f5` — [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md); apply on Path B with **B-306b** |
 | **B-307** | Size `min_storage_operator_bond` so one B5 slash covers C₀(1 GiB); Path A bond stays 0 | 6 | **Landed** `2cf8b9b2` — [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md); enable = **PM1** |
 | **B-308** | Windowed SPoRA lottery ranking helper; Path A stays first-to-publish | 6 | **Landed** `18cd1539` — [`B308_SPORA_LOTTERY.md`](./B308_SPORA_LOTTERY.md); wire = **B-44** after **B-32** |
-| **B-309** | Producer↔treasury runway fee-shift helper; Path A stays 9000 | 6 | **Landed** (this commit) — [`B309_FEE_SHIFT.md`](./B309_FEE_SHIFT.md); arm = **B-20** after B-13c + B-25 |
+| **B-309** | Producer↔treasury runway fee-shift helper; Path A stays 9000 | 6 | **Landed** `873e6b1e` — [`B309_FEE_SHIFT.md`](./B309_FEE_SHIFT.md); arm = **B-20** after B-13c + B-25 |
+| **B-310** | PM8 state-retention inventory (maps stay; bodies below ckpt only); Path A does not prune | 6 | **Landed** (this commit) — [`B310_STATE_RETENTION.md`](./B310_STATE_RETENTION.md); wire = later store change |
 | **B-13c** | Enable Path A schedule `H_act` + ops announce (B-265 loader for wipe path only) | 7 | After B-13a + **B-33** + **B-265** + **B-268b**; no DEFAULT_EMISSION change |
 | **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
 | **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
@@ -729,6 +730,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-307** min operator bond helper (Path A stays 0; enable = PM1) | Phase 4 / Path B | 6 |
 | **B-308** SPoRA lottery ranking helper (Path A stays first-to-publish; wire = B-44) | Phase 1 | 6 |
 | **B-309** fee-shift helper (Path A stays 9000; arm = B-20) | Phase 1 | 6 |
+| **B-310** PM8 retention inventory (Path A does not prune) | Phase 5+6 | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 | 4 |
 | **B-19** Decoy-RNG entropy contract | Phase 3 | 5 |
@@ -815,7 +817,7 @@ Honest gaps mapped to roadmap phases so nothing falls through the cracks:
 | §4 | Producer vs operator incentive split | 1 | B-13 + direct payouts (shipped) |
 | §5 | Cold-data operator interest | 1 | **PM19** |
 | §6 | SPoRA latency race | 1 | **PM3** |
-| §7 | State growth | 5+6 | Light clients + archive (PM10); not pruneable |
+| §7 | State growth | 5+6 | Light clients + archive (PM10); **B-310** maps stay / bodies-below-ckpt only; Path A full log |
 | §8 | Complexity / audit surface | 5 | External audit |
 | §9 | Decoy statistics | 3 | Tier 2 or Tier 3 (OoM); **B-19** F9 entropy |
 | §10 | Light-client long-term assumptions | 2+5 | F5 validity + F12 + **B-39** honesty gate |
@@ -858,7 +860,7 @@ Items from [`F5.md`](./F5.md) and [`PROBLEMS.md`](./PROBLEMS.md) that belong on 
 |---|---|---|---|
 | **PM4** | Erasure coding below replication layer | Permanence | B3 multi-op evidence + economics review |
 | **PM7** | Historical-chunk availability sampling for light clients | Permanence + security | F5 validity path |
-| **PM8** | Checkpointed pruning with permanence carve-out | Permanence | PM10 archives + PM13 constitution |
+| **PM8** | Checkpointed pruning with permanence carve-out | Permanence | **B-310** inventory landed; wire after PM10 archival-node role (never decoys/storage) |
 | **PM11** | Data-availability sampling at consensus | Permanence | B3 multi-operator proofs on internet |
 | **PM12** | Self-healing replication market | Permanence | PM19 + PM3 |
 | **PM18** | Endowment top-up without re-anchoring | Permanence economics | B-11 shipped; wire design |

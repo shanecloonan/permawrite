@@ -33,6 +33,8 @@
 //! - [`constitution`] — the fork-legitimacy test (F5:PM13): invariants no
 //!   genesis or future upgrade may violate (`tail_emission > 0`, uniform
 //!   rings ≥ 16, well-formed endowment pricing).
+//! - [`archive_retention`] — **B-310** PM8 carve-out: which `ChainState`
+//!   fields must never be dropped vs historical `chain.blocks` bodies.
 //!
 //! ## Canonical bytes
 //!
@@ -57,6 +59,7 @@ pub(crate) mod bls_stub;
 #[cfg(not(feature = "bls"))]
 pub(crate) use bls_stub as bls;
 
+pub mod archive_retention;
 pub mod block;
 pub mod bond_wire;
 pub mod bonding;
@@ -88,6 +91,11 @@ pub mod validity_stark_stub;
 #[cfg(all(feature = "bls", feature = "winterfell"))]
 pub mod validity_stark_winterfell;
 
+pub use archive_retention::{
+    chain_state_field_retention, historical_block_body_may_prune, spent_key_image_may_prune,
+    storage_may_prune, utxo_may_prune, ChainStateField, Retention, CHAIN_STATE_FIELDS,
+    CHAIN_STATE_FIELD_COUNT,
+};
 #[cfg(feature = "bls")]
 pub use block::{
     apply_block, build_unsealed_header, build_unsealed_header_storage_ops, seal_block,

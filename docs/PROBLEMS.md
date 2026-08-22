@@ -68,11 +68,15 @@ This is a centralization pressure on the storage operator set that the current d
 
 ### 7. State growth is fundamentally linear with usage and difficult to prune
 
+> **Status: carve-out named, not pruning (B-310)** — [`archive_retention`](../mfn-consensus/src/archive_retention.rs) classifies all 24 `ChainState` fields. Storage / operators / claims / endowment are **PermanenceKeep**; UTXO / spent key images / `utxo_tree` are **PrivacyKeep** (spent outputs stay as CLSAG decoys). The only PM8 candidate is `chain.blocks` bodies strictly below a finalized checkpoint (`historical_block_body_may_prune`). Path A does **not** drop the log. Design: [`B310_STATE_RETENTION.md`](./B310_STATE_RETENTION.md). Wire = later PM8 store change (after archival-node role); never a UTXO or storage drop.
+
 Every storage upload creates a permanent `StorageCommitment` entry (with its endowment commitment) that must be retained for future proof verification and light-client inclusion proofs. Combined with a privacy-oriented UTXO model (no easy pruning of spent outputs without breaking decoy sets or ring membership), full node state grows with both economic activity and stored data volume.
 
-Light clients and checkpoints (M2) mitigate verification cost but do not solve archival or resource requirements for operators who must actually serve the data.
+Light clients and checkpoints (M2) mitigate verification cost but do not solve archival or resource requirements for operators who must actually serve the data. B-310 makes the next honest cut: summarize *historical tx bodies*, never *data* or *decoys*.
 
 ### 8. Extreme complexity and large attack surface
+
+> **Status: inventory fail-closed (B-310 partial)** — a new `ChainState` field that is not classified fails `b310_chain_state_struct_matches_inventory` at compile time. This does not shrink the protocol; it stops an unclassified map from shipping as if it were pruneable. External audit remains the real §8 close.
 
 The protocol composes:
 - Monero-style privacy (stealth addresses, Pedersen commitments, CLSAG, Bulletproofs, decoy sampling)

@@ -27,6 +27,7 @@ For the system view, see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). For 
 | [`block`](src/block.rs) | **`BlockHeader`, `Block`, `ChainState`, `apply_block` — the heart of it all.** Each per-block validator-set mutation delegates into `validator_evolution`. **M2.0.9** adds `decode_block_header`; **M2.0.10** adds `encode_block` / `decode_block` plus typed `BlockDecodeError`. Full-block wire layout is `block_header_bytes(header)` followed by length-prefixed tx, bond-op, slashing, and storage-proof sections. |
 | [`checkpoint_codec`](src/checkpoint_codec.rs) | **M2.0.16 — shared checkpoint sub-encoders.** Single source of truth for `Validator`, `ValidatorStats`, `PendingUnbond`, `ConsensusParams`, and `BondingParams` checkpoint bytes, plus `CheckpointReadError` and `check_validator_assignment`. Consumed by both `mfn-consensus::chain_checkpoint` and `mfn-light::checkpoint` to prevent wire-layout drift. |
 | [`chain_checkpoint`](src/chain_checkpoint.rs) | **M2.0.15 — deterministic full-node `ChainState` checkpoint codec.** Encodes `ChainCheckpoint { genesis_id, state }` as magic `"MFCC"` + version + canonical payload + `dhash(MFBN-1/chain-checkpoint, payload)` tag; M2.0.16 refactors its shared sub-fields through `checkpoint_codec` without changing bytes. |
+| [`archive_retention`](src/archive_retention.rs) | **B-310 — PM8 retention inventory.** Classifies every `ChainState` field; only historical `chain.blocks` bodies below a finalized checkpoint are prune candidates. Path A does not prune. |
 
 ---
 
