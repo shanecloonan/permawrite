@@ -549,7 +549,7 @@ These are deliberately not yet hard-coded:
    predictable treasury inflow over emergency backstop spikes — see
    [`FEES.md § 5.4`](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury).
    Requires consensus hard fork (F6 phase 2).
-1. **Operator bonding.** Should operators stake MFN as a slashable bond to qualify as a "premium" replica? Tradeoff: more skin in the game (better SLA) vs. higher operator friction (less open participation).
+1. **Operator bonding.** Should operators stake MFN as a slashable bond to qualify as a "premium" replica? Tradeoff: more skin in the game (better SLA) vs. higher operator friction (less open participation). **B-307** ships [`recommended_min_storage_operator_bond`](../mfn-storage/src/endowment.rs) (one B5 slash covers `C₀(1 GiB)`); Path A stays `0`. Enable = **PM1** on Path B. See [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md).
 2. **Replication-dependent yield curves.** Today, a `replication=3` file pays its operators flat-rate. Should `replication=10` files pay each operator less (since redundancy is higher) or more (since operators are committing more)? Currently flat-rate per slot.
 3. **Long-tail decay.** Should very-rarely-proven commitments (e.g., proved 1× per year) eventually expire, freeing their pinned bytes? Today: no — *true* permanence. But this means dead bytes accumulate forever. May need a "stale eviction with refund" mechanism.
 
@@ -748,8 +748,11 @@ Ordered by leverage:
    [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md).
 3. **Ship `subsidy_to_treasury_bps`** (10% tail → treasury; F6 phase 2) —
    scheduled permanence inflow independent of privacy demand.
-4. **Operator bonding + slashing at scale** — skin in the game for replicas
-   (partially shipped on public devnet; default bond still 0).
+4. **Operator bonding + slashing at scale** (**B-307** helper landed) —
+   Path A slash knobs are on, bonds are `0`.
+   [`recommended_min_storage_operator_bond`](../mfn-storage/src/endowment.rs)
+   is `ceil(C₀(1 GiB) · 10000 / 250)` (25_769_800 base units). Apply on Path B
+   as **PM1**. See [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md).
 5. **Mainnet telemetry** — watch `treasury_base_units` and backstop frequency;
    [`treasury-telemetry-watch.sh`](../scripts/public-devnet-v1/treasury-telemetry-watch.sh).
 6. **Audit + time** — the implementation-risk gap vs Arweave closes only with

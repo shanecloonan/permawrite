@@ -41,8 +41,9 @@ pub use commitment::{
 pub use endowment::{
     accrue_proof_reward, cumulative_payout, deflation_drip_active, first_year_cost_base_units,
     max_bytes_for_endowment, payout_per_slot, recommended_backstop_proof_reward,
-    required_endowment, validate_endowment_params, AccrueArgs, AccrueResult, EndowmentError,
-    EndowmentParams, BACKSTOP_REFERENCE_SIZE_BYTES, DEFAULT_ENDOWMENT_PARAMS, PPB,
+    recommended_min_storage_operator_bond, required_endowment, validate_endowment_params,
+    AccrueArgs, AccrueResult, EndowmentError, EndowmentParams, BACKSTOP_REFERENCE_SIZE_BYTES,
+    DEFAULT_ENDOWMENT_PARAMS, PPB, RECOMMENDED_OPERATOR_SLASH_BPS,
 };
 pub use spora::{
     build_endowment_surplus_range_proof, build_storage_commitment, build_storage_proof,

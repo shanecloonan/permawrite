@@ -9,6 +9,7 @@ use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_node::{
     genesis_config_from_json_path, Chain, ChainConfig, ChainPersistence, NodeStore, StoreBackend,
 };
+use mfn_storage::recommended_min_storage_operator_bond;
 
 const MANIFEST_GENESIS_ID: &str =
     "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005";
@@ -66,7 +67,13 @@ fn public_devnet_v1_requires_endowment_range_proof() {
     );
     assert_eq!(
         cfg.endowment_params.min_storage_operator_bond, 0,
-        "Path A operator bonds stay optional (CSV residual; Path B / PM1)"
+        "Path A operator bonds stay optional (CSV residual; Path B / PM1 / B-307)"
+    );
+    let rec =
+        recommended_min_storage_operator_bond(&cfg.endowment_params).expect("recommended min bond");
+    assert!(
+        rec > cfg.endowment_params.min_storage_operator_bond,
+        "B-307 helper is a real stake; Path A must not silently enable it"
     );
     assert_eq!(
         cfg.emission_params.storage_proof_reward,

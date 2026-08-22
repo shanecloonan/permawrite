@@ -138,7 +138,7 @@ pub const DEFAULT_CHUNK_SIZE: usize = 256 * 1024;   // 256 KiB
 pub const PPB: u128 = 1_000_000_000;
 ```
 
-Worked example: **1 GB at 3× replication** → `E₀ ≈ 0.306 MFN` (using 2% as assumed deflation rate `d`). See [`docs/STORAGE.md`](../docs/STORAGE.md) for the full two-mode explanation. **B-306** `deflation_funded_drip` defaults to `0` (Path A); when `1` and `r = 0`, proofs drip `C₀` from that principal. **B-306c** `recommended_backstop_proof_reward` is that C₀ credited over one proof window for 1 GiB (1763 base units at defaults); Path A `storage_proof_reward` stays 0.1 MFN.
+Worked example: **1 GB at 3× replication** → `E₀ ≈ 0.306 MFN` (using 2% as assumed deflation rate `d`). See [`docs/STORAGE.md`](../docs/STORAGE.md) for the full two-mode explanation. **B-306** `deflation_funded_drip` defaults to `0` (Path A); when `1` and `r = 0`, proofs drip `C₀` from that principal. **B-306c** `recommended_backstop_proof_reward` is that C₀ credited over one proof window for 1 GiB (1763 base units at defaults); Path A `storage_proof_reward` stays 0.1 MFN. **B-307** `recommended_min_storage_operator_bond` is one 2.5% slash covering that C₀ (~0.258 MFN); Path A `min_storage_operator_bond` stays 0.
 
 ---
 

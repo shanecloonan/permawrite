@@ -88,11 +88,12 @@ Audit evolution runs in `apply_block` after storage proofs and operator ops, usi
 - Unit: slash math (bond floor, treasury credit, bps edge cases).
 - `block_apply`: cap−1 misses no slash; cap-th miss slashes; proof resets counter.
 - M5.51: `prop_b5_miss_streak_slash_treasury_identity` + `prop_b5_proof_resets_miss_streak_before_slash` (high-slot stale challenge; outside main `proptest!` block due to macro size).
-- Public devnet: `operator_audit_missed_cap=48`, `operator_slash_bps=250`; `genesis_id` unchanged.
+- Public devnet: `operator_audit_missed_cap=48`, `operator_slash_bps=250`; `genesis_id` unchanged. Bonds remain `0` — **B-307** sizes the Path B floor ([`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md)).
 - Nightly: slash inactive until storage stale + consecutive misses.
 
 ## See also
 
+- [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md) — Path B min-bond helper (Path A stays 0)
 - [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) §B5
 - [`STORAGE.md`](./STORAGE.md) — SPoRA proof verification
 - B3 operator registry: `mfn-consensus/src/storage_operator_wire.rs`

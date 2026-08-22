@@ -870,6 +870,7 @@ mod tests {
     #[test]
     fn public_devnet_v1_genesis_id_unchanged() {
         use mfn_consensus::{apply_genesis, block_id, build_genesis};
+        use mfn_storage::recommended_min_storage_operator_bond;
         let json = include_str!("../../mfn-node/testdata/public_devnet_v1.json");
         let cfg = genesis_config_from_json_bytes(json.as_bytes()).expect("parse");
         let genesis = build_genesis(&cfg);
@@ -893,6 +894,16 @@ mod tests {
         assert_eq!(
             cfg.emission_params.storage_proof_reward, DEFAULT_EMISSION_PARAMS.storage_proof_reward,
             "B-306c: Path A keeps the 0.1 MFN proof prize"
+        );
+        assert_eq!(
+            cfg.endowment_params.min_storage_operator_bond, 0,
+            "B-307: Path A keeps optional (zero) operator bonds"
+        );
+        let rec = recommended_min_storage_operator_bond(&cfg.endowment_params)
+            .expect("recommended min bond");
+        assert!(
+            rec > cfg.endowment_params.min_storage_operator_bond,
+            "B-307: Path A min bond stays below the PM1 helper"
         );
     }
 }

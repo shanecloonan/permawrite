@@ -373,6 +373,51 @@ pub fn recommended_backstop_proof_reward(params: &EndowmentParams) -> Result<u64
     Ok(v.max(1))
 }
 
+/// B5 / Path A public-devnet slash fraction (2.5% of bond per cap breach).
+///
+/// Used by [`recommended_min_storage_operator_bond`] when
+/// `operator_slash_bps == 0` or `operator_audit_missed_cap == 0` (DEFAULT
+/// has both 0; slashing is a no-op until those knobs are set).
+pub const RECOMMENDED_OPERATOR_SLASH_BPS: u32 = 250;
+
+fn effective_slash_bps(params: &EndowmentParams) -> u32 {
+    if params.operator_slash_bps == 0 || params.operator_audit_missed_cap == 0 {
+        RECOMMENDED_OPERATOR_SLASH_BPS
+    } else {
+        params.operator_slash_bps
+    }
+}
+
+/// Path B / **PM1** `min_storage_operator_bond` so one B5 slash covers `C₀(1 GiB)`.
+///
+/// Path A already runs `operator_audit_missed_cap = 48` and
+/// `operator_slash_bps = 250`, but `min_storage_operator_bond = 0` and genesis
+/// `bond_amount: 0` — the stick is live and the collateral is empty (**B-307**).
+///
+/// `ceil(C₀(1 GiB, min_replication) · 10_000 / effective_slash_bps)`.
+/// At defaults / Path A slash (250 bps) this is **25_769_800** base units
+/// (~0.258 MFN). One 2.5% slash then equals one 1 GiB file's first-year cost.
+/// Do not flip `DEFAULT_ENDOWMENT_PARAMS.min_storage_operator_bond` (Path A
+/// genesis operators are bondless; raising the floor rejects that genesis).
+///
+/// # Errors
+///
+/// Same as [`first_year_cost_base_units`], plus [`EndowmentError::Overflow`].
+pub fn recommended_min_storage_operator_bond(
+    params: &EndowmentParams,
+) -> Result<u64, EndowmentError> {
+    let c0 = first_year_cost_base_units(
+        BACKSTOP_REFERENCE_SIZE_BYTES,
+        params.min_replication,
+        params,
+    )?;
+    let slash_bps = u128::from(effective_slash_bps(params));
+    let num = c0.checked_mul(10_000).ok_or(EndowmentError::Overflow)?;
+    let bond = ceil_div(num, slash_bps);
+    let v = u64::try_from(bond).map_err(|_| EndowmentError::Overflow)?;
+    Ok(v.max(1))
+}
+
 /// `true` when r=0 proofs should drip `C₀` instead of paying 0 from principal.
 #[must_use]
 pub fn deflation_drip_active(params: &EndowmentParams) -> bool {
@@ -1155,6 +1200,45 @@ mod tests {
         assert_eq!(
             recommended_backstop_proof_reward(&params),
             Err(EndowmentError::SlotsPerYearZero)
+        );
+    }
+
+    #[test]
+    fn b307_min_bond_covers_one_gib_c0_at_recommended_slash() {
+        let c0 = first_year_cost_base_units(BACKSTOP_REFERENCE_SIZE_BYTES, 3, &p()).unwrap();
+        let want = ceil_div(c0 * 10_000, u128::from(RECOMMENDED_OPERATOR_SLASH_BPS));
+        let bond = u128::from(recommended_min_storage_operator_bond(&p()).unwrap());
+        assert_eq!(bond, want);
+        assert_eq!(DEFAULT_ENDOWMENT_PARAMS.min_storage_operator_bond, 0);
+        // One 2.5% slash equals C₀ (exact at these defaults).
+        assert_eq!(
+            bond * u128::from(RECOMMENDED_OPERATOR_SLASH_BPS) / 10_000,
+            c0
+        );
+    }
+
+    #[test]
+    fn b307_path_a_zero_bond_is_below_recommended() {
+        let rec = u128::from(recommended_min_storage_operator_bond(&p()).unwrap());
+        assert!(
+            rec > 1_000_000,
+            "recommended bond {rec} should be a real stake, not dust"
+        );
+        assert_eq!(DEFAULT_ENDOWMENT_PARAMS.min_storage_operator_bond, 0);
+        assert_eq!(DEFAULT_ENDOWMENT_PARAMS.operator_audit_missed_cap, 0);
+        assert_eq!(DEFAULT_ENDOWMENT_PARAMS.operator_slash_bps, 0);
+    }
+
+    #[test]
+    fn b307_uses_live_slash_bps_when_audits_are_on() {
+        let mut params = p();
+        params.operator_salted_challenges = 1;
+        params.operator_audit_missed_cap = 48;
+        params.operator_slash_bps = 10_000; // full forfeiture
+        let c0 = first_year_cost_base_units(BACKSTOP_REFERENCE_SIZE_BYTES, 3, &params).unwrap();
+        assert_eq!(
+            u128::from(recommended_min_storage_operator_bond(&params).unwrap()),
+            c0
         );
     }
 }

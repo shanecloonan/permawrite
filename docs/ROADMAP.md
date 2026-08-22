@@ -490,7 +490,8 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **B-13b** | Fork policy: enable `1000` on live devnet vs new `genesis_id` chain | 6+7+human | **Lean same-chain**; human gate = **B-33** checklist (not sims alone) |
 | **B-268** | Same-chain activation-height design (`effective_emission_params` + ckpt v12) | 6 | **Design landed** — [`B13_ACTIVATION_HEIGHT.md`](./B13_ACTIVATION_HEIGHT.md); impl = **B-268b** |
 | **B-306** | r=0 endowment C₀ drip (`deflation_funded_drip`, ckpt v13); Path A flag stays 0 | 6 | **Landed** — [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md); enable = **B-306b**; prize-size = **B-306c** |
-| **B-306c** | Size `storage_proof_reward` as window-capped C₀ backstop helper; Path A prize stays 0.1 MFN | 6 | **Landed** (this commit) — [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md); apply on Path B with **B-306b** |
+| **B-306c** | Size `storage_proof_reward` as window-capped C₀ backstop helper; Path A prize stays 0.1 MFN | 6 | **Landed** `45f1e8f5` — [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md); apply on Path B with **B-306b** |
+| **B-307** | Size `min_storage_operator_bond` so one B5 slash covers C₀(1 GiB); Path A bond stays 0 | 6 | **Landed** (this commit) — [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md); enable = **PM1** |
 | **B-13c** | Enable Path A schedule `H_act` + ops announce (B-265 loader for wipe path only) | 7 | After B-13a + **B-33** + **B-265** + **B-268b**; no DEFAULT_EMISSION change |
 | **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
 | **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
@@ -670,7 +671,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 |---|---|---|---|
 | **TL Path B** | Non-toy genesis ceremony per [`TESTNET_GENESIS_CEREMONY.md`](./TESTNET_GENESIS_CEREMONY.md) | 7 + human | Required before meaningful stake |
 | **Multi-VPS** | Validator / operator / observer on separate hosts (P32 live topology) | 7 | `REFERENCE_TOPOLOGY.md` |
-| **PM1 bonds** | Storage-operator bonds with slash-to-treasury at incentivized scale | 6 | **B5** slashing shipped on devnet; bonds `0` today — enable non-zero bonds on Path B genesis |
+| **PM1 bonds** | Storage-operator bonds with slash-to-treasury at incentivized scale | 6 | **B5** slashing shipped; Path A bonds `0`; **B-307** helper sizes the floor — enable on Path B genesis |
 | **B-17** | P31 phase 2: ASN-aware peer diversity buckets | 4 | Adversarial testnet prep; builds on P31 /16 metrics (shipped) |
 | **Adversarial** | Soak with Byzantine peers, eclipse drills, faucet abuse limits | 1+4 | Build on P31 diversity + quarantine |
 | **Economics** | Fee-drought scenarios with B-13 tail subsidy enabled | 6 | [`ECONOMICS.md`](./ECONOMICS.md) §5 |
@@ -723,6 +724,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-13a–c** Subsidy fork sims + policy + enable | Phase 1 | 6 |
 | **B-306** r=0 endowment C₀ drip (inert flag) | Phase 1 | 6 |
 | **B-306c** proof-prize → C₀ backstop helper (Path A stays 0.1 MFN) | Phase 1 | 6 |
+| **B-307** min operator bond helper (Path A stays 0; enable = PM1) | Phase 4 / Path B | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 | 4 |
 | **B-19** Decoy-RNG entropy contract | Phase 3 | 5 |

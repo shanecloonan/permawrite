@@ -10,7 +10,7 @@ The focus is on **economics/incentives** (the harder and more fundamental catego
 
 ### 1. Storage operators have limited skin in the game (bonding is opt-in)
 
-> **Status: partially mitigated** (B5 operator bonding + slashing shipped). Public Path A genesis sets `min_storage_operator_bond = 0` and `bond_amount: 0` for both storage operators — the bondless tier is the live default, not an edge case. Residual: permanence still depends on rational operators holding data without mandatory global bonds until Path B / **PM1**.
+> **Status: mitigation designed, not enabled (B-307)** — B5 slashing is **live** on Path A (`operator_audit_missed_cap=48`, `operator_slash_bps=250`) but `min_storage_operator_bond=0` and genesis `bond_amount: 0`, so every slash is 0. [`recommended_min_storage_operator_bond`](../mfn-storage/src/endowment.rs) sizes the floor so one 2.5% slash covers `C₀(1 GiB × 3)` (~0.258 MFN). Path A stays **0** (raising it rejects bondless genesis). Enable on Path B / after B-25 as **PM1**. Design: [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md).
 
 Storage operators earn by winning SPoRA challenges. **Bonded** operators escrow slashable stake; missed operator-salted audits can forfeit bond to the treasury ([`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md)). Unbonded operators still face only the carrot (forego future rewards on defection).
 
