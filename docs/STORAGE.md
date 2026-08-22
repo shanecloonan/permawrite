@@ -399,7 +399,10 @@ At the default `real_yield_ppb = 0` this component is **zero** unless
 `deflation_funded_drip = 1` (**B-306**), in which case proofs drip `C₀ / slots_per_year`
 from the sized principal. Path A keeps the flag at `0`: operators are paid from
 fresh treasury revenue (fees + emission) rather than from the endowment
-principal. See [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md).
+principal. The flat `storage_proof_reward` (0.1 MFN) still dwarfs that drip;
+[`recommended_backstop_proof_reward`](../mfn-storage/src/endowment.rs) (**B-306c**)
+is the Path B size. See [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md)
+and [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md).
 
 (The old 4% example would have produced ~0.465 base units/slot on a 30.6 M endowment; that path is still supported if a future parameter update sets a positive `real_yield_ppb` that beats `inflation_ppb`.)
 

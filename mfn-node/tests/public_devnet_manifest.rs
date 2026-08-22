@@ -2,7 +2,9 @@
 
 use std::path::PathBuf;
 
-use mfn_consensus::{try_produce_slot, SlotContext, Validator, ValidatorSecrets};
+use mfn_consensus::{
+    try_produce_slot, SlotContext, Validator, ValidatorSecrets, DEFAULT_EMISSION_PARAMS, MFN_BASE,
+};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_node::{
     genesis_config_from_json_path, Chain, ChainConfig, ChainPersistence, NodeStore, StoreBackend,
@@ -61,6 +63,19 @@ fn public_devnet_v1_requires_endowment_range_proof() {
     assert_eq!(
         cfg.endowment_params.deflation_funded_drip, 0,
         "B-306 drip stays off on Path A genesis"
+    );
+    assert_eq!(
+        cfg.endowment_params.min_storage_operator_bond, 0,
+        "Path A operator bonds stay optional (CSV residual; Path B / PM1)"
+    );
+    assert_eq!(
+        cfg.emission_params.storage_proof_reward,
+        MFN_BASE / 10,
+        "B-306c: Path A keeps 0.1 MFN proof prize (not the C0 backstop)"
+    );
+    assert_eq!(
+        cfg.emission_params.storage_proof_reward,
+        DEFAULT_EMISSION_PARAMS.storage_proof_reward
     );
     assert_eq!(
         cfg.endowment_params.require_endowment_opening, 0,

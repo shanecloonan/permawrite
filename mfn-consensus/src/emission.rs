@@ -468,6 +468,20 @@ mod tests {
     }
 
     #[test]
+    fn b306c_path_a_prize_stays_tenth_mfn_and_dwarfs_backstop() {
+        use mfn_storage::{recommended_backstop_proof_reward, DEFAULT_ENDOWMENT_PARAMS};
+        assert_eq!(DEFAULT_EMISSION_PARAMS.storage_proof_reward, MFN_BASE / 10);
+        let backstop = recommended_backstop_proof_reward(&DEFAULT_ENDOWMENT_PARAMS)
+            .expect("default endowment");
+        assert!(backstop >= 1);
+        assert!(
+            u128::from(DEFAULT_EMISSION_PARAMS.storage_proof_reward) / u128::from(backstop)
+                >= 5_000,
+            "Path A 0.1 MFN prize must remain a bootstrap prize, not the C0 backstop"
+        );
+    }
+
+    #[test]
     fn b268e_schedule_rejects_bps_above_10000() {
         let bad = SubsidyBpsSchedule {
             activation_height: 1,

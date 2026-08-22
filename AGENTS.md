@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-22):** **B-306** r=0 C₀ drip inert (this commit). Tip CI `#31909490680` **FAIL** scripts (rust GREEN on prior). Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
+**CI gate (2026-08-22):** **B-306c** proof-prize backstop helper (this commit). Tip CI `#32562905593` on B-306 `6a685dae` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **B-305** (`704280f7`); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-306** r=0 C₀ drip inert (this commit); **B-268b** (`ee3739e7`); **B-269**; **B-268** WP | *Idle* | **B-306b** enable after B-25 / Path B; **B-306c** prize-size; human **B-33**; no B-13c enable | Emission sims |
+| **6** Permanence | **B-306c** proof-prize → C₀ backstop helper (this commit); **B-306** (`6a685dae`); **B-268b** (`ee3739e7`) | *Idle* | **B-306b** enable drip+backstop after B-25 / Path B; human **B-33**; PM1 bonds Path B; no B-13c enable | Emission sims |
 | **7** Testnet launch | Path A **22565** (`160a9b07`; lag **OK=7**); **B-42** 3rd JOIN last_proven **22560** (`6a1468fc`); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
@@ -245,9 +245,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-303 | Wallet refuse caller `extra` when synthesizing MFEX (MFEO/MFER/claims) | 4+5 | **Landed** `4e1fb020`; no B-13c enable |
 | B-304 | F5 P20: reject well-formed MFEX on non-storage (transfer) txs | 4+5 | **Landed** `848a40ff`; no B-13c enable |
 | B-305 | F5 P20: reject unused MFEO/MFER when opening/range not required | 4+5 | **Landed** `704280f7`; no B-13c enable |
-| B-306 | r=0 endowment C₀ drip (`deflation_funded_drip`, ckpt v13) | 6 | **Landed** (this commit) — inert default; Path A stays 0; enable = **B-306b** |
-| B-306b | Enable `deflation_funded_drip = 1` on Path B / after B-25 | 6+7+human | Coinbase fork if flipped on Path A; see [`B306_ENDOWMENT_DRIP.md`](docs/B306_ENDOWMENT_DRIP.md) |
-| B-306c | Size `storage_proof_reward` as true backstop (not 0.1 MFN prize) | 6 | After drip enable; do not DEFAULT-flip Path A |
+| B-306 | r=0 endowment C₀ drip (`deflation_funded_drip`, ckpt v13) | 6 | **Landed** `6a685dae` — inert default; Path A stays 0; enable = **B-306b** |
+| B-306b | Enable `deflation_funded_drip = 1` on Path B / after B-25 | 6+7+human | Coinbase fork if flipped on Path A; set prize to `recommended_backstop_proof_reward` in the same ceremony; see [`B306_ENDOWMENT_DRIP.md`](docs/B306_ENDOWMENT_DRIP.md) |
+| B-306c | Size `storage_proof_reward` as true backstop (not 0.1 MFN prize) | 6 | **Landed** (this commit) — helper + Path A pin; do not DEFAULT-flip |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -510,7 +510,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-22 - lane 6 - B-306 r=0 endowment C₀ drip inert** (this commit): `deflation_funded_drip` flag + `first_year_cost_base_units` / accrue drip when r=0; checkpoint **v13**; genesis/RPC/WASM merge; Path A genesis stays 0 (no coinbase fork). `b306_*` + v12 decode default 0 + v13 round-trip + Path A pin + RPC/WASM merge tests PASS. `cargo fmt --all --check` + `cargo clippy --workspace --all-targets --all-features -- -D warnings` + `cargo audit` green. Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen. Next: **B-306b** enable after B-25 / Path B; **B-306c** prize-size. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-22 - lane 6 - B-306c proof-prize backstop helper** (this commit): `recommended_backstop_proof_reward` = floor(C₀(1 GiB, min_repl) · window / slots_per_year) (1763 at defaults; per-slot floor is 0). Path A `storage_proof_reward` stays `MFN_BASE/10` (~5_670× larger). `b306c_*` emission + Path A genesis pins PASS; clippy `-D warnings` green; storage lib tests WDAC-blocked locally (os 4551). Docs: [`B306C_PROOF_REWARD_BACKSTOP.md`](docs/B306C_PROOF_REWARD_BACKSTOP.md). Waited for tip CI `#32562905593` (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen. Next: **B-306b** drip+backstop enable after B-25 / Path B; PM1 bonds Path B. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-22 - lane 6 - B-306 r=0 endowment C₀ drip inert** (`6a685dae`): `deflation_funded_drip` flag + `first_year_cost_base_units` / accrue drip when r=0; checkpoint **v13**; genesis/RPC/WASM merge; Path A genesis stays 0 (no coinbase fork). `b306_*` + v12 decode default 0 + v13 round-trip + Path A pin + RPC/WASM merge tests PASS. `cargo fmt --all --check` + `cargo clippy --workspace --all-targets --all-features -- -D warnings` + `cargo audit` green. Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen. Next: **B-306b** enable after B-25 / Path B; **B-306c** prize-size. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-16 - lane 2 - Arweave weave-is-the-copy vs replica availability** (`7464ad8d`): `ECONOMICS.md` §12.0 states the canonical-copy split (weave tx body vs `data_root` + operator chunks); STORAGE / PRIVACY_AND_PERMANENCE / docs README point at it. Path A one-host / bond=0 called out. Local `ci-check -DocsOnly` green. No DEFAULT flip; no B-13c. `[skip ci]` — tip `#31909490680` already FAIL scripts. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 

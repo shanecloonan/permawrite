@@ -25,7 +25,7 @@ Keep both guarantees. Change which stream is *required* vs *surplus*.
 | **2. C₀ drip** | Pay first-year storage cost per slot from that principal | **Off** (`accrue` = 0 at `r = 0`) | **On** (`deflation_funded_drip = 1`) |
 | **3. Privacy fees (90%)** | Surplus that grows the shared pool | Treated as primary inflow | Surplus — old data does not need new transfers |
 | **4. Subsidy→treasury (B-13)** | Scheduled floor independent of demand | Field shipped, value `0` | `1000` after **B-33** / **B-13c** — separate lever |
-| **5. Flat proof prize** | Bootstrap / backstop | `storage_proof_reward = 0.1 MFN` (dominates C₀) | Shrink toward a true floor (**B-306c**) — not this unit |
+| **5. Flat proof prize** | Bootstrap / backstop | `storage_proof_reward = 0.1 MFN` (dominates C₀) | `recommended_backstop_proof_reward` (**B-306c** helper landed; Path A prize unchanged until **B-306b**) |
 | **6. Emergency mint** | Unconditional operator payment if treasury is empty | Shipped | Unchanged last resort |
 
 Ring policy, stealth, CLSAG, SPoRA, and `UploadUnderfunded` stay exactly as they are. This unit does not weaken any of them.
@@ -66,7 +66,7 @@ Genesis JSON may set `endowment.deflation_funded_drip`. Public devnet v1 **must 
 | Id | Item | Why later |
 | --- | --- | --- |
 | **B-306b** | Enable `deflation_funded_drip = 1` on Path B genesis or a named activation | Needs human/B-25; forks Path A if flipped live |
-| **B-306c** | Size `storage_proof_reward` as a true backstop, not a 0.1 MFN/block prize | Flat prize still dwarfs C₀ drip (~0.25 base units/slot for 1 GiB × 3). Closing §2 *fully* needs both drip **and** a smaller prize. Separate lever. |
+| **B-306c** | Size `storage_proof_reward` as a true backstop, not a 0.1 MFN/block prize | **Helper landed** — [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md). Path A prize stays 0.1 MFN (~5_670× the 1 GiB window-capped C₀ drip). Apply the helper on Path B with **B-306b**. |
 | **B-13c** | `subsidy_to_treasury_bps = 1000` | Independent scheduled floor; already designed |
 
 ## Tests (pass in this unit)

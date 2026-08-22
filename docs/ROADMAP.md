@@ -489,7 +489,8 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **B-13a** | Emission/treasury sims at `subsidy_to_treasury_bps = 1000` in default CI | 6 | See **B-13a work package** below — claim on L4 close |
 | **B-13b** | Fork policy: enable `1000` on live devnet vs new `genesis_id` chain | 6+7+human | **Lean same-chain**; human gate = **B-33** checklist (not sims alone) |
 | **B-268** | Same-chain activation-height design (`effective_emission_params` + ckpt v12) | 6 | **Design landed** — [`B13_ACTIVATION_HEIGHT.md`](./B13_ACTIVATION_HEIGHT.md); impl = **B-268b** |
-| **B-306** | r=0 endowment C₀ drip (`deflation_funded_drip`, ckpt v13); Path A flag stays 0 | 6 | **Math + inert flag this unit** — [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md); enable = **B-306b**; prize-size = **B-306c** |
+| **B-306** | r=0 endowment C₀ drip (`deflation_funded_drip`, ckpt v13); Path A flag stays 0 | 6 | **Landed** — [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md); enable = **B-306b**; prize-size = **B-306c** |
+| **B-306c** | Size `storage_proof_reward` as window-capped C₀ backstop helper; Path A prize stays 0.1 MFN | 6 | **Landed** (this commit) — [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md); apply on Path B with **B-306b** |
 | **B-13c** | Enable Path A schedule `H_act` + ops announce (B-265 loader for wipe path only) | 7 | After B-13a + **B-33** + **B-265** + **B-268b**; no DEFAULT_EMISSION change |
 | **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
 | **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
@@ -721,6 +722,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-16** Privacy-doc sync for live wallet UX | Phase 0 / 3 | 5 — ✓ `49d28f9` |
 | **B-13a–c** Subsidy fork sims + policy + enable | Phase 1 | 6 |
 | **B-306** r=0 endowment C₀ drip (inert flag) | Phase 1 | 6 |
+| **B-306c** proof-prize → C₀ backstop helper (Path A stays 0.1 MFN) | Phase 1 | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 | 4 |
 | **B-19** Decoy-RNG entropy contract | Phase 3 | 5 |

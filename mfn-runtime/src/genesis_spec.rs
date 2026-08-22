@@ -890,5 +890,9 @@ mod tests {
             cfg.endowment_params.deflation_funded_drip, 0,
             "B-306 drip stays off on Path A genesis"
         );
+        assert_eq!(
+            cfg.emission_params.storage_proof_reward, DEFAULT_EMISSION_PARAMS.storage_proof_reward,
+            "B-306c: Path A keeps the 0.1 MFN proof prize"
+        );
     }
 }

@@ -335,6 +335,44 @@ pub fn first_year_cost_base_units(
     Ok(num / PPB)
 }
 
+/// Reference weave quantum for [`recommended_backstop_proof_reward`]: 1 GiB.
+pub const BACKSTOP_REFERENCE_SIZE_BYTES: u64 = 1 << 30;
+
+/// Path B / post-B-25 `storage_proof_reward` so the C₀ drip can dominate.
+///
+/// Consensus pays `storage_proof_reward` **per accepted proof**, and
+/// [`accrue_proof_reward`] credits at most `proof_reward_window_slots` of C₀
+/// drip per proof. The matching floor is therefore
+/// `floor(C₀(1 GiB, min_replication) · window / slots_per_year)`, at least `1`.
+///
+/// Per-slot `floor(C₀ / slots_per_year)` is **0** at default 1 GiB × 3 (C₀ is
+/// smaller than one year of slots). Using that would pin the prize at dust `1`
+/// and mis-state the drip. At default params the window quantum is **1763**
+/// base units (~1.76×10⁻⁵ MFN). Path A's
+/// `DEFAULT_EMISSION_PARAMS.storage_proof_reward = 0.1 MFN` is ~5_670× larger
+/// — a bootstrap prize, not a backstop (**B-306c**). Do not flip DEFAULT.
+///
+/// # Errors
+///
+/// Same as [`first_year_cost_base_units`], plus [`EndowmentError::Overflow`]
+/// if the window product does not fit `u64`.
+pub fn recommended_backstop_proof_reward(params: &EndowmentParams) -> Result<u64, EndowmentError> {
+    if params.slots_per_year == 0 {
+        return Err(EndowmentError::SlotsPerYearZero);
+    }
+    let c0 = first_year_cost_base_units(
+        BACKSTOP_REFERENCE_SIZE_BYTES,
+        params.min_replication,
+        params,
+    )?;
+    let num = c0
+        .checked_mul(u128::from(params.proof_reward_window_slots))
+        .ok_or(EndowmentError::Overflow)?;
+    let per_proof = num / u128::from(params.slots_per_year);
+    let v = u64::try_from(per_proof).map_err(|_| EndowmentError::Overflow)?;
+    Ok(v.max(1))
+}
+
 /// `true` when r=0 proofs should drip `C₀` instead of paying 0 from principal.
 #[must_use]
 pub fn deflation_drip_active(params: &EndowmentParams) -> bool {
@@ -1079,6 +1117,44 @@ mod tests {
         assert_eq!(
             payout_per_slot(required, both.slots_per_year, &both).unwrap(),
             payout_per_slot(required, both.slots_per_year, &yield_only).unwrap()
+        );
+    }
+
+    #[test]
+    fn b306c_backstop_matches_one_gib_c0_per_window() {
+        let c0 = first_year_cost_base_units(BACKSTOP_REFERENCE_SIZE_BYTES, 3, &p()).unwrap();
+        let want = c0 * u128::from(p().proof_reward_window_slots) / u128::from(p().slots_per_year);
+        assert!(
+            want >= 1,
+            "1 GiB × 3 window-capped C0 must be a non-zero backstop (c0={c0})"
+        );
+        assert_eq!(
+            u128::from(recommended_backstop_proof_reward(&p()).unwrap()),
+            want
+        );
+        // Per-slot floor is 0 at this size; do not use it as the prize.
+        assert_eq!(c0 / u128::from(p().slots_per_year), 0);
+    }
+
+    #[test]
+    fn b306c_path_a_tenth_mfn_prize_dwarfs_backstop() {
+        // MFN_BASE/10 without taking a consensus dep.
+        const PATH_A_PRIZE: u128 = 10_000_000;
+        let backstop = u128::from(recommended_backstop_proof_reward(&p()).unwrap());
+        assert!(
+            PATH_A_PRIZE / backstop >= 5_000,
+            "prize={PATH_A_PRIZE} backstop={backstop} ratio too small"
+        );
+        assert_eq!(DEFAULT_ENDOWMENT_PARAMS.deflation_funded_drip, 0);
+    }
+
+    #[test]
+    fn b306c_backstop_rejects_zero_slots_per_year() {
+        let mut params = p();
+        params.slots_per_year = 0;
+        assert_eq!(
+            recommended_backstop_proof_reward(&params),
+            Err(EndowmentError::SlotsPerYearZero)
         );
     }
 }

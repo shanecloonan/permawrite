@@ -10,7 +10,7 @@ The focus is on **economics/incentives** (the harder and more fundamental catego
 
 ### 1. Storage operators have limited skin in the game (bonding is opt-in)
 
-> **Status: partially mitigated** (B5 operator bonding + slashing shipped; public devnet enables `min_storage_operator_bond`, operator audit slash params, and `require_endowment_opening` / `require_endowment_range_proof` on uploads). Residual: bondless tier remains valid where genesis permits `bond_amount: 0`; permanence still depends on rational operators holding data without mandatory global bonds.
+> **Status: partially mitigated** (B5 operator bonding + slashing shipped). Public Path A genesis sets `min_storage_operator_bond = 0` and `bond_amount: 0` for both storage operators — the bondless tier is the live default, not an edge case. Residual: permanence still depends on rational operators holding data without mandatory global bonds until Path B / **PM1**.
 
 Storage operators earn by winning SPoRA challenges. **Bonded** operators escrow slashable stake; missed operator-salted audits can forfeit bond to the treasury ([`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md)). Unbonded operators still face only the carrot (forego future rewards on defection).
 
@@ -22,7 +22,7 @@ This remains a genuine hole for bondless deployments: the permanence guarantee s
 
 ### 2. r = 0 default makes permanence heavily dependent on continuous high privacy transaction volume
 
-> **Status: mitigation designed, not enabled (B-306)** — [`deflation_funded_drip`](../mfn-storage/src/endowment.rs) (checkpoint **v13**) makes r=0 proofs drip first-year cost `C₀` from the sized principal, so already-uploaded data does not depend on later privacy volume. Default remains **`0`** (Path A unchanged; enabling is a coinbase fork). Residual: the flat `storage_proof_reward` (0.1 MFN/proof) still dwarfs `C₀` drip — **B-306c**. Approved but **not yet shipped:** 10% subsidy → treasury ([`FEES.md` § 5.4](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury)) — see [§ 19](#19-subsidy-tail-split-approved-but-not-in-consensus-yet). Design: [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md).
+> **Status: mitigation designed, not enabled (B-306 + B-306c)** — [`deflation_funded_drip`](../mfn-storage/src/endowment.rs) (checkpoint **v13**) makes r=0 proofs drip first-year cost `C₀` from the sized principal. [`recommended_backstop_proof_reward`](../mfn-storage/src/endowment.rs) sizes `storage_proof_reward` to one 1 GiB file's window-capped C₀ (~1763 base units/proof) so that drip can dominate. Defaults remain **drip=`0`** and **prize=`0.1 MFN`** (Path A unchanged; either flip is a coinbase fork). Enable on Path B / after B-25 as **B-306b** (drip + backstop together). Approved but **not yet shipped:** 10% subsidy → treasury ([`FEES.md` § 5.4](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury)) — see [§ 19](#19-subsidy-tail-split-approved-but-not-in-consensus-yet). Design: [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md), [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md).
 
 After the shift to `real_yield_ppb = 0` as the expected/default case (see the two-mode endowment model), storage operators no longer receive yield harvested from individual endowments **unless** `deflation_funded_drip = 1`. On Path A, payouts still come from:
 

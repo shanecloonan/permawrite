@@ -740,9 +740,12 @@ Ordered by leverage:
    r=0 proofs drip `C₀` from the sized principal so already-uploaded data is
    funded like Arweave's endowment faucet. Path A stays flag=`0` (no fork).
    Enable on Path B / after B-25 as **B-306b**. See [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md).
-2. **Shrink `storage_proof_reward` toward a true backstop** (**B-306c**) —
-   today's 0.1 MFN/proof still dwarfs the C₀ drip, so the prize pool—not the
-   principal—dominates operator income until this lever moves.
+2. **Shrink `storage_proof_reward` toward a true backstop** (**B-306c**, helper landed) —
+   [`recommended_backstop_proof_reward`](../mfn-storage/src/endowment.rs) is
+   `floor(C₀(1 GiB, min_replication) · window / slots_per_year)` (1763 base units
+   at defaults; per-slot floor is 0 at 1 GiB). Path A stays `0.1 MFN` (~5_670×
+   larger). Apply the helper on Path B / after B-25 with **B-306b**. See
+   [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md).
 3. **Ship `subsidy_to_treasury_bps`** (10% tail → treasury; F6 phase 2) —
    scheduled permanence inflow independent of privacy demand.
 4. **Operator bonding + slashing at scale** — skin in the game for replicas

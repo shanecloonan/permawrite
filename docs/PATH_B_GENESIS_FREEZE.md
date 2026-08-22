@@ -16,7 +16,7 @@
 | Header v2 / `utxo_root` in BLS bytes | 4 | Decision: enable `header_version: 2` on **new** chain only (yes/no + rationale) | **TBD** — lane 4 design note before ceremony |
 | Validator / BLS PoP material | 7+human | Ceremony roles named; offline seed handling; never paste keys in chat | Roles: **TBD (human)**; tooling: `genesis-validator-bls-pop.sh --verify` |
 | `require_validator_bls_pop` + genesis JSON shape | 4+6 | Spec fields + verify command pinned | Helper exists; Path B must set `require_validator_bls_pop: 1` |
-| Economics levers | 6 | Which of B-13c / PM1 bonds / fee params land on Path B vs stay Path A | **TBD** after B-13a/b; default = do not silent-fork Path A economics |
+| Economics levers | 6 | Which of B-13c / B-306b drip+backstop / PM1 bonds / fee params land on Path B vs stay Path A | **B-306c** helper pins Path B `storage_proof_reward = recommended_backstop_proof_reward`; do not silent-fork Path A (prize stays 0.1 MFN, drip stays 0, bonds stay 0) |
 | Topology | 7 | Role-separated hosts per [`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md) | Current public testnet is single-VPS Path A — **not** Path B topology |
 | Wipe + re-soak plan | 7 | Data-dir wipe, TL-5/TL-6 re-run, invite/docs republication | Checklist below |
 | Sign-off cells | human | Named approvers | **TBD (human)** |
