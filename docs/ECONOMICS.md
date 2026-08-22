@@ -754,9 +754,14 @@ Ordered by leverage:
    [`recommended_min_storage_operator_bond`](../mfn-storage/src/endowment.rs)
    is `ceil(C₀(1 GiB) · 10000 / 250)` (25_769_800 base units). Apply on Path B
    as **PM1**. See [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md).
-5. **Mainnet telemetry** — watch `treasury_base_units` and backstop frequency;
+5. **Cap backstop mint at 1% of annual tail** (**B-311**, helper landed) —
+   [`recommended_backstop_mint_cap_per_year`](../mfn-consensus/src/emission.rs)
+   is the PM41 ceiling. Path A stays unbounded (the 0.1 MFN prize already
+   exceeds the per-slot cap). Wire after **B-306b** prize shrink. See
+   [`B311_BACKSTOP_CAP.md`](./B311_BACKSTOP_CAP.md).
+6. **Mainnet telemetry** — watch `treasury_base_units` and backstop frequency;
    [`treasury-telemetry-watch.sh`](../scripts/public-devnet-v1/treasury-telemetry-watch.sh).
-6. **Audit + time** — the implementation-risk gap vs Arweave closes only with
+7. **Audit + time** — the implementation-risk gap vs Arweave closes only with
    production evidence, not parameter tuning.
 
 ### 12.6 Hardware deflation and zero privacy demand

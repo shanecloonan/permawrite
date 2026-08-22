@@ -383,6 +383,60 @@ pub fn recommended_fee_to_treasury_bps(current_bps: u16, obs: &FeeShiftObservati
         .min(10_000)
 }
 
+/// **PM41** yearly backstop-mint budget as basis points of annual tail.
+/// `100` = 1% extra inflation from emergency mint — F5's circuit breaker.
+pub const RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS: u16 = 100;
+
+/// Per-slot backstop mint cap: `floor(tail_emission · bps / 10000)`.
+///
+/// At DEFAULT tail (`(50 MFN) >> 8`) this is **195_312** base units. Path A's
+/// `storage_proof_reward` (`MFN_BASE / 10`) is larger, so wiring the cap
+/// today would reject honest proofs — apply only after **B-306c** prize
+/// shrink. Does not mutate [`DEFAULT_EMISSION_PARAMS`].
+#[must_use]
+pub fn recommended_backstop_mint_cap_per_slot(params: &EmissionParams) -> u128 {
+    u128::from(params.tail_emission) * u128::from(RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS) / 10_000
+}
+
+/// Window cap: per-slot cap × `window_slots` (saturating).
+#[must_use]
+pub fn recommended_backstop_mint_cap_for_window(
+    params: &EmissionParams,
+    window_slots: u64,
+) -> u128 {
+    recommended_backstop_mint_cap_per_slot(params).saturating_mul(u128::from(window_slots))
+}
+
+/// Yearly cap: `annual_tail_emission · bps / 10000` (1% of annual tail).
+#[must_use]
+pub fn recommended_backstop_mint_cap_per_year(
+    blocks_per_year: u64,
+    params: &EmissionParams,
+) -> u128 {
+    annual_tail_emission(blocks_per_year, params) * u128::from(RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS)
+        / 10_000
+}
+
+/// Rolling-window observation for [`BackstopMintObservation::cap_binds`].
+///
+/// Callers feed minted backstop base units (treasury-shortfall mint, not
+/// subsidy). Not read by `apply_block` (**PM41** wire is later).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BackstopMintObservation {
+    /// Fresh tokens minted as storage-reward shortfall in the window.
+    pub minted_in_window: u128,
+    /// Window length in slots (1 = per-block; endowment `slots_per_year` = year).
+    pub window_slots: u64,
+}
+
+impl BackstopMintObservation {
+    /// `true` when minted backstop exceeds the PM41 window cap.
+    #[must_use]
+    pub fn cap_binds(&self, params: &EmissionParams) -> bool {
+        self.minted_in_window > recommended_backstop_mint_cap_for_window(params, self.window_slots)
+    }
+}
+
 /// Checkpointed subsidy overlay. `activation_height == 0` is inactive.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SubsidyBpsSchedule {
@@ -817,5 +871,76 @@ mod tests {
         assert_eq!(shift_treasury + shift_producer, fee_sum);
         assert!(shift_treasury > hold_treasury);
         assert!(shift_producer < hold_producer);
+    }
+
+    #[test]
+    fn b311_per_slot_cap_is_one_percent_of_tail() {
+        let p = DEFAULT_EMISSION_PARAMS;
+        let cap = recommended_backstop_mint_cap_per_slot(&p);
+        assert_eq!(cap, u128::from(p.tail_emission) / 100);
+        assert_eq!(cap, 195_312);
+        assert_eq!(RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS, 100);
+    }
+
+    #[test]
+    fn b311_yearly_cap_is_one_percent_of_annual_tail() {
+        let p = DEFAULT_EMISSION_PARAMS;
+        let bpy = mfn_storage::DEFAULT_ENDOWMENT_PARAMS.slots_per_year;
+        let annual = annual_tail_emission(bpy, &p);
+        let yearly = recommended_backstop_mint_cap_per_year(bpy, &p);
+        assert_eq!(yearly, annual / 100);
+        assert_eq!(
+            recommended_backstop_mint_cap_for_window(&p, bpy),
+            recommended_backstop_mint_cap_per_slot(&p) * u128::from(bpy)
+        );
+    }
+
+    #[test]
+    fn b311_path_a_prize_exceeds_per_slot_cap() {
+        let p = DEFAULT_EMISSION_PARAMS;
+        let cap = recommended_backstop_mint_cap_per_slot(&p);
+        assert!(
+            u128::from(p.storage_proof_reward) > cap,
+            "Path A 0.1 MFN prize must not silently sit under the cap"
+        );
+        let one_proof = BackstopMintObservation {
+            minted_in_window: u128::from(p.storage_proof_reward),
+            window_slots: 1,
+        };
+        assert!(one_proof.cap_binds(&p));
+        assert!(validate_emission_params(&p).is_ok());
+    }
+
+    #[test]
+    fn b311_sized_prize_fits_under_cap() {
+        let p = DEFAULT_EMISSION_PARAMS;
+        let cap = recommended_backstop_mint_cap_per_slot(&p);
+        let sized =
+            mfn_storage::recommended_backstop_proof_reward(&mfn_storage::DEFAULT_ENDOWMENT_PARAMS)
+                .expect("defaults");
+        assert!(u128::from(sized) < cap);
+        let one_proof = BackstopMintObservation {
+            minted_in_window: u128::from(sized),
+            window_slots: 1,
+        };
+        assert!(!one_proof.cap_binds(&p));
+    }
+
+    #[test]
+    fn b311_zero_mint_does_not_bind() {
+        let p = DEFAULT_EMISSION_PARAMS;
+        let idle = BackstopMintObservation {
+            minted_in_window: 0,
+            window_slots: 1,
+        };
+        assert!(!idle.cap_binds(&p));
+        let empty_window = BackstopMintObservation {
+            minted_in_window: 1,
+            window_slots: 0,
+        };
+        assert!(
+            empty_window.cap_binds(&p),
+            "any mint in a zero-length window is over cap (fail closed)"
+        );
     }
 }

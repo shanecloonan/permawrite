@@ -164,11 +164,14 @@ pub use constitution::{validate_constitution, ConstitutionError, CONSTITUTIONAL_
 pub use emission::{
     annual_tail_emission, annualized_inflation_ppb, block_coinbase_specs, cumulative_emission,
     effective_emission_params, emission_at_height, pre_tail_supply_cap, producer_coinbase_amount,
-    producer_portion_amount, recommended_fee_to_treasury_bps, storage_payout_amount,
-    storage_proof_coinbase_bonus, storage_proof_operator_settlements, subsidy_producer_amount,
-    subsidy_treasury_credit, validate_emission_params, EmissionError, EmissionParams,
+    producer_portion_amount, recommended_backstop_mint_cap_for_window,
+    recommended_backstop_mint_cap_per_slot, recommended_backstop_mint_cap_per_year,
+    recommended_fee_to_treasury_bps, storage_payout_amount, storage_proof_coinbase_bonus,
+    storage_proof_operator_settlements, subsidy_producer_amount, subsidy_treasury_credit,
+    validate_emission_params, BackstopMintObservation, EmissionError, EmissionParams,
     FeeShiftObservation, SubsidyBpsSchedule, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
-    DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS, RECOMMENDED_FEE_SHIFT_STEP_BPS,
+    DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS, RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS,
+    RECOMMENDED_FEE_SHIFT_STEP_BPS,
 };
 #[cfg(feature = "bls")]
 pub use fraud_proof::{

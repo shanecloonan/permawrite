@@ -805,6 +805,29 @@ mod tests {
     }
 
     #[test]
+    fn b311_path_a_prize_stays_above_backstop_cap() {
+        use mfn_consensus::{
+            recommended_backstop_mint_cap_per_slot, BackstopMintObservation,
+            DEFAULT_EMISSION_PARAMS, MFN_BASE,
+        };
+        let s = r#"{"version":1,"timestamp":0,"validators":[]}"#;
+        let g = genesis_config_from_json_bytes(s.as_bytes()).expect("parse");
+        let cap = recommended_backstop_mint_cap_per_slot(&g.emission_params);
+        assert_eq!(g.emission_params.storage_proof_reward, MFN_BASE / 10);
+        assert_eq!(
+            DEFAULT_EMISSION_PARAMS.storage_proof_reward,
+            MFN_BASE / 10,
+            "B-311 must not DEFAULT-flip the Path A prize"
+        );
+        assert!(u128::from(g.emission_params.storage_proof_reward) > cap);
+        let one_proof = BackstopMintObservation {
+            minted_in_window: u128::from(g.emission_params.storage_proof_reward),
+            window_slots: 1,
+        };
+        assert!(one_proof.cap_binds(&g.emission_params));
+    }
+
+    #[test]
     fn emission_section_rejects_bad_subsidy_bps() {
         let s = r#"{"version":1,"timestamp":0,"emission":{"subsidy_to_treasury_bps":10001},"validators":[]}"#;
         assert!(matches!(
