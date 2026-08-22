@@ -761,6 +761,8 @@ Ordered by leverage:
    [`B311_BACKSTOP_CAP.md`](./B311_BACKSTOP_CAP.md).
 6. **Mainnet telemetry** — watch `treasury_base_units` and backstop frequency;
    [`treasury-telemetry-watch.sh`](../scripts/public-devnet-v1/treasury-telemetry-watch.sh).
+   **B-312** names `treasury / trailing payout` ([`B312_TREASURY_RUNWAY.md`](./B312_TREASURY_RUNWAY.md));
+   RPC wire is later.
 7. **Audit + time** — the implementation-risk gap vs Arweave closes only with
    production evidence, not parameter tuning.
 

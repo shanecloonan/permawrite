@@ -828,6 +828,25 @@ mod tests {
     }
 
     #[test]
+    fn b312_path_a_fee_split_unchanged_runway_helper() {
+        use mfn_consensus::{
+            RunwayAlert, RunwayObservation, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
+            DEFAULT_EMISSION_PARAMS, MFN_BASE, RECOMMENDED_RUNWAY_WARN_SLOTS,
+        };
+        let s = r#"{"version":1,"timestamp":0,"validators":[]}"#;
+        let g = genesis_config_from_json_bytes(s.as_bytes()).expect("parse");
+        assert_eq!(g.emission_params.fee_to_treasury_bps, 9000);
+        assert_eq!(DEFAULT_EMISSION_PARAMS.storage_proof_reward, MFN_BASE / 10);
+        let obs = RunwayObservation {
+            treasury_base_units: 2_909_711,
+            trailing_payout_per_slot: u128::from(g.emission_params.storage_proof_reward),
+            treasury_floor_base_units: B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
+            warn_slots: RECOMMENDED_RUNWAY_WARN_SLOTS,
+        };
+        assert_eq!(obs.alert(), RunwayAlert::Short);
+    }
+
+    #[test]
     fn emission_section_rejects_bad_subsidy_bps() {
         let s = r#"{"version":1,"timestamp":0,"emission":{"subsidy_to_treasury_bps":10001},"validators":[]}"#;
         assert!(matches!(

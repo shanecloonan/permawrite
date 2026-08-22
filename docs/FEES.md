@@ -260,6 +260,7 @@ behavior are the telemetry inputs. Read-only helper:
 `fee_to_treasury_bps` until **B-13c** has soaked and **B-25** (or named human
 waiver) says the permanence week is green. Distinct from F6 telemetry / B-13
 subsidy split. Design: [`B309_FEE_SHIFT.md`](./B309_FEE_SHIFT.md).
+Runway *time* is **B-312** [`treasury_runway_slots`](../mfn-consensus/src/emission.rs) (not RPC).
 
 **Problem.** After the subsidy tail feeds the treasury, producer income is
 ~10% lower at the tail. If fee volume is also drought-low, security budget

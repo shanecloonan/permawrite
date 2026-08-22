@@ -383,6 +383,79 @@ pub fn recommended_fee_to_treasury_bps(current_bps: u16, obs: &FeeShiftObservati
         .min(10_000)
 }
 
+/// **PM22** warn when remaining treasury drain time is under one default
+/// proof-reward window (`EndowmentParams::proof_reward_window_slots` = 7_200
+/// ≈ 1 day). Not an on-chain oracle — ops/RPC call the helper.
+pub const RECOMMENDED_RUNWAY_WARN_SLOTS: u64 = 7_200;
+
+/// Slots until `treasury` empties at `trailing_payout_per_slot`.
+///
+/// `None` if payout is 0 (nothing is draining — not a drought signal).
+/// Saturates at `u64::MAX`. Integer division floors leftover base units
+/// that cannot pay another full slot.
+#[must_use]
+pub fn treasury_runway_slots(
+    treasury_base_units: u128,
+    trailing_payout_per_slot: u128,
+) -> Option<u64> {
+    if trailing_payout_per_slot == 0 {
+        return None;
+    }
+    let slots = treasury_base_units / trailing_payout_per_slot;
+    Some(u64::try_from(slots).unwrap_or(u64::MAX))
+}
+
+/// PM22 alert class for [`RunwayObservation::alert`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RunwayAlert {
+    /// Treasury at/under the B-28 floor — ops alert regardless of payout.
+    BelowFloor,
+    /// Payout is 0 and treasury is above the floor — no drain to measure.
+    NoDrain,
+    /// Runway shorter than [`RECOMMENDED_RUNWAY_WARN_SLOTS`].
+    Short,
+    /// Treasury above floor and runway ≥ warn window.
+    Healthy,
+}
+
+/// Rolling observation for the PM22 runway metric.
+///
+/// Callers feed live `treasury_base_units` and a trailing storage-payout
+/// rate (base units / slot). Not read by `apply_block`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RunwayObservation {
+    /// Live treasury balance (base units).
+    pub treasury_base_units: u128,
+    /// Trailing storage payout drained per slot (treasury first, then mint).
+    pub trailing_payout_per_slot: u128,
+    /// Floor to compare against (Path A draft: [`B28_PATH_A_TREASURY_FLOOR_BASE_UNITS`]).
+    pub treasury_floor_base_units: u128,
+    /// Short-runway threshold in slots (default: [`RECOMMENDED_RUNWAY_WARN_SLOTS`]).
+    pub warn_slots: u64,
+}
+
+impl RunwayObservation {
+    /// [`treasury_runway_slots`] for this observation.
+    #[must_use]
+    pub fn runway_slots(&self) -> Option<u64> {
+        treasury_runway_slots(self.treasury_base_units, self.trailing_payout_per_slot)
+    }
+
+    /// Alert class. Floor wins over short/healthy so an empty treasury is
+    /// never reported as merely "short".
+    #[must_use]
+    pub fn alert(&self) -> RunwayAlert {
+        if self.treasury_base_units <= self.treasury_floor_base_units {
+            return RunwayAlert::BelowFloor;
+        }
+        match self.runway_slots() {
+            None => RunwayAlert::NoDrain,
+            Some(slots) if slots < self.warn_slots => RunwayAlert::Short,
+            Some(_) => RunwayAlert::Healthy,
+        }
+    }
+}
+
 /// **PM41** yearly backstop-mint budget as basis points of annual tail.
 /// `100` = 1% extra inflation from emergency mint — F5's circuit breaker.
 pub const RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS: u16 = 100;
@@ -942,5 +1015,66 @@ mod tests {
             empty_window.cap_binds(&p),
             "any mint in a zero-length window is over cap (fail closed)"
         );
+    }
+
+    fn runway_obs(treasury: u128, payout: u128) -> RunwayObservation {
+        RunwayObservation {
+            treasury_base_units: treasury,
+            trailing_payout_per_slot: payout,
+            treasury_floor_base_units: B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
+            warn_slots: RECOMMENDED_RUNWAY_WARN_SLOTS,
+        }
+    }
+
+    #[test]
+    fn b312_warn_window_matches_default_proof_window() {
+        assert_eq!(RECOMMENDED_RUNWAY_WARN_SLOTS, 7_200);
+        assert_eq!(
+            RECOMMENDED_RUNWAY_WARN_SLOTS,
+            mfn_storage::DEFAULT_ENDOWMENT_PARAMS.proof_reward_window_slots
+        );
+    }
+
+    #[test]
+    fn b312_zero_payout_is_no_drain_when_above_floor() {
+        let obs = runway_obs(2_909_711, 0);
+        assert_eq!(obs.runway_slots(), None);
+        assert_eq!(obs.alert(), RunwayAlert::NoDrain);
+    }
+
+    #[test]
+    fn b312_empty_treasury_is_below_floor() {
+        let obs = runway_obs(0, 1);
+        assert_eq!(obs.runway_slots(), Some(0));
+        assert_eq!(obs.alert(), RunwayAlert::BelowFloor);
+        let idle_empty = runway_obs(0, 0);
+        assert_eq!(idle_empty.alert(), RunwayAlert::BelowFloor);
+    }
+
+    #[test]
+    fn b312_short_vs_healthy_at_warn_boundary() {
+        let payout = 1_000u128;
+        let healthy = runway_obs(u128::from(RECOMMENDED_RUNWAY_WARN_SLOTS) * payout, payout);
+        assert_eq!(healthy.runway_slots(), Some(RECOMMENDED_RUNWAY_WARN_SLOTS));
+        assert_eq!(healthy.alert(), RunwayAlert::Healthy);
+        let short = runway_obs(
+            u128::from(RECOMMENDED_RUNWAY_WARN_SLOTS - 1) * payout,
+            payout,
+        );
+        assert_eq!(
+            short.runway_slots(),
+            Some(RECOMMENDED_RUNWAY_WARN_SLOTS - 1)
+        );
+        assert_eq!(short.alert(), RunwayAlert::Short);
+    }
+
+    #[test]
+    fn b312_path_a_prize_drain_is_short_vs_pre_enable_treasury() {
+        let p = DEFAULT_EMISSION_PARAMS;
+        let obs = runway_obs(2_909_711, u128::from(p.storage_proof_reward));
+        assert_eq!(obs.runway_slots(), Some(0));
+        assert_eq!(obs.alert(), RunwayAlert::Short);
+        assert!(validate_emission_params(&p).is_ok());
+        assert_eq!(p.fee_to_treasury_bps, 9000);
     }
 }

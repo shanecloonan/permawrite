@@ -495,7 +495,8 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **B-308** | Windowed SPoRA lottery ranking helper; Path A stays first-to-publish | 6 | **Landed** `18cd1539` — [`B308_SPORA_LOTTERY.md`](./B308_SPORA_LOTTERY.md); wire = **B-44** after **B-32** |
 | **B-309** | Producer↔treasury runway fee-shift helper; Path A stays 9000 | 6 | **Landed** `873e6b1e` — [`B309_FEE_SHIFT.md`](./B309_FEE_SHIFT.md); arm = **B-20** after B-13c + B-25 |
 | **B-310** | PM8 state-retention inventory (maps stay; bodies below ckpt only); Path A does not prune | 6 | **Landed** `98e3adde` — [`B310_STATE_RETENTION.md`](./B310_STATE_RETENTION.md); wire = later store change |
-| **B-311** | PM41 backstop mint cap (1% of annual tail); Path A stays unbounded | 6 | **Landed** (this commit) — [`B311_BACKSTOP_CAP.md`](./B311_BACKSTOP_CAP.md); wire after **B-306b** |
+| **B-311** | PM41 backstop mint cap (1% of annual tail); Path A stays unbounded | 6 | **Landed** `6c0d4a84` — [`B311_BACKSTOP_CAP.md`](./B311_BACKSTOP_CAP.md); wire after **B-306b** |
+| **B-312** | PM22 treasury runway metric (treasury / trailing payout); not RPC | 6 | **Landed** (this commit) — [`B312_TREASURY_RUNWAY.md`](./B312_TREASURY_RUNWAY.md) |
 | **B-13c** | Enable Path A schedule `H_act` + ops announce (B-265 loader for wipe path only) | 7 | After B-13a + **B-33** + **B-265** + **B-268b**; no DEFAULT_EMISSION change |
 | **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
 | **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
@@ -733,6 +734,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-309** fee-shift helper (Path A stays 9000; arm = B-20) | Phase 1 | 6 |
 | **B-310** PM8 retention inventory (Path A does not prune) | Phase 5+6 | 6 |
 | **B-311** PM41 backstop mint-cap helper (Path A unbounded; wire after B-306b) | Phase 1 | 6 |
+| **B-312** PM22 treasury-runway metric (not RPC) | Phase 1 | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 | 4 |
 | **B-19** Decoy-RNG entropy contract | Phase 3 | 5 |
@@ -866,7 +868,7 @@ Items from [`F5.md`](./F5.md) and [`PROBLEMS.md`](./PROBLEMS.md) that belong on 
 | **PM11** | Data-availability sampling at consensus | Permanence | B3 multi-operator proofs on internet |
 | **PM12** | Self-healing replication market | Permanence | PM19 + PM3 |
 | **PM18** | Endowment top-up without re-anchoring | Permanence economics | B-11 shipped; wire design |
-| **PM22** | Treasury runway oracle | Permanence | Treasury watch + B-13 + **B-20** |
+| **PM22** | Treasury runway oracle | Permanence | **B-312** metric landed; RPC/UI after B-28 watch (not consensus) |
 | **PM41** | Emission backstop circuit breaker | Permanence | **B-311** helper landed; wire after B-306b prize shrink (Path A 0.1 MFN prize exceeds cap) |
 | **F2** | Default encrypt-before-upload in reference frontends | Privacy | B-16 doc pass; wallet UX |
 | **F3** | Validity-attested finality (vote after `apply_block`) | Security | F5 4b.x or unacceptable latency trade study |

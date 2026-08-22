@@ -14,7 +14,7 @@ For the system view, see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). For 
 
 | Module | Responsibility |
 |---|---|
-| [`emission`](src/emission.rs) | Hybrid emission curve (Bitcoin halvings → Monero tail), fee-split bps, **B-309** fee-shift helper, **B-311** PM41 backstop mint cap. |
+| [`emission`](src/emission.rs) | Hybrid emission curve (Bitcoin halvings → Monero tail), fee-split bps, **B-309** fee-shift helper, **B-311** PM41 backstop mint cap, **B-312** PM22 runway metric. |
 | [`bonding`](src/bonding.rs) | M1 rotation parameters + pure validation helpers — min stake, unbond delay, per-epoch entry/exit churn caps. |
 | [`bond_wire`](src/bond_wire.rs) | M1 wire format — `BondOp::{Register, Unbond}` (both BLS-signed by the operator's voting key), `register_signing_hash`, `unbond_signing_hash`, `bond_op_leaf_hash`, `bond_merkle_root`. |
 | [`transaction`](src/transaction.rs) | RingCT-style confidential tx — build, sign, verify, tx ids. **M2.0.10** adds `encode_transaction` / `decode_transaction`, a lossless full `TransactionWire` codec carrying CLSAG signatures, Bulletproofs, encrypted amounts, and optional full `StorageCommitment`s. |

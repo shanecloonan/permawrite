@@ -168,10 +168,11 @@ pub use emission::{
     recommended_backstop_mint_cap_per_slot, recommended_backstop_mint_cap_per_year,
     recommended_fee_to_treasury_bps, storage_payout_amount, storage_proof_coinbase_bonus,
     storage_proof_operator_settlements, subsidy_producer_amount, subsidy_treasury_credit,
-    validate_emission_params, BackstopMintObservation, EmissionError, EmissionParams,
-    FeeShiftObservation, SubsidyBpsSchedule, B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
-    DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS, RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS,
-    RECOMMENDED_FEE_SHIFT_STEP_BPS,
+    treasury_runway_slots, validate_emission_params, BackstopMintObservation, EmissionError,
+    EmissionParams, FeeShiftObservation, RunwayAlert, RunwayObservation, SubsidyBpsSchedule,
+    B28_PATH_A_TREASURY_FLOOR_BASE_UNITS, DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS,
+    RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS, RECOMMENDED_FEE_SHIFT_STEP_BPS,
+    RECOMMENDED_RUNWAY_WARN_SLOTS,
 };
 #[cfg(feature = "bls")]
 pub use fraud_proof::{

@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat B **B-311** PM41 backstop-cap helper. **B-310** `98e3adde`. Tip CI `#32571902914` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**.
+Synced at Seat B **B-312** PM22 runway helper. **B-311** `6c0d4a84`. Tip CI `#32573826832` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-311** PM41 backstop-cap helper (this commit); **B-310** (`98e3adde`); **B-309** (`873e6b1e`); **B-308** (`18cd1539`) | *Idle* | **B-306b** + **PM1** enable after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32; **B-35** still Phase 3; no B-13c |
+| **B** Protocol/Privacy | **B-312** PM22 runway helper (this commit); **B-311** (`6c0d4a84`); **B-310** (`98e3adde`); **B-309** (`873e6b1e`) | *Idle* | **B-306b** + **PM1** enable after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32; **B-35** still Phase 3; no B-13c |
 | **C** Testnet/Onboarding | Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* | 2nd host B-32 |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#32571902914` rust GREEN / scripts FAIL; Nightly `#31861932921` GREEN.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#32573826832` rust GREEN / scripts FAIL; Nightly `#31861932921` GREEN.
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done B-311 PM41 backstop-cap helper / Doing idle / Next B-306b + PM1 enable after B-25 / Path B; B-20 after B-13c+B-25; B-44 after B-32 (no B-13c)
+3agent — Seat B: Done B-312 PM22 runway helper / Doing idle / Next B-306b + PM1 enable after B-25 / Path B; B-20 after B-13c+B-25; B-44 after B-32 (no B-13c)
 3agent — Seat C: Done Path A tip-22565 lag OK=7 / Doing idle / Next 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```
