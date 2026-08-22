@@ -57,7 +57,7 @@ Larger endowments and "hot" (frequently challenged / recently uploaded) files ar
 
 ### 6. SPoRA proof winning is a pure first-to-publish latency race
 
-> **Status: open** — no latency-fair inclusion rule in consensus yet. Mitigations are operational (many observers, replication breadth, RPC-only operators) and research-tracked in [`DECENTRALIZATION.md` § Phase C](./DECENTRALIZATION.md) (commit-reveal, VRF-weighted pools). Privacy/permanence policy rejects merging storage into validator duties to “fix” latency.
+> **Status: mitigation designed, not wired (B-308)** — [`rank_spora_lottery`](../mfn-storage/src/lottery.rs) ranks in-window operator identities independently of proof arrival order (`MFBN-1/spora-lottery`). Path A `apply_block` still pays **body order** (first-to-publish). Wiring is **B-44** after **B-32** (coinbase fork). Privacy/permanence policy still rejects merging storage into validator duties to “fix” latency. Design: [`B308_SPORA_LOTTERY.md`](./B308_SPORA_LOTTERY.md).
 
 The challenge is deterministic per slot. The first valid proof that reaches a producer and is included wins the reward (or the accrued yield, when `r > 0`). In a globally distributed network this strongly favors:
 

@@ -151,7 +151,7 @@ Each pressure in §3.2 has a **packaging-first** path that preserves absolute pr
 | Pressure | Packaging / ops (shipped or partial) | Protocol (deferred) | Declined shortcuts |
 |---|---|---|---|
 | **Stake concentration** | Public devnet runbooks, prebuilt binaries, validator onboarding docs | Lower bond floor (weakens per-validator security) | Remove validator bonds |
-| **SPoRA latency race** | RPC-only operators, many observers, `push-all-chunks` replication breadth | Latency-fair inclusion (Phase C) | Skip SPoRA verification |
+| **SPoRA latency race** | RPC-only operators, many observers, `push-all-chunks` replication breadth | Latency-fair inclusion (Phase C / **B-44**; ranking helper **B-308** landed, not wired) | Skip SPoRA verification |
 | **State growth** | Observer vs validator role docs; light clients avoid full state | Checkpoint distribution (research) | On-chain payloads |
 | **Fee-volume dependence** | Privacy UX, WASM wallet path — drives fee demand | — | Subsidize storage by dropping `min_replication` |
 | **Weak operator defection** | Bondless entry preserves accessibility; direct operator payouts | Tiered bonding (optional premium tier) | Merge storage into validators |
@@ -311,7 +311,7 @@ What was assessed, shipped, deferred, or declined (newest first):
 | WASM prove + verify + chunk serve | **Shipped** | `mfn-wasm`: `buildStorageProof`, `verifyStorageProof`, `storageChunkHex` |
 | Document RPC-only operator path | **Shipped** | README, TESTNET role table, OPERATORS permanence sections |
 | Erasure-friendly replication UX | **Shipped** | `push-chunks`, `push-all-chunks`, manifest peers; protocol erasure coding deferred |
-| Latency-fair SPoRA inclusion | **Deferred** | Protocol change; reduces datacenter latency advantage (Phase C) |
+| Latency-fair SPoRA inclusion | **Helper landed (B-308); wiring deferred (B-44 / after B-32)** | Protocol change; reduces datacenter latency advantage (Phase C) |
 | Tiered operator bonding | **Deferred** | Optional fork; bondless default preserves accessibility |
 | Erasure-coded replication | **Deferred** | Research; must preserve deterministic SPoRA verification |
 | NAT traversal / relay | **Partial** | OPERATORS tunnel runbook for home chunk serve; no in-protocol relay |

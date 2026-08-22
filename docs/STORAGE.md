@@ -252,6 +252,8 @@ The verifier:
 
 The "at position N" check is critical — without it, an honest-looking proof at the wrong position could trick the verifier. The Merkle tree's `verify_merkle_proof` in [`mfn_crypto::merkle`](../mfn-crypto/src/merkle.rs) takes the expected leaf index and validates the proof's directional bits accordingly.
 
+Path A still **pays** the first valid proofs in block body order (a latency race; [`PROBLEMS.md` §6](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race)). [`rank_spora_lottery`](../mfn-storage/src/lottery.rs) (**B-308**) ranks in-window operators independently of arrival order. Wiring that into `apply_block` is **B-44** after **B-32** — see [`B308_SPORA_LOTTERY.md`](./B308_SPORA_LOTTERY.md).
+
 ### Why we don't use ZK SNARKs here (yet)
 
 A ZK SNARK proof of "I have chunk N of file F" is asymptotically smaller than 256 KiB + log-many hashes. The reason we ship Merkle proofs instead:

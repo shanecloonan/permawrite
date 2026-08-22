@@ -12,6 +12,8 @@
 //!   `E₀ = C₀·(1+i)/(r−i)` (r>0) or `E₀ = C₀·(1+i)/d` (r=0, deflation mode)
 //!   formula, per-slot payouts (0 at r=0 unless `deflation_funded_drip`), and
 //!   the PPB-precision accumulator.
+//! - [`lottery`] — **B-308** windowed SPoRA ranking helper (not wired into
+//!   `apply_block`; Path A stays first-to-publish).
 //!
 //! ## Layering
 //!
@@ -31,6 +33,7 @@
 
 pub mod commitment;
 pub mod endowment;
+pub mod lottery;
 pub mod spora;
 
 pub use commitment::{
@@ -45,6 +48,7 @@ pub use endowment::{
     AccrueArgs, AccrueResult, EndowmentError, EndowmentParams, BACKSTOP_REFERENCE_SIZE_BYTES,
     DEFAULT_ENDOWMENT_PARAMS, PPB, RECOMMENDED_OPERATOR_SLASH_BPS,
 };
+pub use lottery::{rank_spora_lottery, spora_lottery_window_seed};
 pub use spora::{
     build_endowment_surplus_range_proof, build_storage_commitment, build_storage_proof,
     build_storage_proof_operator_salted, build_test_storage_proof,

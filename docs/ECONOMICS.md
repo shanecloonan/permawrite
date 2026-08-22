@@ -420,7 +420,7 @@ That's **0.012 MFN per year per file**. Operators win at scale: holding 10000 fi
 
 ### Competition
 
-Multiple operators compete to win each challenge. The deterministic challenge means all eligible operators see the same target chunk. Network latency determines who publishes first.
+Multiple operators compete to win each challenge. The deterministic challenge means all eligible operators see the same target chunk. Path A still pays **body-order** (network latency determines who publishes first). [`rank_spora_lottery`](../mfn-storage/src/lottery.rs) (**B-308**) ranks in-window operators independently of arrival; wiring is **B-44** after **B-32**.
 
 In practice, operators specialize: some hold "hot" recent uploads; some hold cold archives; some hold by geography. The protocol doesn't dictate operator strategy.
 

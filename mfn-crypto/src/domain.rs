@@ -155,6 +155,12 @@ pub const STORAGE_OPERATOR_ID: Domain = b"MFBN-1/storage-operator-id";
 /// [`CHUNK_HASH`] so legacy single-replica challenges cannot collide.
 pub const SPORA_OPERATOR_CHALLENGE: Domain = b"MFBN-1/spora-operator-challenge";
 
+/// Windowed SPoRA proof lottery (**B-308** helper; **B-44** wires consensus).
+/// Ranking is independent of proof arrival order. Unused by Path A
+/// `apply_block` (still first-to-publish / body order). Adding this tag
+/// does not change any existing hash; wiring it is the coinbase fork.
+pub const SPORA_LOTTERY: Domain = b"MFBN-1/spora-lottery";
+
 /// Merkle leaf for a storage-operator bonding op in the block `bond_root`
 /// section (**B3 phase 3b**).
 pub const STORAGE_OPERATOR_OP_LEAF: Domain = b"MFBN-1/storage-operator-op-leaf";

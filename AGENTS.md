@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-22):** **B-307** min-bond helper (this commit). Tip CI `#32564607389` on B-306c `45f1e8f5` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
+**CI gate (2026-08-22):** **B-308** SPoRA lottery ranking helper (this commit). Tip CI `#32566389029` on B-307 `2cf8b9b2` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **B-305** (`704280f7`); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-307** min-bond helper so B5 slash has collateral (this commit); **B-306c** (`45f1e8f5`); **B-306** (`6a685dae`) | *Idle* | **B-306b** drip+backstop after B-25 / Path B; **PM1** enable bond floor; human **B-33**; no B-13c enable | Emission sims |
+| **6** Permanence | **B-308** SPoRA lottery ranking helper (this commit); **B-307** (`2cf8b9b2`); **B-306c** (`45f1e8f5`); **B-306** (`6a685dae`) | *Idle* | **B-306b** drip+backstop after B-25 / Path B; **PM1** enable bond floor; **B-44** wire lottery after B-32 (lane 4); human **B-33**; no B-13c enable | Emission sims |
 | **7** Testnet launch | Path A **22565** (`160a9b07`; lag **OK=7**); **B-42** 3rd JOIN last_proven **22560** (`6a1468fc`); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 6 | 4 | **B-308 lottery ranking:** wire `rank_spora_lottery` / `spora_lottery_window_seed(prior_block_id, …)` in `apply_block` after **B-32**. Do not invent a second hash; do not seed from producer VRF (leader bias). Path A stays body-order until **B-44**. | **Open** |
 | 7 | 4 | **Hub inbound CLOSE-WAIT leak:** `:19101` fills `P2P_MAX_INBOUND_HANDLERS=48` (`inbound_cap_reached`); silent/half-closed inbound holds the slot for the 30s hello timeout; vote fanout EAGAIN; tip stuck **22495**. | **Done** (B-300 inbound hello 3s + shutdown + session IO timeout) |
 | 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push ssert-b28-treasury-thresholds --mode post / -Mode post + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Done** (landed this commit; tip CI watch) |
 | 6 | 7 | **Path A lag FAIL:** outside-in tip=16453 ckpt_max=16341 **lag=112**. Closed by **B-264** tip-16456 land (assert OK lag=-1; evidence `outside-in-tip-ckpt-lag-20260806T184223Z.txt`). | **Done** (B-264) |
@@ -248,7 +249,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-306 | r=0 endowment C₀ drip (`deflation_funded_drip`, ckpt v13) | 6 | **Landed** `6a685dae` — inert default; Path A stays 0; enable = **B-306b** |
 | B-306b | Enable `deflation_funded_drip = 1` on Path B / after B-25 | 6+7+human | Coinbase fork if flipped on Path A; set prize to `recommended_backstop_proof_reward` in the same ceremony; see [`B306_ENDOWMENT_DRIP.md`](docs/B306_ENDOWMENT_DRIP.md) |
 | B-306c | Size `storage_proof_reward` as true backstop (not 0.1 MFN prize) | 6 | **Landed** `45f1e8f5` — helper + Path A pin; do not DEFAULT-flip |
-| B-307 | Size `min_storage_operator_bond` so one B5 slash covers C₀(1 GiB) | 6 | **Landed** (this commit) — helper + Path A pin; enable = **PM1**; do not DEFAULT-flip |
+| B-307 | Size `min_storage_operator_bond` so one B5 slash covers C₀(1 GiB) | 6 | **Landed** `2cf8b9b2` — helper + Path A pin; enable = **PM1**; do not DEFAULT-flip |
+| B-308 | Windowed SPoRA lottery ranking helper (not wired) | 6 | **Landed** (this commit) — `rank_spora_lottery`; Path A stays first-to-publish; wire = **B-44** after B-32 |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -258,7 +260,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd :1910x + socat :1900x; EXT 19001–19003 OPEN; tip~4031 |
 | B-42 | Invite-load smoke before TL-9 | 3+7 | Preflight PASS; serialize `bda9a419`; staggered JOINs last_proven **22487** (iris) + **22492** (join-a `ea7cba7c`) + **22560** (join-b `6a1468fc`, this commit). Concurrent rehearsal x2 still open — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | **Draft** — `docs/PATH_B_GENESIS_FREEZE.md`; human cells TBD; no ceremony |
-| B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
+| B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; ranking helper **B-308** landed; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
 | B-45 | B3 operator-salted challenge/prove/pool path | 4 | **Landed** — unblocks honest multi-op SPoRA on salted genesis; Hetzner mfnd roll = lane 7 |
 | B-46 | Tip-stall ops harden: `Wants=` + hub dial extras | 4+7 | **Landed** `4d07b7d` — tip 4031→4034+ |
 | B-47 | Faucet EAGAIN harden (health/CLI race) | 7+2 | **Done** (`fe56ca8`) — health lock + runRetry; VPS faucet restarted idle; tip 4047+ |
@@ -511,7 +513,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-22 - lane 6 - B-307 min-bond helper** (this commit): `recommended_min_storage_operator_bond` = ceil(C₀(1 GiB, min_repl) · 10000 / 250) (25_769_800 at defaults) so one B5 2.5% slash covers that C₀. Path A `min_storage_operator_bond` stays `0` (slash of zero is the CSV residual). `b307_*` + Path A genesis pin PASS; clippy `-D warnings` green. Docs: [`B307_OPERATOR_BOND.md`](docs/B307_OPERATOR_BOND.md). Waited for tip CI `#32564607389` (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen. Next: **B-306b** drip+backstop and **PM1** enable after B-25 / Path B. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-22 - lane 6 - B-308 SPoRA lottery ranking helper** (this commit): `rank_spora_lottery` + `spora_lottery_window_seed` (`MFBN-1/spora-lottery`). Ranking is permutation-invariant; two operators both win across seeds. Path A `apply_block` stays body-order (first-to-publish). `b308_*` PASS; clippy `-D warnings` green. Docs: [`B308_SPORA_LOTTERY.md`](docs/B308_SPORA_LOTTERY.md). Waited for tip CI `#32566389029` on B-307 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not B-44**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-22 - lane 6 - B-307 min-bond helper** (`2cf8b9b2`): `recommended_min_storage_operator_bond` = ceil(C₀(1 GiB, min_repl) · 10000 / 250) (25_769_800 at defaults) so one B5 2.5% slash covers that C₀. Path A `min_storage_operator_bond` stays `0` (slash of zero is the CSV residual). `b307_*` + Path A genesis pin PASS; clippy `-D warnings` green. Docs: [`B307_OPERATOR_BOND.md`](docs/B307_OPERATOR_BOND.md). Waited for tip CI `#32564607389` (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen. Next: **B-306b** drip+backstop and **PM1** enable after B-25 / Path B. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-22 - lane 6 - B-306c proof-prize backstop helper** (`45f1e8f5`): `recommended_backstop_proof_reward` = floor(C₀(1 GiB, min_repl) · window / slots_per_year) (1763 at defaults; per-slot floor is 0). Path A `storage_proof_reward` stays `MFN_BASE/10` (~5_670× larger). `b306c_*` emission + Path A genesis pins PASS; clippy `-D warnings` green; storage lib tests WDAC-blocked locally (os 4551). Docs: [`B306C_PROOF_REWARD_BACKSTOP.md`](docs/B306C_PROOF_REWARD_BACKSTOP.md). Waited for tip CI `#32562905593` (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen. Next: **B-306b** drip+backstop enable after B-25 / Path B; PM1 bonds Path B. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 

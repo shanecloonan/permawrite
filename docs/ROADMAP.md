@@ -477,7 +477,7 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **B4 repair** | Repair sweep + staleness fan-out | 4 | ✓ **Shipped** — long-horizon internet soak evidence still open (**Repair/soak** row) |
 | **B5 slashing** | Operator audit miss → slash-to-treasury | 4+6 | ✓ **Shipped** phases 5a–5d on devnet; **PM1** scales bonds in Phase 4 |
 | **F6 telemetry** | `subsidy_to_treasury_bps` field in treasury telemetry RPC | 6 | ✓ **Shipped** (`0d1b9ec`) — **Treasury watch** ops row uses it |
-| **PM3** | Windowed SPoRA lottery vs first-past-the-post ([`PROBLEMS.md` §6](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race), [`DECENTRALIZATION.md`](./DECENTRALIZATION.md)) | 6 | **B3 multi-op** evidence; proof-pool + `apply_block` Phase 5 |
+| **PM3** | Windowed SPoRA lottery vs first-past-the-post ([`PROBLEMS.md` §6](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race), [`DECENTRALIZATION.md`](./DECENTRALIZATION.md)) | 6 | **B-308** ranking helper landed; wire = **B-44** after **B-32**; Path A stays first-to-publish |
 | **PM2** | Enforce protocol-min replication at anchor + pay per distinct operator | 4+6 | B3 registry live (genesis ✓); multi-op evidence |
 | **PM19** | Persistent proof obligation for cold data + repair bounty escalation | 6 | After PM3; couples to B4 repair sweep (shipped) |
 | **Header v2** | Path B `header_version: 2` (`utxo_root` in BLS signing bytes) on **new** chain only | 4+7 | [`PROBLEMS.md` §12](./PROBLEMS.md#12-utxo_root-is-not-covered-by-the-finality-signature-partially-resolved); sequenced with TL Path B (Phase 4) |
@@ -491,7 +491,8 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **B-268** | Same-chain activation-height design (`effective_emission_params` + ckpt v12) | 6 | **Design landed** — [`B13_ACTIVATION_HEIGHT.md`](./B13_ACTIVATION_HEIGHT.md); impl = **B-268b** |
 | **B-306** | r=0 endowment C₀ drip (`deflation_funded_drip`, ckpt v13); Path A flag stays 0 | 6 | **Landed** — [`B306_ENDOWMENT_DRIP.md`](./B306_ENDOWMENT_DRIP.md); enable = **B-306b**; prize-size = **B-306c** |
 | **B-306c** | Size `storage_proof_reward` as window-capped C₀ backstop helper; Path A prize stays 0.1 MFN | 6 | **Landed** `45f1e8f5` — [`B306C_PROOF_REWARD_BACKSTOP.md`](./B306C_PROOF_REWARD_BACKSTOP.md); apply on Path B with **B-306b** |
-| **B-307** | Size `min_storage_operator_bond` so one B5 slash covers C₀(1 GiB); Path A bond stays 0 | 6 | **Landed** (this commit) — [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md); enable = **PM1** |
+| **B-307** | Size `min_storage_operator_bond` so one B5 slash covers C₀(1 GiB); Path A bond stays 0 | 6 | **Landed** `2cf8b9b2` — [`B307_OPERATOR_BOND.md`](./B307_OPERATOR_BOND.md); enable = **PM1** |
+| **B-308** | Windowed SPoRA lottery ranking helper; Path A stays first-to-publish | 6 | **Landed** (this commit) — [`B308_SPORA_LOTTERY.md`](./B308_SPORA_LOTTERY.md); wire = **B-44** after **B-32** |
 | **B-13c** | Enable Path A schedule `H_act` + ops announce (B-265 loader for wipe path only) | 7 | After B-13a + **B-33** + **B-265** + **B-268b**; no DEFAULT_EMISSION change |
 | **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
 | **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
@@ -513,7 +514,7 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 | **B-24** | 4 | M5 proptest / settlement audit after **B-32** green |
 | **B-33** | 6+7+human | Sign-off checklist complete before B-13c |
 | **B-38** | 1+7 | Repair fan-out evidence archived + assert on invite/soak head |
-| **PM3** | 6 | Windowed lottery replaces first-to-publish; ≥2 operators can win in-window under equal latency; deterministic reject of out-of-window proofs |
+| **PM3** | 6 | Ranking helper **B-308** landed; `apply_block` wiring = **B-44** after B-32 (Path A stays first-to-publish) |
 | **PM2** | 4+6 | Anchor rejects under-replicated uploads; payout only for distinct registered operators |
 | **B-28** | 2+7 | Assert helper + draft thresholds landed (`980ac1ef`); arm live VPS watch post-B-13c |
 | **B-23** | 2 | `ci-check` fails closed on ring/endowment/SPoRA invariant regressions |
@@ -622,7 +623,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 | Step | Detail |
 |---|---|
 | **Depends** | **B-32** GREEN (distinct-host multi-op SPoRA evidence) |
-| **Design** | Per-window VRF lottery among valid proofs in-window; out-of-window proofs deterministically rejected; equal-latency operators can both win across windows |
+| **Design** | Per-window hash lottery among valid proofs in-window (`rank_spora_lottery`, seed from **prior** `block_id` — not producer VRF); out-of-window proofs deterministically rejected; equal-latency operators can both win across windows. Ranking helper **B-308** already landed. |
 | **Touch points** | `mfn-runtime` proof pool; `apply_block` Phase 5 / SPoRA acceptance; wallet/operator UX only if payout semantics change |
 | **Tests** | Deterministic `apply_block` cases: in-window accept; out-of-window reject; ≥2 operators win under equal latency across windows; no fee/endowment silent change |
 | **Sims** | Emission/treasury identity still holds under lottery (lane 6 co-owns) |
