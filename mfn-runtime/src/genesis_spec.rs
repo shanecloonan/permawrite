@@ -847,6 +847,19 @@ mod tests {
     }
 
     #[test]
+    fn b313_path_a_tail_unchanged_helper() {
+        use mfn_consensus::{recommended_tail_emission, DEFAULT_EMISSION_PARAMS, MFN_BASE};
+        let s = r#"{"version":1,"timestamp":0,"validators":[]}"#;
+        let g = genesis_config_from_json_bytes(s.as_bytes()).expect("parse");
+        assert_eq!(g.emission_params.tail_emission, (50 * MFN_BASE) >> 8);
+        assert_eq!(
+            g.emission_params.tail_emission,
+            DEFAULT_EMISSION_PARAMS.tail_emission
+        );
+        assert!(g.emission_params.tail_emission > recommended_tail_emission(&g.emission_params));
+    }
+
+    #[test]
     fn emission_section_rejects_bad_subsidy_bps() {
         let s = r#"{"version":1,"timestamp":0,"emission":{"subsidy_to_treasury_bps":10001},"validators":[]}"#;
         assert!(matches!(

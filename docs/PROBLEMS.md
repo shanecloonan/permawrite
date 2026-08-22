@@ -36,6 +36,8 @@ This is not a hidden assumption — it is the explicit economic thesis of the pr
 
 ### 3. Permanent tail emission is large in absolute terms and creates ongoing dilution
 
+> **Status: mitigation designed, not enabled (B-313)** — [`recommended_tail_emission`](../mfn-consensus/src/emission.rs) is one extra binary step (`initial_reward >> 9` = last subsidy / 4, **~256,816 MFN/year**, **322_279 ppb**). Path A stays `>> 8` (**~513,633 MFN/year**, **644_558 ppb**). PM13 still forbids a zero tail. Enable = later Path B / post-B-25 ceremony (coinbase fork). Design: [`B313_TAIL_EMISSION.md`](./B313_TAIL_EMISSION.md).
+
 Default tail emission is `(50 MFN) >> 8 ≈ 0.195 MFN per block forever`.
 
 At ~2.63 million slots per year this is roughly **half a million MFN per year** in permanent new issuance (on top of any fee-driven dynamics). Early cumulative pre-tail supply is on the order of hundreds of millions of MFN. Whether this level of perpetual issuance is acceptable depends on adoption and velocity assumptions that are not yet proven. It is a deliberate choice to keep a security + storage budget (see [ECONOMICS.md § 2](./ECONOMICS.md#2-subsidy-curve)), but it is a real long-term dilution vector for holders.

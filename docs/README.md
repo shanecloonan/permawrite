@@ -43,6 +43,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - ✅ [**B310_STATE_RETENTION.md**](./B310_STATE_RETENTION.md) — **B-310** PM8 retention inventory (maps stay; Path A does not prune bodies).
 - ✅ [**B311_BACKSTOP_CAP.md**](./B311_BACKSTOP_CAP.md) — **B-311** PM41 backstop mint-cap helper (Path A stays unbounded; wire after B-306b).
 - ✅ [**B312_TREASURY_RUNWAY.md**](./B312_TREASURY_RUNWAY.md) — **B-312** PM22 treasury-runway metric (not RPC).
+- ✅ [**B313_TAIL_EMISSION.md**](./B313_TAIL_EMISSION.md) — **B-313** tail-emission size helper (Path A stays `>> 8`; recommended `>> 9`).
 - ✅ [**B40_PERMANENCE_WEEK.md**](./B40_PERMANENCE_WEEK.md) — **B-40** first permanence week runbook (arm day-of L4; B-13a pre-armed).
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
 - 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.

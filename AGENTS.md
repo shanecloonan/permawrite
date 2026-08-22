@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-22):** **B-312** PM22 runway helper (this commit). Tip CI `#32573826832` on B-311 `6c0d4a84` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
+**CI gate (2026-08-22):** **B-313** tail-emission helper (this commit). Tip CI `#32575710784` on B-312 `4720c245` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **B-305** (`704280f7`); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-312** PM22 runway helper (this commit); **B-311** (`6c0d4a84`); **B-310** (`98e3adde`); **B-309** (`873e6b1e`); **B-308** (`18cd1539`) | *Idle* | **B-306b** drip+backstop after B-25 / Path B; **PM1** enable bond floor; **B-20** arm fee-shift after B-13c + B-25; **B-44** wire lottery after B-32 (lane 4); PM8 store wire after archival role; PM41 cap wire after B-306b; PM22 RPC after this helper; human **B-33**; no B-13c enable | Emission sims |
+| **6** Permanence | **B-313** tail-emission helper (this commit); **B-312** (`4720c245`); **B-311** (`6c0d4a84`); **B-310** (`98e3adde`); **B-309** (`873e6b1e`) | *Idle* | **B-306b** drip+backstop after B-25 / Path B; **PM1** enable bond floor; **B-20** arm fee-shift after B-13c + B-25; **B-44** wire lottery after B-32 (lane 4); PM8 store wire after archival role; PM41 cap wire after B-306b; PM22 RPC after B-312; **B-313** tail shrink after B-25 / Path B; human **B-33**; no B-13c enable | Emission sims |
 | **7** Testnet launch | Path A **22565** (`160a9b07`; lag **OK=7**); **B-42** 3rd JOIN last_proven **22560** (`6a1468fc`); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 6 | 7 | **B-313 tail:** Path B / post-B-25 ceremony may set `tail_emission = recommended_tail_emission` (`>> 9`). Do not silent-fork Path A (`>> 8`). PM13 still forbids 0. | **Open** |
 | 6 | 2 | **B-312 PM22 RPC:** when exposing treasury runway, call `treasury_runway_slots` / `RunwayObservation::alert`; do not invent a second formula. Path A prize vs ~2.9e6 treasury is honestly `Short`. | **Open** |
 | 6 | 4 | **B-311 PM41 cap:** when wiring after **B-306b**, refuse (or truncate+log) backstop mint above `recommended_backstop_mint_cap_for_window`. Do not enforce on Path A's 0.1 MFN prize — one proof already exceeds the slot cap. | **Open** |
 | 6 | 4 | **B-310 PM8 bodies:** when wiring prune, call `historical_block_body_may_prune`; never drop storage / UTXO / spent key images. Path A stays full `chain.blocks` until an archival-node role exists. | **Open** |
@@ -257,7 +258,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-309 | Producer↔treasury runway fee-shift helper (not armed) | 6 | **Landed** `873e6b1e` — `recommended_fee_to_treasury_bps`; Path A stays 9000; arm = **B-20** |
 | B-310 | PM8 state-retention inventory (not pruning) | 6 | **Landed** `98e3adde` — `archive_retention`; Path A keeps full log; maps never prune |
 | B-311 | PM41 backstop mint cap (1% of annual tail; not wired) | 6 | **Landed** `6c0d4a84` — `recommended_backstop_mint_cap_*`; Path A unbounded; wire after **B-306b** |
-| B-312 | PM22 treasury runway metric (not RPC) | 6 | **Landed** (this commit) — `treasury_runway_slots` / `RunwayAlert`; Path A prize vs ~2.9e6 is `Short` |
+| B-312 | PM22 treasury runway metric (not RPC) | 6 | **Landed** `4720c245` — `treasury_runway_slots` / `RunwayAlert`; Path A prize vs ~2.9e6 is `Short` |
+| B-313 | Tail-emission size helper (`>> 9`; not a schedule flip) | 6 | **Landed** (this commit) — `recommended_tail_emission`; Path A stays `>> 8`; enable = Path B / post-B-25 |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -520,7 +522,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-08-22 - lane 6 - B-312 PM22 runway helper** (this commit): `treasury_runway_slots` = treasury / trailing payout (`None` if payout=0). `RunwayAlert`: BelowFloor / NoDrain / Short (`< 7_200` slots) / Healthy. Path A prize vs 2_909_711 treasury is `Short` (0 slots). Not RPC. `b312_*` + genesis pin PASS; clippy `-D warnings` green. Docs: [`B312_TREASURY_RUNWAY.md`](docs/B312_TREASURY_RUNWAY.md). Waited for tip CI `#32573826832` on B-311 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not PM22 RPC**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+1. **2026-08-22 - lane 6 - B-313 tail-emission helper** (this commit): `recommended_tail_emission` = `initial_reward >> (halving_count+1)` (`50 MFN >> 9` = last subsidy / 4). Path A stays `>> 8` (2×). Tail-start inflation 644_558 → 322_279 ppb if applied. PM13 still forbids 0. `b313_*` + genesis pin PASS; clippy `-D warnings` green. Docs: [`B313_TAIL_EMISSION.md`](docs/B313_TAIL_EMISSION.md). Waited for tip CI `#32575710784` on B-312 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not a schedule flip**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
+
+1. **2026-08-22 - lane 6 - B-312 PM22 runway helper** (`4720c245`): `treasury_runway_slots` = treasury / trailing payout (`None` if payout=0). `RunwayAlert`: BelowFloor / NoDrain / Short (`< 7_200` slots) / Healthy. Path A prize vs 2_909_711 treasury is `Short` (0 slots). Not RPC. `b312_*` + genesis pin PASS; clippy `-D warnings` green. Docs: [`B312_TREASURY_RUNWAY.md`](docs/B312_TREASURY_RUNWAY.md). Waited for tip CI `#32573826832` on B-311 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not PM22 RPC**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 
 1. **2026-08-22 - lane 6 - B-311 PM41 backstop-cap helper** (`6c0d4a84`): `recommended_backstop_mint_cap_per_slot` = 1% of tail (195_312 at DEFAULT). Path A prize `0.1 MFN` exceeds the cap (one proof binds); B-306c sized prize fits. `apply_block` stays unbounded. `b311_*` + Path A genesis pin PASS; clippy `-D warnings` green. Docs: [`B311_BACKSTOP_CAP.md`](docs/B311_BACKSTOP_CAP.md). Waited for tip CI `#32571902914` on B-310 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not PM41 wire**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 

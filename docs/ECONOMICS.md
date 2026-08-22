@@ -137,7 +137,7 @@ sum_{k=0..7} (50 * 8M >> k) = 50·8M · (1 + 1/2 + 1/4 + … + 1/128)
 
 For a labeled supply curve and year-by-year schedule, see [`SUPPLY_CURVE.md`](./SUPPLY_CURVE.md).
 
-Plus tail emission forever: 0.19531250 MFN/block · 2.628M slots/year ≈ 513,281 MFN/year. That is about **0.064%/year at tail start** and declines as supply grows — Monero-equivalent permanence funding without runaway dilution.
+Plus tail emission forever: 0.19531250 MFN/block · 2_629_800 slots/year ≈ 513,633 MFN/year. That is **644_558 ppb (0.0645%) at tail start** and declines as supply grows — Monero-equivalent permanence funding without runaway dilution. [`recommended_tail_emission`](../mfn-consensus/src/emission.rs) (**B-313**) names one extra binary step (`>> 9`, half the annual mint); Path A stays `>> 8`. Design: [`B313_TAIL_EMISSION.md`](./B313_TAIL_EMISSION.md).
 
 ### The tail-continuity constraint
 

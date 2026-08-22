@@ -456,6 +456,40 @@ impl RunwayObservation {
     }
 }
 
+/// **B-313** CSV §3: one extra binary step below DEFAULT's
+/// `initial_reward >> halving_count` tail. DEFAULT is `>> 8` (last subsidy
+/// / 2). Recommended is `>> 9` (last subsidy / 4) — still `> 0` (PM13) and
+/// `≤ last_subsidy` (no upward jump). Does not mutate
+/// [`DEFAULT_EMISSION_PARAMS`].
+#[must_use]
+pub fn recommended_tail_emission(params: &EmissionParams) -> u64 {
+    let extra_shift = params.halving_count.saturating_add(1).min(63);
+    let last_subsidy = if params.halving_count == 0 {
+        params.initial_reward
+    } else {
+        params.initial_reward >> (params.halving_count - 1)
+    };
+    let tighter = params.initial_reward >> extra_shift;
+    let candidate = tighter.max(1);
+    if last_subsidy == 0 {
+        candidate
+    } else {
+        candidate.min(last_subsidy)
+    }
+}
+
+/// Perpetual inflation at the first tail block, in ppb of pre-tail supply.
+///
+/// `0` if supply is still 0 or `blocks_per_year` is 0. Integer division.
+#[must_use]
+pub fn tail_start_inflation_ppb(params: &EmissionParams, blocks_per_year: u64) -> u128 {
+    let supply = pre_tail_supply_cap(params);
+    if supply == 0 || blocks_per_year == 0 {
+        return 0;
+    }
+    annual_tail_emission(blocks_per_year, params) * 1_000_000_000 / supply
+}
+
 /// **PM41** yearly backstop-mint budget as basis points of annual tail.
 /// `100` = 1% extra inflation from emergency mint — F5's circuit breaker.
 pub const RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS: u16 = 100;
@@ -1076,5 +1110,59 @@ mod tests {
         assert_eq!(obs.alert(), RunwayAlert::Short);
         assert!(validate_emission_params(&p).is_ok());
         assert_eq!(p.fee_to_treasury_bps, 9000);
+    }
+
+    #[test]
+    fn b313_recommended_tail_is_one_extra_halving() {
+        let p = DEFAULT_EMISSION_PARAMS;
+        let rec = recommended_tail_emission(&p);
+        assert_eq!(rec, p.initial_reward >> (p.halving_count + 1));
+        assert_eq!(rec, (50 * MFN_BASE) >> 9);
+        assert_eq!(p.tail_emission, (50 * MFN_BASE) >> 8);
+        assert_eq!(p.tail_emission, rec * 2);
+        assert!(rec > 0);
+        let last = p.initial_reward >> (p.halving_count - 1);
+        assert!(rec <= last);
+        let mut applied = p;
+        applied.tail_emission = rec;
+        assert!(validate_emission_params(&applied).is_ok());
+        assert!(validate_emission_params(&p).is_ok());
+    }
+
+    #[test]
+    fn b313_path_a_tail_exceeds_recommended() {
+        let p = DEFAULT_EMISSION_PARAMS;
+        let slots = mfn_storage::DEFAULT_ENDOWMENT_PARAMS.slots_per_year;
+        assert!(p.tail_emission > recommended_tail_emission(&p));
+        let default_ppb = tail_start_inflation_ppb(&p, slots);
+        let mut rec = p;
+        rec.tail_emission = recommended_tail_emission(&p);
+        let rec_ppb = tail_start_inflation_ppb(&rec, slots);
+        assert!(default_ppb > rec_ppb);
+        assert_eq!(default_ppb, 644_558);
+        assert_eq!(rec_ppb, 322_279);
+        assert_eq!(p.tail_emission, (50 * MFN_BASE) >> 8);
+    }
+
+    #[test]
+    fn b313_zero_blocks_per_year_is_zero_inflation() {
+        assert_eq!(tail_start_inflation_ppb(&DEFAULT_EMISSION_PARAMS, 0), 0);
+    }
+
+    #[test]
+    fn b313_tiny_reward_stays_constitutional() {
+        let p = EmissionParams {
+            initial_reward: 8,
+            halving_period: 10,
+            halving_count: 4,
+            tail_emission: 1,
+            storage_proof_reward: 0,
+            fee_to_treasury_bps: 0,
+            subsidy_to_treasury_bps: 0,
+        };
+        assert_eq!(recommended_tail_emission(&p), 1);
+        let mut applied = p;
+        applied.tail_emission = recommended_tail_emission(&p);
+        assert!(validate_emission_params(&applied).is_ok());
     }
 }
