@@ -69,6 +69,7 @@ Whitepaper-grade specifications. Math, wire formats, hash domains, derivations.
 - [**docs/PUBLIC_DEVNET_THREAT_MODEL.md**](./docs/PUBLIC_DEVNET_THREAT_MODEL.md) — public-testnet / ops threat model and residual-risk checklist (the protocol-crypto counterpart is [docs/SECURITY_CONSIDERATIONS.md](./docs/SECURITY_CONSIDERATIONS.md))
 - [**SECURITY.md**](./SECURITY.md) — pre-audit security posture and vulnerability disclosure
 - [**docs/ROADMAP.md**](./docs/ROADMAP.md) — what's live, what's next, the tier-by-tier rollout
+- [**docs/PRIVACY_FUNDED_PERMANENCE_SUGGESTIONS.md**](./docs/PRIVACY_FUNDED_PERMANENCE_SUGGESTIONS.md) — independent review: ranked privacy / security / viability suggestions within the privacy-funded-permanence vision
 
 ### 📦 I want a specific crate
 
