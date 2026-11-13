@@ -202,6 +202,18 @@ pub fn retrieval_opens_repair_bounty(audit: RetrievalAudit) -> bool {
     !matches!(audit, RetrievalAudit::Served)
 }
 
+/// `true` when distinct operators and distinct seals both cover
+/// `target_replication`.
+///
+/// A repeated bond identity or a repeated seal lowers the unique count, so
+/// the shortfall is non-zero and this returns false. Not read by
+/// `apply_block`: today's proofs do not carry a seal root, and rejecting
+/// them would fork Path A and F-A.
+#[must_use]
+pub fn distinct_replica_floor_met(assessment: &ReplicaAssessment) -> bool {
+    assessment.shortfall == 0
+}
+
 fn distinct_len(rows: &[[u8; 32]]) -> u16 {
     let mut v = rows.to_vec();
     v.sort_unstable();
@@ -344,6 +356,31 @@ mod tests {
         assert!(retrieval_slash_eligible(RetrievalAudit::SignedRefusal));
         assert!(!retrieval_slash_eligible(RetrievalAudit::Served));
         assert!(!retrieval_opens_repair_bounty(RetrievalAudit::Served));
+    }
+
+    #[test]
+    fn duplicate_bond_identity_misses_the_replica_floor() {
+        let ops = [id(1), id(1), id(1)];
+        let seals = [id(10), id(11), id(12)];
+        let got = assess_replica_window(ReplicaWindow {
+            target_replication: 3,
+            operator_ids: &ops,
+            seal_roots: &seals,
+            asns: &[0, 0, 0],
+            regions: &[0, 0, 0],
+        })
+        .expect("assess");
+        assert_eq!(got.distinct_operators, 1);
+        assert!(!distinct_replica_floor_met(&got));
+        let distinct = assess_replica_window(ReplicaWindow {
+            target_replication: 3,
+            operator_ids: &[id(1), id(2), id(3)],
+            seal_roots: &seals,
+            asns: &[0, 0, 0],
+            regions: &[0, 0, 0],
+        })
+        .expect("assess");
+        assert!(distinct_replica_floor_met(&distinct));
     }
 
     #[test]

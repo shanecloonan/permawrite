@@ -24,7 +24,7 @@ Synced at Seat C **F-A** public-devnet genesis + `vps-rollout-fa.sh` (owner runs
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-315** max-permanence design (this commit); **B-314** (`8c71a43a`); **B-313** (`9028debb`); **B-305** (`704280f7`) | *Idle* | **F-A** after B-25 / Path B; **B-35** still Phase 3; no B-13c |
+| **B** Protocol/Privacy | Easy permanence guards (this commit); **B-315**; **B-314** (`8c71a43a`) | *Idle* | **B-35** still Phase 3; no B-13c; no DEFAULT flip |
 | **C** Testnet/Onboarding | **F-A** genesis + `vps-rollout-fa.sh` (this commit) | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health |
 
 ### Hard locks (all seats)
