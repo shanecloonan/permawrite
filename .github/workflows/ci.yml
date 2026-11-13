@@ -394,8 +394,41 @@ jobs:
 
           Decision: go
           EOF
+          python3 - "$archive_dir/funded-genesis.json" "$archive_dir/funded-economy-evidence.json" <<'PY'
+          import json
+          import sys
+
+          with open("mfn-node/testdata/public_devnet_v1.json", encoding="utf-8") as handle:
+              genesis = json.load(handle)
+          emission = genesis.get("emission") or {}
+          emission["subsidy_to_treasury_bps"] = 1000
+          genesis["emission"] = emission
+          endowment = genesis.get("endowment") or {}
+          endowment["min_storage_operator_bond"] = 1
+          genesis["endowment"] = endowment
+          for op in genesis.get("storage_operators") or []:
+              op["bond_amount"] = 1
+          suffix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"
+          for i, op in enumerate(genesis.get("storage_operators") or []):
+              op["payout_seed_hex"] = f"{0xa0 + i:02x}" + suffix
+          for i, val in enumerate(genesis.get("validators") or []):
+              val["vrf_seed_hex"] = f"{0xb0 + i:02x}" + suffix
+              val["bls_seed_hex"] = f"{0xc0 + i:02x}" + suffix
+          with open(sys.argv[1], "w", encoding="utf-8") as handle:
+              json.dump(genesis, handle, indent=2)
+              handle.write("\n")
+          with open("docs/release-evidence-v1.sample.json", encoding="utf-8") as handle:
+              doc = json.load(handle)
+          doc["economy"]["subsidy_to_treasury_bps"] = 1000
+          doc["economy"]["min_storage_operator_bond"] = 1
+          doc["economy"]["path_a_experimental"] = False
+          doc["economy"]["genesis_path"] = sys.argv[1]
+          with open(sys.argv[2], "w", encoding="utf-8") as handle:
+              json.dump(doc, handle, indent=2)
+              handle.write("\n")
+          PY
           signoff_json="$(bash scripts/public-devnet-v1/release-signoff-manifest.sh \
-            --release-evidence-json docs/release-evidence-v1.sample.json \
+            --release-evidence-json "$archive_dir/funded-economy-evidence.json" \
             --archive-dir "$archive_root" \
             --inventory "$archive_dir/signoff-inventory.md" \
             --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
@@ -438,7 +471,7 @@ jobs:
           }
           EOF
           audit_json="$(bash scripts/public-devnet-v1/release-audit-packet.sh \
-            --release-evidence-json docs/release-evidence-v1.sample.json \
+            --release-evidence-json "$archive_dir/funded-economy-evidence.json" \
             --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
             --archive-dir "$archive_root" \
             --inventory "$archive_dir/signoff-inventory.md" \
@@ -1059,8 +1092,33 @@ jobs:
 
           Decision: go
           '@ | Set-Content -LiteralPath $signoffInventory -Encoding utf8
+            $fundedGenesis = Join-Path $archiveDir "funded-genesis.json"
+            $fundedGenesisObject = Get-Content "mfn-node/testdata/public_devnet_v1.json" -Raw | ConvertFrom-Json
+            $fundedGenesisObject | Add-Member -NotePropertyName emission -NotePropertyValue ([pscustomobject]@{ subsidy_to_treasury_bps = 1000 }) -Force
+            $fundedGenesisObject.endowment.min_storage_operator_bond = 1
+            foreach ($op in @($fundedGenesisObject.storage_operators)) { $op.bond_amount = 1 }
+            $seedSuffix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"
+            $opIdx = 0
+            foreach ($op in @($fundedGenesisObject.storage_operators)) {
+              $op.payout_seed_hex = ("{0:x2}" -f (0xa0 + $opIdx)) + $seedSuffix
+              $opIdx++
+            }
+            $valIdx = 0
+            foreach ($val in @($fundedGenesisObject.validators)) {
+              $val.vrf_seed_hex = ("{0:x2}" -f (0xb0 + $valIdx)) + $seedSuffix
+              $val.bls_seed_hex = ("{0:x2}" -f (0xc0 + $valIdx)) + $seedSuffix
+              $valIdx++
+            }
+            $fundedGenesisObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedGenesis -Encoding utf8
+            $fundedEvidence = Join-Path $archiveDir "funded-economy-evidence.json"
+            $fundedObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+            $fundedObject.economy.subsidy_to_treasury_bps = 1000
+            $fundedObject.economy.min_storage_operator_bond = 1
+            $fundedObject.economy.path_a_experimental = $false
+            $fundedObject.economy.genesis_path = $fundedGenesis
+            $fundedObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $fundedEvidence -Encoding utf8
             $signoffJson = powershell -NoProfile -File scripts/public-devnet-v1/release-signoff-manifest.ps1 `
-              -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+              -ReleaseEvidenceJson $fundedEvidence `
               -ArchiveDir $archiveRoot `
               -Inventory $signoffInventory `
               -CiMockRuns $signoffCiSuccess `
@@ -1098,7 +1156,7 @@ jobs:
           }
           "@ | Set-Content -LiteralPath (Join-Path $participantBundle "manifest.json") -Encoding utf8
             $auditJson = powershell -NoProfile -File scripts/public-devnet-v1/release-audit-packet.ps1 `
-              -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+              -ReleaseEvidenceJson $fundedEvidence `
               -SignoffManifest docs/release-signoff-manifest-v1.sample.json `
               -ArchiveDir $archiveRoot `
               -Inventory $signoffInventory `

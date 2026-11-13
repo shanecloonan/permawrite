@@ -1,0 +1,11 @@
+# cargo-audit policy for this workspace.
+#
+# RUSTSEC-2026-0387 (crypto-bigint 0.5.5 timing variability) is real, and the
+# patched line is crypto-bigint >= 0.7.6. That version is only reachable by
+# moving bls12_381_plus 0.8.18 / elliptic-curve 0.13 onto bls12_381_plus 0.10
+# and elliptic-curve 0.14. Those are consensus-adjacent BLS crates. A lockfile
+# bump here would be a signature-stack change, not a patch. Track it as its
+# own unit; do not pretend 0.5.5 is fixed.
+
+[advisories]
+ignore = ["RUSTSEC-2026-0387"]
