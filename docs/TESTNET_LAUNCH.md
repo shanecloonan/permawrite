@@ -22,6 +22,8 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 | **Open TL** | **TL-9**; **B-15** JOIN; **B-29** Nightly; **B-41** P2P bind; **B-42** invite-load; **B-22** checkpoint; **B-26/27**; **B-31** close after B-41 (**B-16**/B-30 docs ✓) |
 | Strategic ordering | [`ROADMAP.md` L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification) → [Phase 1 permanence playbook](./ROADMAP.md#phase-1-permanence-playbook-acceptance-criteria) |
 
+**Path F-A cutover (not yet applied on the VPS).** Fresh genesis [`public_devnet_fa.json`](../mfn-node/testdata/public_devnet_fa.json) (`3dcb6ad8bb23c58e22aa69cacd1fad850b598e86d17d8e153a5081a3bba91c13`) turns on the drip, prize 1763, 1000 bps subsidy split, and the operator bond floor. Path A `public_devnet_v1.json` stays in git. Root on the VPS, after this lands on `main`: `bash /root/permawrite/scripts/public-devnet-v1/vps-rollout-fa.sh --apply`. Spec: [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md). Operator notes: [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md).
+
 ---
 
 ## Launch phases (strict order)

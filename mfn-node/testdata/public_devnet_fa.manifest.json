@@ -1,0 +1,20 @@
+{
+  "network_id": "public-devnet-fa",
+  "genesis_spec": "public_devnet_fa.json",
+  "genesis_id": "3dcb6ad8bb23c58e22aa69cacd1fad850b598e86d17d8e153a5081a3bba91c13",
+  "slot_duration_ms": 30000,
+  "quorum_stake_bps": 6666,
+  "validator_count": 3,
+  "p2p_handshake": {
+    "protocol_version": 1,
+    "network_magic": 0
+  },
+  "seed_nodes": [
+    "5.161.201.73:19001",
+    "5.161.201.73:19002",
+    "5.161.201.73:19003"
+  ],
+  "observer_rpc": "http://5.161.201.73:8787/rpc",
+  "replication_peers": [],
+  "operator_notes": "Path F-A public devnet. Same host as Path A, new genesis_id. Peers must use public_devnet_fa.json byte-for-byte. Drip, prize 1763, subsidy 1000 bps, and the operator bond floor are genesis parameters, not Path A defaults."
+}

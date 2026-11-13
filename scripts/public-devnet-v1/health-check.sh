@@ -4,8 +4,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=ports-env-lib.sh
 source "$SCRIPT_DIR/ports-env-lib.sh"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/config.env"
+if [[ "${MFN_DEVNET_PROFILE:-}" == "fa" ]]; then
+  # shellcheck source=/dev/null
+  source "$SCRIPT_DIR/config.fa.env"
+fi
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
-EXPECTED_GENESIS_ID="454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
+EXPECTED_GENESIS_ID="${GENESIS_ID}"
 if [[ ! -f "$PORTS_FILE" ]]; then
   echo "missing $PORTS_FILE — run start-all.sh first" >&2
   exit 1

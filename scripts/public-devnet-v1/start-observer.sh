@@ -9,6 +9,10 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/config.env"
+if [[ "${MFN_DEVNET_PROFILE:-}" == "fa" ]]; then
+  # shellcheck source=/dev/null
+  source "$SCRIPT_DIR/config.fa.env"
+fi
 REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 MFND="${MFND:-$REPO_ROOT/target/release/mfnd}"
 if [[ ! -x "$MFND" ]]; then

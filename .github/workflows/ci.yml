@@ -121,6 +121,9 @@ jobs:
           fraud_proof_plan="$(bash scripts/public-devnet-v1/fraud-proof-rehearsal-smoke.sh --plan-only)"
           [[ "$fraud_proof_plan" == *"fraud-proof-rehearsal-smoke: PASS plan-only"* ]] || { echo "$fraud_proof_plan"; exit 1; }
           [[ "$fraud_proof_plan" == *"FRAUD_PROOF_V1_TAG"* ]] || { echo "$fraud_proof_plan"; exit 1; }
+          fa_plan="$(bash scripts/public-devnet-v1/vps-rollout-fa.sh --plan-only)"
+          [[ "$fa_plan" == *"vps-rollout-fa: PASS plan-only"* ]] || { echo "$fa_plan"; exit 1; }
+          [[ "$fa_plan" == *"3dcb6ad8bb23c58e22aa69cacd1fad850b598e86d17d8e153a5081a3bba91c13"* ]] || { echo "$fa_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -449,6 +452,43 @@ jobs:
           doc = json.loads(os.environ["SIGNOFF_JSON"])
           if doc.get("schema_version") != "release-signoff-manifest.v1" or doc.get("decision") != "go" or doc.get("issues"):
               print("release-signoff-manifest.sh did not emit a clean go manifest", file=sys.stderr)
+              sys.exit(1)
+          PY
+          fa_evidence="$archive_dir/fa-economy-evidence.json"
+          python3 - "$fa_evidence" <<'PY'
+          import json
+          import sys
+          with open("docs/release-evidence-v1.sample.json", encoding="utf-8") as handle:
+              doc = json.load(handle)
+          doc["economy"]["genesis_path"] = "mfn-node/testdata/public_devnet_fa.json"
+          doc["economy"]["subsidy_to_treasury_bps"] = 1000
+          doc["economy"]["min_storage_operator_bond"] = 25769800
+          doc["economy"]["path_a_experimental"] = False
+          doc["chain"]["expected_genesis_id"] = "3dcb6ad8bb23c58e22aa69cacd1fad850b598e86d17d8e153a5081a3bba91c13"
+          with open(sys.argv[1], "w", encoding="utf-8") as handle:
+              json.dump(doc, handle)
+              handle.write("\n")
+          PY
+          fa_signoff="$(bash scripts/public-devnet-v1/release-signoff-manifest.sh \
+            --release-evidence-json "$fa_evidence" \
+            --archive-dir "$archive_root" \
+            --inventory "$archive_dir/signoff-inventory.md" \
+            --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
+            --decision go \
+            --operator ci-smoke \
+            --reviewer ci-reviewer \
+            --allow-dry-run \
+            --threat-model-reviewed \
+            --residual-risks-have-owners \
+            --rpc-exposure-approved \
+            --backups-restore-rehearsed \
+            --halt-rollback-authority-agreed \
+            --commit "$signoff_commit")"
+          FA_SIGNOFF="$fa_signoff" python3 - <<'PY'
+          import json, os, sys
+          doc = json.loads(os.environ["FA_SIGNOFF"])
+          if doc.get("decision") != "go" or doc.get("issues"):
+              print("F-A genesis did not pass release sign-off go", doc.get("issues"), file=sys.stderr)
               sys.exit(1)
           PY
           participant_commit="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

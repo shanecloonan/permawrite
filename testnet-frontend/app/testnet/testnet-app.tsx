@@ -29,15 +29,15 @@ const mono = IBM_Plex_Mono({
 
 const FALLBACK: TestnetConfig = {
   product: "Permawrite",
-  network_id: "public-devnet-v1",
+  network_id: "public-devnet-fa",
   genesis_id:
-    "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005",
-  /** VPS internet soak go-live 2026-07-14T03:01:02Z (not genesis JSON epoch). */
-  launch_timestamp: 1783998062,
+    "3dcb6ad8bb23c58e22aa69cacd1fad850b598e86d17d8e153a5081a3bba91c13",
+  /** Path F-A genesis timestamp (public_devnet_fa.json). */
+  launch_timestamp: 1763049600,
   upstream_repo: "https://github.com/shanecloonan/permawrite",
-  genesis_path: "mfn-node/testdata/public_devnet_v1.json",
-  manifest_path: "mfn-node/testdata/public_devnet_v1.manifest.json",
-  checkpoint_log_path: "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl",
+  genesis_path: "mfn-node/testdata/public_devnet_fa.json",
+  manifest_path: "mfn-node/testdata/public_devnet_fa.manifest.json",
+  checkpoint_log_path: "mfn-node/testdata/public_devnet_fa.checkpoints.jsonl",
   slot_duration_ms: 30000,
   validator_committee_size: 3,
   boot_peers: [

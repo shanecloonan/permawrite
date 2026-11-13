@@ -1,5 +1,7 @@
 # Public devnet v1 — operator invite list (M2.4.3 / M2.4.4)
 
+**Path F-A cutover.** Path A stays in git as `public_devnet_v1.json`. The replacement public genesis is [`public_devnet_fa.json`](../../mfn-node/testdata/public_devnet_fa.json), id `3dcb6ad8bb23c58e22aa69cacd1fad850b598e86d17d8e153a5081a3bba91c13` (drip, prize 1763, subsidy 1000 bps, bond floor 25769800). On the VPS as root: `bash /root/permawrite/scripts/public-devnet-v1/vps-rollout-fa.sh --plan-only` then `--apply`. The script copies Path A data to `/root/permawrite-backups/path-a-<UTC>/` and does not delete the original directory. After health, fund the faucet from validator 0. Path A checkpoints and UTXOs do not apply. See [`docs/MAX_PERMANENCE_UPGRADE.md`](../../docs/MAX_PERMANENCE_UPGRADE.md).
+
 Join the **public-devnet-v1** network only if your node's `genesis_id` matches the manifest:
 
 `454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005`
