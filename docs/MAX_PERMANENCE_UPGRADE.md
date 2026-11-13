@@ -39,6 +39,8 @@ Pinned by `b315_defaults_are_not_the_robust_bundle` and `b315_smaller_tail_funds
 
 `C0` = 644_245 base units/year. `E0` = `required_endowment` = **32_856_500** base units (~51 x C0).
 
+The public-devnet sample of this bundle is [`public_devnet_fa.json`](../mfn-node/testdata/public_devnet_fa.json). It does not change `public_devnet_v1.json` or `DEFAULT_*`. VPS cutover: `bash scripts/public-devnet-v1/vps-rollout-fa.sh --apply`.
+
 Stress (`stress_solvency`, zero fees):
 
 | Case | Result |

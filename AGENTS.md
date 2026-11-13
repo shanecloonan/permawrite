@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-13):** **B-315** max-permanence design + helpers (this commit). No Path A flip. Tip before this unit: B-314 `8c71a43a`. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25** -> **F-A** (see [`docs/MAX_PERMANENCE_UPGRADE.md`](docs/MAX_PERMANENCE_UPGRADE.md)). No B-13c; no DEFAULT flip.
+**CI gate (2026-11-13):** **F-A** public-devnet genesis + `vps-rollout-fa.sh` (this commit). Path A `public_devnet_v1.json` and `DEFAULT_*` unchanged. F-A id `3dcb6ad8bb23c58e22aa69cacd1fad850b598e86d17d8e153a5081a3bba91c13`. VPS cutover is owner-run (`--apply`); not applied from this agent. Nightly `#31861932921` **GREEN**. Slash-clone matrix frozen. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-305** (`704280f7`); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | **B-315** max-permanence design + helpers (this commit); **B-314** PM19 cold-proof helper (`8c71a43a`); **B-313** (`9028debb`); **B-312** (`4720c245`); **B-311** (`6c0d4a84`); **B-310** (`98e3adde`) | *Idle* | **F-A** robust bundle on Path B / after B-25 (drip + prize 1763 + subsidy 1000 + PM1 bond, atomic). **B-306b** is that enable. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
-| **7** Testnet launch | Path A **22565** (`160a9b07`; lag **OK=7**); **B-42** 3rd JOIN last_proven **22560** (`6a1468fc`); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
+| **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 
 ---
 
@@ -525,6 +525,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-13 - lane 7 - F-A public-devnet genesis + rollout** (this commit): `public_devnet_fa.json` wires drip=1, prize 1763, subsidy 1000 bps, bond floor 25_769_800. Path A file and `DEFAULT_*` stay. `public_devnet_fa_wires_f_a_params_and_leaves_path_a_defaults` PASS. Sign-off `go` against the F-A file. `vps-rollout-fa.sh --plan-only` PASS. Owner runs `--apply` on the VPS; this agent has no SSH. No B-13c; no DEFAULT flip.
 
 1. **2026-11-13 - lane 6 - B-315 max-permanence upgrade design** (this commit): `docs/MAX_PERMANENCE_UPGRADE.md` plus non-consensus helpers (`stress_solvency`, `project_state_bytes`, `assess_replica_window`, `recommended_credited_slots`, `fork_dropped_storage_commitments`). Robust bundle keeps tail `>> 8`, subsidy 1000 bps, prize 1763, drip on, bond 25_769_800. Stall endowment-only lasts 51 years; robust zero-fee century covers 15_248_750 reference files without mint. UTXO tree overflows at 2_147_483_648 uploads. No Path A flip; no `apply_block` change. First fork = **F-A** after B-25 / Path B. *Observed (not staged):* none beyond this unit.
 

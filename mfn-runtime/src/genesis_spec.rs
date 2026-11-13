@@ -1010,4 +1010,76 @@ mod tests {
             "B-307: Path A min bond stays below the PM1 helper"
         );
     }
+
+    #[test]
+    fn public_devnet_fa_wires_f_a_params_and_leaves_path_a_defaults() {
+        use mfn_consensus::{
+            apply_genesis, block_id, build_genesis, emission_at_height, subsidy_treasury_credit,
+            DEFAULT_EMISSION_PARAMS,
+        };
+        use mfn_storage::{
+            deflation_drip_active, recommended_backstop_proof_reward,
+            recommended_min_storage_operator_bond,
+        };
+        let path_a = include_str!("../../mfn-node/testdata/public_devnet_v1.json");
+        let path_a_cfg = genesis_config_from_json_bytes(path_a.as_bytes()).expect("path a");
+        assert_eq!(path_a_cfg.emission_params, DEFAULT_EMISSION_PARAMS);
+        assert_eq!(path_a_cfg.endowment_params.deflation_funded_drip, 0);
+
+        let json = include_str!("../../mfn-node/testdata/public_devnet_fa.json");
+        let cfg = genesis_config_from_json_bytes(json.as_bytes()).expect("fa parse");
+        let prize = recommended_backstop_proof_reward(&cfg.endowment_params).expect("prize");
+        let bond = recommended_min_storage_operator_bond(&cfg.endowment_params).expect("bond");
+        assert_eq!(prize, 1763);
+        assert_eq!(bond, 25_769_800);
+        assert_eq!(cfg.emission_params.storage_proof_reward, prize);
+        assert_eq!(cfg.emission_params.subsidy_to_treasury_bps, 1000);
+        assert_eq!(
+            cfg.emission_params.tail_emission,
+            DEFAULT_EMISSION_PARAMS.tail_emission
+        );
+        assert_eq!(cfg.emission_params.fee_to_treasury_bps, 9000);
+        assert_eq!(cfg.endowment_params.deflation_funded_drip, 1);
+        assert!(deflation_drip_active(&cfg.endowment_params));
+        assert_eq!(cfg.endowment_params.min_storage_operator_bond, bond);
+        assert_eq!(cfg.initial_storage_operators.len(), 2);
+        for op in &cfg.initial_storage_operators {
+            assert!(op.bond_amount >= bond);
+        }
+        let height1 = emission_at_height(1, &cfg.emission_params);
+        assert_eq!(
+            subsidy_treasury_credit(1, &cfg.emission_params),
+            u128::from(height1) / 10
+        );
+        let genesis = build_genesis(&cfg);
+        let state = apply_genesis(&genesis, &cfg).expect("apply");
+        assert_eq!(state.emission_params.storage_proof_reward, prize);
+        assert_eq!(state.emission_params.subsidy_to_treasury_bps, 1000);
+        assert_eq!(state.endowment_params.deflation_funded_drip, 1);
+        assert_eq!(state.endowment_params.min_storage_operator_bond, bond);
+        assert_eq!(state.storage_operators.len(), 2);
+        let manifest: serde_json::Value = serde_json::from_str(include_str!(
+            "../../mfn-node/testdata/public_devnet_fa.manifest.json"
+        ))
+        .expect("manifest");
+        let got = hex::encode(block_id(&genesis.header));
+        assert_eq!(
+            manifest["genesis_id"].as_str().unwrap_or(""),
+            got,
+            "manifest genesis_id"
+        );
+        assert_ne!(
+            got,
+            manifest_path_a_id(),
+            "F-A must not reuse the Path A genesis id"
+        );
+    }
+
+    fn manifest_path_a_id() -> String {
+        let manifest: serde_json::Value = serde_json::from_str(include_str!(
+            "../../mfn-node/testdata/public_devnet_v1.manifest.json"
+        ))
+        .expect("path a manifest");
+        manifest["genesis_id"].as_str().expect("id").to_string()
+    }
 }

@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat B **B-315** max-permanence design (helpers only, no Path A flip). **B-314** `8c71a43a`. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**.
+Synced at Seat C **F-A** public-devnet genesis + `vps-rollout-fa.sh` (owner runs `--apply`). Path A file unchanged. Nightly `#31861932921` **GREEN**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
 | **B** Protocol/Privacy | **B-315** max-permanence design (this commit); **B-314** (`8c71a43a`); **B-313** (`9028debb`); **B-305** (`704280f7`) | *Idle* | **F-A** after B-25 / Path B; **B-35** still Phase 3; no B-13c |
-| **C** Testnet/Onboarding | Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* | 2nd host B-32 |
+| **C** Testnet/Onboarding | **F-A** genesis + `vps-rollout-fa.sh` (this commit) | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health |
 
 ### Hard locks (all seats)
 

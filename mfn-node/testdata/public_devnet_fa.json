@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "timestamp": 1763049600,
+  "synthetic_decoy_utxos": 24,
+  "consensus": {
+    "expected_proposers_per_slot": 1.5,
+    "quorum_stake_bps": 6666,
+    "liveness_max_consecutive_missed": 64,
+    "liveness_slash_bps": 0
+  },
+  "endowment": {
+    "require_endowment_range_proof": 1,
+    "operator_salted_challenges": 1,
+    "require_registered_operators": 1,
+    "min_storage_operator_bond": 25769800,
+    "operator_audit_missed_cap": 48,
+    "operator_slash_bps": 250,
+    "deflation_funded_drip": 1
+  },
+  "emission": {
+    "storage_proof_reward": 1763,
+    "subsidy_to_treasury_bps": 1000
+  },
+  "storage_operators": [
+    {
+      "index": 0,
+      "payout_seed_hex": "df9666c12bc9f0a7547027f425a044ced93dfb5bbfaca7b70ee507bc0d43e3e2",
+      "bond_amount": 25769800
+    },
+    {
+      "index": 1,
+      "payout_seed_hex": "e39a25777344e591bf4a9fd1658f222b9729623cab12ad326748674da6834057",
+      "bond_amount": 25769800
+    }
+  ],
+  "validators": [
+    {
+      "index": 0,
+      "vrf_seed_hex": "cee3e37e27e253758e3dda2095582b1ad9f7a6d8b965f14bbc890e7fbd06ca0a",
+      "bls_seed_hex": "b5e8244dae3d010f3084dc05858fefd77741beb96525ec6cd9509f5a1643a01f",
+      "stake": 1000000
+    },
+    {
+      "index": 1,
+      "vrf_seed_hex": "d7c9ac055de6a09fb5d8f8f1e120b0508c252a3a12df95fcb8c2a3bbd9049af6",
+      "bls_seed_hex": "7711eced7e9c0be2d22b64cd56363aa4a152ca58de97eec78de313ee824befa7",
+      "stake": 1000000
+    },
+    {
+      "index": 2,
+      "vrf_seed_hex": "13592b097408cfef18671fbd04fa65da6ddb8e35fa63f88332d2f07718fefde3",
+      "bls_seed_hex": "d7d42a2da85ef5a7445106b02e5140c1af7051810ec23cb5a454f2aa61769c9c",
+      "stake": 1000000
+    }
+  ]
+}
