@@ -532,6 +532,101 @@ pub fn cumulative_payout(
     Ok(num / den)
 }
 
+/// Principal left after `slots` of [`cumulative_payout`].
+///
+/// Saturates at 0. A drip that has already consumed the sized endowment
+/// reports an empty principal, not a wrapped balance. Overflow in the
+/// payout product is [`EndowmentError::Overflow`], not a silent wrap.
+///
+/// # Errors
+///
+/// Same as [`cumulative_payout`].
+pub fn endowment_principal_after_slots(
+    endowment: u128,
+    slots: u64,
+    slots_per_year: u64,
+    params: &EndowmentParams,
+) -> Result<u128, EndowmentError> {
+    let paid = cumulative_payout(endowment, slots, slots_per_year, params)?;
+    Ok(endowment.saturating_sub(paid))
+}
+
+/// Slots of `payout_per_slot` the remaining principal can still fund.
+///
+/// `None` when nothing is dripping (`payout_per_slot == 0`). That is Path A
+/// (`deflation_funded_drip = 0`): the principal is not on a per-slot drain.
+#[must_use]
+pub fn endowment_runway_slots(principal: u128, payout_per_slot: u128) -> Option<u64> {
+    if payout_per_slot == 0 {
+        return None;
+    }
+    let slots = principal / payout_per_slot;
+    Some(u64::try_from(slots).unwrap_or(u64::MAX))
+}
+
+/// Metric for a commitment whose upfront endowment is being dripped.
+/// Not read by `apply_block`. Path A (no drip) is [`EndowmentRunwayAlert::NoDrain`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EndowmentRunwayAlert {
+    /// `payout_per_slot` is 0. Nothing in this formula is draining the principal.
+    NoDrain,
+    /// A drip is configured and the principal is already 0.
+    Exhausted,
+    /// Remaining slots are strictly below `warn_slots` (use `slots_per_year` for one year).
+    Short,
+    /// Remaining slots are at least `warn_slots`.
+    Healthy,
+}
+
+/// Classify [`endowment_runway_slots`]. `warn_slots == 0` treats any positive
+/// runway as healthy and only [`EndowmentRunwayAlert::Exhausted`] as short.
+///
+/// A floored per-slot payout of 0 is [`EndowmentRunwayAlert::NoDrain`] here.
+/// Use [`endowment_annual_runway`] when the drip is smaller than one base
+/// unit per slot but still drains the principal over a year.
+#[must_use]
+pub fn endowment_runway_alert(
+    principal: u128,
+    payout_per_slot: u128,
+    warn_slots: u64,
+) -> EndowmentRunwayAlert {
+    if payout_per_slot == 0 {
+        return EndowmentRunwayAlert::NoDrain;
+    }
+    if principal == 0 {
+        return EndowmentRunwayAlert::Exhausted;
+    }
+    match endowment_runway_slots(principal, payout_per_slot) {
+        Some(slots) if slots < warn_slots => EndowmentRunwayAlert::Short,
+        _ => EndowmentRunwayAlert::Healthy,
+    }
+}
+
+/// Runway of `principal_remaining` against a fixed annual drip.
+///
+/// Pass one year of [`cumulative_payout`] on the **original** endowment as
+/// `annual_drip`. That cost does not shrink as the principal is spent, so a
+/// file that still owes `C₀` per year goes [`EndowmentRunwayAlert::Short`]
+/// once less than a year of principal is left, and
+/// [`EndowmentRunwayAlert::Exhausted`] at 0. `annual_drip == 0` is
+/// [`EndowmentRunwayAlert::NoDrain`] (Path A, drip off). Per-slot floor dust
+/// is already inside `annual_drip`.
+#[must_use]
+pub fn endowment_annual_runway(
+    principal_remaining: u128,
+    annual_drip: u128,
+) -> EndowmentRunwayAlert {
+    if annual_drip == 0 {
+        EndowmentRunwayAlert::NoDrain
+    } else if principal_remaining == 0 {
+        EndowmentRunwayAlert::Exhausted
+    } else if principal_remaining < annual_drip {
+        EndowmentRunwayAlert::Short
+    } else {
+        EndowmentRunwayAlert::Healthy
+    }
+}
+
 /* ----------------------------------------------------------------------- *
  *  Per-proof reward accrual                                                *
  * ----------------------------------------------------------------------- */
@@ -1227,6 +1322,100 @@ mod tests {
         assert_eq!(DEFAULT_ENDOWMENT_PARAMS.min_storage_operator_bond, 0);
         assert_eq!(DEFAULT_ENDOWMENT_PARAMS.operator_audit_missed_cap, 0);
         assert_eq!(DEFAULT_ENDOWMENT_PARAMS.operator_slash_bps, 0);
+    }
+
+    #[test]
+    fn endowment_principal_never_goes_negative() {
+        let mut params = p();
+        params.deflation_funded_drip = 1;
+        let year = params.slots_per_year;
+        let endowment = required_endowment(BACKSTOP_REFERENCE_SIZE_BYTES, 3, &params).expect("e0");
+        let after_year =
+            endowment_principal_after_slots(endowment, year, year, &params).expect("year");
+        assert!(after_year < endowment);
+        assert!(after_year > 0);
+        let per_slot = payout_per_slot(endowment, year, &params).expect("slot");
+        assert!(per_slot <= endowment);
+        let year_pay = cumulative_payout(endowment, year, year, &params).expect("year pay");
+        assert!(year_pay > 0);
+        assert!(year_pay < endowment);
+        assert_eq!(
+            endowment_annual_runway(endowment, year_pay),
+            EndowmentRunwayAlert::Healthy
+        );
+        assert_eq!(
+            endowment_annual_runway(year_pay / 2, year_pay),
+            EndowmentRunwayAlert::Short
+        );
+        assert_eq!(
+            endowment_annual_runway(0, year_pay),
+            EndowmentRunwayAlert::Exhausted
+        );
+        let drained =
+            endowment_principal_after_slots(endowment, year.saturating_mul(10_000), year, &params)
+                .expect("long");
+        assert_eq!(drained, 0, "exhausted principal saturates at 0");
+        assert_eq!(
+            endowment_runway_alert(0, 1, year),
+            EndowmentRunwayAlert::Exhausted
+        );
+        assert_eq!(
+            endowment_runway_alert(u128::from(year / 2), 1, year),
+            EndowmentRunwayAlert::Short
+        );
+        assert_eq!(
+            cumulative_payout(u128::MAX, u64::MAX, year, &params),
+            Err(EndowmentError::Overflow)
+        );
+    }
+
+    #[test]
+    fn path_a_endowment_is_not_on_a_drip() {
+        let params = p();
+        assert_eq!(params.deflation_funded_drip, 0);
+        let year = params.slots_per_year;
+        let endowment = required_endowment(1_000_000, 3, &params).expect("e0");
+        assert_eq!(payout_per_slot(endowment, year, &params).expect("slot"), 0);
+        assert_eq!(
+            endowment_principal_after_slots(endowment, year.saturating_mul(100), year, &params)
+                .expect("held"),
+            endowment
+        );
+        assert_eq!(
+            endowment_annual_runway(endowment, 0),
+            EndowmentRunwayAlert::NoDrain
+        );
+    }
+
+    #[test]
+    fn accrue_accumulator_does_not_create_or_drop_ppb() {
+        let mut params = p();
+        params.deflation_funded_drip = 1;
+        let args = AccrueArgs {
+            size_bytes: 4_096,
+            replication: 3,
+            pending_ppb: PPB - 3,
+            last_proven_slot: 10,
+            current_slot: 40,
+            params: &params,
+        };
+        let got = accrue_proof_reward(args).expect("accrue");
+        assert!(got.new_pending_ppb < PPB);
+        let reconstructed = got
+            .payout
+            .checked_mul(PPB)
+            .and_then(|x| x.checked_add(got.new_pending_ppb))
+            .expect("reconstruct");
+        assert!(reconstructed >= args.pending_ppb);
+        assert_eq!(reconstructed % PPB, got.new_pending_ppb);
+        let idle = accrue_proof_reward(AccrueArgs {
+            current_slot: args.last_proven_slot,
+            pending_ppb: 17,
+            ..args
+        })
+        .expect("idle");
+        assert_eq!(idle.payout, 0);
+        assert_eq!(idle.new_pending_ppb, 17);
     }
 
     #[test]

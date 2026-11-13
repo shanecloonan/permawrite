@@ -22,7 +22,9 @@ This unit names the carve-out in code so PM8 cannot “helpfully” drop the wro
 | Params, treasury, validators, `block_ids` | **ConsensusKeep** | Fork if dropped |
 | `chain.blocks` body at height `h` when finalized checkpoint height is `H` | **HistoricalBody** iff `H > 0` and `h < H` | The only PM8 candidate |
 
-[`historical_block_body_may_prune`](../mfn-consensus/src/archive_retention.rs) is that last row. [`storage_may_prune`](../mfn-consensus/src/archive_retention.rs) / [`utxo_may_prune`](../mfn-consensus/src/archive_retention.rs) / [`spent_key_image_may_prune`](../mfn-consensus/src/archive_retention.rs) are `const false`.
+[`historical_block_body_may_prune`](../mfn-consensus/src/archive_retention.rs) is that last row. A body is eligible only when a finalized checkpoint height is strictly above it (`H > 0` and `h < H`). [`storage_may_prune`](../mfn-consensus/src/archive_retention.rs) / [`utxo_may_prune`](../mfn-consensus/src/archive_retention.rs) / [`spent_key_image_may_prune`](../mfn-consensus/src/archive_retention.rs) are `const false`, including when a checkpoint already covers historical bodies. A funded commitment is not dropped because history around it may be.
+
+[`RETENTION_POLICY_VERSION`](../mfn-consensus/src/archive_retention.rs) is **1**. `V1_PERMANENCE_KEEP` and `V1_PRIVACY_KEEP` are the frozen classes. Moving one of those fields off its class, or flipping a `*_may_prune` const to true, fails `retention_v1_cannot_relax_keep_classes_without_a_version_bump` until the version constant is bumped in the same change. A live chain still needs a new genesis or a header-version gate before a relaxed rule can apply. Path A and F-A do not prune.
 
 [`CHAIN_STATE_FIELD_COUNT`](../mfn-consensus/src/archive_retention.rs) = **24**, matching `ChainState` today. Adding a field without classifying it fails `b310_every_chain_state_field_is_classified` once the count is bumped with a new variant — the inventory is the complexity fail-closed.
 

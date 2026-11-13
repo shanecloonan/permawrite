@@ -405,6 +405,69 @@ pub fn treasury_runway_slots(
     Some(u64::try_from(slots).unwrap_or(u64::MAX))
 }
 
+/// Treasury debit for one block's storage rewards.
+///
+/// `paid_from_treasury + minted_backstop = storage_reward_total` and
+/// `treasury_after + paid_from_treasury = treasury_before`. The treasury
+/// side cannot go negative. The only new base units are `minted_backstop`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TreasuryStorageSettlement {
+    /// Treasury after the debit.
+    pub treasury_after: u128,
+    /// Portion of the reward taken from the treasury.
+    pub paid_from_treasury: u128,
+    /// Portion minted because the treasury was short. Not a fee transfer.
+    pub minted_backstop: u128,
+}
+
+/// Split `storage_reward_total` into a treasury debit and a backstop mint.
+///
+/// `apply_block` uses this so the debit cannot underflow. Fees are not an
+/// input: they are credited to the treasury before this call.
+#[must_use]
+pub fn settle_storage_reward(
+    treasury: u128,
+    storage_reward_total: u128,
+) -> TreasuryStorageSettlement {
+    let paid_from_treasury = treasury.min(storage_reward_total);
+    TreasuryStorageSettlement {
+        treasury_after: treasury - paid_from_treasury,
+        paid_from_treasury,
+        minted_backstop: storage_reward_total - paid_from_treasury,
+    }
+}
+
+/// Public aggregate supply check.
+///
+/// Fees and treasury transfers do not appear here. New base units in a
+/// block are the subsidy mint plus the storage backstop mint, and nothing else.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SupplyAudit {
+    /// Supply before the block.
+    pub supply_before: u128,
+    /// Subsidy minted into coinbase / treasury this block.
+    pub subsidy_minted: u128,
+    /// Storage reward minted because the treasury was short.
+    pub backstop_minted: u128,
+    /// Supply after the block.
+    pub supply_after: u128,
+}
+
+impl SupplyAudit {
+    /// `true` when `supply_after` is exactly the checked sum of the two mints.
+    /// Overflow fails the audit instead of wrapping.
+    #[must_use]
+    pub fn holds(&self) -> bool {
+        let Some(with_subsidy) = self.supply_before.checked_add(self.subsidy_minted) else {
+            return false;
+        };
+        let Some(expected) = with_subsidy.checked_add(self.backstop_minted) else {
+            return false;
+        };
+        self.supply_after == expected
+    }
+}
+
 /// PM22 alert class for [`RunwayObservation::alert`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunwayAlert {
@@ -1058,6 +1121,51 @@ mod tests {
             treasury_floor_base_units: B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
             warn_slots: RECOMMENDED_RUNWAY_WARN_SLOTS,
         }
+    }
+
+    #[test]
+    fn treasury_debit_never_goes_negative_and_mint_is_the_only_new_value() {
+        let empty = settle_storage_reward(0, 10);
+        assert_eq!(empty.treasury_after, 0);
+        assert_eq!(empty.paid_from_treasury, 0);
+        assert_eq!(empty.minted_backstop, 10);
+        let partial = settle_storage_reward(4, 10);
+        assert_eq!(partial.treasury_after, 0);
+        assert_eq!(partial.paid_from_treasury, 4);
+        assert_eq!(partial.minted_backstop, 6);
+        let covered = settle_storage_reward(20, 10);
+        assert_eq!(covered.treasury_after, 10);
+        assert_eq!(covered.paid_from_treasury, 10);
+        assert_eq!(covered.minted_backstop, 0);
+        for (treasury, reward) in [(0u128, 0u128), (1, u128::MAX), (u128::MAX, 1), (7, 7)] {
+            let s = settle_storage_reward(treasury, reward);
+            assert_eq!(s.treasury_after + s.paid_from_treasury, treasury);
+            assert_eq!(s.paid_from_treasury + s.minted_backstop, reward);
+            assert!(s.treasury_after <= treasury);
+        }
+    }
+
+    #[test]
+    fn supply_audit_counts_subsidy_and_backstop_only() {
+        let ok = SupplyAudit {
+            supply_before: 100,
+            subsidy_minted: 5,
+            backstop_minted: 2,
+            supply_after: 107,
+        };
+        assert!(ok.holds());
+        let fee_is_not_a_mint = SupplyAudit {
+            supply_after: 108,
+            ..ok
+        };
+        assert!(!fee_is_not_a_mint.holds());
+        let wrapped = SupplyAudit {
+            supply_before: u128::MAX,
+            subsidy_minted: 1,
+            backstop_minted: 0,
+            supply_after: 0,
+        };
+        assert!(!wrapped.holds());
     }
 
     #[test]

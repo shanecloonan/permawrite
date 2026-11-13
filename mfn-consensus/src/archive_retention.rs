@@ -86,6 +86,33 @@ pub enum ChainStateField {
 /// Must equal the number of fields on [`crate::block::ChainState`].
 pub const CHAIN_STATE_FIELD_COUNT: usize = 24;
 
+/// Retention policy generation.
+///
+/// Version 1 freezes [`V1_PERMANENCE_KEEP`] and [`V1_PRIVACY_KEEP`].
+/// Reclassifying one of those fields, or flipping [`storage_may_prune`],
+/// [`utxo_may_prune`], or [`spent_key_image_may_prune`] to true, is a
+/// relaxation and requires bumping this constant. The unit test pins
+/// version 1 to that frozen set, so the edit fails CI until the bump is
+/// explicit. Putting the relaxed rule on a live chain still needs a new
+/// genesis or a header-version gate; this constant is the code-side lock.
+pub const RETENTION_POLICY_VERSION: u32 = 1;
+
+/// Fields that are [`Retention::PermanenceKeep`] at [`RETENTION_POLICY_VERSION`] 1.
+pub const V1_PERMANENCE_KEEP: [ChainStateField; 5] = [
+    ChainStateField::Storage,
+    ChainStateField::StorageOperators,
+    ChainStateField::StorageOperatorStats,
+    ChainStateField::Claims,
+    ChainStateField::EndowmentParams,
+];
+
+/// Fields that are [`Retention::PrivacyKeep`] at [`RETENTION_POLICY_VERSION`] 1.
+pub const V1_PRIVACY_KEEP: [ChainStateField; 3] = [
+    ChainStateField::Utxo,
+    ChainStateField::SpentKeyImages,
+    ChainStateField::UtxoTree,
+];
+
 /// Exhaustive field inventory (order matches [`ChainStateField`] discriminants).
 pub const CHAIN_STATE_FIELDS: [ChainStateField; CHAIN_STATE_FIELD_COUNT] = [
     ChainStateField::Height,
@@ -245,6 +272,42 @@ mod tests {
             !historical_block_body_may_prune(5, 0),
             "no checkpoint ⇒ do not prune"
         );
+    }
+
+    #[test]
+    fn retention_v1_cannot_relax_keep_classes_without_a_version_bump() {
+        assert_eq!(
+            RETENTION_POLICY_VERSION, 1,
+            "bump RETENTION_POLICY_VERSION when changing V1_PERMANENCE_KEEP or V1_PRIVACY_KEEP"
+        );
+        for field in V1_PERMANENCE_KEEP {
+            assert_eq!(
+                chain_state_field_retention(field),
+                Retention::PermanenceKeep,
+                "{field:?} is permanence-keep at policy v1"
+            );
+        }
+        for field in V1_PRIVACY_KEEP {
+            assert_eq!(
+                chain_state_field_retention(field),
+                Retention::PrivacyKeep,
+                "{field:?} is privacy-keep at policy v1"
+            );
+        }
+        assert!(!storage_may_prune());
+        assert!(!utxo_may_prune());
+        assert!(!spent_key_image_may_prune());
+    }
+
+    #[test]
+    fn funded_commitment_is_not_pruned_just_because_a_checkpoint_covers_history() {
+        assert!(historical_block_body_may_prune(4, 10));
+        assert!(
+            !storage_may_prune(),
+            "a funded storage commitment stays even when historical bodies may drop"
+        );
+        assert!(!historical_block_body_may_prune(4, 0));
+        assert!(!historical_block_body_may_prune(10, 10));
     }
 
     #[test]

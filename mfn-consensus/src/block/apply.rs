@@ -1132,12 +1132,10 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 &emission_params,
             ));
     }
-    let storage_from_treasury = pending_treasury.min(storage_reward_total);
-    pending_treasury -= storage_from_treasury;
-    next.treasury = pending_treasury;
-    // The remaining `storage_reward_total - storage_from_treasury` is the
-    // emission backstop; it's part of operator coinbase outputs but
-    // not subtracted from the treasury.
+    let settlement = crate::emission::settle_storage_reward(pending_treasury, storage_reward_total);
+    next.treasury = settlement.treasury_after;
+    // `settlement.minted_backstop` is the emission backstop. It is part of
+    // operator coinbase outputs and is not subtracted from the treasury.
 
     if require_coinbase {
         let producer = producer

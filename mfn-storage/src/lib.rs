@@ -54,18 +54,20 @@ pub use commitment::{
     validate_storage_commitment_shape, CommitmentShapeError, StorageCommitment,
 };
 pub use endowment::{
-    accrue_proof_reward, cumulative_payout, deflation_drip_active, first_year_cost_base_units,
-    max_bytes_for_endowment, payout_per_slot, recommended_backstop_proof_reward,
-    recommended_min_storage_operator_bond, required_endowment, validate_endowment_params,
-    AccrueArgs, AccrueResult, EndowmentError, EndowmentParams, BACKSTOP_REFERENCE_SIZE_BYTES,
-    DEFAULT_ENDOWMENT_PARAMS, PPB, RECOMMENDED_OPERATOR_SLASH_BPS,
+    accrue_proof_reward, cumulative_payout, deflation_drip_active, endowment_annual_runway,
+    endowment_principal_after_slots, endowment_runway_alert, endowment_runway_slots,
+    first_year_cost_base_units, max_bytes_for_endowment, payout_per_slot,
+    recommended_backstop_proof_reward, recommended_min_storage_operator_bond, required_endowment,
+    validate_endowment_params, AccrueArgs, AccrueResult, EndowmentError, EndowmentParams,
+    EndowmentRunwayAlert, BACKSTOP_REFERENCE_SIZE_BYTES, DEFAULT_ENDOWMENT_PARAMS, PPB,
+    RECOMMENDED_OPERATOR_SLASH_BPS,
 };
 pub use lottery::{rank_spora_lottery, spora_lottery_window_seed};
 pub use replica_health::{
-    assess_replica_window, repair_bounty_multiplier_bps, replica_payout_weight_bps,
-    replica_seal_root, retrieval_opens_repair_bounty, retrieval_slash_eligible, GeoClass,
-    ReplicaAssessError, ReplicaAssessment, ReplicaWindow, RetrievalAudit,
-    MIN_DIVERSE_FAILURE_DOMAINS, REPAIR_BOUNTY_CAP_BPS, REPAIR_BOUNTY_STEP_BPS,
+    assess_replica_window, distinct_replica_floor_met, repair_bounty_multiplier_bps,
+    replica_payout_weight_bps, replica_seal_root, retrieval_opens_repair_bounty,
+    retrieval_slash_eligible, GeoClass, ReplicaAssessError, ReplicaAssessment, ReplicaWindow,
+    RetrievalAudit, MIN_DIVERSE_FAILURE_DOMAINS, REPAIR_BOUNTY_CAP_BPS, REPAIR_BOUNTY_STEP_BPS,
     REPLICA_PAYOUT_CONCENTRATED_BPS, REPLICA_PAYOUT_FULL_BPS, REPLICA_PAYOUT_PARTIAL_BPS,
 };
 pub use spora::{
