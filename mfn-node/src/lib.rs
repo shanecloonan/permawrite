@@ -94,7 +94,7 @@ pub use crate::runner::{
 };
 
 /// Entry point for the `mfnd` binary (`cargo run -p mfn-node --bin mfnd`).
-#[must_use]
+#[must_use = "exit code must be returned from main"]
 pub fn mfnd_main() -> std::process::ExitCode {
     mfnd_cli::mfnd_main()
 }

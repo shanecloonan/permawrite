@@ -261,8 +261,8 @@ pub fn verify_utxo_membership(
     }
     let mut cur = *leaf;
     let mut pos = proof.leaf_idx;
-    for d in 0..UTXO_TREE_DEPTH as usize {
-        let sib = proof.siblings[d];
+    for sib in &proof.siblings {
+        let sib = *sib;
         let is_left = (pos & 1) == 0;
         cur = if is_left {
             dhash(UTXO_NODE, &[&cur, &sib])

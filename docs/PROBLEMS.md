@@ -4,7 +4,7 @@ This document is an honest inventory of real limitations, incentive misalignment
 
 The focus is on **economics/incentives** (the harder and more fundamental category), **architectural viability**, and — as of the 2026-07 source audit — **protocol/security-model gaps** (items 11–16 in [SECURITY_CONSIDERATIONS.md](./SECURITY_CONSIDERATIONS.md)). Items 17–18 recorded two vision-critical gaps (**operator-direct SPoRA payout**, **consensus ring-16**); both are **closed** in the current tree. Open operator-pay pressure is now mostly **treasury inflow** (§§ 2, 4, 19) and **proof inclusion fairness** (§ 6), not mis-routed coinbase.
 
-**Scheduling:** each open item below maps to a strategic phase in [`ROADMAP.md` § Open problems index](./ROADMAP.md#open-problems-index-problemsmd--phases).
+**Scheduling:** each open item below maps to a strategic phase in [`ROADMAP.md` § Open problems index](./ROADMAP.md#open-problems-index-problemsmd--phases). The sequenced fork that closes the permanence rows (bonds, cold proofs, solvency, retrieval, scale without deleting commitments) is [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md). It does not flip Path A.
 
 ## Economic and Incentive Problems
 
@@ -281,4 +281,5 @@ These do not mean the overall system is risk-free; they mean the documented prob
 - [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) — interactive fraud proof phase 0 (§ 11)
 - [`CASINO_RANDOMNESS_FEASIBILITY.md`](./CASINO_RANDOMNESS_FEASIBILITY.md) — assessed extension, rejected (§ 20)
 - [`SECURITY_CONSIDERATIONS.md`](./SECURITY_CONSIDERATIONS.md) — protocol trust model companion
+- [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md) — fork sequence for bonds, cold proofs, solvency, retrieval, and scale (no Path A flip)
 - [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) — production runbook

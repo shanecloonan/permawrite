@@ -739,6 +739,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-312** PM22 treasury-runway metric (not RPC) | Phase 1 | 6 |
 | **B-313** tail-emission size helper (Path A stays `>> 8`; recommended `>> 9`) | Phase 1 | 6 |
 | **B-314** PM19 cold-proof cadence helper (Path A B5 stays global any-stale) | Phase 1 | 6 |
+| **B-315** Max-permanence upgrade design + non-consensus helpers (no Path A flip) | Phase 1 design / Path B fork | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 | 4 |
 | **B-19** Decoy-RNG entropy contract | Phase 3 | 5 |
@@ -857,6 +858,7 @@ Honest gaps mapped to roadmap phases so nothing falls through the cracks:
 | [`PROBLEMS.md`](./PROBLEMS.md) | Honest weakness inventory | Prioritization sanity check |
 | [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) | Fraud + validity proof phases | Phase 2 detail |
 | [`PQ_MIGRATION.md`](./PQ_MIGRATION.md) | Post-quantum migration path | Phase 5+ long horizon |
+| [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md) | Sequenced permanence fork (F-A..F-G) + stress/state helpers | Next consensus upgrade after B-25; no Path A flip |
 
 ---
 

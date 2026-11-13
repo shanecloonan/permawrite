@@ -22,7 +22,7 @@ Merkle-proof storage audits, endowment pricing via `required_endowment`,
 treasury-funded proof rewards, and best-effort chunk replication over P2P
 gossip (`ChunkV1` frames → `chunk-inbox/` → fan-out). Known weaknesses are
 catalogued in [`PROBLEMS.md`](./PROBLEMS.md) and
-[`SECURITY_CONSIDERATIONS.md`](./SECURITY_CONSIDERATIONS.md).
+[`SECURITY_CONSIDERATIONS.md`](./SECURITY_CONSIDERATIONS.md). The fork-by-fork plan that consumes the helpers below (and does not enable them on Path A) is [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md).
 
 ---
 
@@ -644,3 +644,4 @@ Natural next step: **B-13** parameter fork (lane 6, Phase 1) after L4 testnet ga
   [`SECURITY_CONSIDERATIONS.md`](./SECURITY_CONSIDERATIONS.md) — the
   weaknesses these items answer.
 - [`AGENTS.md`](../AGENTS.md) — backlog IDs (B-11) and lane ownership.
+- [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md) — B-315 design: teeth, retrieval, solvency stress, fork resistance, PQ order, and scale projections.

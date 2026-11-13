@@ -16,6 +16,8 @@
 //!   `apply_block`; Path A stays first-to-publish).
 //! - [`cold_proof`] — **B-314** / **PM19** per-commitment proof cadence +
 //!   bounty helper (not wired; Path A B5 stays global any-stale).
+//! - [`replica_health`] — **B-315** unique-seal / repair-bounty / retrieval
+//!   verdict helpers (not wired).
 //!
 //! ## Layering
 //!
@@ -37,11 +39,12 @@ pub mod cold_proof;
 pub mod commitment;
 pub mod endowment;
 pub mod lottery;
+pub mod replica_health;
 pub mod spora;
 
 pub use cold_proof::{
     cold_proof_overdue, missed_proof_windows, recommended_cold_reward_multiplier_bps,
-    recommended_min_proof_interval_slots, RECOMMENDED_COLD_AGE_SLOTS,
+    recommended_credited_slots, recommended_min_proof_interval_slots, RECOMMENDED_COLD_AGE_SLOTS,
     RECOMMENDED_COLD_BOUNTY_BASE_BPS, RECOMMENDED_COLD_BOUNTY_CAP_BPS,
     RECOMMENDED_COLD_BOUNTY_STEP_BPS, RECOMMENDED_COLD_PROOF_MAX_INTERVAL_SLOTS,
 };
@@ -58,6 +61,13 @@ pub use endowment::{
     DEFAULT_ENDOWMENT_PARAMS, PPB, RECOMMENDED_OPERATOR_SLASH_BPS,
 };
 pub use lottery::{rank_spora_lottery, spora_lottery_window_seed};
+pub use replica_health::{
+    assess_replica_window, repair_bounty_multiplier_bps, replica_payout_weight_bps,
+    replica_seal_root, retrieval_opens_repair_bounty, retrieval_slash_eligible, GeoClass,
+    ReplicaAssessError, ReplicaAssessment, ReplicaWindow, RetrievalAudit,
+    MIN_DIVERSE_FAILURE_DOMAINS, REPAIR_BOUNTY_CAP_BPS, REPAIR_BOUNTY_STEP_BPS,
+    REPLICA_PAYOUT_CONCENTRATED_BPS, REPLICA_PAYOUT_FULL_BPS, REPLICA_PAYOUT_PARTIAL_BPS,
+};
 pub use spora::{
     build_endowment_surplus_range_proof, build_storage_commitment, build_storage_proof,
     build_storage_proof_operator_salted, build_test_storage_proof,
