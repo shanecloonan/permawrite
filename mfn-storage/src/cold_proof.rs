@@ -87,7 +87,25 @@ pub fn missed_proof_windows(
     (current_slot - last_proven_slot) / interval
 }
 
-/// PM19 bounty multiplier in bps. `10_000` = 1.0×; saturates at
+/// Slots of endowment drip one proof may credit.
+///
+/// Cap is the age-scaled interval from
+/// [`recommended_min_proof_interval_slots`], not a dormant multi-year gap.
+/// Path A [`crate::accrue_proof_reward`] still caps at
+/// `proof_reward_window_slots` and does not call this. Wiring the wider
+/// cap is the cold-cadence coinbase fork (after PM1); without it a cold
+/// proof pays about one hot window of `C0` for a month of storage.
+#[must_use]
+pub fn recommended_credited_slots(
+    elapsed_slots: u64,
+    age_slots: u64,
+    params: &EndowmentParams,
+) -> u64 {
+    let cap = recommended_min_proof_interval_slots(age_slots, params).max(1);
+    elapsed_slots.min(cap)
+}
+
+/// PM19 bounty multiplier in bps. `10_000` = 1.0x; saturates at
 /// [`RECOMMENDED_COLD_BOUNTY_CAP_BPS`].
 #[must_use]
 pub fn recommended_cold_reward_multiplier_bps(missed_windows: u64) -> u16 {
@@ -151,6 +169,34 @@ mod tests {
         assert_eq!(recommended_cold_reward_multiplier_bps(1), 11_000);
         assert_eq!(recommended_cold_reward_multiplier_bps(10), 20_000);
         assert_eq!(recommended_cold_reward_multiplier_bps(u64::MAX), 20_000);
+    }
+
+    #[test]
+    fn b315_credited_slots_follow_the_age_cap_not_a_multi_year_gap() {
+        let hot = recommended_credited_slots(1_000_000, 0, &p());
+        assert_eq!(hot, 7_200);
+        let cold = recommended_credited_slots(1_000_000, RECOMMENDED_COLD_AGE_SLOTS, &p());
+        assert_eq!(cold, RECOMMENDED_COLD_PROOF_MAX_INTERVAL_SLOTS);
+        assert_eq!(
+            recommended_credited_slots(100, RECOMMENDED_COLD_AGE_SLOTS, &p()),
+            100
+        );
+    }
+
+    #[test]
+    fn b315_cold_cadence_plus_remainder_covers_the_year() {
+        let year = p().slots_per_year;
+        let interval = recommended_min_proof_interval_slots(RECOMMENDED_COLD_AGE_SLOTS, &p());
+        let proofs = year / interval;
+        let mut credited = 0u64;
+        for _ in 0..proofs {
+            credited += recommended_credited_slots(interval, RECOMMENDED_COLD_AGE_SLOTS, &p());
+        }
+        let remainder = year - proofs * interval;
+        credited += recommended_credited_slots(remainder, RECOMMENDED_COLD_AGE_SLOTS, &p());
+        assert_eq!(credited, year);
+        let hot_only = proofs * recommended_credited_slots(interval, 0, &p());
+        assert!(hot_only * 2 < year);
     }
 
     #[test]

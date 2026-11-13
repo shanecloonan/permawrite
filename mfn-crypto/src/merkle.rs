@@ -123,8 +123,7 @@ pub fn merkle_proof(tree: &MerkleTree, leaf_idx: usize) -> Result<MerkleProof, M
     let mut siblings = Vec::with_capacity(tree.levels.len());
     let mut right_side = Vec::with_capacity(tree.levels.len());
     let mut idx = leaf_idx;
-    for lvl in 0..tree.levels.len() - 1 {
-        let layer = &tree.levels[lvl];
+    for layer in tree.levels.iter().take(tree.levels.len() - 1) {
         let is_right = idx & 1 == 1;
         let sibling_idx = if is_right {
             idx - 1

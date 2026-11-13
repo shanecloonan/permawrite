@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-08-22):** **B-314** PM19 cold-proof helper (this commit). Tip CI `#32578440244` on B-313 `9028debb` rust **GREEN** / scripts **FAIL**. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-13):** **B-315** max-permanence design + helpers (this commit). No Path A flip. Tip before this unit: B-314 `8c71a43a`. Nightly `#31861932921` **GREEN**. Lane7 Path A **22565** / last_proven **22560**. Slash-clone matrix frozen. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25** -> **F-A** (see [`docs/MAX_PERMANENCE_UPGRADE.md`](docs/MAX_PERMANENCE_UPGRADE.md)). No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **B-305** (`704280f7`); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
-| **6** Permanence | **B-314** PM19 cold-proof helper (this commit); **B-313** (`9028debb`); **B-312** (`4720c245`); **B-311** (`6c0d4a84`); **B-310** (`98e3adde`) | *Idle* | **B-306b** drip+backstop after B-25 / Path B; **PM1** enable bond floor (also unblocks B-314 wire); **B-20** arm fee-shift after B-13c + B-25; **B-44** wire lottery after B-32 (lane 4); PM8 store wire after archival role; PM41 cap wire after B-306b; PM22 RPC after B-312; **B-313** tail shrink after B-25 / Path B; human **B-33**; no B-13c enable | Emission sims |
+| **6** Permanence | **B-315** max-permanence design + helpers (this commit); **B-314** PM19 cold-proof helper (`8c71a43a`); **B-313** (`9028debb`); **B-312** (`4720c245`); **B-311** (`6c0d4a84`); **B-310** (`98e3adde`) | *Idle* | **F-A** robust bundle on Path B / after B-25 (drip + prize 1763 + subsidy 1000 + PM1 bond, atomic). **B-306b** is that enable. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | Path A **22565** (`160a9b07`; lag **OK=7**); **B-42** 3rd JOIN last_proven **22560** (`6a1468fc`); faucet F7 **`f77a4048` 73s** | *Idle* | 2nd host B-32 | `launch-go-no-go` + observer |
 
 ---
@@ -154,6 +154,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 6 | 4 | **B-315 F-A:** first permanence fork is Path B / post-B-25 and sets drip=1, `storage_proof_reward=recommended_backstop_proof_reward` (1763), `subsidy_to_treasury_bps=1000`, and `min_storage_operator_bond=recommended_min_storage_operator_bond` in one genesis. Do not wire cold credit, the backstop cap, or replica seals on Path A. Do not DEFAULT-flip. Tail stays `>> 8`. | **Open** |
 | 6 | 4 | **B-314 PM19:** when wiring per-commit audit after **PM1**, call `cold_proof_overdue` / `recommended_cold_reward_multiplier_bps`; do not treat B5 global any-stale as a per-file obligation. Path A stays global. | **Open** |
 | 6 | 7 | **B-313 tail:** Path B / post-B-25 ceremony may set `tail_emission = recommended_tail_emission` (`>> 9`). Do not silent-fork Path A (`>> 8`). PM13 still forbids 0. | **Open** |
 | 6 | 2 | **B-312 PM22 RPC:** when exposing treasury runway, call `treasury_runway_slots` / `RunwayObservation::alert`; do not invent a second formula. Path A prize vs ~2.9e6 treasury is honestly `Short`. | **Open** |
@@ -261,7 +262,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-311 | PM41 backstop mint cap (1% of annual tail; not wired) | 6 | **Landed** `6c0d4a84` — `recommended_backstop_mint_cap_*`; Path A unbounded; wire after **B-306b** |
 | B-312 | PM22 treasury runway metric (not RPC) | 6 | **Landed** `4720c245` — `treasury_runway_slots` / `RunwayAlert`; Path A prize vs ~2.9e6 is `Short` |
 | B-313 | Tail-emission size helper (`>> 9`; not a schedule flip) | 6 | **Landed** `9028debb` — `recommended_tail_emission`; Path A stays `>> 8`; enable = Path B / post-B-25 |
-| B-314 | PM19 per-commitment cold-proof cadence (not wired) | 6 | **Landed** (this commit) — `cold_proof_overdue` / bounty bps; Path A B5 stays global any-stale; wire after **PM1** |
+| B-314 | PM19 per-commitment cold-proof cadence (not wired) | 6 | **Landed** — `cold_proof_overdue` / bounty bps; Path A B5 stays global any-stale; wire after **PM1**. Design: [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md) |
+| B-315 | Max-permanence upgrade design + non-consensus helpers | 6 | **Landed** (this commit) — solvency stress, state projection, replica/retrieval helpers. No Path A flip. First fork = **F-A** after B-25 / Path B |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -523,6 +525,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-13 - lane 6 - B-315 max-permanence upgrade design** (this commit): `docs/MAX_PERMANENCE_UPGRADE.md` plus non-consensus helpers (`stress_solvency`, `project_state_bytes`, `assess_replica_window`, `recommended_credited_slots`, `fork_dropped_storage_commitments`). Robust bundle keeps tail `>> 8`, subsidy 1000 bps, prize 1763, drip on, bond 25_769_800. Stall endowment-only lasts 51 years; robust zero-fee century covers 15_248_750 reference files without mint. UTXO tree overflows at 2_147_483_648 uploads. No Path A flip; no `apply_block` change. First fork = **F-A** after B-25 / Path B. *Observed (not staged):* none beyond this unit.
 
 1. **2026-08-22 - lane 6 - B-314 PM19 cold-proof helper** (this commit): `recommended_min_proof_interval_slots` ages 7_200 → 216_000 (~30d at 1y); `cold_proof_overdue` / `missed_proof_windows`; bounty 10_000→20_000 bps. Path A B5 stays global any-stale. `b314_*` + genesis pin PASS; clippy `-D warnings` green. Docs: [`B314_COLD_PROOF.md`](docs/B314_COLD_PROOF.md). Waited for tip CI `#32578440244` on B-313 (rust GREEN / scripts FAIL). Full GitHub CI (no skip). No B-13c; no DEFAULT flip; slash matrix frozen; **not B5 wire**. Next: **B-306b** + **PM1** after B-25 / Path B; **B-20** after B-13c + B-25; **B-44** after B-32. *Observed (not staged):* `apply_block_proptest.rs`; `tx_storm.rs`; rc-audit json.
 

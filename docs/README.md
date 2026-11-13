@@ -45,6 +45,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - ✅ [**B312_TREASURY_RUNWAY.md**](./B312_TREASURY_RUNWAY.md) — **B-312** PM22 treasury-runway metric (not RPC).
 - ✅ [**B313_TAIL_EMISSION.md**](./B313_TAIL_EMISSION.md) — **B-313** tail-emission size helper (Path A stays `>> 8`; recommended `>> 9`).
 - ✅ [**B314_COLD_PROOF.md**](./B314_COLD_PROOF.md) — **B-314** / **PM19** per-commitment proof cadence helper (Path A B5 stays global any-stale).
+- ✅ [**MAX_PERMANENCE_UPGRADE.md**](./MAX_PERMANENCE_UPGRADE.md) — **B-315** design for the permanence upgrade (teeth, retrieval, solvency, forks, scale). Helpers only; Path A unchanged.
 - ✅ [**B40_PERMANENCE_WEEK.md**](./B40_PERMANENCE_WEEK.md) — **B-40** first permanence week runbook (arm day-of L4; B-13a pre-armed).
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
 - 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.

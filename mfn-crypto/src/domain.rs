@@ -161,6 +161,12 @@ pub const SPORA_OPERATOR_CHALLENGE: Domain = b"MFBN-1/spora-operator-challenge";
 /// does not change any existing hash; wiring it is the coinbase fork.
 pub const SPORA_LOTTERY: Domain = b"MFBN-1/spora-lottery";
 
+/// Replica-unique seal (**B-315** helper; not wired into chunk bytes or
+/// `apply_block`). `dhash(REPLICA_SEAL, operator_id || data_root || index)`
+/// so one disk cannot present the same bytes as N operator replicas.
+/// Adding the tag does not change any hash Path A already computes.
+pub const REPLICA_SEAL: Domain = b"MFBN-1/replica-seal-v1";
+
 /// Merkle leaf for a storage-operator bonding op in the block `bond_root`
 /// section (**B3 phase 3b**).
 pub const STORAGE_OPERATOR_OP_LEAF: Domain = b"MFBN-1/storage-operator-op-leaf";

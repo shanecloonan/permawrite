@@ -876,7 +876,10 @@ mod tests {
             recommended_min_proof_interval_slots(0, &g.endowment_params),
             7_200
         );
-        assert!(RECOMMENDED_COLD_PROOF_MAX_INTERVAL_SLOTS > 7_200);
+        assert!(
+            RECOMMENDED_COLD_PROOF_MAX_INTERVAL_SLOTS
+                > g.endowment_params.proof_reward_window_slots
+        );
     }
 
     #[test]

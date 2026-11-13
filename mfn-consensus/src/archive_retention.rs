@@ -176,6 +176,18 @@ pub const fn spent_key_image_may_prune() -> bool {
     false
 }
 
+/// Client-side fork refusal: a child whose anchored storage-commitment
+/// count is smaller than its parent's dropped permanence state.
+///
+/// Equal counts are not this signal (the same commitments can be replayed).
+/// A larger count is new anchors, not a drop. Not consulted by `apply_block`
+/// or checkpoint decode. Light clients should refuse the child header when
+/// this returns true, even if committee signatures are valid.
+#[must_use]
+pub const fn fork_dropped_storage_commitments(parent_count: u64, child_count: u64) -> bool {
+    child_count < parent_count
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,6 +253,14 @@ mod tests {
             !storage_may_prune() && !utxo_may_prune() && !spent_key_image_may_prune(),
             "Path A keeps maps; helper must not silently enable drop"
         );
+    }
+
+    #[test]
+    fn b315_fork_that_shrinks_storage_commitments_is_refused() {
+        assert!(fork_dropped_storage_commitments(10, 9));
+        assert!(!fork_dropped_storage_commitments(10, 10));
+        assert!(!fork_dropped_storage_commitments(10, 11));
+        assert!(!fork_dropped_storage_commitments(0, 0));
     }
 
     /// Compile-fail if `ChainState` grows without a matching inventory row.
