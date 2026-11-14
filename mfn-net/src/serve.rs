@@ -732,6 +732,11 @@ fn recv_post_handshake(
         hid,
         peer: peer.to_string(),
     };
+    if crate::peer_exchange::asking() {
+        if let Err(e) = crate::peer_exchange::send_getaddr(sock) {
+            eprintln!("mfnd_p2p_getaddr_abort peer={peer} {e}");
+        }
+    }
     loop {
         let gossip_stats = match serve_post_handshake_v1(
             sock,
