@@ -1,0 +1,26 @@
+[package]
+name = "mfn-airgap"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+description = "Sign a Permawrite transfer on a machine that never talks to the network."
+
+[[bin]]
+name = "mfn-airgap"
+path = "src/main.rs"
+
+[dependencies]
+curve25519-dalek = { workspace = true }
+hex = { workspace = true }
+mfn-consensus = { path = "../../mfn-consensus", default-features = false }
+mfn-crypto = { path = "../../mfn-crypto" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
