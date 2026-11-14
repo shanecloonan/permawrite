@@ -281,6 +281,8 @@ Partition into sub-circuits aligned with existing `apply_block` gates (reuse tes
 
 **Recommendation (2026-07):** prototype **4a** with a STARK backend for tx+coinbase+SPoRA batch verify (deterministic, no trusted setup); keep Halo2/Nova as fallback if proof size on block-heavy workloads exceeds gossip budget. SPoRA stays Merkle-native — SNARK wraps existing `verify_storage_proof`, does not replace operator challenges ([`STORAGE.md` § Why we don't use ZK SNARKs](./STORAGE.md#why-we-dont-use-zk-snarks-here-yet)).
 
+**Decision (2026-11-14):** stay on Winterfell for 4a algebraic leaves. Winterfell 0.10 has no recursive verifier, so **4b.2 / B-12** re-expresses those leaves in **Plonky3** when aggregation starts. Halo2 is reserved for a later curve25519 CLSAG/Bulletproof leaf, not the aggregator. Nova and Groth16 are not the first recursion backend. Full note: [`VALIDITY_STARK_BACKEND.md`](./VALIDITY_STARK_BACKEND.md). `dhash` is SHA-512, so a SPoRA Merkle path is not the cheap leaf.
+
 ### Wire / fork gate
 
 | Artifact | Proposal |
@@ -320,6 +322,11 @@ where `validity_proof_ref` is a hash of a succinct proof that `apply_block` reje
 - **Winterfell STARK:** `mfn_consensus::validity_stark_winterfell` — batch-binding AIR over parent checkpoint + block wire chunks with public tx/coinbase/SPoRA metadata; Blake3-256 Winterfell prover/verifier.
 - **Witness kind `3`:** `VALIDITY_WITNESS_STARK_WINTERFELL` via `build_stark_winterfell_validity_proof`; verifier still replays `apply_block` after STARK check.
 - **Launch-status:** `launch-status.v10` exposes `validity_proof_phase: "4b.1"` and `stark_backend: "winterfell"`.
+
+### Shipped implementation (phase 4a leaves, B-316)
+
+- **Not consensus.** `mfn_consensus::validity_stark_coinbase` proves `emission_at_height` and the bps split inside `producer_portion_amount` (no storage-proof term). Optional witnesses. No header field, no gossip, no Path A / F-A change.
+- **Tests:** `b316_emission_at_height_stark_matches_consensus_and_rejects_tamper`, `b316_coinbase_split_matches_producer_portion_and_rejects_tamper`.
 
 ### Acceptance tests (phase 4a)
 

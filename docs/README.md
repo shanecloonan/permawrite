@@ -50,6 +50,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
 - 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.
 - ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — honest inventory of real economic, incentive, architectural, and protocol/security-model weaknesses (no invented problems).
+- 🔎 [**DESIGN_REVIEW_2026-11.md**](./DESIGN_REVIEW_2026-11.md) — fundamental-mechanics review of `main` @ `1d5061c` (2026-11-13): per-area SOUND / GAP / FUNDAMENTAL verdicts (equivocation-evidence binding, finality lock rule, replica and retrieval claims, hidden-endowment backing).
 - 🎲 [**CASINO_RANDOMNESS_FEASIBILITY.md**](./CASINO_RANDOMNESS_FEASIBILITY.md) — can a chain-native, provably fair casino fund the treasury/endowment? Determinism vs randomness, pros/cons, architectural verdict (not a roadmap item).
 - 📜 [**SMART_CONTRACTS_FEASIBILITY.md**](./SMART_CONTRACTS_FEASIBILITY.md) — should Permawrite add general-purpose on-chain programmability? Codebase fit, privacy/permanence trade-offs, implementation cost, and verdict (do not ship).
 
