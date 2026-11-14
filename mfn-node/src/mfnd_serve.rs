@@ -743,6 +743,13 @@ pub(crate) fn run_serve(
             Ok(table) => mfn_net::peer_ban::install(table),
             Err(e) => eprintln!("mfnd_p2p_ban_load_abort {e}"),
         }
+        if std::env::var("MFND_P2P_PAD")
+            .ok()
+            .is_some_and(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "on"))
+        {
+            mfn_net::tx_pad::enable_tx_padding();
+            println!("mfnd_p2p_pad=buckets:{}", mfn_net::tx_pad::TX_PAD_BUCKET);
+        }
         println!(
             "mfnd_p2p_transport={} tor_socks5={}",
             transport.harness_label(),
