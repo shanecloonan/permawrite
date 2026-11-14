@@ -204,7 +204,9 @@ pub(super) fn usage() -> &'static str {
                          options: --json\n\
        wallet backup-info  print wallet/artifact backup inventory (no seed output)\n\
                          options: --json\n\
-wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx (F7: need ≥2 owned UTXOs)\n\
+       wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx (F7: need ≥2 owned UTXOs)\n\
+                         AMOUNT and --fee: bare whole numbers are atomic units;\n\
+                         1.5mfn is coins (1 MFN = 100000000 atomic). Extra decimals are refused.\n\
 wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
                          options: --fee N --ring-size N (default 16, wallet/consensus floor) --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
@@ -1541,6 +1543,10 @@ fn split_host_list(raw: &str) -> Vec<String> {
         .collect()
 }
 
+fn parse_money(raw: &str, what: &str) -> Result<u64, CliError> {
+    mfn_wallet::parse_amount(raw).map_err(|e| CliError::Usage(format!("{what}: {e}")))
+}
+
 pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
     let mut fee = DEFAULT_TRANSFER_FEE;
     let mut ring_size = DEFAULT_RING_SIZE;
@@ -1559,9 +1565,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = v
-                .parse()
-                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            fee = parse_money(v, "--fee")?;
             i += 2;
             continue;
         }
@@ -1633,9 +1637,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             positional[2],
         )
     };
-    let amount: u64 = amount_raw
-        .parse()
-        .map_err(|_| CliError::Usage("AMOUNT must be a non-negative integer".into()))?;
+    let amount: u64 = parse_money(amount_raw, "AMOUNT")?;
     Ok(SendParams {
         to_view_hex,
         to_spend_hex,
@@ -1697,10 +1699,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = Some(
-                v.parse()
-                    .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?,
-            );
+            fee = Some(parse_money(v, "--fee")?);
             i += 2;
             continue;
         }
@@ -1718,9 +1717,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--anchor-value requires a value".into()));
             };
-            anchor_value = v.parse().map_err(|_| {
-                CliError::Usage("--anchor-value must be a non-negative integer".into())
-            })?;
+            anchor_value = parse_money(v, "--anchor-value")?;
             i += 2;
             continue;
         }
@@ -1825,9 +1822,7 @@ pub(super) fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliE
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = v
-                .parse()
-                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            fee = parse_money(v, "--fee")?;
             i += 2;
             continue;
         }
