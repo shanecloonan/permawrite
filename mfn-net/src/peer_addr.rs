@@ -44,6 +44,14 @@ pub fn is_onion_host(host: &str) -> bool {
     host.to_ascii_lowercase().ends_with(".onion")
 }
 
+/// True when `host` is an I2P destination (`.i2p` suffix, including `.b32.i2p`).
+///
+/// Cleartext resolution must not look these up in DNS. The name itself is the
+/// destination identity, and a recursive resolver would learn it.
+pub fn is_i2p_host(host: &str) -> bool {
+    host.to_ascii_lowercase().ends_with(".i2p")
+}
+
 /// True when `host` is a literal IP address (not a DNS name).
 pub fn is_literal_ip_host(host: &str) -> bool {
     host.parse::<IpAddr>().is_ok()
@@ -58,6 +66,14 @@ pub fn resolve_cleartext_peer(peer: &str) -> std::io::Result<Vec<SocketAddr>> {
             std::io::ErrorKind::InvalidInput,
             format!(
                 "peer {peer:?}: .onion addresses require MFND_P2P_TRANSPORT=tor and a reachable SOCKS5 proxy"
+            ),
+        ));
+    }
+    if is_i2p_host(&host) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!(
+                "peer {peer:?}: .i2p addresses are not resolved on clearnet DNS; dial them through an I2P SOCKS proxy"
             ),
         ));
     }
@@ -95,6 +111,23 @@ mod tests {
         let (host, port) = parse_peer_host_port(onion).unwrap();
         assert!(is_onion_host(&host));
         assert_eq!(port, 8333);
+    }
+
+    #[test]
+    fn i2p_host_is_recognized_and_not_clearnet_resolved() {
+        assert!(is_i2p_host(
+            "ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p"
+        ));
+        assert!(is_i2p_host("example.i2p"));
+        assert!(!is_i2p_host("example.com"));
+        assert!(!is_i2p_host("example.onion"));
+        let err = resolve_cleartext_peer(
+            "ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p:8333",
+        )
+        .unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(err.to_string().contains(".i2p"));
+        assert!(err.to_string().contains("DNS"));
     }
 
     #[test]
