@@ -16,6 +16,21 @@ default = ["bls", "winterfell"]
 # Full BLS12-381 consensus (nodes). Off for `wasm32` wallet scan/sign builds.
 bls = ["dep:mfn-bls"]
 winterfell = ["dep:winterfell", "dep:winter-utils"]
+# Optional. Not a default: Plonky3's MSRV is newer than this crate's 1.75 floor.
+plonky3 = [
+    "dep:p3-air",
+    "dep:p3-baby-bear",
+    "dep:p3-challenger",
+    "dep:p3-commit",
+    "dep:p3-dft",
+    "dep:p3-field",
+    "dep:p3-fri",
+    "dep:p3-matrix",
+    "dep:p3-merkle-tree",
+    "dep:p3-symmetric",
+    "dep:p3-uni-stark",
+    "dep:rand",
+]
 
 [dependencies]
 mfn-crypto = { path = "../mfn-crypto" }
@@ -32,6 +47,18 @@ thiserror = { workspace = true }
 hex = { workspace = true }
 winterfell = { version = "0.10.1", optional = true }
 winter-utils = { version = "0.10.2", optional = true }
+p3-air = { version = "0.6.3", optional = true }
+p3-baby-bear = { version = "0.6.3", optional = true }
+p3-challenger = { version = "0.6.3", optional = true }
+p3-commit = { version = "0.6.3", optional = true }
+p3-dft = { version = "0.6.3", optional = true }
+p3-field = { version = "0.6.3", optional = true }
+p3-fri = { version = "0.6.3", optional = true }
+p3-matrix = { version = "0.6.3", optional = true }
+p3-merkle-tree = { version = "0.6.3", optional = true }
+p3-symmetric = { version = "0.6.3", optional = true }
+p3-uni-stark = { version = "0.6.3", optional = true }
+rand = { version = "0.10", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
