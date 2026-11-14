@@ -27,7 +27,7 @@ Synced at Seat C **B-12** Plonky3 aggregate (off consensus; not an inner verifie
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (this commit); **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
-| **E** Storage permanence | — | **E-11** header v9 shard uploads | **E-12** sealed proofs. No VPS |
+| **E** Storage permanence | **E-11** shard uploads (parent); **E-12** sealed proofs on its own branch | **E-13** stripe repair + reseal + answer | Retrieval client over SOCKS. No VPS |
 
 ### Hard locks (all seats)
 

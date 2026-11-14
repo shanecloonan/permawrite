@@ -25,7 +25,9 @@ pub mod daemon;
 pub mod inbox_backfill;
 pub mod pm23;
 pub mod prove;
+pub mod retrieval_serve;
 pub mod rpc;
+pub mod stripe_repair;
 pub mod upload_artifact_store;
 
 pub use backfill::{
@@ -48,7 +50,9 @@ pub use inbox_backfill::{
     InboxBackfillError, InboxChunkStatus,
 };
 pub use prove::{prove_from_file, prove_from_wallet_artifact, ProveError, ProveSuccess};
+pub use retrieval_serve::{answer_retrieval_challenge, AnswerError};
 pub use rpc::{load_network_manifest, NetworkManifest, RpcClient, RpcError, DEFAULT_RPC_ADDR};
+pub use stripe_repair::{repair_wallet_stripes, StripeRepairReport};
 pub use upload_artifact_store::{
     list_upload_artifacts, load_upload_artifact, save_upload_artifact, upload_artifacts_root,
     LoadedUploadArtifact, UploadArtifactSaveMeta, UploadArtifactStoreError, UploadArtifactSummary,
