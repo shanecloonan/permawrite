@@ -1056,8 +1056,27 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                     if let Some(listen) = local_p2p_listen {
                         let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
                         let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
-                        if let Err(e) = send_p2p_advertise_v1(&mut sock, &listen.to_string()) {
-                            eprintln!("mfnd_p2p_advertise_abort hid={hid} peer={addr} {e}");
+                        let onion = match crate::transport::P2pTransportConfig::p2p_onion_from_env()
+                        {
+                            Ok(value) => value,
+                            Err(e) => {
+                                eprintln!("mfnd_p2p_advertise_abort hid={hid} peer={addr} {e}");
+                                None
+                            }
+                        };
+                        match crate::transport::active_p2p_transport()
+                            .advertise_addr(&listen.to_string(), onion.as_deref())
+                        {
+                            Some(adv) => {
+                                if let Err(e) = send_p2p_advertise_v1(&mut sock, &adv) {
+                                    eprintln!("mfnd_p2p_advertise_abort hid={hid} peer={addr} {e}");
+                                }
+                            }
+                            None => {
+                                eprintln!(
+                                    "mfnd_p2p_advertise_skip hid={hid} peer={addr} reason=clearnet_hidden"
+                                );
+                            }
                         }
                     }
                     // Pull missing blocks before blocking on inbound gossip; otherwise a
