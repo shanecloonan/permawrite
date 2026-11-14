@@ -153,7 +153,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
-| **I** Scale | **I-9** block-log height index (this commit). Off consensus. | *Idle* | **I-10** light wallet path | `mfn-scale` index tests |
+| **I** Scale | **I-10** light wallet path (this commit). Headers, inclusion, local scan, body cap. Off consensus. | *Idle* | Wire the wallet to a header source without a new consensus rule | `mfn-scale` wallet tests |
 
 ---
 
@@ -537,6 +537,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane I - I-10 light wallet** (this commit): one object follows linked headers, checks inclusion, scans stealth outputs locally, and keeps bodies inside a byte cap. The network request is an eight-byte height window. Next: wire it to a header source. No consensus change.
 
 1. **2026-11-14 - lane I - I-9 block index** (this commit): a height maps to a body offset and length. Rebuild from the log reproduces the spans. A gap or a truncated tail is an error. Bodies are not deleted. Next: **I-10** light wallet path.
 

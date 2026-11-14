@@ -29,7 +29,7 @@ Synced at Seat C **B-12** Plonky3 aggregate (off consensus; not an inner verifie
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (this commit); **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
 | **F** Ease of use | **F-8** browser file backup card | *Idle* | **F-9** `wallet ready` checklist |
-| **I** Scale | **I-9** block-log index | *Idle* | **I-10** light wallet path |
+| **I** Scale | **I-10** light wallet path | *Idle* | Wire the wallet to a header source |
 
 ### Hard locks (all seats)
 

@@ -15,6 +15,7 @@ pub mod block_index;
 pub mod fast_sync;
 pub mod header_sync;
 pub mod inclusion;
+pub mod light_wallet;
 pub mod memory;
 pub mod private_scan;
 pub mod prune;
@@ -35,6 +36,7 @@ pub use inclusion::{
     sample_utxo_proof, sample_utxo_tree, AdmitHeaderError, AdmittedHeader, HeaderBook,
     InclusionError,
 };
+pub use light_wallet::LightWallet;
 pub use memory::{AdmitError, BodyCache, DeviceClass, MemoryBudget};
 pub use private_scan::{scan_owned, OutputWindowRequest, ScanError};
 pub use prune::{BlockLog, BlockRecord, KeepClass, NodeRole, PruneError};
