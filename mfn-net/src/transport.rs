@@ -20,6 +20,8 @@ pub const MFND_P2P_TRANSPORT_ENV: &str = "MFND_P2P_TRANSPORT";
 pub const MFND_TOR_SOCKS5_ENV: &str = "MFND_TOR_SOCKS5";
 /// Environment variable: operator-published v3 onion P2P address (`HOST.onion:PORT`, optional).
 pub const MFND_P2P_ONION_ENV: &str = "MFND_P2P_ONION";
+/// Environment variable: refuse non-onion dials (`1` / `true` / `yes`).
+pub const MFND_P2P_ONION_ONLY_ENV: &str = "MFND_P2P_ONION_ONLY";
 /// Default local Tor SOCKS5 listen address.
 pub const DEFAULT_TOR_SOCKS5: &str = "127.0.0.1:9050";
 
@@ -73,6 +75,8 @@ pub struct P2pTransportConfig {
     pub kind: P2pTransportKind,
     /// SOCKS5 endpoint when `kind == Tor`.
     pub tor_socks5: String,
+    /// When true, outbound dials must be `.onion` (no clearnet via a Tor exit).
+    pub onion_only: bool,
 }
 
 impl Default for P2pTransportConfig {
@@ -80,6 +84,7 @@ impl Default for P2pTransportConfig {
         Self {
             kind: P2pTransportKind::Tcp,
             tor_socks5: DEFAULT_TOR_SOCKS5.into(),
+            onion_only: false,
         }
     }
 }
@@ -107,7 +112,37 @@ impl P2pTransportConfig {
                 return Err(format!("{MFND_TOR_SOCKS5_ENV} must be valid UTF-8"));
             }
         };
-        Ok(Self { kind, tor_socks5 })
+        let onion_only = match std::env::var(MFND_P2P_ONION_ONLY_ENV) {
+            Ok(raw) => {
+                parse_env_flag(&raw).map_err(|e| format!("{MFND_P2P_ONION_ONLY_ENV}={e}"))?
+            }
+            Err(std::env::VarError::NotPresent) => false,
+            Err(std::env::VarError::NotUnicode(_)) => {
+                return Err(format!("{MFND_P2P_ONION_ONLY_ENV} must be valid UTF-8"));
+            }
+        };
+        Ok(Self {
+            kind,
+            tor_socks5,
+            onion_only,
+        })
+    }
+
+    /// Address to tell a peer so it can dial us back.
+    ///
+    /// A published onion replaces the TCP listen address. Tor mode also refuses
+    /// to hand out a non-loopback clearnet listen address.
+    pub fn advertise_addr(&self, local_listen: &str, onion: Option<&str>) -> Option<String> {
+        if let Some(onion) = onion.map(str::trim).filter(|s| !s.is_empty()) {
+            return Some(onion.to_string());
+        }
+        if self.kind == P2pTransportKind::Tor && !listen_host_is_loopback(local_listen) {
+            return None;
+        }
+        if local_listen.is_empty() {
+            return None;
+        }
+        Some(local_listen.to_string())
     }
 
     /// Optional operator-published onion P2P dial address from [`MFND_P2P_ONION_ENV`].
@@ -159,6 +194,12 @@ impl P2pTransportConfig {
                 tcp_connect_with_timeout(&addrs[..], P2P_CONNECT_TIMEOUT)
             }
             P2pTransportKind::Tor => {
+                if self.onion_only && !is_onion_host(&host) {
+                    return Err(Error::new(
+                        ErrorKind::InvalidInput,
+                        format!("peer {peer:?}: {MFND_P2P_ONION_ONLY_ENV} refuses non-onion dials"),
+                    ));
+                }
                 if is_onion_host(&host) || !is_literal_ip_host(&host) {
                     crate::socks5::socks5_connect_domain_with_timeout(
                         &self.tor_socks5,
@@ -188,6 +229,26 @@ impl P2pTransportConfig {
             ),
         }
     }
+}
+
+fn parse_env_flag(raw: &str) -> Result<bool, String> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" | "" => Ok(false),
+        other => Err(format!(
+            "{other:?} must be 1/0, true/false, yes/no, or on/off"
+        )),
+    }
+}
+
+/// True when `listen` is loopback (`127.0.0.1`, `::1`, `localhost`).
+fn listen_host_is_loopback(listen: &str) -> bool {
+    let host = match crate::peer_addr::parse_peer_host_port(listen) {
+        Ok((host, _)) => host,
+        Err(_) => listen.to_string(),
+    };
+    let host = host.trim_matches(['[', ']']);
+    host == "localhost" || host == "::1" || host.starts_with("127.")
 }
 
 /// Cleartext TCP connect with bounded per-address attempts (shared by TCP transport and tests).
@@ -233,9 +294,11 @@ mod tests {
     fn p2p_transport_config_from_env_defaults_tcp() {
         std::env::remove_var(MFND_P2P_TRANSPORT_ENV);
         std::env::remove_var(MFND_TOR_SOCKS5_ENV);
+        std::env::remove_var(MFND_P2P_ONION_ONLY_ENV);
         let cfg = P2pTransportConfig::from_env().unwrap();
         assert_eq!(cfg.kind, P2pTransportKind::Tcp);
         assert_eq!(cfg.tor_socks5, DEFAULT_TOR_SOCKS5);
+        assert!(!cfg.onion_only);
     }
 
     #[test]
@@ -252,6 +315,7 @@ mod tests {
         let cfg = P2pTransportConfig {
             kind: P2pTransportKind::Tor,
             tor_socks5: "127.0.0.1:1".into(),
+            onion_only: false,
         };
         assert!(cfg.connect("127.0.0.1:1").is_err());
     }
@@ -282,6 +346,46 @@ mod tests {
         let err = tcp_connect_with_timeout(&addrs[..], P2P_CONNECT_TIMEOUT).unwrap_err();
         assert_eq!(err.kind(), ErrorKind::InvalidInput);
         assert!(err.to_string().contains("no socket addresses"));
+    }
+
+    #[test]
+    fn tor_advertise_uses_onion_and_hides_public_ip() {
+        let onion = "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:8333";
+        let tor = P2pTransportConfig {
+            kind: P2pTransportKind::Tor,
+            tor_socks5: DEFAULT_TOR_SOCKS5.into(),
+            onion_only: false,
+        };
+        assert_eq!(
+            tor.advertise_addr("203.0.113.8:8333", Some(onion))
+                .as_deref(),
+            Some(onion)
+        );
+        assert_eq!(tor.advertise_addr("203.0.113.8:8333", None), None);
+        assert_eq!(
+            tor.advertise_addr("127.0.0.1:8333", None).as_deref(),
+            Some("127.0.0.1:8333")
+        );
+        let tcp = P2pTransportConfig::default();
+        assert_eq!(
+            tcp.advertise_addr("203.0.113.8:8333", None).as_deref(),
+            Some("203.0.113.8:8333")
+        );
+    }
+
+    #[test]
+    fn onion_only_refuses_clearnet_dial() {
+        let cfg = P2pTransportConfig {
+            kind: P2pTransportKind::Tor,
+            tor_socks5: "127.0.0.1:1".into(),
+            onion_only: true,
+        };
+        let err = cfg.connect_peer("203.0.113.8:8333").unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidInput);
+        assert!(err.to_string().contains(MFND_P2P_ONION_ONLY_ENV));
+        let onion = "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:8333";
+        let onion_err = cfg.connect_peer(onion).unwrap_err();
+        assert!(!onion_err.to_string().contains(MFND_P2P_ONION_ONLY_ENV));
     }
 
     #[test]
