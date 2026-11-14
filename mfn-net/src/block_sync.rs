@@ -431,6 +431,7 @@ pub fn serve_post_handshake_v1(
             0x0b => {
                 let addr = crate::gossip::P2pAdvertiseV1::decode_payload(&payload)
                     .map_err(|e| PostHandshakeError::Advertise(e.to_string()))?;
+                crate::addrman::learn_address(addr);
                 if let Some(ps) = fanout_peers {
                     ps.register_peer(addr);
                     match stream.try_clone() {
