@@ -1,0 +1,30 @@
+[package]
+name = "mfn-install"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Install release files only after their signed hash list checks out. No network."
+
+[lib]
+name = "mfn_install"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mfn-install"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[dependencies]
+hex = { workspace = true }
+mfn-crypto = { path = "../../mfn-crypto" }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
