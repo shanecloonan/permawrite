@@ -1,0 +1,23 @@
+[workspace]
+
+[package]
+name = "mfn-mirror"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "Content-addressed mirrors for Permawrite source and binaries: CIDv1, BitTorrent v2, and a bundle to upload."
+
+[[bin]]
+name = "mfn-mirror"
+path = "src/main.rs"
+
+[dependencies]
+sha2 = "0.10"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
