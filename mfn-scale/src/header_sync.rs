@@ -149,26 +149,23 @@ impl HeaderFirstSync {
         &self.headers
     }
 
-    /// Link headers from `self.height + 1` through `remote_tip`, then
-    /// fetch bodies. `body_matches` is the caller's check that the body
-    /// is the one committed by the header.
+    /// Link headers from `self.height + 1` through `remote_tip`.
+    ///
+    /// Does not fetch bodies and does not modify `self`.
     ///
     /// # Errors
     ///
-    /// Returns [`SyncError`] on a gap, a bad `prev`, a duplicate, or a
-    /// body that fails `body_matches`. `self` is unchanged.
-    pub fn pull<S: HeaderSource>(
-        &mut self,
+    /// Returns [`SyncError`] on a gap, a bad `prev`, or a duplicate.
+    pub fn link_headers<S: HeaderSource>(
+        &self,
         source: &S,
         remote_tip: u32,
-        mut body_matches: impl FnMut(&SyncHeader, &[u8]) -> bool,
-    ) -> Result<SyncStats, SyncError> {
+    ) -> Result<LinkedHeaders, SyncError> {
         if remote_tip <= self.height {
-            return Ok(SyncStats {
-                headers_verified: 0,
-                bodies_accepted: 0,
+            return Ok(LinkedHeaders {
+                accepted: Vec::new(),
+                tip: self.tip,
                 header_requests: 0,
-                body_requests: 0,
             });
         }
         let window = self.config.window.max(1);
@@ -224,11 +221,62 @@ impl HeaderFirstSync {
                 return Err(SyncError::MissingHeader(next_check));
             }
         }
+        Ok(LinkedHeaders {
+            accepted,
+            tip,
+            header_requests,
+        })
+    }
 
+    /// Link headers from `self.height + 1` through `remote_tip`, then
+    /// fetch bodies at every new height. `body_matches` is the caller's
+    /// check that the body is the one committed by the header.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SyncError`] on a gap, a bad `prev`, a duplicate, or a
+    /// body that fails `body_matches`. `self` is unchanged.
+    pub fn pull<S: HeaderSource>(
+        &mut self,
+        source: &S,
+        remote_tip: u32,
+        body_matches: impl FnMut(&SyncHeader, &[u8]) -> bool,
+    ) -> Result<SyncStats, SyncError> {
+        self.pull_bodies_from(source, remote_tip, 1, body_matches)
+    }
+
+    /// Like [`Self::pull`], but bodies at heights below `first_body`
+    /// are not requested. Headers in that range are still linked.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`Self::pull`]. `self` is unchanged on error.
+    pub fn pull_bodies_from<S: HeaderSource>(
+        &mut self,
+        source: &S,
+        remote_tip: u32,
+        first_body: u32,
+        mut body_matches: impl FnMut(&SyncHeader, &[u8]) -> bool,
+    ) -> Result<SyncStats, SyncError> {
+        let linked = self.link_headers(source, remote_tip)?;
+        if linked.accepted.is_empty() {
+            return Ok(SyncStats {
+                headers_verified: 0,
+                bodies_accepted: 0,
+                header_requests: linked.header_requests,
+                body_requests: 0,
+            });
+        }
+        let window = self.config.window.max(1);
         let mut body_requests = 0u32;
         let mut bodies_accepted = 0u32;
-        let heights: Vec<u32> = accepted.iter().map(|h| h.height).collect();
-        for chunk in heights.chunks(window as usize) {
+        let heights: Vec<u32> = linked
+            .accepted
+            .iter()
+            .map(|h| h.height)
+            .filter(|h| *h >= first_body)
+            .collect();
+        for chunk in heights.chunks(usize::try_from(window).unwrap_or(usize::MAX)) {
             body_requests = body_requests.saturating_add(1);
             let bodies = source.bodies(chunk);
             if bodies.len() != chunk.len() {
@@ -238,7 +286,8 @@ impl HeaderFirstSync {
                 });
             }
             for (height, body) in chunk.iter().zip(bodies.iter()) {
-                let header = accepted
+                let header = linked
+                    .accepted
                     .iter()
                     .find(|h| h.height == *height)
                     .ok_or(SyncError::MissingHeader(*height))?;
@@ -249,17 +298,28 @@ impl HeaderFirstSync {
             }
         }
 
-        let headers_verified = u32::try_from(accepted.len()).unwrap_or(u32::MAX);
+        let headers_verified = u32::try_from(linked.accepted.len()).unwrap_or(u32::MAX);
         self.height = remote_tip;
-        self.tip = tip;
-        self.headers.extend(accepted);
+        self.tip = linked.tip;
+        self.headers.extend(linked.accepted);
         Ok(SyncStats {
             headers_verified,
             bodies_accepted,
-            header_requests,
+            header_requests: linked.header_requests,
             body_requests,
         })
     }
+}
+
+/// Headers linked by [`HeaderFirstSync::link_headers`], not yet committed.
+#[derive(Clone, Debug)]
+pub struct LinkedHeaders {
+    /// Newly linked headers, in height order.
+    pub accepted: Vec<SyncHeader>,
+    /// Id of the last linked header, or the previous tip when `accepted` is empty.
+    pub tip: [u8; 32],
+    /// How many header windows were requested.
+    pub header_requests: u32,
 }
 
 /// Id of a synthetic header at `height` whose parent id is `prev`.
