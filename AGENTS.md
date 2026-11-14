@@ -49,6 +49,7 @@ A **lane** is a standing role; an **agent** is whoever is currently working that
 | **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` | Emission/treasury identity sims for every economics-touching unit |
 | **7** | Testnet launch | Internet-facing go-live ([`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md)), VPS runbook, `seed_nodes` publication, faucet/observer/front-end ops, launch ceremony | Protocol tests (4/6), CI/Nightly fixes (1), evidence tooling (2) | Launch-blocker honesty (never fake TL completion; `launch-go-no-go` gate) |
 | **F** | Ease of use | User wallet, CLI, WASM, light-client receive, testnet-frontend, plain-language docs | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet | A person can use the network without reading a protocol spec |
+| **H** | Unstoppable distribution | Packaging, reproducible builds, signed releases, self-host, content gateway, offline signing | Consensus, wallet UX, network anonymity, storage protocol, fuzzing | Local build and verify only; no VPS |
 
 Adding lanes 8+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
 
@@ -142,6 +143,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 **Seat F (2026-11-14):** ease of use. Owns user-facing wallet/CLI/WASM/frontend flows. Does not edit Seat A economics, Seat B privacy/slash, or Seat C validity files. No VPS. No header-version or DEFAULT change.
 
+**Seat H (2026-11-14):** unstoppable distribution and self-hosting. Owns packaging, release verify, content gateways, and offline install. Does not edit other seats' protocol, wallet, network, or storage files. No VPS. No header-version or DEFAULT change.
+
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
@@ -152,6 +155,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
+| **H** Distribution | **H-5** content-addressed release mirrors (this commit). Claim base `02ba4bc6` | *Idle* | **H-6** air-gapped wallet signing | mirror manifest tests |
 
 ---
 
@@ -535,6 +539,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane H - H-5 content-addressed mirrors** (this commit): a release file gets an IPFS CID, a BitTorrent magnet, and the chain `data_root`, so the bytes can move without GitHub. Off consensus. No VPS. Claim base `02ba4bc6`. Next: **H-6** air-gapped signing.
 
 1. **2026-11-14 - lane F - F-8 file card** (this commit): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Claim base `4aedafe9`. Next: **F-9** `wallet ready`.
 
