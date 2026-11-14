@@ -960,6 +960,7 @@ dependencies = [
  "criterion",
  "curve25519-dalek",
  "hex",
+ "mfn-consensus",
  "mfn-crypto",
  "sha2",
  "thiserror 1.0.69",
