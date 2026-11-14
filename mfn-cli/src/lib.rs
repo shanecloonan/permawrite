@@ -19,8 +19,10 @@ pub mod light_subjectivity;
 pub mod light_wallet;
 pub mod operator_cmd;
 pub mod rpc;
+pub mod tor_mode;
 pub mod uploads_cmd;
 pub mod wallet_cmd;
+mod wallet_lock;
 pub mod wallet_store;
 
 /// Wallet-side upload artifact persistence (**M3.24**, crate **M6**).

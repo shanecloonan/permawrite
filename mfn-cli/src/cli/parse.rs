@@ -141,6 +141,10 @@ pub(crate) enum OperatorSub {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum WalletSub {
     New,
+    /// Seal the seed with `MFN_WALLET_PASSPHRASE`.
+    Lock,
+    /// Write the seed in plaintext again. Requires the same passphrase.
+    Unlock,
     Restore {
         seed_hex: String,
         key_derivation: KeyDerivation,
@@ -167,6 +171,7 @@ pub(crate) struct Parsed {
     pub(crate) rpc_addr: String,
     pub(crate) rpc_api_key: Option<String>,
     pub(crate) rpc_tor: bool,
+    pub(crate) no_tor: bool,
     pub(crate) tor_socks5: String,
     pub(crate) wallet_path: Option<String>,
     pub(crate) cmd: Cmd,
@@ -195,6 +200,8 @@ pub(super) fn usage() -> &'static str {
        mempool           list mempool tx ids (get_mempool)\n\
        call METHOD       arbitrary JSON-RPC call; prints pretty JSON result\n\
        wallet new        create wallet.json with a fresh 32-byte seed\n\
+       wallet lock       seal the seed with MFN_WALLET_PASSPHRASE (not a command-line flag)\n\
+       wallet unlock     write the seed in plaintext again (requires the passphrase)\n\
        wallet restore SEED_HEX  restore wallet.json from a 32-byte seed\n\
                          options: --key-derivation mfn_wallet_v1|payout_stealth_v1\n\
        wallet address    print view/spend public keys from wallet file\n\
@@ -212,7 +219,9 @@ pub(super) fn usage() -> &'static str {
                          options: --json\n\
        wallet backup-info  print wallet/artifact backup inventory (no seed output)\n\
                          options: --json\n\
-wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx (F7: need ≥2 owned UTXOs)\n\
+       wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx (F7: need ≥2 owned UTXOs)\n\
+                         AMOUNT and --fee: bare whole numbers are atomic units;\n\
+                         1.5mfn is coins (1 MFN = 100000000 atomic). Extra decimals are refused.\n\
 wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
                          options: --fee N --ring-size N (default 16, wallet/consensus floor) --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
@@ -309,6 +318,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
     let mut wallet_path: Option<String> = None;
     let mut params_json: Option<String> = None;
     let mut force = false;
+    let mut no_tor = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -323,6 +333,11 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         }
         if a == "--tor" {
             rpc_tor = true;
+            i += 1;
+            continue;
+        }
+        if a == "--no-tor" {
+            no_tor = true;
             i += 1;
             continue;
         }
@@ -447,6 +462,9 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         positional.push(a);
         i += 1;
     }
+    if rpc_tor && no_tor {
+        return Err(CliError::Usage("pass only one of --tor or --no-tor".into()));
+    }
     if positional.is_empty() {
         return Err(CliError::Usage(crate::help::help_for(&[])));
     }
@@ -541,6 +559,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         rpc_addr,
         rpc_api_key,
         rpc_tor,
+        no_tor,
         tor_socks5,
         wallet_path,
         cmd,
@@ -1148,7 +1167,7 @@ pub(super) fn parse_wallet_cmd(
         "balance" => WalletSub::Balance(parse_wallet_scan_args(&rest[1..], "balance")?),
         "status" => WalletSub::Status(parse_wallet_status_args(&rest[1..])?),
         "backup-info" => WalletSub::BackupInfo(parse_wallet_backup_info_args(&rest[1..])?),
-        "new" | "address" | "ready" => {
+        "new" | "address" | "ready" | "lock" | "unlock" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
                     "wallet {sub_name} takes no extra arguments\n{}",
@@ -1159,6 +1178,8 @@ pub(super) fn parse_wallet_cmd(
                 "new" => WalletSub::New,
                 "address" => WalletSub::Address,
                 "ready" => WalletSub::Ready,
+                "lock" => WalletSub::Lock,
+                "unlock" => WalletSub::Unlock,
                 _ => unreachable!(),
             }
         }
@@ -1567,6 +1588,10 @@ fn split_host_list(raw: &str) -> Vec<String> {
         .collect()
 }
 
+fn parse_money(raw: &str, what: &str) -> Result<u64, CliError> {
+    mfn_wallet::parse_amount(raw).map_err(|e| CliError::Usage(format!("{what}: {e}")))
+}
+
 pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
     let mut fee = DEFAULT_TRANSFER_FEE;
     let mut ring_size = DEFAULT_RING_SIZE;
@@ -1585,9 +1610,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = v
-                .parse()
-                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            fee = parse_money(v, "--fee")?;
             i += 2;
             continue;
         }
@@ -1659,9 +1682,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             positional[2],
         )
     };
-    let amount: u64 = amount_raw
-        .parse()
-        .map_err(|_| CliError::Usage("AMOUNT must be a non-negative integer".into()))?;
+    let amount: u64 = parse_money(amount_raw, "AMOUNT")?;
     Ok(SendParams {
         to_view_hex,
         to_spend_hex,
@@ -1723,10 +1744,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = Some(
-                v.parse()
-                    .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?,
-            );
+            fee = Some(parse_money(v, "--fee")?);
             i += 2;
             continue;
         }
@@ -1744,9 +1762,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--anchor-value requires a value".into()));
             };
-            anchor_value = v.parse().map_err(|_| {
-                CliError::Usage("--anchor-value must be a non-negative integer".into())
-            })?;
+            anchor_value = parse_money(v, "--anchor-value")?;
             i += 2;
             continue;
         }
@@ -1851,9 +1867,7 @@ pub(super) fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliE
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = v
-                .parse()
-                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            fee = parse_money(v, "--fee")?;
             i += 2;
             continue;
         }
