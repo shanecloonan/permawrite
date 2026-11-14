@@ -665,6 +665,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 | **B-37 / B6 / P6** | Hidden fees inside balance equation | 4 | ✓ Gated at header v6; header v1 keeps public `tx.fee` |
 | **B-317** | Retrieval challenge: silence slashes the storage-operator bond | 4+5 | ✓ Gated at header v7; [`RETRIEVAL_CHALLENGE.md`](./RETRIEVAL_CHALLENGE.md). Path A off |
 | **B-318** | Output-count power-of-two buckets | 4+5 | ✓ Gated at header v8; header v1 still accepts 3 outputs |
+| **B-319** | Wallet pads outputs to that bucket | 5 | ✓ 2 stays 2; 3 becomes 4. Valid on header v1 and required on v8 |
 | **B-19** | F9: decoy-RNG entropy contract + conformance tests | 5 | ✓ **Shipped** — [`DECOY_RNG.md`](./DECOY_RNG.md); no consensus change |
 | **B4 decoy** | Gamma calibration / age-band refinements if ring stays at 16 longer | 5 | Partially shipped; re-evaluate after Tier 2 |
 | **B-21** | B7 Dandelion++ internet soak evidence (stem/fluff timing) | 1 | Unblocks Phase 7+ **P16** cover traffic |
