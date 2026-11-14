@@ -7,6 +7,7 @@ import { observerCommands, walletCommands } from "@/lib/testnet/commands";
 import LiveStats from "./live-stats";
 import { useLiveSnapshot } from "./use-live-snapshot";
 import BrowserWallet from "./browser-wallet";
+import FileVault from "./file-vault";
 import HeaderCheck from "./header-check";
 import WalletGenerator from "./wallet-generator";
 import { CodeBlock, CopyButton, useCopyFeedback } from "./ui";
@@ -229,6 +230,7 @@ export default function TestnetApp() {
             </div>
             <BrowserWallet />
             <HeaderCheck rpcProxyUrl={config.rpc_proxy_url} />
+            <FileVault />
             <WalletGenerator rpcProxyUrl={config.rpc_proxy_url} />
           </section>
 
