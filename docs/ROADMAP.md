@@ -646,7 +646,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 |---|---|---|---|
 | **F5 4b.1** | Batch-binding STARK + witness kind 3 (Winterfell) | 4 | ✓ **Shipped** (`6377812`) |
 | **F5 4b.2** | Recursive STARK aggregation over batch-binding circuits | 4 | Follows 4b.1; backlog **B-12** — after L4 unless fix-forward |
-| **F5 1c+** | Fraud-proof producer slash hooks wired to bond registry | 4 | Interactive fraud phases 0–3b shipped; slash deferred |
+| **F5 1c+** | Fraud-proof producer slash hooks wired to bond registry | 4 | ✓ **Shipped** — slash drops `pending_unbonds`; stake forfeiture unchanged |
 | **F5 4c** | Prover service / block-producer validity witness generation | 4 | After 4b.2 digest chain complete |
 | **B-18** | F15: document + test MFBN-1 VRF variant ([`PROBLEMS.md` §15](./PROBLEMS.md#15-the-vrf-is-rfc-9381-style-not-rfc-9381-conformant)) | 4 | ✓ **Shipped** — golden `(pk, H, β, π)` pin; no Elligator2 fork |
 | **Observer** | Persisted tx index + explore parity under load (fix-forward as needed) | 7 | Partially shipped; monitor on public VPS |

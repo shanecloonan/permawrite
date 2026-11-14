@@ -50,6 +50,7 @@ pub enum EquivocationError {
 #[cfg(feature = "bls")]
 pub fn apply_equivocation_slashings(
     validators: &mut [Validator],
+    pending_unbonds: &mut BTreeMap<u32, PendingUnbond>,
     slashings: &[SlashEvidence],
     emission_params: &crate::emission::EmissionParams,
     subsidy_schedule: crate::emission::SubsidyBpsSchedule,
@@ -84,6 +85,10 @@ pub fn apply_equivocation_slashings(
                         .saturating_add(u128::from(validators[idx].stake));
                     validators[idx].stake = 0;
                 }
+                // F5 1c+: a successful slash (equivocation or invalid-block)
+                // drops the bond-registry exit. Stake was already forfeited
+                // above; `stake_at_request` is not added again.
+                pending_unbonds.remove(&offender);
             }
             Err(reason) => out
                 .errors
@@ -96,6 +101,7 @@ pub fn apply_equivocation_slashings(
 #[cfg(not(feature = "bls"))]
 pub fn apply_equivocation_slashings(
     validators: &mut [Validator],
+    pending_unbonds: &mut BTreeMap<u32, PendingUnbond>,
     slashings: &[SlashEvidence],
     _emission_params: &crate::emission::EmissionParams,
     _subsidy_schedule: crate::emission::SubsidyBpsSchedule,
@@ -130,6 +136,7 @@ pub fn apply_equivocation_slashings(
                         .saturating_add(u128::from(validators[idx].stake));
                     validators[idx].stake = 0;
                 }
+                pending_unbonds.remove(&ev.voter_index);
             }
             other => out.errors.push(EquivocationError::Invalid {
                 index: si,

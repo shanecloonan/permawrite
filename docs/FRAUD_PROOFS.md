@@ -206,6 +206,15 @@ Requires **`header_version` bump** (checkpoint v12+) because `slashings` wire sh
 | `invalid_block_slash_rejects_same_height` | `mfn-consensus` | evidence in block H cannot target block H (**shipped** `69c0531`) |
 | `mfnd_gossip_fraud_to_slash_hint` | `mfn-node` | ops log still emitted; registry + future slash builder |
 
+### Bond registry (1c+)
+
+A successful slash (equivocation or invalid-block) removes that validator's
+`pending_unbonds` entry in the same step that zeroes stake.
+`apply_equivocation_slashings` is the shared helper for the full node and
+the light client, so the exit set cannot diverge. `stake_at_request` is not
+added to the treasury again: register already credited those units, and the
+live stake forfeiture is the slash.
+
 ### Non-goals (phase 1c)
 
 - SNARK/STARK validity proofs (phase **4**).
