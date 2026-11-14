@@ -19,6 +19,7 @@ pub mod light_subjectivity;
 pub mod light_wallet;
 pub mod operator_cmd;
 pub mod rpc;
+pub mod setup;
 pub mod tor_mode;
 pub mod uploads_cmd;
 pub mod wallet_cmd;
