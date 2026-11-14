@@ -1574,6 +1574,10 @@ pub(super) fn parse_wallet_compare_trusted_summary_args(
     })
 }
 
+fn parse_money(raw: &str, what: &str) -> Result<u64, CliError> {
+    mfn_wallet::parse_amount(raw).map_err(|e| CliError::Usage(format!("{what}: {e}")))
+}
+
 fn split_host_list(raw: &str) -> Vec<String> {
     raw.split(&[',', ' ', '\t'][..])
         .map(str::trim)
@@ -1600,9 +1604,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = v
-                .parse()
-                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            fee = parse_money(v, "--fee")?;
             i += 2;
             continue;
         }
@@ -1674,9 +1676,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             positional[2],
         )
     };
-    let amount: u64 = amount_raw
-        .parse()
-        .map_err(|_| CliError::Usage("AMOUNT must be a non-negative integer".into()))?;
+    let amount = parse_money(amount_raw, "AMOUNT")?;
     Ok(SendParams {
         to_view_hex,
         to_spend_hex,
@@ -1738,10 +1738,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = Some(
-                v.parse()
-                    .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?,
-            );
+            fee = Some(parse_money(v, "--fee")?);
             i += 2;
             continue;
         }
@@ -1866,9 +1863,7 @@ pub(super) fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliE
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = v
-                .parse()
-                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            fee = parse_money(v, "--fee")?;
             i += 2;
             continue;
         }
