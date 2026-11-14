@@ -148,7 +148,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
-| **8** Storage (Seat E) | **E-16** seed upload key (parent) | **E-17** shard assignment (this commit) | Prove from shard files when payload.bin is missing. No VPS | assignment test |
+| **8** Storage (Seat E) | **E-17** shard assignment (parent) | **E-18** prove after payload.bin is gone (this commit) | No VPS | shard reload test |
 
 ---
 
@@ -533,7 +533,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 8 / Seat E - E-17 shard assignment** (this commit): shard `i` stays with operator `i % count`. The prove cycle, when `MFN_OPERATOR_INDEX` and `MFN_OPERATOR_COUNT` are set, deletes the other shard files. Six operators keep two shards each. Two of them rebuild the file; one cannot. Path A unchanged.
+1. **2026-11-14 - lane 8 / Seat E - E-18 shard payload reload** (this commit): `load_upload_artifact` rebuilds `payload.bin` from any four `shard-NN.bin` files when the payload file is missing. The prove loop loads artifacts through that function, so a proof can still be built. Path A unchanged.
+
+1. **2026-11-14 - lane 8 / Seat E - E-17 shard assignment** (parent): shard `i` stays with operator `i % count`. The prove cycle, when `MFN_OPERATOR_INDEX` and `MFN_OPERATOR_COUNT` are set, deletes the other shard files. Six operators keep two shards each. Two of them rebuild the file; one cannot. Path A unchanged.
 
 1. **2026-11-14 - lane 8 / Seat E - E-16 seed upload key** (parent): `upload_key_from_seed` is `dhash(MFBN-1/upload-key-v1, seed)`. `wallet upload` encrypts with that key unless `--plaintext`. `wallet new` and `wallet restore` write `upload.key`. The 24-word phrase in Seat F's PR restores this seed, so it restores the key. No second seed. Path A unchanged.
 
