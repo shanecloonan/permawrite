@@ -88,6 +88,8 @@ pub mod transaction;
 pub mod validator_evolution;
 #[cfg(feature = "bls")]
 pub mod validity_proof;
+#[cfg(feature = "winterfell")]
+pub mod validity_stark_coinbase;
 #[cfg(feature = "bls")]
 pub mod validity_stark_stub;
 #[cfg(all(feature = "bls", feature = "winterfell"))]
