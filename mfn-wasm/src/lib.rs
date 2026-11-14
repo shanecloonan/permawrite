@@ -28,8 +28,8 @@ mod transfer_core;
 mod upload_core;
 
 pub use core::{
-    claim_pubkey_hex_from_seed, storage_upload_preview_json, wallet_address_json_from_seed,
-    WasmCoreError,
+    claim_pubkey_hex_from_seed, phrase_from_seed, seed_hex_from_phrase,
+    storage_upload_preview_json, wallet_address_json_from_seed, WasmCoreError,
 };
 
 pub use wasm::{

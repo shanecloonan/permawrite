@@ -49,9 +49,11 @@
 
 pub mod claiming;
 pub mod keys;
+pub mod mnemonic;
 
 pub use claiming::ClaimingIdentity;
 pub use keys::{wallet_from_seed, WalletKeys};
+pub use mnemonic::{mnemonic_from_seed, seed_from_mnemonic, MnemonicError};
 
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod decoy;
