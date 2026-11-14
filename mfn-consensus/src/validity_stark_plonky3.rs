@@ -49,7 +49,10 @@ const P_LEAF_B: usize = 8;
 const P_ROOT_B: usize = 9;
 const P_INDEX_B: usize = 10;
 const P_PARENT: usize = 11;
-const NUM_PUBLIC: usize = 15;
+const P_TX: usize = 15;
+const P_SPORA: usize = 16;
+const NUM_PUBLIC: usize = 17;
+const MAX_STATEMENT_COUNT: u32 = 1_024;
 
 const C_CUR: usize = 0;
 const C_SIB: usize = 1;
@@ -64,7 +67,10 @@ const C_ALIVE: usize = 9;
 const C_INV: usize = 10;
 const C_ROUNDS: usize = 11;
 const PATH_SPAN: usize = C_ROUNDS + ROUNDS * 4;
-const WIDTH: usize = PATH_SPAN * 2;
+const PATHS_WIDTH: usize = PATH_SPAN * 2;
+const C_TX: usize = PATHS_WIDTH;
+const C_SPORA: usize = PATHS_WIDTH + 1;
+const WIDTH: usize = PATHS_WIDTH + 2;
 
 type Val = BabyBear;
 type Perm = Poseidon2BabyBear<16>;
@@ -100,6 +106,10 @@ pub struct AggregatedClaim {
     pub leaves_b: Vec<u32>,
     /// Index in the padded second tree.
     pub index_b: u32,
+    /// User transactions named by the statement, at most 1_024.
+    pub tx_count: u32,
+    /// Storage proofs named by the statement, at most 1_024.
+    pub spora_count: u32,
     /// Parent state digest as four BabyBear limbs.
     pub parent_digest: [u32; 4],
 }
@@ -129,6 +139,10 @@ pub struct AggregatedOutputs {
     pub root_b: u32,
     /// Index in the padded second tree.
     pub index_b: u32,
+    /// User transactions named by the statement, at most 1_024.
+    pub tx_count: u32,
+    /// Storage proofs named by the statement, at most 1_024.
+    pub spora_count: u32,
     /// Parent state digest as four BabyBear limbs.
     pub parent_digest: [u32; 4],
 }
@@ -210,7 +224,12 @@ pub fn verify_aggregated_outputs(
 }
 
 fn public_values(claim: &AggregatedClaim) -> Result<Vec<Val>, AggregateError> {
-    if claim.fee_to_treasury_bps > 10_000 || claim.index_a >= 16 || claim.index_b >= 16 {
+    if claim.fee_to_treasury_bps > 10_000
+        || claim.index_a >= 16
+        || claim.index_b >= 16
+        || claim.tx_count > MAX_STATEMENT_COUNT
+        || claim.spora_count > MAX_STATEMENT_COUNT
+    {
         return Err(AggregateError::OutOfRange);
     }
     let product = u128::from(claim.fee_sum) * u128::from(claim.fee_to_treasury_bps);
@@ -249,6 +268,8 @@ fn public_values(claim: &AggregatedClaim) -> Result<Vec<Val>, AggregateError> {
         v(claim.parent_digest[1])?,
         v(claim.parent_digest[2])?,
         v(claim.parent_digest[3])?,
+        v(claim.tx_count)?,
+        v(claim.spora_count)?,
     ]);
     Ok(public)
 }
@@ -258,6 +279,8 @@ fn public_from_outputs(outputs: &AggregatedOutputs) -> Result<Vec<Val>, Aggregat
         || outputs.remainder >= 10_000
         || outputs.index_a >= 16
         || outputs.index_b >= 16
+        || outputs.tx_count > MAX_STATEMENT_COUNT
+        || outputs.spora_count > MAX_STATEMENT_COUNT
     {
         return Err(AggregateError::OutOfRange);
     }
@@ -281,6 +304,8 @@ fn public_from_outputs(outputs: &AggregatedOutputs) -> Result<Vec<Val>, Aggregat
         v(outputs.parent_digest[1])?,
         v(outputs.parent_digest[2])?,
         v(outputs.parent_digest[3])?,
+        v(outputs.tx_count)?,
+        v(outputs.spora_count)?,
     ])
 }
 
@@ -309,6 +334,10 @@ fn trace_for(
         &sib_b,
         claim.index_b,
     );
+    for row in 0..TRACE_LEN {
+        values[row * WIDTH + C_TX] = public[P_TX];
+        values[row * WIDTH + C_SPORA] = public[P_SPORA];
+    }
     Ok(RowMajorMatrix::new(values, WIDTH))
 }
 
@@ -490,6 +519,8 @@ where
         let leaf_b = ex::<AB>(pis[P_LEAF_B]);
         let root_b = ex::<AB>(pis[P_ROOT_B]);
         let index_b = ex::<AB>(pis[P_INDEX_B]);
+        let tx_count = ex::<AB>(pis[P_TX]);
+        let spora_count = ex::<AB>(pis[P_SPORA]);
 
         {
             let mut first = builder.when_first_row();
@@ -516,6 +547,8 @@ where
         }
         constrain_path(builder, local, next, 0);
         constrain_path(builder, local, next, PATH_SPAN);
+        builder.assert_eq(local[C_TX], tx_count);
+        builder.assert_eq(local[C_SPORA], spora_count);
     }
 }
 
@@ -599,6 +632,8 @@ mod tests {
             index_a: 0,
             leaves_b: vec![21, 22, 23, 24],
             index_b: 3,
+            tx_count: 2,
+            spora_count: 1,
             parent_digest: [9, 8, 7, 6],
         }
     }
@@ -617,6 +652,8 @@ mod tests {
             leaf_b: claim.leaves_b[claim.index_b as usize],
             root_b: babybear_merkle_root(&claim.leaves_b).unwrap(),
             index_b: claim.index_b,
+            tx_count: claim.tx_count,
+            spora_count: claim.spora_count,
             parent_digest: claim.parent_digest,
         }
     }
@@ -640,6 +677,9 @@ mod tests {
         let mut bad_root = claim.clone();
         bad_root.leaves_a[0] ^= 1;
         assert!(verify_aggregated(&bad_root, &proof).is_err());
+        let mut bad_count = claim;
+        bad_count.tx_count += 1;
+        assert!(verify_aggregated(&bad_count, &proof).is_err());
     }
 
     #[test]
@@ -683,5 +723,25 @@ mod tests {
             verify_aggregated_outputs(&other_height, &proof),
             Err(AggregateError::ProofInvalid)
         );
+    }
+
+    #[test]
+    fn b320_tx_and_spora_counts_are_bound() {
+        let claim = claim();
+        let proof = prove_aggregated(&claim).unwrap();
+        let outputs = outputs_of(&claim);
+        verify_aggregated_outputs(&outputs, &proof).unwrap();
+        let mut other = outputs;
+        other.spora_count += 1;
+        assert_eq!(
+            verify_aggregated_outputs(&other, &proof),
+            Err(AggregateError::ProofInvalid)
+        );
+        let mut huge = claim;
+        huge.tx_count = MAX_STATEMENT_COUNT + 1;
+        assert!(matches!(
+            prove_aggregated(&huge),
+            Err(AggregateError::OutOfRange)
+        ));
     }
 }
