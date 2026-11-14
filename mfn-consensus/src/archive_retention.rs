@@ -81,10 +81,12 @@ pub enum ChainStateField {
     PendingUnbonds,
     /// [`crate::block::ChainState::header_version`].
     HeaderVersion,
+    /// [`crate::block::ChainState::retrieval`]. Open challenges are consensus.
+    Retrieval,
 }
 
 /// Must equal the number of fields on [`crate::block::ChainState`].
-pub const CHAIN_STATE_FIELD_COUNT: usize = 24;
+pub const CHAIN_STATE_FIELD_COUNT: usize = 25;
 
 /// Retention policy generation.
 ///
@@ -139,6 +141,7 @@ pub const CHAIN_STATE_FIELDS: [ChainStateField; CHAIN_STATE_FIELD_COUNT] = [
     ChainStateField::NextValidatorIndex,
     ChainStateField::PendingUnbonds,
     ChainStateField::HeaderVersion,
+    ChainStateField::Retrieval,
 ];
 
 /// Retention class for a live [`crate::block::ChainState`] field.
@@ -171,7 +174,8 @@ pub fn chain_state_field_retention(field: ChainStateField) -> Retention {
         | ChainStateField::BondEpochExitCount
         | ChainStateField::NextValidatorIndex
         | ChainStateField::PendingUnbonds
-        | ChainStateField::HeaderVersion => Retention::ConsensusKeep,
+        | ChainStateField::HeaderVersion
+        | ChainStateField::Retrieval => Retention::ConsensusKeep,
     }
 }
 
@@ -354,6 +358,7 @@ mod tests {
             next_validator_index,
             pending_unbonds,
             header_version,
+            retrieval,
         } = crate::block::ChainState::empty();
         let _ = (
             height,
@@ -380,7 +385,8 @@ mod tests {
             next_validator_index,
             pending_unbonds,
             header_version,
+            retrieval,
         );
-        assert_eq!(CHAIN_STATE_FIELD_COUNT, 24);
+        assert_eq!(CHAIN_STATE_FIELD_COUNT, 25);
     }
 }

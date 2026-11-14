@@ -346,12 +346,9 @@ non-default cargo features in `mfn-crypto/Cargo.toml`. Consequences:
 check needs `fee·H`. It is the last plaintext amount on every tx and a
 fee-fingerprinting vector.
 
-**Plan.** Move to committed fees with a range proof; reveal only the
-per-block aggregated fee total for the coinbase check in `apply_block`.
-Touches [`pedersen.rs`](../mfn-crypto/src/pedersen.rs) balance helpers and the
-coinbase settlement path in
-[`emission.rs`](../mfn-consensus/src/emission.rs) /
-[`block/apply.rs`](../mfn-consensus/src/block/apply.rs).
+**Shipped, gated (B-37).** Header version 6 commits each fee and discloses
+only the block sum. Header v1 keeps the public `u64` fee. Reference wallets
+still build plaintext-fee transactions.
 
 **Effort:** high. **Risk:** high (consensus).
 

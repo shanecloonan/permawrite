@@ -24,8 +24,8 @@ Synced at Seat C **B-317** field-Merkle opening (off consensus). Path A and F-A 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **F5 1c+** slash drops pending unbond (this merge); **B-19**; **B-35** header v4 | *Idle* | **B-17** ASN peer buckets. No B-13c; no DEFAULT flip |
-| **C** Validity proofs | **B-317** field-Merkle opening (this commit); **B-316** on main | *Idle* | **B-12** Plonky3 aggregation |
+| **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
+| **C** Validity proofs | field-Merkle opening (this merge); **B-316** on main | *Idle* | **B-12** Plonky3 aggregation |
 
 ### Hard locks (all seats)
 
@@ -58,7 +58,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done F5 1c+ slash drops the bond-registry exit / Doing idle / Next B-17 ASN peer buckets (no B-13c, no DEFAULT flip)
-3agent — Seat C: Done B-317 field-Merkle opening / Doing idle / Next B-12 Plonky3 aggregation
+3agent — Seat B: Done B-317 retrieval challenges at header v7 / Doing idle / Next output-count padding, header-gated (no DEFAULT flip)
+3agent — Seat C: Done field-Merkle opening / Doing idle / Next B-12 Plonky3 aggregation
 (AGENTS.md §5 remains the claim surface)
 ```

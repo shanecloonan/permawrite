@@ -206,6 +206,123 @@ fn single_input_tx_rejected_when_input_floor_active() {
     );
 }
 
+/// B-37: a committed fee verifies only when the hidden-fee policy is on.
+#[test]
+fn b37_hidden_fee_is_inactive_on_header_v1() {
+    use crate::block::{DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION, HEADER_VERSION_HIDDEN_FEES};
+    use crate::fee_commitments_open;
+    use crate::sign_hidden_fee_transaction;
+
+    assert!(
+        !DEFAULT_CONSENSUS_PARAMS
+            .ring_policy_for_header(HEADER_VERSION)
+            .hidden_fees
+    );
+    assert!(
+        DEFAULT_CONSENSUS_PARAMS
+            .ring_policy_for_header(HEADER_VERSION_HIDDEN_FEES)
+            .hidden_fees
+    );
+
+    let inputs = vec![make_input(600_000, 4), make_input(400_000, 4)];
+    let (_w_a, ra) = recipient();
+    let (_w_b, rb) = recipient();
+    let outputs = vec![
+        OutputSpec::ToRecipient {
+            recipient: ra,
+            value: 500_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: rb,
+            value: 490_000,
+            storage: None,
+        },
+    ];
+    let fee = 10_000u64;
+    let signed = sign_hidden_fee_transaction(inputs, outputs, fee, Vec::new()).expect("sign");
+    assert_eq!(
+        signed.tx.fee, 0,
+        "plaintext fee must not fingerprint the tx"
+    );
+    let commit = signed.tx.fee_commitment.expect("commitment");
+    let blinding = signed.fee_blinding.expect("blinding");
+    assert!(fee_commitments_open(&[commit], fee, &blinding));
+
+    let v1 = verify_transaction(&signed.tx, &RingPolicy::TEST);
+    assert!(!v1.ok, "header v1 must reject a hidden-fee tx");
+    assert!(
+        v1.errors.iter().any(|e| e.contains("header version 6")),
+        "{:?}",
+        v1.errors
+    );
+
+    let gated = RingPolicy {
+        hidden_fees: true,
+        ..RingPolicy::TEST
+    };
+    let ok = verify_transaction(&signed.tx, &gated);
+    assert!(
+        ok.ok,
+        "hidden-fee policy must accept the commitment: {:?}",
+        ok.errors
+    );
+}
+
+/// Tier 2 rings are 32 or 64, and only at header version 5.
+#[test]
+fn tier2_ring_sizes_stay_inactive_on_header_v1() {
+    use crate::block::{
+        tier2_ring_size_allowed, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION, HEADER_VERSION_TIER2,
+    };
+    assert!(tier2_ring_size_allowed(HEADER_VERSION, 16).is_ok());
+    assert!(tier2_ring_size_allowed(HEADER_VERSION, 32).is_err());
+    assert!(tier2_ring_size_allowed(HEADER_VERSION, 64).is_err());
+    assert!(tier2_ring_size_allowed(HEADER_VERSION_TIER2, 32).is_ok());
+    assert!(tier2_ring_size_allowed(HEADER_VERSION_TIER2, 64).is_ok());
+    assert!(tier2_ring_size_allowed(HEADER_VERSION_TIER2, 16).is_err());
+    assert!(
+        !DEFAULT_CONSENSUS_PARAMS
+            .ring_policy_for_header(HEADER_VERSION)
+            .tier2_rings
+    );
+    assert!(
+        DEFAULT_CONSENSUS_PARAMS
+            .ring_policy_for_header(HEADER_VERSION_TIER2)
+            .tier2_rings
+    );
+
+    let inputs = vec![make_input(600_000, 4), make_input(500_000, 4)];
+    let (_w_a, ra) = recipient();
+    let (_w_b, rb) = recipient();
+    let outputs = vec![
+        OutputSpec::ToRecipient {
+            recipient: ra,
+            value: 600_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: rb,
+            value: 499_000,
+            storage: None,
+        },
+    ];
+    let signed = sign_transaction(inputs, outputs, 1_000, Vec::new()).expect("sign");
+    let open = verify_transaction(&signed.tx, &RingPolicy::TEST);
+    assert!(open.ok, "{:?}", open.errors);
+    let gated = RingPolicy {
+        tier2_rings: true,
+        ..RingPolicy::TEST
+    };
+    let res = verify_transaction(&signed.tx, &gated);
+    assert!(!res.ok);
+    assert!(
+        res.errors.iter().any(|e| e.contains("Tier 2")),
+        "{:?}",
+        res.errors
+    );
+}
+
 /// B-35: power-of-two input buckets, off on Path A header v1.
 #[test]
 fn b35_input_buckets_follow_header_version_and_reject_three() {

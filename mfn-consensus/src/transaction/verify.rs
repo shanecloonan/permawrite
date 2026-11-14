@@ -6,13 +6,60 @@ use super::build::placeholder_clsag;
 use super::internal::*;
 use super::wire::{TransactionWire, TxInputWire};
 use super::{
-    tx_id, tx_preimage, tx_version_supported, TX_RANGE_BITS, TX_VERSION, TX_VERSION_LEGACY,
+    tx_id, tx_preimage, tx_version_supported, TX_RANGE_BITS, TX_VERSION, TX_VERSION_HIDDEN_FEE,
+    TX_VERSION_LEGACY,
 };
 use crate::block::RingPolicy;
 
 /* ----------------------------------------------------------------------- *
  *  Verification                                                            *
  * ----------------------------------------------------------------------- */
+
+fn hidden_fee_term(
+    tx: &TransactionWire,
+    hidden_fees: bool,
+    errors: &mut Vec<String>,
+) -> EdwardsPoint {
+    if tx.version == TX_VERSION_HIDDEN_FEE {
+        if !hidden_fees {
+            errors.push("hidden-fee transaction requires header version 6".to_string());
+            return EdwardsPoint::identity();
+        }
+        if tx.fee != 0 {
+            errors.push("hidden-fee transaction must encode plaintext fee as 0".to_string());
+        }
+        match (&tx.fee_commitment, &tx.fee_range_proof) {
+            (Some(c), Some(proof)) => {
+                if proof.v != *c || proof.n != TX_RANGE_BITS || !bp_verify(proof) {
+                    errors.push("hidden fee range proof invalid".to_string());
+                }
+                *c
+            }
+            _ => {
+                errors.push("hidden-fee transaction missing fee commitment".to_string());
+                EdwardsPoint::identity()
+            }
+        }
+    } else {
+        if hidden_fees {
+            errors.push("header version 6 requires a hidden-fee transaction".to_string());
+        }
+        if tx.fee_commitment.is_some() || tx.fee_range_proof.is_some() {
+            errors.push("plaintext-fee transaction carries a fee commitment".to_string());
+        }
+        generator_h() * Scalar::from(tx.fee)
+    }
+}
+
+/// `Σ fee_commitment = total·H + blinding·G`.
+#[must_use]
+pub fn fee_commitments_open(commits: &[EdwardsPoint], total: u64, blinding: &Scalar) -> bool {
+    let mut sum = EdwardsPoint::identity();
+    for c in commits {
+        sum += *c;
+    }
+    sum == (generator_g() * blinding) + (generator_h() * Scalar::from(total))
+}
 
 /// Result of [`verify_transaction`].
 #[derive(Clone, Debug)]
@@ -42,7 +89,7 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
             tx.version, TX_VERSION_LEGACY, TX_VERSION
         ));
     }
-    if tx.version == TX_VERSION {
+    if tx.version >= TX_VERSION {
         for (i, out) in tx.outputs.iter().enumerate() {
             if out.view_tag.is_none() {
                 errors.push(format!("v2 output {i} missing view_tag"));
@@ -129,7 +176,8 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
         }
     }
 
-    // Balance equation: Σ c_pseudo − Σ amount − fee·H == 0
+    // Balance equation. Header v1: Σ c_pseudo − Σ amount − fee·H == 0.
+    // Header v6 (B-37): the fee term is a commitment, and plaintext fee is 0.
     let mut balance = EdwardsPoint::identity();
     for inp in &tx.inputs {
         balance += inp.c_pseudo;
@@ -137,7 +185,8 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
     for out in &tx.outputs {
         balance -= out.amount;
     }
-    balance -= generator_h() * Scalar::from(tx.fee);
+    let fee_term = hidden_fee_term(tx, ring.hidden_fees, &mut errors);
+    balance -= fee_term;
     if balance != EdwardsPoint::identity() {
         errors.push("balance proof failed (Σ pseudo ≠ Σ out + fee·H)".to_string());
     }
@@ -159,6 +208,8 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
         outputs: tx.outputs.clone(),
         fee: tx.fee,
         extra: tx.extra.clone(),
+        fee_commitment: tx.fee_commitment,
+        fee_range_proof: tx.fee_range_proof.clone(),
     };
     let msg = tx_preimage(&stub);
 
@@ -196,7 +247,13 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
                 ring.min_ring_size
             ));
         }
-        if ring.uniform_ring_size != 0 && ring_len as u32 != ring.uniform_ring_size {
+        if ring.tier2_rings {
+            if !crate::block::TIER2_RING_SIZES.contains(&(ring_len as u32)) {
+                errors.push(format!(
+                    "input {i}: ring size {ring_len} is not a Tier 2 size (32 or 64)"
+                ));
+            }
+        } else if ring.uniform_ring_size != 0 && ring_len as u32 != ring.uniform_ring_size {
             errors.push(format!(
                 "input {i}: ring size {ring_len} != uniform {}",
                 ring.uniform_ring_size

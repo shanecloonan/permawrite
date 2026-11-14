@@ -660,9 +660,10 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 
 | Id | Deliverable | Lane | Notes |
 |---|---|---|---|
-| **Tier 2** | Ring 32–64 + Bulletproof+ transcripts | 4+5 | Consensus version gate; wallet/CLI/WASM defaults — **after B-25** |
+| **Tier 2** | Ring 32–64 + Bulletproof+ transcripts | 4+5 | Ring 32/64 gated at header v5 (inactive on v1). Bulletproof+ verifier not shipped |
 | **B-35** | F7: consensus input-count padding (wallet floor shipped; finish `verify_transaction` pad) | 4+5 | ✓ **Shipped** gated — header v4 power-of-two buckets; Path A unchanged |
-| **B-37 / B6 / P6** | Hidden fees inside balance equation | 4 | Last plaintext amount; touches coinbase settlement — after B-25 |
+| **B-37 / B6 / P6** | Hidden fees inside balance equation | 4 | ✓ Gated at header v6; header v1 keeps public `tx.fee` |
+| **B-317** | Retrieval challenge: silence slashes the storage-operator bond | 4+5 | ✓ Gated at header v7; [`RETRIEVAL_CHALLENGE.md`](./RETRIEVAL_CHALLENGE.md). Path A off |
 | **B-19** | F9: decoy-RNG entropy contract + conformance tests | 5 | ✓ **Shipped** — [`DECOY_RNG.md`](./DECOY_RNG.md); no consensus change |
 | **B4 decoy** | Gamma calibration / age-band refinements if ring stays at 16 longer | 5 | Partially shipped; re-evaluate after Tier 2 |
 | **B-21** | B7 Dandelion++ internet soak evidence (stem/fluff timing) | 1 | Unblocks Phase 7+ **P16** cover traffic |
@@ -679,7 +680,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 | **TL Path B** | Non-toy genesis ceremony per [`TESTNET_GENESIS_CEREMONY.md`](./TESTNET_GENESIS_CEREMONY.md) | 7 + human | Required before meaningful stake |
 | **Multi-VPS** | Validator / operator / observer on separate hosts (P32 live topology) | 7 | `REFERENCE_TOPOLOGY.md` |
 | **PM1 bonds** | Storage-operator bonds with slash-to-treasury at incentivized scale | 6 | **B5** slashing shipped; Path A bonds `0`; **B-307** helper sizes the floor — enable on Path B genesis |
-| **B-17** | P31 phase 2: ASN-aware peer diversity buckets | 4 | Adversarial testnet prep; builds on P31 /16 metrics (shipped) |
+| **B-17** | P31 phase 2: ASN-aware peer diversity buckets | 4 | ✓ **Shipped** — local ASN table; empty table keeps /16 redial |
 | **Adversarial** | Soak with Byzantine peers, eclipse drills, faucet abuse limits | 1+4 | Build on P31 diversity + quarantine |
 | **Economics** | Fee-drought scenarios with B-13 tail subsidy enabled | 6 | [`ECONOMICS.md`](./ECONOMICS.md) §5 |
 | **UX Phase B** | Mobile/PWA prove loop + packaged storage daemon ([`UX_ACCESSIBILITY.md`](./UX_ACCESSIBILITY.md) §8, [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md) §5) | 3+5 | After L4; WASM prove bindings shipped — scheduling/glue remains |
@@ -740,7 +741,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-313** tail-emission size helper (Path A stays `>> 8`; recommended `>> 9`) | Phase 1 | 6 |
 | **B-314** PM19 cold-proof cadence helper (Path A B5 stays global any-stale) | Phase 1 | 6 |
 | **B-315** Max-permanence upgrade design + non-consensus helpers (no Path A flip) | Phase 1 design / Path B fork | 6 |
-| **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
+| **B-17** P31 ASN diversity buckets | Phase 4 ✓ (local table; /16 default) | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 ✓ | 4 |
 | **B-19** Decoy-RNG entropy contract | Phase 3 ✓ | 5 |
 | **B-20** Producer↔treasury runway coupling | Phase 1 | 6 |

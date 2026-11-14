@@ -101,6 +101,8 @@ pub struct SignedTransaction {
     pub tx: TransactionWire,
     /// Per-output blinding factors (private to the recipient).
     pub output_blindings: Vec<Scalar>,
+    /// Fee-commitment blinding when the fee is hidden. `None` on plaintext fees.
+    pub fee_blinding: Option<Scalar>,
 }
 
 /// Errors raised while building / signing a transaction.
@@ -150,6 +152,27 @@ pub fn sign_transaction(
     outputs: Vec<OutputSpec>,
     fee: u64,
     extra: Vec<u8>,
+) -> Result<SignedTransaction, TxBuildError> {
+    sign_transaction_inner(inputs, outputs, fee, extra, false)
+}
+
+/// Like [`sign_transaction`], but the fee is a commitment and the plaintext
+/// fee field is 0. Valid only on a hidden-fee header.
+pub fn sign_hidden_fee_transaction(
+    inputs: Vec<InputSpec>,
+    outputs: Vec<OutputSpec>,
+    fee: u64,
+    extra: Vec<u8>,
+) -> Result<SignedTransaction, TxBuildError> {
+    sign_transaction_inner(inputs, outputs, fee, extra, true)
+}
+
+fn sign_transaction_inner(
+    inputs: Vec<InputSpec>,
+    outputs: Vec<OutputSpec>,
+    fee: u64,
+    extra: Vec<u8>,
+    hidden_fee: bool,
 ) -> Result<SignedTransaction, TxBuildError> {
     if inputs.is_empty() {
         return Err(TxBuildError::NoInputs);
@@ -222,8 +245,24 @@ pub fn sign_transaction(
         range_proofs.push(bp.proof);
     }
 
+    // Hidden fee: C_f = r_f·G + fee·H. The last pseudo blinding absorbs r_f
+    // so the balance still closes and the fee value is not `fee·H` in the clear.
+    let (fee_blinding, fee_commitment, fee_range_proof, version, plaintext_fee) = if hidden_fee {
+        let r_f = random_scalar();
+        let proved = bp_prove(fee, &r_f, TX_RANGE_BITS)?;
+        (
+            r_f,
+            Some(proved.v),
+            Some(proved.proof),
+            super::TX_VERSION_HIDDEN_FEE,
+            0,
+        )
+    } else {
+        (Scalar::ZERO, None, None, TX_VERSION, fee)
+    };
+
     // Pseudo-output blindings: free for inputs[0..n-2], constrained for the
-    // last one so Σ pseudo_in = Σ out_blinding (the balance equation closes).
+    // last one so Σ pseudo_in = Σ out_blinding + r_f (the balance equation closes).
     let n = inputs.len();
     let mut pseudo_blindings: Vec<Scalar> = Vec::with_capacity(n);
     let mut acc = Scalar::ZERO;
@@ -232,7 +271,7 @@ pub fn sign_transaction(
         pseudo_blindings.push(b);
         acc += b;
     }
-    pseudo_blindings.push(out_blinding_sum - acc);
+    pseudo_blindings.push(out_blinding_sum + fee_blinding - acc);
 
     // Pseudo-output commitments commit to the input values v_i (so the
     // verifier can derive z = r_in − r_pseudo for the CLSAG).
@@ -298,12 +337,14 @@ pub fn sign_transaction(
         })
         .collect();
     let stub = TransactionWire {
-        version: TX_VERSION,
+        version,
         r_pub,
         inputs: stub_inputs,
         outputs: outputs_wire.clone(),
-        fee,
+        fee: plaintext_fee,
         extra: extra.clone(),
+        fee_commitment,
+        fee_range_proof: fee_range_proof.clone(),
     };
     let msg = tx_preimage(&stub);
 
@@ -328,14 +369,17 @@ pub fn sign_transaction(
 
     Ok(SignedTransaction {
         tx: TransactionWire {
-            version: TX_VERSION,
+            version,
             r_pub,
             inputs: signed_inputs,
             outputs: outputs_wire,
-            fee,
+            fee: plaintext_fee,
             extra,
+            fee_commitment,
+            fee_range_proof,
         },
         output_blindings,
+        fee_blinding: hidden_fee.then_some(fee_blinding),
     })
 }
 

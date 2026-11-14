@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** **B-317** field-Merkle opening (this commit). Off consensus. Path A and F-A unchanged. Prior unit **B-316**. **B-35** input-count buckets are on main at header v4. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** field-Merkle opening merged with main. Retrieval **B-317** (header v7) stays Seat B's unit already on main. Path A and F-A unchanged. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -143,8 +143,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-317** field-Merkle opening (this commit); **F5 1c+** on main; **B-35** header v4; **B-316** | *Idle* — slash matrix frozen. Seat C holds validity files | **B-17** ASN peer buckets (Seat B). **B-12** Plonky3 next (Seat C). No B-297 clone | Lane 1 CI |
-| **5** Privacy | **B-19** decoy-RNG contract; **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | **B-37** hidden fees, version-gated, after the Tier 2 gate | Doc-accuracy duty |
+| **4** Protocol | field-Merkle opening (this merge, Seat C); retrieval **B-317** header v7; **B-37**; **B-316** | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding (Seat B). **B-12** Plonky3 next (Seat C). No B-297 clone. No DEFAULT flip | Lane 1 CI |
+| **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 
@@ -226,7 +226,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) tip=5322 SUMMARY; **wave115** last_proven **22467** (`601cb854…`; this commit). Human SUMMARY still open |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
-| B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
+| B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | **Landed** (this commit) — local ASN table; empty table keeps /16 redial |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | **Landed** (this commit) — golden `(pk, H, β, π)` pin; no Elligator2 fork |
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | **Landed** (this commit) — [`docs/DECOY_RNG.md`](docs/DECOY_RNG.md); no consensus change |
 | B-20 | F6: producer↔treasury runway fee-shift policy | 6 | **B-309** helper landed; arm after B-13c + B-25; Path A stays 9000 |
@@ -268,10 +268,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-314 | PM19 per-commitment cold-proof cadence (not wired) | 6 | **Landed** — `cold_proof_overdue` / bounty bps; Path A B5 stays global any-stale; wire after **PM1**. Design: [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md) |
 | B-315 | Max-permanence upgrade design + non-consensus helpers | 6 | **Landed** (this commit) — solvency stress, state projection, replica/retrieval helpers. No Path A flip. First fork = **F-A** after B-25 / Path B |
 | B-316 | F5 4a Winterfell leaves: `emission_at_height` + coinbase bps split | 4 (Seat C) | **Landed** on main — [`VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md). Off consensus. No Path A / F-A change |
-| B-317 | F5 4a field-Merkle opening (MiMC-5, depth 4, not dhash) | 4 (Seat C) | **Landed** (this commit) — `validity_stark_merkle`. Not SPoRA. No Path A / F-A change |
+| B-317 | Economic retrieval challenge (silence slashes the storage-operator bond) | 4+5 | **Landed** on main — header v7; Path A / F-A off. Design: [`RETRIEVAL_CHALLENGE.md`](docs/RETRIEVAL_CHALLENGE.md). Seat C's field-Merkle opening is a different unit in `validity_stark_merkle` |
 | B-35 | F7 consensus input-count padding | 4+5 | **Landed** — power-of-two buckets at header v4; Path A / F-A off |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
-| B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
+| B-37 | B6/P6 hidden fees inside balance equation | 4 | **Landed** (this commit) — header v6; header v1 keeps public `tx.fee` |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | **Runbook** + **D0 preflight helper** landed; arm day-of L4
@@ -531,7 +531,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 4 / Seat C - B-317 field-Merkle opening** (this commit): `field_merkle_compress` is 8-round MiMC-5 on Winterfell `f128`, depth 4, pad element 2. Not `dhash` / SPoRA. Off consensus. Rebased onto **F5 1c+** on main. Next: **B-12** Plonky3 aggregation.
+1. **2026-11-14 - lane 4 / Seat C - field-Merkle opening** (this merge): `field_merkle_compress` is 8-round MiMC-5 on Winterfell `f128`, depth 4. Not `dhash` / SPoRA, and not Seat B's retrieval **B-317**. Off consensus. Next: **B-12** Plonky3 aggregation.
+
+1. **2026-11-14 - lane 4+5 - B-317 retrieval challenges** (on main): a one-time key posts a bonded challenge; silence slashes the storage-operator bond. Header v1 omits the section. Seat C validity leaves are a different unit.
 
 1. **2026-11-14 - lane 4 - F5 1c+ bond-registry slash** (on main): `apply_equivocation_slashings` removes the offender's `pending_unbonds` entry when equivocation or invalid-block evidence applies. Live stake forfeiture is unchanged. Next: **B-17**.
 
