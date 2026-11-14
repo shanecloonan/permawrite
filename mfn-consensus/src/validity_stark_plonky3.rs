@@ -165,6 +165,9 @@ pub enum AggregateError {
     /// The witness version is not the one this crate checks.
     #[error("aggregated witness version is not supported")]
     WitnessVersion,
+    /// The witness is larger than the local cap.
+    #[error("aggregated witness exceeds the size cap")]
+    WitnessTooLarge,
 }
 
 /// BabyBear parent hash. Four seventh-power rounds.
