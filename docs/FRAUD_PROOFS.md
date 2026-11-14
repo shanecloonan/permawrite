@@ -327,6 +327,7 @@ where `validity_proof_ref` is a hash of a succinct proof that `apply_block` reje
 
 - **Not consensus.** `mfn_consensus::validity_stark_coinbase` proves `emission_at_height` and the bps split inside `producer_portion_amount` (no storage-proof term). Optional witnesses. No header field, no gossip, no Path A / F-A change.
 - **Tests:** `b316_emission_at_height_stark_matches_consensus_and_rejects_tamper`, `b316_coinbase_split_matches_producer_portion_and_rejects_tamper`.
+- **Field Merkle (B-317):** `validity_stark_merkle` proves a depth-4 MiMC-5 opening. Not the SHA-512 SPoRA tree.
 
 ### Acceptance tests (phase 4a)
 
