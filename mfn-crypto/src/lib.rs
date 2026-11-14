@@ -89,8 +89,9 @@ pub use clsag::{
 };
 pub use codec::{Reader, Writer};
 pub use decoy::{
-    crypto_random, gamma_age_stats, sample_gamma, sample_normal, seeded_rng, select_gamma_decoys,
-    DecoyCandidate, GammaAgeStats, GammaDecoyParams, DEFAULT_GAMMA_PARAMS,
+    crypto_random, gamma_age_stats, note_os_entropy_failure_once, production_decoy_rng,
+    sample_gamma, sample_normal, seeded_rng, select_gamma_decoys, DecoyCandidate, GammaAgeStats,
+    GammaDecoyParams, DEFAULT_GAMMA_PARAMS,
 };
 pub use domain::Domain;
 pub use encrypted_amount::{decrypt_output_amount, encrypt_output_amount, ENC_AMOUNT_BYTES};

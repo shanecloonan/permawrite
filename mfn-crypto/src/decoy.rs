@@ -23,8 +23,15 @@
 //! Defines canonical Rust protocol behavior.
 //! tests.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use rand_core::{OsRng, RngCore};
+
 use crate::CryptoError;
 use crate::Result;
+
+/// Set after the first OS CSPRNG failure so the warning is printed once.
+static OS_ENTROPY_FAILURE_LOGGED: AtomicBool = AtomicBool::new(false);
 
 /* ----------------------------------------------------------------------- *
  *  RNG ABSTRACTION                                                        *
@@ -39,16 +46,39 @@ pub trait Random: FnMut() -> f64 {}
 impl<T> Random for T where T: FnMut() -> f64 {}
 
 /// OS CSPRNG → uniform `[0, 1)` double using the standard 53-bit trick.
+///
+/// This is the only production decoy source. It does not take a seed.
+/// On failure it prints one warning and panics: a caller-supplied seed
+/// must not silently replace OS entropy. Under `wasm32`, `getrandom`'s
+/// `js` feature reads `crypto.getRandomValues` and nothing else.
 pub fn crypto_random() -> f64 {
-    use rand_core::RngCore;
     let mut buf = [0u8; 8];
-    rand_core::OsRng.fill_bytes(&mut buf);
+    let mut rng = OsRng;
+    if let Err(e) = rng.try_fill_bytes(&mut buf) {
+        if note_os_entropy_failure_once() {
+            eprintln!(
+                "MFBN-1 decoy RNG: OS CSPRNG failed ({e}). Production selection refuses a caller seed."
+            );
+        }
+        panic!("OS CSPRNG unavailable: {e}");
+    }
     let a = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
     let b = u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]);
     // 53-bit double: ((a * 2^21) + (b >> 11)) / 2^53.
     let hi = u64::from(a) * (1u64 << 21);
     let lo = u64::from(b >> 11);
     (hi + lo) as f64 / (1u64 << 53) as f64
+}
+
+/// Production decoy stream. `wallet_seed` is ignored on purpose: the same
+/// wallet must not reproduce decoy indices across runs.
+pub fn production_decoy_rng(_wallet_seed: &[u8; 32]) -> impl FnMut() -> f64 {
+    crypto_random
+}
+
+/// Returns `true` only the first time OS entropy fails in this process.
+pub fn note_os_entropy_failure_once() -> bool {
+    !OS_ENTROPY_FAILURE_LOGGED.swap(true, Ordering::SeqCst)
 }
 
 /// Seeded Mulberry32 PRNG.
@@ -358,6 +388,53 @@ pub fn gamma_age_stats<R: FnMut() -> f64>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn b19_os_entropy_failure_warns_once() {
+        assert!(note_os_entropy_failure_once());
+        assert!(!note_os_entropy_failure_once());
+    }
+
+    #[test]
+    fn b19_same_wallet_seed_does_not_fix_production_decoys() {
+        let seed = [0x19u8; 32];
+        let mut test_a = seeded_rng(0x19);
+        let mut test_b = seeded_rng(0x19);
+        let test_seq: Vec<u64> = (0..8).map(|_| test_a().to_bits()).collect();
+        let test_seq_b: Vec<u64> = (0..8).map(|_| test_b().to_bits()).collect();
+        assert_eq!(test_seq, test_seq_b, "test mode must repeat");
+
+        let pool: Vec<DecoyCandidate<u32>> = (0..64)
+            .map(|i| DecoyCandidate {
+                height: i,
+                data: i as u32,
+            })
+            .collect();
+        let params = DEFAULT_GAMMA_PARAMS;
+        let mut ta = seeded_rng(0x19);
+        let mut tb = seeded_rng(0x19);
+        let da = select_gamma_decoys(&pool, 4, 80, &mut ta, &params).unwrap();
+        let db = select_gamma_decoys(&pool, 4, 80, &mut tb, &params).unwrap();
+        let heights = |d: &[DecoyCandidate<u32>]| d.iter().map(|c| c.height).collect::<Vec<_>>();
+        assert_eq!(heights(&da), heights(&db));
+
+        let mut other = seeded_rng(0x20);
+        let dc = select_gamma_decoys(&pool, 4, 80, &mut other, &params).unwrap();
+        assert_ne!(
+            heights(&da),
+            heights(&dc),
+            "decoy indices must follow the rng, not the wallet"
+        );
+
+        let mut os_a = production_decoy_rng(&seed);
+        let mut os_b = production_decoy_rng(&seed);
+        let stream_a: Vec<u64> = (0..32).map(|_| os_a().to_bits()).collect();
+        let stream_b: Vec<u64> = (0..32).map(|_| os_b().to_bits()).collect();
+        assert_ne!(
+            stream_a, stream_b,
+            "same wallet seed must not reproduce the production decoy stream"
+        );
+    }
 
     #[test]
     fn seeded_rng_is_deterministic() {

@@ -663,7 +663,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 | **Tier 2** | Ring 32–64 + Bulletproof+ transcripts | 4+5 | Consensus version gate; wallet/CLI/WASM defaults — **after B-25** |
 | **B-35** | F7: consensus input-count padding (wallet floor shipped; finish `verify_transaction` pad) | 4+5 | ✓ **Shipped** gated — header v4 power-of-two buckets; Path A unchanged |
 | **B-37 / B6 / P6** | Hidden fees inside balance equation | 4 | Last plaintext amount; touches coinbase settlement — after B-25 |
-| **B-19** | F9: decoy-RNG entropy contract + conformance tests | 5 | Privacy before Tier 2 fork; after B-25 unless waived |
+| **B-19** | F9: decoy-RNG entropy contract + conformance tests | 5 | ✓ **Shipped** — [`DECOY_RNG.md`](./DECOY_RNG.md); no consensus change |
 | **B4 decoy** | Gamma calibration / age-band refinements if ring stays at 16 longer | 5 | Partially shipped; re-evaluate after Tier 2 |
 | **B-21** | B7 Dandelion++ internet soak evidence (stem/fluff timing) | 1 | Unblocks Phase 7+ **P16** cover traffic |
 | **Doc parity** | B-16 + wallet README ring/shape examples | 5 | ✓ **B-16 shipped**; keep docs in sync on Tier 2 fork |
@@ -742,7 +742,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-315** Max-permanence upgrade design + non-consensus helpers (no Path A flip) | Phase 1 design / Path B fork | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 ✓ | 4 |
-| **B-19** Decoy-RNG entropy contract | Phase 3 | 5 |
+| **B-19** Decoy-RNG entropy contract | Phase 3 ✓ | 5 |
 | **B-20** Producer↔treasury runway coupling | Phase 1 | 6 |
 | **B-21** Dandelion++ internet soak evidence | Phase 3 | 1 |
 | **B-22** TL-8 checkpoint log VPS publish verify | Phase 0 | 7 |

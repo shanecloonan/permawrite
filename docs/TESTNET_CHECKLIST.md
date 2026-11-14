@@ -449,7 +449,7 @@ Strategic ordering: [`ROADMAP.md` Phase 3](./ROADMAP.md#phase-3--privacy-tier-2-
 
 - [x] **B-35** — F7 consensus input-count buckets (power of two) behind `HEADER_VERSION_INPUT_PAD` (4). Path A / F-A stay off.
 - [ ] **B-37** — B6/P6 hidden fees inside balance equation.
-- [ ] **B-19** — F9 decoy-RNG entropy contract + tests.
+- [x] **B-19** — F9 decoy-RNG entropy contract. OS CSPRNG; test mode is `seeded_rng` only. See [`DECOY_RNG.md`](./DECOY_RNG.md).
 - [ ] **Tier 2** — Ring 32–64 + Bulletproof+ transcripts + wallet/WASM defaults + doc parity.
 
 ## Maturity L5 / Phase 4 Path B (after B-25 — do not start early)
