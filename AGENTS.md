@@ -48,6 +48,7 @@ A **lane** is a standing role; an **agent** is whoever is currently working that
 | **5** | Privacy surface | Wallet/CLI/WASM ring defaults, privacy doc accuracy, no-silent-downgrade UX | M7.10 replication, GHA rehearsal | Privacy-doc accuracy vs shipped behavior |
 | **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` | Emission/treasury identity sims for every economics-touching unit |
 | **7** | Testnet launch | Internet-facing go-live ([`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md)), VPS runbook, `seed_nodes` publication, faucet/observer/front-end ops, launch ceremony | Protocol tests (4/6), CI/Nightly fixes (1), evidence tooling (2) | Launch-blocker honesty (never fake TL completion; `launch-go-no-go` gate) |
+| **F** | Ease of use | User wallet, CLI, WASM, light-client receive, testnet-frontend, plain-language docs | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet | A person can use the network without reading a protocol spec |
 
 Adding lanes 8+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
 
@@ -138,6 +139,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
+**Seat F (2026-11-14):** ease of use. Owns user-facing wallet/CLI/WASM/frontend flows. Does not edit Seat A economics, Seat B privacy/slash, or Seat C validity files. No VPS. No header-version or DEFAULT change.
+
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
@@ -147,6 +150,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
+| **F** Ease of use | **F-6** pending-payment note after send and upload. Claim base `4aedafe9` | *Idle* | **F-7** light-scan says what it verified | note tests |
 
 ---
 
@@ -530,6 +534,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane F - F-6 pending note** (this commit): after send or upload, the CLI says the transaction is pending until a block includes it, and that an upload's bytes are in the artifacts folder rather than the seed. Stdout stays key=value. Claim base `4aedafe9`. Next: **F-7** light-scan wording.
 
 1. **2026-11-14 - lane 4 / Seat C - B-12 Plonky3 aggregate** (this commit): one BabyBear STARK checks the fee bps split and two depth-4 openings (`x^7`, 4 rounds). Not a Winterfell-in-Winterfell verifier. Feature `plonky3` is off by default. Off consensus. Rebased onto **B-35** on main. Next: inner STARK verifier.
 
