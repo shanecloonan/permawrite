@@ -59,7 +59,14 @@ pub struct TransactionWire {
     /// Outputs being created.
     pub outputs: Vec<TxOutputWire>,
     /// Public fee — claimed by the block producer.
+    ///
+    /// Zero on [`super::TX_VERSION_HIDDEN_FEE`]. The value then lives in
+    /// [`Self::fee_commitment`].
     pub fee: u64,
     /// Opaque payload, committed-to by the preimage (immutable post-signing).
     pub extra: Vec<u8>,
+    /// `r·G + fee·H` when the tx version hides the fee. Absent on v1/v2.
+    pub fee_commitment: Option<EdwardsPoint>,
+    /// Range proof that [`Self::fee_commitment`] opens to a 64-bit fee.
+    pub fee_range_proof: Option<BulletproofRange>,
 }

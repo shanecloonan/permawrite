@@ -156,6 +156,10 @@ pub struct RingPolicy {
     /// Engaged only at [`HEADER_VERSION_TIER2`](super::header::HEADER_VERSION_TIER2).
     /// Path A and F-A leave this `false` and keep uniform 16.
     pub tier2_rings: bool,
+    /// When set, regular txs must use a hidden fee commitment (**B-37**).
+    ///
+    /// Engaged only at header version 6. Path A and F-A leave this `false`.
+    pub hidden_fees: bool,
 }
 
 impl RingPolicy {
@@ -168,6 +172,7 @@ impl RingPolicy {
         min_input_count: MIN_TX_INPUTS_UNIFORM_TIER,
         input_count_buckets: false,
         tier2_rings: false,
+        hidden_fees: false,
     };
 
     /// Test harness: allow small rings; uniform + shape floors not enforced.
@@ -178,6 +183,7 @@ impl RingPolicy {
         min_input_count: 0,
         input_count_buckets: false,
         tier2_rings: false,
+        hidden_fees: false,
     };
 
     /// Copy this policy and engage B-35 buckets when `header_version` is
@@ -187,6 +193,7 @@ impl RingPolicy {
         Self {
             input_count_buckets: header_version >= super::header::HEADER_VERSION_INPUT_PAD,
             tier2_rings: header_version >= super::header::HEADER_VERSION_TIER2,
+            hidden_fees: header_version >= super::header::HEADER_VERSION_HIDDEN_FEES,
             ..self
         }
     }
@@ -283,6 +290,7 @@ impl ConsensusParams {
             },
             input_count_buckets: false,
             tier2_rings: false,
+            hidden_fees: false,
         }
     }
 

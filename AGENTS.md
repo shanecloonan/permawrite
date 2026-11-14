@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** Tier 2 ring 32/64 behind header v5 (this commit). Header v1 still requires ring 16. Bulletproof+ is not accepted. Path A and F-A unchanged. Prior head **B-17** `f9b93b83`. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** B-37 hidden fees behind header v6 (this commit). Header v1 keeps public `tx.fee`. Path A and F-A unchanged. Prior head Tier 2 rings `d557b065`. No B-13c; no DEFAULT flip. Bulletproof+ verifier still open.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | Tier 2 rings 32/64 at header v5 (this commit); **B-17** (`f9b93b83`) | *Idle* — slash matrix frozen | **B-37** hidden fees, version-gated. Bulletproof+ verifier still open. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-37** hidden fees at header v6 (this commit); Tier 2 rings (`d557b065`) | *Idle* — slash matrix frozen | Bulletproof+ verifier. No B-297 clone. No DEFAULT flip | Lane 1 CI |
 | **5** Privacy | **B-19** decoy-RNG contract (this commit); **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | **B-37** hidden fees, version-gated, after the Tier 2 gate | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
@@ -266,7 +266,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-315 | Max-permanence upgrade design + non-consensus helpers | 6 | **Landed** (this commit) — solvency stress, state projection, replica/retrieval helpers. No Path A flip. First fork = **F-A** after B-25 / Path B |
 | B-35 | F7 consensus input-count padding | 4+5 | **Landed** (this commit) — power-of-two buckets at header v4; Path A / F-A off |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
-| B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
+| B-37 | B6/P6 hidden fees inside balance equation | 4 | **Landed** (this commit) — header v6; header v1 keeps public `tx.fee` |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | **Runbook** + **D0 preflight helper** landed; arm day-of L4
@@ -525,6 +525,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane 4 - B-37 hidden fees** (this commit): tx version 3 carries a fee commitment and a range proof; plaintext `fee` is 0. `apply_block` checks the commitments open to the block's disclosed sum and settles coinbase from that sum. Header v1 still uses public `fee·H` and rejects version 3. `b37_hidden_fee_is_inactive_on_header_v1` PASS. No B-13c; no DEFAULT flip. Wallets still build plaintext-fee txs. Next: Bulletproof+ verifier, still gated. *Observed (not staged):* none.
 
 1. **2026-11-14 - lane 4 - Tier 2 ring gate** (this commit): header version 5 accepts ring 32 or 64 and rejects 16. Header v1 (`HEADER_VERSION`) still accepts only 16, including CLI `--ring-size` and WASM transfer/upload. Classic Bulletproofs stay the range proof; Bulletproof+ is not a wire option. `tier2_ring_sizes_stay_inactive_on_header_v1` PASS. No B-13c; no DEFAULT flip. Next: **B-37** hidden fees, same style of gate. *Observed (not staged):* none.
 
