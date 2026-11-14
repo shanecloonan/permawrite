@@ -17,6 +17,9 @@ all = { level = "warn", priority = -1 }
 
 [dependencies]
 mfn-crypto = { path = "../mfn-crypto" }
+# Default features pull Winterfell, whose current cpufeatures manifest needs
+# edition 2024. The retention helpers do not need that backend.
+mfn-consensus = { path = "../mfn-consensus", default-features = false }
 curve25519-dalek = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }

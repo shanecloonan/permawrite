@@ -153,7 +153,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
-| **I** Scale | **I-4** checkpointed fast sync (this commit). Headers still link. Off consensus. | *Idle* | **I-5** bounded body prune | `mfn-scale` fast-sync tests |
+| **I** Scale | **I-5** bounded body prune (this commit). Archival keeps every body. Off consensus. | *Idle* | **I-6** memory budget for 2–4 GB | `mfn-scale` prune tests |
 
 ---
 
@@ -537,6 +537,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane I - I-5 bounded prune** (this commit): archival logs refuse body deletion. A bounded log drops a body only when `historical_block_body_may_prune` is true, and keeps the header id. Storage, UTXOs, and spent key images stay. Next: **I-6** memory budget.
 
 1. **2026-11-14 - lane I - I-4 fast sync** (this commit): a checkpoint installs only when its header id is on the linked chain. Bodies at or below it are not fetched. Bodies above it are checked. A mismatch leaves the tip at genesis. Next: **I-5** bounded body prune.
 
