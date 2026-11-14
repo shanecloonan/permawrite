@@ -221,6 +221,7 @@ mod tests {
             operator_salted: false,
             operator_keys_required: false,
             operator_identity: None,
+            header_version: 0,
         }
     }
 

@@ -113,6 +113,9 @@ pub struct StorageChallenge {
     /// Operator identity hex when salted challenge was completed with payout pubs.
     #[serde(default)]
     pub operator_identity: Option<String>,
+    /// Chain header version. Missing means plaintext proofs.
+    #[serde(default)]
+    pub header_version: u32,
 }
 
 /// `submit_storage_proof` admission summary.

@@ -456,6 +456,7 @@ fn storage_challenge_for_operator(
         operator_salted: ch.operator_salted,
         operator_keys_required: ch.operator_keys_required,
         operator_identity: ch.operator_identity.clone(),
+        header_version: ch.header_version,
     }
 }
 

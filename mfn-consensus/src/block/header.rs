@@ -45,6 +45,13 @@ pub const HEADER_VERSION_HIDDEN_FEES: u32 = 6;
 /// does not slash a storage-operator bond. Path A and F-A stay below it.
 pub const HEADER_VERSION_RETRIEVAL: u32 = 7;
 
+/// Header version whose storage proofs carry a sealed replica (**E-12**).
+///
+/// The Merkle leaf stays the plaintext chunk hash. The proof body is the
+/// operator's seal of that chunk. Versions below this keep plaintext proofs.
+/// Version 8 is reserved for Seat B. Version 9 is the shard stripe.
+pub const HEADER_VERSION_SEALED_REPLICA: u32 = mfn_storage::HEADER_VERSION_SEALED_REPLICA;
+
 /// Ring sizes a Tier 2 chain accepts. Header versions below
 /// [`HEADER_VERSION_TIER2`] keep the chain's uniform size (16 in production).
 pub const TIER2_RING_SIZES: [u32; 2] = [32, 64];

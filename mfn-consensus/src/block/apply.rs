@@ -892,7 +892,15 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 continue;
             }
         };
-        let verdict = if b3_operator_salted {
+        let verdict = if block.header.version >= super::header::HEADER_VERSION_SEALED_REPLICA {
+            verify_storage_proof_sealed(
+                &entry.commit,
+                &block.header.prev_hash,
+                block.header.slot,
+                proof,
+                b3_operator_salted,
+            )
+        } else if b3_operator_salted {
             verify_storage_proof_operator_salted(
                 &entry.commit,
                 &block.header.prev_hash,

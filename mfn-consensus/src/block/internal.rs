@@ -17,8 +17,9 @@ pub(crate) use mfn_crypto::utxo_tree::{
 pub(crate) use mfn_storage::{
     accrue_proof_reward, decode_storage_proof, encode_storage_proof, operator_identity_from_payout,
     required_endowment, storage_commitment_hash, validate_storage_commitment_shape,
-    verify_storage_proof, verify_storage_proof_operator_salted, AccrueArgs, EndowmentParams,
-    StorageCommitment, StorageProof, StorageProofCheck, DEFAULT_ENDOWMENT_PARAMS,
+    verify_storage_proof, verify_storage_proof_operator_salted, verify_storage_proof_sealed,
+    AccrueArgs, EndowmentParams, StorageCommitment, StorageProof, StorageProofCheck,
+    DEFAULT_ENDOWMENT_PARAMS,
 };
 
 pub(crate) use crate::bond_wire::{decode_bond_op, encode_bond_op, BondOp, BondWireError};

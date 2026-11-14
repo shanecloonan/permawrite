@@ -1098,6 +1098,7 @@ fn dispatch_serve_methods(
                 "chunk_index": idx,
                 "operator_salted": salted,
                 "operator_keys_required": operator_keys_required,
+                "header_version": chain.state().header_version,
             });
             if let Some(op_id) = operator_identity {
                 if let Some(obj) = body.as_object_mut() {
