@@ -49,6 +49,7 @@ A **lane** is a standing role; an **agent** is whoever is currently working that
 | **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` | Emission/treasury identity sims for every economics-touching unit |
 | **7** | Testnet launch | Internet-facing go-live ([`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md)), VPS runbook, `seed_nodes` publication, faucet/observer/front-end ops, launch ceremony | Protocol tests (4/6), CI/Nightly fixes (1), evidence tooling (2) | Launch-blocker honesty (never fake TL completion; `launch-go-no-go` gate) |
 | **F** | Ease of use | User wallet, CLI, WASM, light-client receive, testnet-frontend, plain-language docs | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet | A person can use the network without reading a protocol spec |
+| **G** | Security hardening | Untrusted decode, fuzz, resource limits, adversarial tests. Minimal fixes only | Other seats' features, VPS/faucet, header-version flips | Hostile bytes return errors; the process stays up |
 
 Adding lanes 8+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
 
@@ -152,6 +153,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
+| **G** Security | **G-6** supply, settlement, key-image, and endowment properties (this commit). Claim base `02ba4bc6` | *Idle* | **G-7** mempool admission bounds | `g6_invariants` |
 
 ---
 
@@ -535,6 +537,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane G - G-6 conservation properties** (this commit): `admit_key_image` is what `apply_block` uses, so a repeated key image cannot be spent twice. Proptest checks storage settlement, supply audit, that gate, and that endowment principal never grows. Claim base `02ba4bc6`. Next: **G-7** mempool admission bounds.
 
 1. **2026-11-14 - lane F - F-8 file card** (this commit): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Claim base `4aedafe9`. Next: **F-9** `wallet ready`.
 

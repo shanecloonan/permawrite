@@ -106,23 +106,23 @@ pub use archive_retention::{
     CHAIN_STATE_FIELDS, CHAIN_STATE_FIELD_COUNT, RETENTION_POLICY_VERSION, V1_PERMANENCE_KEEP,
     V1_PRIVACY_KEEP,
 };
+pub use block::{
+    admit_key_image, apply_genesis, block_header_bytes, block_id, build_genesis, decode_block,
+    decode_block_body, decode_block_header, encode_block, encode_block_body,
+    genesis_header_version, header_signing_bytes, header_signing_hash, storage_merkle_root,
+    tier2_ring_size_allowed, tx_merkle_root, Block, BlockBody, BlockDecodeError, BlockError,
+    BlockHeader, ChainState, ConsensusParams, DisclosedFee, GenesisConfig, GenesisOutput,
+    GenesisStorageOperator, HeaderDecodeError, PendingUnbond, RingPolicy, StorageOperatorEntry,
+    UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION,
+    HEADER_VERSION_FRAUD_SLASH, HEADER_VERSION_HIDDEN_FEES, HEADER_VERSION_INPUT_PAD,
+    HEADER_VERSION_RETRIEVAL, HEADER_VERSION_TIER2, HEADER_VERSION_UTXO_QUORUM,
+    MIN_TX_INPUTS_UNIFORM_TIER, MIN_TX_OUTPUTS_UNIFORM_TIER, SUPPORTED_GENESIS_HEADER_VERSIONS,
+    TEST_CONSENSUS_PARAMS, TIER2_RING_SIZES,
+};
 #[cfg(feature = "bls")]
 pub use block::{
     apply_block, build_unsealed_header, build_unsealed_header_storage_ops, seal_block,
     seal_block_storage_ops, ApplyOutcome,
-};
-pub use block::{
-    apply_genesis, block_header_bytes, block_id, build_genesis, decode_block, decode_block_body,
-    decode_block_header, encode_block, encode_block_body, genesis_header_version,
-    header_signing_bytes, header_signing_hash, storage_merkle_root, tier2_ring_size_allowed,
-    tx_merkle_root, Block, BlockBody, BlockDecodeError, BlockError, BlockHeader, ChainState,
-    ConsensusParams, DisclosedFee, GenesisConfig, GenesisOutput, GenesisStorageOperator,
-    HeaderDecodeError, PendingUnbond, RingPolicy, StorageOperatorEntry, UtxoEntry, ValidatorStats,
-    DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH,
-    HEADER_VERSION_HIDDEN_FEES, HEADER_VERSION_INPUT_PAD, HEADER_VERSION_RETRIEVAL,
-    HEADER_VERSION_TIER2, HEADER_VERSION_UTXO_QUORUM, MIN_TX_INPUTS_UNIFORM_TIER,
-    MIN_TX_OUTPUTS_UNIFORM_TIER, SUPPORTED_GENESIS_HEADER_VERSIONS, TEST_CONSENSUS_PARAMS,
-    TIER2_RING_SIZES,
 };
 pub use bond_wire::{
     bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, BondOp, BondWireError,

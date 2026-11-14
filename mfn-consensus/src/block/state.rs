@@ -414,6 +414,15 @@ pub struct ChainState {
     pub retrieval: crate::retrieval::RetrievalRegistry,
 }
 
+/// Record `key_image` as spent.
+///
+/// Returns `false` when `key_image` was already in `spent` (double-spend).
+/// The set is unchanged in that case. `apply_block` uses this for the
+/// cross-transaction and cross-block key-image gate.
+pub fn admit_key_image(spent: &mut HashSet<[u8; 32]>, key_image: [u8; 32]) -> bool {
+    spent.insert(key_image)
+}
+
 impl ChainState {
     /// Empty pre-genesis state.
     pub fn empty() -> Self {
