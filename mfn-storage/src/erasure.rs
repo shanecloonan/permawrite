@@ -472,8 +472,8 @@ mod tests {
         if let Some(bytes) = stripe.shards[11].as_mut() {
             bytes[0] ^= 0xff;
         }
-        for i in 0..7 {
-            stripe.shards[i] = None;
+        for shard in stripe.shards.iter_mut().take(7) {
+            *shard = None;
         }
         let out = reconstruct_payload(&root(9), &stripe).expect("one bad parity still ok");
         assert_eq!(out, payload);
