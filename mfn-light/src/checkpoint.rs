@@ -318,6 +318,16 @@ fn read_len(r: &mut Reader<'_>, field: &'static str) -> Result<usize, LightCheck
     Ok(mfn_consensus::checkpoint_codec::read_len(r, field)?)
 }
 
+fn read_len_budgeted(
+    r: &mut Reader<'_>,
+    field: &'static str,
+    min_each: usize,
+) -> Result<usize, LightCheckpointError> {
+    Ok(mfn_consensus::checkpoint_codec::read_len_budgeted(
+        r, field, min_each,
+    )?)
+}
+
 /// Decode bytes produced by [`encode_checkpoint_bytes`] back into a
 /// [`CheckpointParts`] bundle.
 ///
@@ -369,7 +379,7 @@ pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightChe
     let params: ConsensusParams = decode_consensus_params(&mut r)?;
     let bonding_params: BondingParams = decode_bonding_params(&mut r)?;
 
-    let validators_n = read_len(&mut r, "validators.len")?;
+    let validators_n = read_len_budgeted(&mut r, "validators.len", 32)?;
     let mut validators = Vec::with_capacity(validators_n);
     for i in 0..validators_n {
         validators.push(decode_validator(&mut r, i)?);
@@ -590,6 +600,29 @@ mod tests {
         let decoded = decode_checkpoint_bytes(&bytes).expect("decode");
         let re_encoded = encode_checkpoint_bytes(&decoded);
         assert_eq!(bytes, re_encoded, "encode is deterministic / idempotent");
+    }
+
+    #[test]
+    fn hostile_validator_count_is_rejected_before_reserve() {
+        let mut w = Writer::new();
+        w.push(&LIGHT_CHECKPOINT_MAGIC);
+        w.u32(LIGHT_CHECKPOINT_VERSION);
+        w.u32(0);
+        w.push(&[0u8; 32]);
+        w.push(&[0u8; 32]);
+        encode_consensus_params(&mut w, &ConsensusParams::default());
+        encode_bonding_params(&mut w, &DEFAULT_BONDING_PARAMS);
+        w.varint(1_000_000);
+        let payload = w.into_bytes();
+        let mut bytes = payload.clone();
+        bytes.extend_from_slice(&dhash(LIGHT_CHECKPOINT, &[&payload]));
+        match decode_checkpoint_bytes(&bytes) {
+            Err(LightCheckpointError::Read(CheckpointReadError::Truncated { field, needed })) => {
+                assert_eq!(field, "validators.len");
+                assert!(needed > 1_000_000, "needed {needed}");
+            }
+            other => panic!("expected budget truncation, got {other:?}"),
+        }
     }
 
     /// Non-trivial set with validators (some with payout, some

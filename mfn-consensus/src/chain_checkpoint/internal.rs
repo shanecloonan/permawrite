@@ -24,8 +24,8 @@ pub(crate) use crate::checkpoint_codec::{
     check_validator_assignment, decode_bonding_params, decode_consensus_params,
     decode_pending_unbond, decode_validator, decode_validator_stats, encode_bonding_params,
     encode_consensus_params, encode_pending_unbond, encode_validator, encode_validator_stats,
-    read_edwards_point, read_fixed, read_len, read_u128, read_u16, read_u32, read_u64, read_u8,
-    CheckpointReadError, EdwardsReadError,
+    read_edwards_point, read_fixed, read_len, read_len_budgeted, read_u128, read_u16, read_u32,
+    read_u64, read_u8, CheckpointReadError, EdwardsReadError,
 };
 pub(crate) use crate::claims::{authorship_claim_key, AuthorshipClaimKey, AuthorshipClaimRecord};
 pub(crate) use crate::emission::{EmissionParams, DEFAULT_EMISSION_PARAMS};

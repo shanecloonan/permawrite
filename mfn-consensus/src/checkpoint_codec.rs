@@ -236,6 +236,46 @@ pub fn read_len(r: &mut Reader<'_>, field: &'static str) -> Result<usize, Checkp
     usize::try_from(raw).map_err(|_| CheckpointReadError::LengthOverflow { got: raw, field })
 }
 
+/// Read a collection length that fits in the unread buffer.
+///
+/// `min_each` is the smallest number of bytes one element consumes (32 for a
+/// block id or a map key, 1 for a raw blob whose length *is* the byte count).
+/// The product is rejected before the caller calls `Vec::with_capacity` or
+/// `HashMap::with_capacity`. Honest checkpoints pass: the encoder writes the
+/// elements immediately after the length.
+///
+/// # Errors
+///
+/// Same as [`read_len`], plus [`CheckpointReadError::Truncated`] when
+/// `len * min_each` is larger than the unread buffer, and
+/// [`CheckpointReadError::LengthOverflow`] when that product overflows.
+pub fn read_len_budgeted(
+    r: &mut Reader<'_>,
+    field: &'static str,
+    min_each: usize,
+) -> Result<usize, CheckpointReadError> {
+    let n = read_len(r, field)?;
+    if min_each == 0 {
+        return Err(CheckpointReadError::LengthOverflow {
+            got: u64::try_from(n).unwrap_or(u64::MAX),
+            field,
+        });
+    }
+    let need = n
+        .checked_mul(min_each)
+        .ok_or(CheckpointReadError::LengthOverflow {
+            got: u64::try_from(n).unwrap_or(u64::MAX),
+            field,
+        })?;
+    if need > r.remaining() {
+        return Err(CheckpointReadError::Truncated {
+            field,
+            needed: need - r.remaining(),
+        });
+    }
+    Ok(n)
+}
+
 /// Distinguish a truncation-on-point-read from a structural
 /// "32 bytes present but the encoding is invalid" failure.
 pub enum EdwardsReadError {

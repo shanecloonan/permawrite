@@ -764,3 +764,27 @@ fn light_checkpoint_bytes_fail_chain_decode() {
         other => panic!("expected IntegrityCheckFailed, got {other:?}"),
     }
 }
+
+#[test]
+fn hostile_block_id_count_is_rejected_before_reserve() {
+    // A tagged blob that declares a million block ids and then ends.
+    // The integrity tag is a hash, not a signature, so anyone can build
+    // this. The count must fail as truncation of `block_ids.len` rather
+    // than reserving a million 32-byte slots.
+    let mut w = Writer::new();
+    w.push(&CHAIN_CHECKPOINT_MAGIC);
+    w.u32(1);
+    w.push(&[0u8; 32]);
+    w.u8(0);
+    w.varint(1_000_000);
+    let payload = w.into_bytes();
+    let mut bytes = payload.clone();
+    bytes.extend_from_slice(&dhash(CHAIN_CHECKPOINT, &[&payload]));
+    match decode_chain_checkpoint(&bytes) {
+        Err(ChainCheckpointError::Read(CheckpointReadError::Truncated { field, needed })) => {
+            assert_eq!(field, "block_ids.len");
+            assert!(needed > 1_000_000, "needed {needed}");
+        }
+        other => panic!("expected budget truncation, got {other:?}"),
+    }
+}

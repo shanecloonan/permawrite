@@ -339,7 +339,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         other => return Err(ChainCheckpointError::InvalidHeightFlag { flag: other }),
     };
 
-    let block_ids_n = read_len(&mut r, "block_ids.len")?;
+    let block_ids_n = read_len_budgeted(&mut r, "block_ids.len", 32)?;
     let mut block_ids = Vec::with_capacity(block_ids_n);
     for _ in 0..block_ids_n {
         block_ids.push(read_fixed::<32>(&mut r, "block_ids[i]")?);
@@ -370,7 +370,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     let bond_epoch_exit_count = read_u32(&mut r, "bond_counters.bond_epoch_exit_count")?;
     let next_validator_index = read_u32(&mut r, "bond_counters.next_validator_index")?;
 
-    let validators_n = read_len(&mut r, "validators.len")?;
+    let validators_n = read_len_budgeted(&mut r, "validators.len", 32)?;
     let mut validators = Vec::with_capacity(validators_n);
     for i in 0..validators_n {
         validators.push(decode_validator(&mut r, i)?);
@@ -406,7 +406,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     }
 
     // ---- UTXO map ----
-    let utxo_n = read_len(&mut r, "utxo.len")?;
+    let utxo_n = read_len_budgeted(&mut r, "utxo.len", 32)?;
     let mut utxo: HashMap<[u8; 32], UtxoEntry> = HashMap::with_capacity(utxo_n);
     let mut prev_utxo_key: Option<[u8; 32]> = None;
     for i in 0..utxo_n {
@@ -422,7 +422,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     }
 
     // ---- Spent key images ----
-    let spent_n = read_len(&mut r, "spent_key_images.len")?;
+    let spent_n = read_len_budgeted(&mut r, "spent_key_images.len", 32)?;
     let mut spent_key_images: HashSet<[u8; 32]> = HashSet::with_capacity(spent_n);
     let mut prev_spent_key: Option<[u8; 32]> = None;
     for i in 0..spent_n {
@@ -437,7 +437,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     }
 
     // ---- Storage map ----
-    let storage_n = read_len(&mut r, "storage.len")?;
+    let storage_n = read_len_budgeted(&mut r, "storage.len", 32)?;
     let mut storage: HashMap<[u8; 32], StorageEntry> = HashMap::with_capacity(storage_n);
     let mut prev_storage_key: Option<[u8; 32]> = None;
     for i in 0..storage_n {
@@ -503,7 +503,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     };
 
     // ---- UTXO accumulator ----
-    let utxo_tree_n = read_len(&mut r, "utxo_tree.len")?;
+    let utxo_tree_n = read_len_budgeted(&mut r, "utxo_tree.len", 1)?;
     let utxo_tree_bytes = r
         .bytes(utxo_tree_n)
         .map_err(|_| CheckpointReadError::Truncated {
@@ -514,7 +514,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         .map_err(|source| ChainCheckpointError::InvalidUtxoTree { source })?;
 
     let retrieval = if version >= super::CHAIN_CHECKPOINT_VERSION_MAX {
-        let n = read_len(&mut r, "retrieval.len")?;
+        let n = read_len_budgeted(&mut r, "retrieval.len", 1)?;
         let bytes = r.bytes(n).map_err(|_| CheckpointReadError::Truncated {
             field: "retrieval",
             needed: n,
