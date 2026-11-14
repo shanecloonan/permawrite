@@ -67,6 +67,25 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
     }
     let global_wallet_path = parsed.wallet_path.clone();
     match parsed.cmd {
+        Cmd::PermanenceSim => {
+            let sim = mfn_storage::documented_sim();
+            let report = mfn_storage::simulate_permanence(&sim).map_err(CliError::Usage)?;
+            println!("years={}", report.years_simulated);
+            println!("files_alive={}", report.files_alive);
+            println!("files_lost={}", report.files_lost);
+            println!("annual_cost={}", report.annual_cost);
+            println!("endowment={}", report.endowment);
+            println!("runway_years={}", report.runway_years);
+            println!(
+                "operators={} losses_per_year={} repair={} pay_endowment={} shards={} threshold={}",
+                sim.operators,
+                sim.losses_per_year,
+                sim.repair,
+                sim.pay_endowment,
+                mfn_storage::SIM_SHARDS,
+                mfn_storage::SIM_REPAIR_THRESHOLD
+            );
+        }
         Cmd::Status => {
             let status = client.get_status()?;
             println!(
