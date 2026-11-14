@@ -13,6 +13,8 @@ use crate::wallet_seal::{self, HeldPassphrase, SealedSeed};
 /// Current wallet file schema version for an unlocked file.
 pub const WALLET_FILE_VERSION: u32 = 2;
 
+/// Schema version of the earlier PBKDF2 blob seal.
+pub const WALLET_FILE_VERSION_V3: u32 = 3;
 /// Schema version written when the seed is sealed.
 pub const WALLET_FILE_VERSION_SEALED: u32 = 4;
 
@@ -39,6 +41,10 @@ pub struct WalletFile {
     /// Passphrase seal. Absent on unlocked files.
     #[serde(default)]
     pub seed_lock: Option<crate::wallet_seal::SeedLockRecord>,
+    /// Version 3 PBKDF2 blob: salt || nonce || tag || ciphertext.
+    /// Present on files sealed before Argon2id. Cleared on the next save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed_lock_hex: Option<String>,
     /// Passphrase kept in memory so a later save stays sealed.
     #[serde(skip)]
     pub(crate) passphrase: Option<HeldPassphrase>,
@@ -87,6 +93,7 @@ impl WalletFile {
             version: WALLET_FILE_VERSION,
             seed_hex: hex::encode(seed),
             seed_lock: None,
+            seed_lock_hex: None,
             passphrase: None,
             migrated_from_pbkdf2: false,
             key_derivation,
@@ -186,6 +193,7 @@ impl WalletFile {
     pub fn unlock_in_memory(&mut self) {
         self.passphrase = None;
         self.seed_lock = None;
+        self.seed_lock_hex = None;
         self.version = WALLET_FILE_VERSION;
     }
 
@@ -201,6 +209,7 @@ impl WalletFile {
                 .map_err(|e| WalletStoreError::Invalid(e.to_string()))?;
             self.seed_hex.clear();
             self.seed_lock = Some(sealed.to_record());
+            self.seed_lock_hex = None;
             self.version = WALLET_FILE_VERSION_SEALED;
         } else {
             self.seed_lock = None;
@@ -233,6 +242,7 @@ impl WalletFile {
     pub fn load(path: &Path) -> Result<Self, WalletStoreError> {
         let bytes = fs::read(path)?;
         let mut file: WalletFile = serde_json::from_slice(&bytes)?;
+        file.absorb_v3_lock()?;
         if file.seed_lock.is_some() {
             let pass = wallet_seal::passphrase_from_env()
                 .map_err(|e| WalletStoreError::Invalid(e.to_string()))?;
@@ -246,6 +256,7 @@ impl WalletFile {
     pub fn load_with_passphrase(path: &Path, passphrase: &str) -> Result<Self, WalletStoreError> {
         let bytes = fs::read(path)?;
         let mut file: WalletFile = serde_json::from_slice(&bytes)?;
+        file.absorb_v3_lock()?;
         if file.seed_lock.is_none() {
             return Err(WalletStoreError::Invalid(
                 "wallet file is not locked".into(),
@@ -256,6 +267,24 @@ impl WalletFile {
         file.open_with(pass)?;
         file.validate()?;
         Ok(file)
+    }
+
+    fn absorb_v3_lock(&mut self) -> Result<(), WalletStoreError> {
+        let Some(raw) = self.seed_lock_hex.clone() else {
+            return Ok(());
+        };
+        if self.seed_lock.is_some() {
+            return Ok(());
+        }
+        let blob = hex::decode(raw.trim()).map_err(|_| {
+            WalletStoreError::Invalid(
+                "locked wallet secret is the wrong length. The file may be damaged".into(),
+            )
+        })?;
+        let sealed = wallet_seal::sealed_from_v3_blob(&blob)
+            .map_err(|e| WalletStoreError::Invalid(e.to_string()))?;
+        self.seed_lock = Some(sealed.to_record());
+        Ok(())
     }
 
     fn open_with(&mut self, pass: HeldPassphrase) -> Result<(), WalletStoreError> {
@@ -276,10 +305,11 @@ impl WalletFile {
     fn validate(&self) -> Result<(), WalletStoreError> {
         if self.version != 1
             && self.version != WALLET_FILE_VERSION
+            && self.version != WALLET_FILE_VERSION_V3
             && self.version != WALLET_FILE_VERSION_SEALED
         {
             return Err(WalletStoreError::Invalid(format!(
-                "unsupported wallet version {} (expected 1, {WALLET_FILE_VERSION}, or {WALLET_FILE_VERSION_SEALED})",
+                "unsupported wallet version {} (expected 1, {WALLET_FILE_VERSION}, {WALLET_FILE_VERSION_V3}, or {WALLET_FILE_VERSION_SEALED})",
                 self.version
             )));
         }
@@ -388,6 +418,39 @@ mod tests {
         assert!(!rewritten.contains("pbkdf2"));
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(&legacy_path);
+    }
+
+    #[test]
+    fn version_3_blob_opens_and_rewrites_as_argon2id() {
+        let seed = [0x11u8; 32];
+        let legacy = crate::wallet_seal::seal_seed_pbkdf2_for_migration(&seed, "correct horse")
+            .expect("legacy");
+        let mut blob = Vec::with_capacity(80);
+        blob.extend_from_slice(&legacy.salt);
+        blob.extend_from_slice(&legacy.nonce);
+        blob.extend_from_slice(&legacy.ciphertext[32..]);
+        blob.extend_from_slice(&legacy.ciphertext[..32]);
+        let mut file = WalletFile::new(&seed, KeyDerivation::MfnWalletV1);
+        file.seed_hex.clear();
+        file.version = WALLET_FILE_VERSION_V3;
+        file.seed_lock_hex = Some(hex::encode(blob));
+        let path = std::env::temp_dir().join(format!(
+            "mfn-v3-lock-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        file.write_json(&path).expect("write v3");
+        let mut opened = WalletFile::load_with_passphrase(&path, "correct horse").expect("open v3");
+        assert!(opened.migrated_from_pbkdf2);
+        assert_eq!(opened.seed_bytes().expect("seed"), seed);
+        opened.save(&path).expect("rewrite");
+        let rewritten = std::fs::read_to_string(&path).expect("read");
+        assert!(rewritten.contains("argon2id"));
+        assert!(!rewritten.contains("seed_lock_hex"));
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

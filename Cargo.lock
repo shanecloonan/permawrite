@@ -876,6 +876,7 @@ dependencies = [
  "mfn-node",
  "mfn-storage",
  "serde",
+ "sha2",
  "thiserror 1.0.69",
 ]
 

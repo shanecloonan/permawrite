@@ -45,6 +45,7 @@ mfn-cli --wallet ./alice.json wallet backup-info
 
 # Send (CLSAG transfer + submit_tx; mine with `mfnd step` after stopping serve).
 # F7: need ≥2 owned UTXOs (public faucet dual-send). Ring default 16 is the wallet/consensus floor.
+# AMOUNT and --fee: 10000 is atomic units; 1.5mfn is one and a half coins (1 MFN = 100000000 atomic).
 mfn-cli --rpc 127.0.0.1:<PORT> wallet send mf<ADDRESS_PAYLOAD_HEX> <AMOUNT> \
   --fee 10000 --ring-size 16 --json
 

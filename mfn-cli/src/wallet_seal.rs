@@ -232,6 +232,23 @@ pub fn open_seed(sealed: &SealedSeed, passphrase: &str) -> Result<[u8; 32], Seal
     }
 }
 
+/// Read a version 3 wallet blob: salt || nonce || tag || ciphertext.
+pub(crate) fn sealed_from_v3_blob(blob: &[u8]) -> Result<SealedSeed, SealError> {
+    if blob.len() != 80 {
+        return Err(SealError::Rejected);
+    }
+    let mut ciphertext = blob[48..80].to_vec();
+    ciphertext.extend_from_slice(&blob[32..48]);
+    Ok(SealedSeed {
+        kdf: SealKdf::Pbkdf2Sha256 {
+            iters: PBKDF2_ITERS,
+        },
+        salt: blob[..16].to_vec(),
+        nonce: blob[16..32].to_vec(),
+        ciphertext,
+    })
+}
+
 /// Build a legacy PBKDF2 seal. Tests use it to prove migration.
 #[cfg(test)]
 pub(crate) fn seal_seed_pbkdf2_for_migration(
