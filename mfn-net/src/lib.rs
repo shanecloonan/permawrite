@@ -25,6 +25,8 @@
 // Production P2P paths must never panic on peer input (B-08); tests are exempt.
 #![cfg_attr(not(test), warn(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod addrman;
+pub mod advertise_policy;
 pub mod block_sync;
 pub mod chunk_v1;
 pub mod chunk_v2;
@@ -34,11 +36,14 @@ pub mod gossip;
 pub mod handshake;
 pub mod light_follow;
 pub mod peer_addr;
+pub mod peer_admission;
 pub mod peer_diversity;
+pub mod peer_exchange;
 pub mod production;
 pub mod serve;
 pub mod socks5;
 pub mod transport;
+pub mod tx_pad;
 pub mod validity_proof_v1;
 
 pub use block_sync::{
@@ -84,7 +89,7 @@ pub use light_follow::{
     LIGHT_FOLLOW_V1_TAG, MAX_LIGHT_FOLLOW_PER_GET_V1,
 };
 pub use peer_addr::{
-    is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
+    is_i2p_host, is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
 };
 pub use peer_diversity::{
     checkpoint_anchor_peer_candidates, distinct_diversity_buckets, diversity_bucket_key,

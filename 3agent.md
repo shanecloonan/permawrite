@@ -14,6 +14,7 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | **A** RC/CI | CI, Nightly, board integrity | Lanes 1–2 | **B-296**, protocol tests |
 | **B** Protocol/Privacy | Consensus / privacy / economics | Lanes 4–5–6 | **B-296**, Nightly cancel, VPS/faucet |
 | **C** Validity proofs | F5 phase 4 / B-12 / B-39 (research) | `validity_stark_*`, FRAUD_PROOFS phase 4 | VPS, faucet, Seat A economics, Seat B privacy/slash |
+| **F** Ease of use | Wallet, CLI, WASM, frontend for ordinary people | User flows in `mfn-wallet`, `mfn-cli`, `mfn-wasm`, `testnet-frontend` | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
@@ -26,6 +27,7 @@ Synced at **B-318** output-count buckets on top of Seat C **B-12** (off consensu
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
 | **B** Protocol/Privacy | **B-318** output-count buckets at header v8 (this merge); **B-317** retrieval | *Idle* | Wallet output pad so a header-v8 spend verifies. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (on main); **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
+| **F** Ease of use | **F-8** browser file backup card (on main) | *Idle* | **F-9** `wallet ready` checklist |
 
 ### Hard locks (all seats)
 
@@ -60,5 +62,6 @@ L4 public testnet harden
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
 3agent — Seat B: Done B-318 output-count buckets at header v8 / Doing idle / Next wallet output pad (no DEFAULT flip)
 3agent — Seat C: Done B-12 Plonky3 aggregate / Doing idle / Next inner STARK verifier
+3agent — Seat F: Done F-8 file backup card / Doing idle / Next F-9 wallet ready
 (AGENTS.md §5 remains the claim surface)
 ```
