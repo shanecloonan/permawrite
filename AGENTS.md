@@ -88,6 +88,7 @@ Work is decomposed into small, named **units** ("one coherent unit per commit").
 ### Step 5 — LAND (push to main, without killing someone else's CI)
 
 - **Check CI first:** `gh run list --workflow CI --limit 3`. If a run is **in progress** on `main`, do not push Rust — concurrency `cancel-in-progress` aborts the ~30–70 min matrix. Wait for it, or (docs-only commits only) use `[skip ci]`.
+- **PR CI is slim (2026-11-14):** `pull_request` runs only rustfmt, clippy, Linux scripts validation and `test (ubuntu-latest)` (~25 min). Windows/macOS test legs, Windows scripts, wasm32 and cargo-audit run on push to `main`, the 05:30 UTC nightly schedule and `workflow_dispatch`; on PRs wasm runs only if `mfn-wasm/` or `Cargo.lock` changes and cargo-audit only if a `Cargo.toml`/`Cargo.lock` changes. The full matrix on the `main` head is still the merge gate of record below — a green PR is not a green head.
 - Update **this file in the same commit**: move your unit Doing → Done (with commit subject), set your Next, prepend a §8 session-log entry, and update any §6/§7 rows you resolved.
 - Commit with a descriptive message; push to `main`.
 
