@@ -358,7 +358,7 @@ mod tests {
         Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
         TEST_CONSENSUS_PARAMS,
     };
-    use mfn_crypto::stealth::stealth_gen;
+    use mfn_crypto::stealth::{stealth_gen, stealth_wallet_from_seed};
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 
@@ -524,5 +524,128 @@ mod tests {
             mfn_consensus::block_id(&staged_block.header),
             "staged and solo paths must produce the same block id"
         );
+    }
+
+    /// Two nodes from the same seeded genesis.
+    ///
+    /// `stealth_gen` is random, so the shared helper cannot build a pair.
+    /// A fixed seed keeps the genesis id identical.
+    fn seeded_pair() -> (Chain, Chain, Validator, ValidatorSecrets, ConsensusParams) {
+        let vrf = vrf_keygen_from_seed(&[1u8; 32]).unwrap();
+        let bls = bls_keygen_from_seed(&[101u8; 32]);
+        let payout_wallet = stealth_wallet_from_seed(&[7u8; 32]);
+        let payout = ValidatorPayout {
+            view_pub: payout_wallet.view_pub,
+            spend_pub: payout_wallet.spend_pub,
+        };
+        let producer = Validator {
+            index: 0,
+            vrf_pk: vrf.pk,
+            bls_pk: bls.pk,
+            stake: 1_000_000,
+            payout: Some(payout),
+        };
+        let secrets = ValidatorSecrets { index: 0, vrf, bls };
+        let params = ConsensusParams {
+            expected_proposers_per_slot: 10.0,
+            quorum_stake_bps: 6666,
+            liveness_max_consecutive_missed: 64,
+            liveness_slash_bps: 0,
+            ..TEST_CONSENSUS_PARAMS
+        };
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            initial_storage_operators: Vec::new(),
+            validators: vec![producer.clone()],
+            params,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+            header_version: 1,
+        };
+        let a = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("node a");
+        let b = Chain::from_genesis(ChainConfig::new(cfg)).expect("node b");
+        (a, b, producer, secrets, params)
+    }
+
+    fn block_at(producer: &Validator, height: u32, timestamp: u64) -> BlockInputs {
+        let mut inputs = coinbase_inputs(producer, height);
+        inputs.timestamp = timestamp;
+        inputs
+    }
+
+    #[test]
+    fn two_nodes_survive_partition_and_equivocation() {
+        let (mut a, mut b, producer, secrets, params) = seeded_pair();
+        assert_eq!(a.genesis_id(), b.genesis_id());
+        assert_eq!(a.tip_id(), b.tip_id());
+        let genesis_tip = *a.tip_id().unwrap();
+        let treasury_at_genesis = a.stats().treasury;
+
+        // Partition: only A extends. B stays at genesis and keeps its treasury.
+        let block_a =
+            produce_solo_block(&a, &producer, &secrets, params, block_at(&producer, 1, 100))
+                .expect("A produces");
+        let id_a = a.apply(&block_a).expect("A applies its block");
+        assert_eq!(a.tip_height(), Some(1));
+        assert_eq!(b.tip_height(), Some(0));
+        assert_eq!(b.tip_id(), Some(&genesis_tip));
+        assert_eq!(b.stats().treasury, treasury_at_genesis);
+        assert_ne!(a.tip_id(), b.tip_id());
+
+        // Heal the partition by replaying A's block. Tips and treasury match.
+        let id_a_on_b = b.apply(&block_a).expect("B replays A");
+        assert_eq!(id_a_on_b, id_a);
+        assert_eq!(a.tip_id(), b.tip_id());
+        assert_eq!(a.stats().treasury, b.stats().treasury);
+        assert_eq!(a.stats().total_stake, b.stats().total_stake);
+
+        // Replaying the same block is a reject and does not move A.
+        let tip_before = *a.tip_id().unwrap();
+        let treasury_before = a.stats().treasury;
+        assert!(
+            a.apply(&block_a).is_err(),
+            "duplicate block must be rejected"
+        );
+        assert_eq!(a.tip_id(), Some(&tip_before));
+        assert_eq!(a.stats().treasury, treasury_before);
+
+        // Equivocation: two different blocks at the next height, same parent.
+        let ext_a =
+            produce_solo_block(&a, &producer, &secrets, params, block_at(&producer, 2, 200))
+                .expect("A extends");
+        let ext_b =
+            produce_solo_block(&b, &producer, &secrets, params, block_at(&producer, 2, 999))
+                .expect("B extends with a different timestamp");
+        let id_ext_a = mfn_consensus::block_id(&ext_a.header);
+        let id_ext_b = mfn_consensus::block_id(&ext_b.header);
+        assert_ne!(
+            id_ext_a, id_ext_b,
+            "different timestamps must fork the block id"
+        );
+        assert_eq!(ext_a.header.prev_hash, ext_b.header.prev_hash);
+        assert_eq!(ext_a.header.height, ext_b.header.height);
+
+        a.apply(&ext_a).expect("A takes its extension");
+        b.apply(&ext_b).expect("B takes its extension");
+        assert_ne!(a.tip_id(), b.tip_id());
+
+        // Each node rejects the other's competing block and stays put.
+        let a_tip = *a.tip_id().unwrap();
+        let b_tip = *b.tip_id().unwrap();
+        assert!(a.apply(&ext_b).is_err());
+        assert!(b.apply(&ext_a).is_err());
+        assert_eq!(a.tip_id(), Some(&a_tip));
+        assert_eq!(b.tip_id(), Some(&b_tip));
+
+        // A node that never left the parent can still adopt exactly one of them.
+        let (mut c, _, _, _, _) = seeded_pair();
+        c.apply(&block_a).expect("C catches up to the parent");
+        c.apply(&ext_a).expect("C follows A");
+        assert_eq!(c.tip_id(), Some(&a_tip));
+        assert!(c.apply(&ext_b).is_err(), "C cannot also adopt B's fork");
+        assert_eq!(c.tip_id(), Some(&a_tip));
     }
 }
