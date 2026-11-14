@@ -163,6 +163,23 @@ pub fn babybear_merkle_root(leaves: &[u32]) -> Result<u32, AggregateError> {
     Ok(as_u32(root_of(&padded(leaves)?)))
 }
 
+/// Parent-digest limbs that pin a coinbase claim.
+///
+/// The four limbs are the height, the emission, the treasury fee, and the
+/// producer fee. Each one has to fit in BabyBear. This is the value a light
+/// client passes as `parent_digest`. It is not a hash of a Winterfell proof.
+pub fn parent_limbs_from_coinbase(
+    height: u32,
+    emission: u32,
+    treasury_fee: u32,
+    producer_fee: u32,
+) -> Result<[u32; 4], AggregateError> {
+    for value in [height, emission, treasury_fee, producer_fee] {
+        let _ = v(value)?;
+    }
+    Ok([height, emission, treasury_fee, producer_fee])
+}
+
 /// Prove the split and both openings. The claim's roots are the native roots.
 pub fn prove_aggregated(claim: &AggregatedClaim) -> Result<AggregatedProof, AggregateError> {
     let public = public_values(claim)?;
@@ -644,6 +661,26 @@ mod tests {
         other_split.treasury_fee -= 1;
         assert_eq!(
             verify_aggregated_outputs(&other_split, &proof),
+            Err(AggregateError::ProofInvalid)
+        );
+    }
+
+    #[test]
+    fn b319_coinbase_limbs_bind_the_parent_digest() {
+        let limbs = parent_limbs_from_coinbase(7, 100, 40, 60).unwrap();
+        assert_eq!(limbs, [7, 100, 40, 60]);
+        assert!(parent_limbs_from_coinbase(7, u32::MAX, 40, 60).is_err());
+
+        let mut claim = claim();
+        claim.parent_digest = limbs;
+        let proof = prove_aggregated(&claim).unwrap();
+        let outputs = outputs_of(&claim);
+        verify_aggregated_outputs(&outputs, &proof).unwrap();
+
+        let mut other_height = outputs;
+        other_height.parent_digest[0] = 8;
+        assert_eq!(
+            verify_aggregated_outputs(&other_height, &proof),
             Err(AggregateError::ProofInvalid)
         );
     }
