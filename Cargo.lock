@@ -662,6 +662,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-gateway"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "mfn-storage",
+]
+
+[[package]]
 name = "mfn-light"
 version = "0.1.0"
 dependencies = [

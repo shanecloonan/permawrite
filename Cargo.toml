@@ -16,6 +16,7 @@ members = [
     "mfn-cli",
     "mfn-storage-operator",
     "mfn-wasm",
+    "distribution/gateway",
 ]
 
 [workspace.package]

@@ -1,0 +1,22 @@
+[package]
+name = "mfn-gateway"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+description = "Read-only content gateway. Serves a file only after its chunk-Merkle root matches, and does not log the requester."
+
+[[bin]]
+name = "mfn-gateway"
+path = "src/main.rs"
+
+[dependencies]
+hex = { workspace = true }
+mfn-storage = { path = "../../mfn-storage" }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
