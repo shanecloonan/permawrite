@@ -24,6 +24,7 @@ mfn-crypto = { path = "../mfn-crypto" }
 mfn-net = { path = "../mfn-net" }
 mfn-store = { path = "../mfn-store" }
 mfn-storage = { path = "../mfn-storage" }
+mfn-consensus = { path = "../mfn-consensus" }
 mfn-wallet = { path = "../mfn-wallet" }
 curve25519-dalek = { workspace = true }
 hex = { workspace = true }
