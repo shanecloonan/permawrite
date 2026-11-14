@@ -21,7 +21,7 @@ use mfn_store::{
     is_persistable_peer_addr, load_peers_with_report, save_peers, DEFAULT_MAX_OUTBOUND_PEERS,
 };
 
-use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction};
+use crate::dandelion::{DandelionConfig, DandelionRelay, HopKind, RelayAction};
 use crate::p2p_peer_quarantine::{
     should_drop_persistent_peer_on_failure, should_ignore_failure_for_quarantine, PeerQuarantine,
     PEER_FAILURES_BEFORE_QUARANTINE, PEER_QUARANTINE_DURATION,
@@ -90,7 +90,8 @@ impl P2pPeerSet {
             println!("mfnd_peers_load_ok count={count} max_outbound_peers={max_outbound_peers}");
             let _ = std::io::Write::flush(&mut std::io::stdout());
         }
-        Arc::new_cyclic(|weak| Self {
+        let dandelion_on = dandelion_config.enabled;
+        let peer_set = Arc::new_cyclic(|weak| Self {
             genesis_id,
             tip_cell,
             data_root,
@@ -112,7 +113,53 @@ impl P2pPeerSet {
                 genesis_id,
             ))),
             self_arc: weak.clone(),
-        })
+        });
+        if dandelion_on {
+            peer_set.spawn_dandelion_embargo();
+        }
+        peer_set
+    }
+
+    fn spawn_dandelion_embargo(self: &Arc<Self>) {
+        let weak = Arc::downgrade(self);
+        thread::Builder::new()
+            .name("mfnd-dandelion-embargo".into())
+            .spawn(move || loop {
+                thread::sleep(Duration::from_secs(1));
+                let Some(peer_set) = weak.upgrade() else {
+                    break;
+                };
+                peer_set.fluff_expired_stems();
+            })
+            .ok();
+    }
+
+    fn fluff_expired_stems(&self) {
+        let expired = {
+            let Ok(mut relay) = self.dandelion.lock() else {
+                return;
+            };
+            relay.take_expired(std::time::Instant::now())
+        };
+        for (wire, except) in expired {
+            let peers = self.snapshot_peers_except(except.as_deref());
+            if peers.is_empty() {
+                continue;
+            }
+            let mut tx_id_hex = String::new();
+            if let Ok(tx) = decode_transaction(&wire) {
+                for b in tx_id(&tx) {
+                    use std::fmt::Write as _;
+                    let _ = write!(tx_id_hex, "{b:02x}");
+                }
+            }
+            println!(
+                "mfnd_dandelion_embargo tx_id={tx_id_hex} peers={}",
+                peers.len()
+            );
+            let _ = std::io::Write::flush(&mut std::io::stdout());
+            self.broadcast_fresh_tx_parallel(&wire, &peers, &tx_id_hex);
+        }
     }
 
     /// Push complete operator inboxes for all anchored storage to every live session (**M7.5**).
@@ -410,6 +457,9 @@ impl P2pPeerSet {
             Ok(mut q) => q.note_failure(peer_addr),
             Err(_) => return,
         };
+        if mfn_net::peer_ban::record_misbehavior(peer_addr) {
+            eprintln!("mfnd_p2p_peer_banned peer={peer_addr} reason={reason}");
+        }
         if let Some(duration) = remaining {
             eprintln!(
                 "mfnd_p2p_peer_quarantine peer={peer_addr} seconds={} reason={reason}",
@@ -926,11 +976,8 @@ impl P2pPeerSet {
     }
 
     /// Push `tx_wire` to registered peers (**B7**: stem single-peer or fluff fan-out).
-    fn broadcast_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>) {
+    fn broadcast_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>, hop: HopKind) {
         let peers = self.snapshot_peers_except(except_peer);
-        if peers.is_empty() {
-            return;
-        }
         let tx = match decode_transaction(tx_wire) {
             Ok(t) => t,
             Err(_) => return,
@@ -941,16 +988,28 @@ impl P2pPeerSet {
             use std::fmt::Write as _;
             let _ = write!(tx_id_hex, "{b:02x}");
         }
-        let (enabled, action) = match self.dandelion.lock() {
+        let now = std::time::Instant::now();
+        let (enabled, action, delay) = match self.dandelion.lock() {
             Ok(mut relay) => {
                 let enabled = relay.is_enabled();
-                let action = relay.decide(id, &peers, std::time::Instant::now());
-                (enabled, action)
+                let delay = relay.stem_send_delay(&id, now);
+                let action = relay.forward(id, tx_wire, &peers, now, hop);
+                (enabled, action, delay)
             }
-            Err(_) => (false, RelayAction::Fluff),
+            Err(_) => (false, RelayAction::Fluff, Duration::ZERO),
         };
-        match (enabled, action) {
-            (true, RelayAction::Fluff) => {
+        if !enabled {
+            if peers.is_empty() {
+                return;
+            }
+            self.broadcast_fresh_tx_parallel(tx_wire, &peers, &tx_id_hex);
+            return;
+        }
+        match action {
+            RelayAction::Fluff => {
+                if peers.is_empty() {
+                    return;
+                }
                 println!(
                     "mfnd_dandelion_fluff tx_id={tx_id_hex} peers={}",
                     peers.len()
@@ -958,16 +1017,14 @@ impl P2pPeerSet {
                 let _ = std::io::Write::flush(&mut std::io::stdout());
                 self.broadcast_fresh_tx_parallel(tx_wire, &peers, &tx_id_hex);
             }
-            (false, RelayAction::Fluff) => {
-                self.broadcast_fresh_tx_parallel(tx_wire, &peers, &tx_id_hex);
-            }
-            (true, RelayAction::Stem { peer }) => {
+            RelayAction::Stem { peer } => {
                 println!("mfnd_dandelion_stem tx_id={tx_id_hex} peer={peer}");
                 let _ = std::io::Write::flush(&mut std::io::stdout());
-                self.spawn_tx_push_to_peer(&peer, tx_wire, &tx_id_hex, true);
+                self.spawn_tx_push_to_peer(&peer, tx_wire, &tx_id_hex, true, delay);
             }
-            (false, RelayAction::Stem { peer }) => {
-                self.spawn_tx_push_to_peer(&peer, tx_wire, &tx_id_hex, false);
+            RelayAction::Hold => {
+                println!("mfnd_dandelion_hold tx_id={tx_id_hex}");
+                let _ = std::io::Write::flush(&mut std::io::stdout());
             }
         }
     }
@@ -1004,7 +1061,14 @@ impl P2pPeerSet {
         }
     }
 
-    fn spawn_tx_push_to_peer(&self, peer: &str, tx_wire: &[u8], tx_id_hex: &str, stem_wire: bool) {
+    fn spawn_tx_push_to_peer(
+        &self,
+        peer: &str,
+        tx_wire: &[u8],
+        tx_id_hex: &str,
+        stem_wire: bool,
+        delay: Duration,
+    ) {
         let wire = Arc::new(tx_wire.to_vec());
         let genesis_id = self.genesis_id;
         let local = self.local_tip();
@@ -1018,6 +1082,9 @@ impl P2pPeerSet {
                 "mfnd-p2p-tx-fanout".into()
             })
             .spawn(move || {
+                if stem_wire && !delay.is_zero() {
+                    thread::sleep(delay);
+                }
                 let push = if stem_wire {
                     push_tx_stem_gossip_to_peer(&peer, &genesis_id, &local, &wire)
                 } else {
@@ -1120,7 +1187,23 @@ impl FanoutPeerSet for P2pPeerSet {
     }
 
     fn fanout_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>) {
-        self.broadcast_fresh_tx(tx_wire, except_peer);
+        let hop = if except_peer.is_none() {
+            HopKind::Origin
+        } else {
+            HopKind::Relay
+        };
+        self.broadcast_fresh_tx(tx_wire, except_peer, hop);
+    }
+
+    fn fanout_tx(&self, tx_wire: &[u8], except_peer: Option<&str>, stem: bool) {
+        let hop = if stem {
+            HopKind::Relay
+        } else if except_peer.is_none() {
+            HopKind::Origin
+        } else {
+            HopKind::Fluff
+        };
+        self.broadcast_fresh_tx(tx_wire, except_peer, hop);
     }
 
     fn fanout_fraud_proof(&self, consensus_wire: &[u8], except_peer: Option<&str>) {
