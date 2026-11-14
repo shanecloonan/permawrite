@@ -141,15 +141,49 @@ impl<'a> Reader<'a> {
     }
 
     /// Read exactly `n` bytes; advance the offset.
+    ///
+    /// A length that overflows the cursor is a short read, not a panic.
+    /// Release builds keep overflow checks on, so an unchecked `offset + n`
+    /// from a hostile frame would abort the node.
     pub fn bytes(&mut self, n: usize) -> Result<&'a [u8]> {
-        if self.offset + n > self.buf.len() {
+        let Some(end) = self.offset.checked_add(n) else {
+            return Err(CryptoError::ShortBuffer { needed: n });
+        };
+        if end > self.buf.len() {
             return Err(CryptoError::ShortBuffer {
-                needed: (self.offset + n) - self.buf.len(),
+                needed: end - self.buf.len(),
             });
         }
-        let out = &self.buf[self.offset..self.offset + n];
-        self.offset += n;
+        let out = &self.buf[self.offset..end];
+        self.offset = end;
         Ok(out)
+    }
+
+    /// Read a varint count and refuse it unless `count * elem_len` fits in
+    /// the unread bytes. Callers allocate only after this returns.
+    fn read_count(&mut self, elem_len: usize) -> Result<usize> {
+        let raw = self.varint()?;
+        let count = usize::try_from(raw).map_err(|_| CryptoError::CountExceedsBuffer {
+            count: raw,
+            needed: usize::MAX,
+            remaining: self.remaining(),
+        })?;
+        let needed = count
+            .checked_mul(elem_len)
+            .ok_or(CryptoError::CountExceedsBuffer {
+                count: raw,
+                needed: usize::MAX,
+                remaining: self.remaining(),
+            })?;
+        let remaining = self.remaining();
+        if needed > remaining {
+            return Err(CryptoError::CountExceedsBuffer {
+                count: raw,
+                needed,
+                remaining,
+            });
+        }
+        Ok(count)
     }
 
     /// Read a single byte.
@@ -189,8 +223,11 @@ impl<'a> Reader<'a> {
     }
 
     /// Read a varint length and then that many bytes.
+    ///
+    /// The length must fit in the unread suffix. On `wasm32`, `u64 as usize`
+    /// would truncate and disagree with a 64-bit node.
     pub fn blob(&mut self) -> Result<&'a [u8]> {
-        let n = self.varint()? as usize;
+        let n = self.read_count(1)?;
         self.bytes(n)
     }
 
@@ -213,8 +250,11 @@ impl<'a> Reader<'a> {
     }
 
     /// Read a varint length and then that many scalars.
+    ///
+    /// Capacity is reserved only after the count is proven to fit in the
+    /// unread bytes (32 bytes each).
     pub fn scalars(&mut self) -> Result<Vec<Scalar>> {
-        let n = self.varint()? as usize;
+        let n = self.read_count(32)?;
         let mut out = Vec::with_capacity(n);
         for _ in 0..n {
             out.push(self.scalar()?);
@@ -223,8 +263,11 @@ impl<'a> Reader<'a> {
     }
 
     /// Read a varint length and then that many points.
+    ///
+    /// Capacity is reserved only after the count is proven to fit in the
+    /// unread bytes (32 bytes each).
     pub fn points(&mut self) -> Result<Vec<EdwardsPoint>> {
-        let n = self.varint()? as usize;
+        let n = self.read_count(32)?;
         let mut out = Vec::with_capacity(n);
         for _ in 0..n {
             out.push(self.point()?);
@@ -276,5 +319,79 @@ mod tests {
     fn short_buffer_errors() {
         let mut r = Reader::new(&[0x01, 0x02]);
         assert!(matches!(r.bytes(8), Err(CryptoError::ShortBuffer { .. })));
+    }
+
+    #[test]
+    fn bytes_reject_a_length_that_overflows_the_cursor() {
+        let mut r = Reader::new(&[0u8; 8]);
+        assert!(matches!(
+            r.bytes(usize::MAX),
+            Err(CryptoError::ShortBuffer { .. })
+        ));
+        assert_eq!(r.remaining(), 8);
+    }
+
+    #[test]
+    fn points_and_scalars_round_trip_when_the_count_fits() {
+        use curve25519_dalek::traits::Identity;
+        let point = EdwardsPoint::identity();
+        let mut w = Writer::new();
+        w.points(&[point, point]);
+        w.scalars(&[Scalar::from(7u64), Scalar::ONE, Scalar::ZERO]);
+        let mut r = Reader::new(w.bytes());
+        let points = r.points().expect("points");
+        assert_eq!(points.len(), 2);
+        let scalars = r.scalars().expect("scalars");
+        assert_eq!(scalars.len(), 3);
+        assert!(r.end());
+    }
+
+    #[test]
+    fn huge_counts_fail_before_allocation() {
+        for build in [
+            |w: &mut Writer| {
+                w.varint(1 << 40);
+            },
+            |w: &mut Writer| {
+                w.varint(u64::MAX);
+            },
+        ] {
+            let mut w = Writer::new();
+            build(&mut w);
+            let bytes = w.into_bytes();
+            assert!(
+                matches!(
+                    Reader::new(&bytes).points(),
+                    Err(CryptoError::CountExceedsBuffer { .. })
+                ),
+                "points"
+            );
+            assert!(
+                matches!(
+                    Reader::new(&bytes).scalars(),
+                    Err(CryptoError::CountExceedsBuffer { .. })
+                ),
+                "scalars"
+            );
+            assert!(
+                matches!(
+                    Reader::new(&bytes).blob(),
+                    Err(CryptoError::CountExceedsBuffer { .. })
+                ),
+                "blob"
+            );
+        }
+    }
+
+    #[test]
+    fn point_count_must_fit_the_unread_suffix() {
+        let mut w = Writer::new();
+        w.varint(2);
+        w.push(&[0u8; 32]);
+        let err = Reader::new(w.bytes()).points().expect_err("short points");
+        assert!(matches!(
+            err,
+            CryptoError::CountExceedsBuffer { count: 2, .. }
+        ));
     }
 }

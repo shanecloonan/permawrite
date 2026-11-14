@@ -13,11 +13,13 @@
 pub mod checkpoint_log;
 pub mod claims_cmd;
 pub mod cli;
+pub mod help;
 pub mod light_follow_quorum;
 pub mod light_subjectivity;
 pub mod light_wallet;
 pub mod operator_cmd;
 pub mod rpc;
+pub mod tor_mode;
 pub mod uploads_cmd;
 pub mod wallet_cmd;
 pub mod wallet_store;
