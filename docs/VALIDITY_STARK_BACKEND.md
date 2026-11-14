@@ -91,3 +91,5 @@ verify. Nothing here is written into a block header or gossiped.
 `encode_aggregated_witness` writes `MFVW`, version 1, and a JSON object of the claimed outputs plus the Plonky3 proof. `verify_aggregated_witness` checks that envelope with `verify_aggregated_outputs`. A bad magic, a truncated body, or a version other than 1 is rejected before the STARK. This is the producer-side file for phase 4c. It is not gossiped.
 
 `parent_limbs_from_coinbase` packs height, emission, treasury fee, and producer fee into the four parent-digest limbs. A light client that passes a different height does not verify. Values that do not fit in BabyBear are rejected. The limbs are not a hash of a Winterfell proof.
+
+The same statement now names `tx_count` and `spora_count`, each at most 1_024. Both values are public inputs and trace columns. A different count does not verify.

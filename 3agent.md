@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat C **B-319** coinbase parent limbs (off consensus). Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
+Synced at Seat C **B-320** tx and SPoRA counts (off consensus). Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
-| **C** Validity proofs | **B-319** coinbase parent limbs (this commit); **B-318**; **B-39** | *Idle* | tx and SPoRA counts in the aggregate |
+| **C** Validity proofs | **B-320** tx and SPoRA counts (this commit); **B-319**; **B-318** | *Idle* | Witness size cap |
 
 ### Hard locks (all seats)
 
@@ -59,6 +59,6 @@ L4 public testnet harden
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
 3agent — Seat B: Done B-317 retrieval challenges at header v7 / Doing idle / Next output-count padding, header-gated (no DEFAULT flip)
-3agent — Seat C: Done B-319 coinbase parent limbs / Doing idle / Next tx and SPoRA counts in the aggregate
+3agent — Seat C: Done B-320 tx and SPoRA counts / Doing idle / Next witness size cap
 (AGENTS.md §5 remains the claim surface)
 ```

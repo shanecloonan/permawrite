@@ -68,6 +68,8 @@ mod tests {
             index_a: 0,
             leaves_b: vec![21, 22, 23, 24],
             index_b: 3,
+            tx_count: 2,
+            spora_count: 1,
             parent_digest: [9, 8, 7, 6],
         }
     }
@@ -86,6 +88,8 @@ mod tests {
             leaf_b: claim.leaves_b[claim.index_b as usize],
             root_b: babybear_merkle_root(&claim.leaves_b).unwrap(),
             index_b: claim.index_b,
+            tx_count: claim.tx_count,
+            spora_count: claim.spora_count,
             parent_digest: claim.parent_digest,
         }
     }
