@@ -34,6 +34,7 @@ pub mod gossip;
 pub mod handshake;
 pub mod light_follow;
 pub mod peer_addr;
+pub mod peer_ban;
 pub mod peer_diversity;
 pub mod production;
 pub mod serve;
