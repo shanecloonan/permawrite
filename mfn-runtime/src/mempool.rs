@@ -2135,6 +2135,7 @@ mod tests {
             storage_operator_ops: Vec::new(),
             bond_ops: Vec::new(),
             disclosed_fee: None,
+            retrieval_ops: Vec::new(),
         }
     }
 }

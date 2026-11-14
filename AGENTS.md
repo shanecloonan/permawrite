@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** B-37 hidden fees behind header v6 (this merge). Header v1 keeps public `tx.fee`. Path A and F-A unchanged. Parent already has Tier 2 rings at header v5 and Seat C **B-316** validity leaves. Bulletproof+ verifier still open. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** **B-317** retrieval challenges behind header v7 (this commit). Header v1 has no retrieval section. Path A and F-A unchanged. Prior head **B-37** hidden fees `267195a4`. Seat C **B-316** is the validity-leaf unit already on main. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -143,8 +143,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-37** hidden fees at header v6 (this merge); Tier 2 rings at header v5; **B-316** Winterfell leaves (Seat C) | *Idle* — slash matrix frozen. Seat C holds validity files | Bulletproof+ verifier. No B-297 clone. No DEFAULT flip | Lane 1 CI |
-| **5** Privacy | **B-19** decoy-RNG contract; **B-37** hidden fees; **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | Doc accuracy after the hidden-fee gate | Doc-accuracy duty |
+| **4** Protocol | **B-317** retrieval challenges at header v7 (this commit); **B-37** hidden fees; **B-316** Winterfell leaves (Seat C) | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding, header-gated. No B-297 clone. No DEFAULT flip | Lane 1 CI |
+| **5** Privacy | **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 
@@ -268,6 +268,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-314 | PM19 per-commitment cold-proof cadence (not wired) | 6 | **Landed** — `cold_proof_overdue` / bounty bps; Path A B5 stays global any-stale; wire after **PM1**. Design: [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md) |
 | B-315 | Max-permanence upgrade design + non-consensus helpers | 6 | **Landed** (this commit) — solvency stress, state projection, replica/retrieval helpers. No Path A flip. First fork = **F-A** after B-25 / Path B |
 | B-316 | F5 4a Winterfell leaves: `emission_at_height` + coinbase bps split | 4 (Seat C) | **Landed** on main — [`VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md). Off consensus. Recursion backend = Plonky3 when 4b.2 starts. No Path A / F-A change |
+| B-317 | Economic retrieval challenge (silence slashes the storage-operator bond) | 4+5 | **Landed** (this commit) — header v7; Path A / F-A off. Design: [`RETRIEVAL_CHALLENGE.md`](docs/RETRIEVAL_CHALLENGE.md) |
 | B-35 | F7 consensus input-count padding | 4+5 | **Landed** (this merge) — power-of-two buckets at header v4; Path A / F-A off |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | **Landed** (this commit) — header v6; header v1 keeps public `tx.fee` |
@@ -529,6 +530,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane 4+5 - B-317 retrieval challenges** (this commit): a one-time key posts a bonded challenge; silence slashes the storage-operator bond (floor and cap), pays a bounty, and drops the queued exit including `pending_unbonds`. A valid Merkle response forfeits part of the deposit to the operator and the treasury. An open challenge rejects `BondOp::Unbond` for that index and holds settlement. Header v1 omits the section. Checkpoint v13 bytes stay; header v7 writes checkpoint v14. `b317_*` PASS. No DEFAULT flip. Seat C **B-316** validity leaves are untouched. *Observed (not staged):* none.
 
 1. **2026-11-14 - lane 4 - B-37 hidden fees** (this merge): tx version 3 carries a fee commitment and a range proof; plaintext `fee` is 0. `apply_block` checks the commitments open to the block's disclosed sum and settles coinbase from that sum. Header v1 still uses public `fee·H` and rejects version 3. `b37_hidden_fee_is_inactive_on_header_v1` PASS. No B-13c; no DEFAULT flip. Wallets still build plaintext-fee txs. Next: Bulletproof+ verifier, still gated. *Observed (not staged):* none.
 

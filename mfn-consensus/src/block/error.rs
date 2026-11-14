@@ -407,6 +407,14 @@ pub enum BlockError {
         /// Configured replication for the commitment.
         max: u8,
     },
+    /// A retrieval challenge, response, or unbond was rejected (**B-317**).
+    #[error("retrieval[{index}]: {message}")]
+    RetrievalRejected {
+        /// Index of the offending op, or 0 when the failure is the section.
+        index: usize,
+        /// Why it was rejected.
+        message: String,
+    },
     /// Operator-salted proof from an unregistered operator (B3 phase 3).
     #[error("storage_proofs[{index}]: unregistered operator {operator_id}")]
     StorageProofUnregisteredOperator {

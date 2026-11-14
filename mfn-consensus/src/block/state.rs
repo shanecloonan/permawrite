@@ -409,6 +409,9 @@ pub struct ChainState {
     pub pending_unbonds: BTreeMap<u32, PendingUnbond>,
     /// Block header version pinned at genesis (`1` or `2`).
     pub header_version: u32,
+    /// Open retrieval challenges and operator-bond exits (**B-317**).
+    /// Empty on header versions below 7. Checkpoint v13 omits it.
+    pub retrieval: crate::retrieval::RetrievalRegistry,
 }
 
 impl ChainState {
@@ -439,6 +442,7 @@ impl ChainState {
             next_validator_index: 0,
             pending_unbonds: BTreeMap::new(),
             header_version: super::header::HEADER_VERSION,
+            retrieval: crate::retrieval::RetrievalRegistry::default(),
         }
     }
 
