@@ -595,7 +595,9 @@ impl Mempool {
             // Shape gate mirrors `apply_block` byte-for-byte (M5.49): a
             // commitment whose declared geometry lies about the payload
             // breaks the SPoRA audit, so it never enters the pool.
-            if let Err(reason) = mfn_storage::validate_storage_commitment_shape(sc) {
+            if let Err(reason) =
+                mfn_storage::validate_storage_commitment_for_header(sc, state.header_version)
+            {
                 return Err(AdmitError::StorageCommitmentMalformed {
                     tx_id_hex: hex_prefix(&tx_id),
                     output: oi,

@@ -18,6 +18,8 @@
 //!   bounty helper (not wired; Path A B5 stays global any-stale).
 //! - [`replica_health`] — **B-315** unique-seal / repair-bounty / retrieval
 //!   verdict helpers (not wired).
+//! - [`erasure`] — Reed–Solomon stripes.
+//! - [`stripe`] — header v9 shard uploads (4+8). Path A stays the size bucket.
 //!
 //! ## Layering
 //!
@@ -38,9 +40,11 @@
 pub mod cold_proof;
 pub mod commitment;
 pub mod endowment;
+pub mod erasure;
 pub mod lottery;
 pub mod replica_health;
 pub mod spora;
+pub mod stripe;
 
 pub use cold_proof::{
     cold_proof_overdue, missed_proof_windows, recommended_cold_reward_multiplier_bps,
@@ -81,4 +85,9 @@ pub use spora::{
     verify_endowment_opening, verify_endowment_range_proof, verify_endowment_range_proof_wire,
     verify_storage_proof, verify_storage_proof_operator_salted, BuiltCommitment, SporaError,
     StorageProof, StorageProofCheck, DEFAULT_CHUNK_SIZE,
+};
+pub use stripe::{
+    is_exact_shard_stripe, open_shard_stripe, prepare_shard_stripe, split_committed_stripe,
+    validate_storage_commitment_for_header, PreparedStripe, StripeError, HEADER_VERSION_SHARDS,
+    STRIPE_SHARDS,
 };

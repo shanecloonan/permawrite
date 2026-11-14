@@ -209,7 +209,7 @@ wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
                          options: --fee N --ring-size N (default 16, wallet/consensus floor) --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
                          options: --replication N --fee N --anchor-value N --ring-size N (default 16, wallet/consensus floor)\n\
-                         --anchor-view HEX --anchor-spend HEX --extra HEX\n\
+                         --anchor-view HEX --anchor-spend HEX --extra HEX --sharded\n\
                          --message TEXT | --message-hex HEX (MFCL claim bound to upload)\n\
                          --json\n\
        wallet claim DATA_ROOT_HEX         disabled - use wallet upload --message (bound claims only)\n\
@@ -1661,12 +1661,18 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
     let mut anchor_spend: Option<String> = None;
     let mut message: Option<Vec<u8>> = None;
     let mut json = false;
+    let mut sharded = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
         if a == "--json" {
             json = true;
+            i += 1;
+            continue;
+        }
+        if a == "--sharded" {
+            sharded = true;
             i += 1;
             continue;
         }
@@ -1803,6 +1809,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
         anchor_spend_hex: anchor_spend,
         message,
         json,
+        sharded,
     })
 }
 

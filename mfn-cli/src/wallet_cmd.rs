@@ -113,6 +113,8 @@ pub struct UploadParams {
     pub message: Option<Vec<u8>>,
     /// Print a single JSON object instead of key=value lines.
     pub json: bool,
+    /// Anchor a 4+8 shard stripe. Header v9 chains require this shape.
+    pub sharded: bool,
 }
 
 /// Parameters for `wallet claim`.
@@ -599,8 +601,18 @@ pub fn wallet_upload(
             "replication must be at least 1".into(),
         ));
     }
-    let data = std::fs::read(&params.file_path)
+    let plain = std::fs::read(&params.file_path)
         .map_err(|e| WalletCmdError::Usage(format!("read {}: {e}", params.file_path.display())))?;
+    let prepared = if params.sharded {
+        Some(
+            mfn_storage::prepare_shard_stripe(&plain)
+                .map_err(|e| WalletCmdError::Usage(format!("shard stripe: {e:?}")))?,
+        )
+    } else {
+        None
+    };
+    let data = prepared.as_ref().map(|p| p.bytes.clone()).unwrap_or(plain);
+    let chunk_size = prepared.as_ref().map(|p| p.chunk_size as usize);
     if data.is_empty() {
         return Err(WalletCmdError::Usage("upload file is empty".into()));
     }
@@ -645,11 +657,15 @@ pub fn wallet_upload(
     require_f7_owned_input_floor(&wallet)?;
     let chain_state = fetch_chain_state(client)?;
 
-    let bucket_len = storage_size_bucket(data.len() as u64);
+    let priced_len = if params.sharded {
+        data.len() as u64
+    } else {
+        storage_size_bucket(data.len() as u64)
+    };
     let fee = match params.fee {
         Some(f) => f,
         None => wallet
-            .upload_min_fee(bucket_len, params.replication, &chain_state)?
+            .upload_min_fee(priced_len, params.replication, &chain_state)?
             .saturating_add(DEFAULT_UPLOAD_FEE_TIP),
     };
 
@@ -668,7 +684,7 @@ pub fn wallet_upload(
                 fee,
                 anchor,
                 params.anchor_value,
-                None,
+                chunk_size,
                 params.ring_size,
                 &chain_state,
                 message,
@@ -684,7 +700,7 @@ pub fn wallet_upload(
                 fee,
                 anchor,
                 params.anchor_value,
-                None,
+                chunk_size,
                 params.ring_size,
                 &chain_state,
                 &params.extra,
@@ -712,6 +728,14 @@ pub fn wallet_upload(
         Some(&submit.tx_id),
     )
     .map_err(|e| e.to_string());
+    if let (Some(prep), Ok(meta)) = (prepared.as_ref(), artifact_save.as_ref()) {
+        for (i, shard) in prep.shards.iter().enumerate() {
+            let shard_path = meta.dir.join(format!("shard-{i:02}.bin"));
+            if let Err(e) = std::fs::write(&shard_path, shard) {
+                eprintln!("warning: could not store shard {i}: {e}");
+            }
+        }
+    }
 
     let outcome = UploadOutcome {
         stats: &stats,
@@ -1310,6 +1334,7 @@ mod tests {
             anchor_spend_hex: None,
             message: Some(b"signed by me".to_vec()),
             json: true,
+            sharded: false,
         };
         let stats = SyncStats {
             tip_height: 11,
