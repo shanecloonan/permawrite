@@ -15,6 +15,41 @@ const ATYP_DOMAIN: u8 = 3;
 const AUTH_NONE: u8 = 0;
 const REP_SUCCEEDED: u8 = 0;
 
+/// Refuse a SOCKS proxy that is not loopback unless the operator opts in.
+///
+/// A remote proxy sees every destination, including `.onion` and `.i2p` names.
+fn ensure_loopback_proxy(proxy: &str) -> std::io::Result<()> {
+    if socks_remote_proxy_allowed() {
+        return Ok(());
+    }
+    let addrs: Vec<SocketAddr> = proxy.to_socket_addrs()?.collect();
+    if addrs.is_empty() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "socks5 proxy address resolved to no socket addresses",
+        ));
+    }
+    if addrs.iter().any(|addr| !addr.ip().is_loopback()) {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "socks5 proxy must be loopback; a remote proxy learns every destination (set MFND_TOR_SOCKS5_ALLOW_REMOTE=1 to override)",
+        ));
+    }
+    Ok(())
+}
+
+fn socks_remote_proxy_allowed() -> bool {
+    matches!(
+        std::env::var("MFND_TOR_SOCKS5_ALLOW_REMOTE")
+            .ok()
+            .as_deref()
+            .map(str::trim)
+            .map(str::to_ascii_lowercase)
+            .as_deref(),
+        Some("1") | Some("true") | Some("yes") | Some("on")
+    )
+}
+
 /// Connect to `host:port` via SOCKS5 `ATYP_DOMAIN` (required for `.onion` peers).
 pub fn socks5_connect_domain_with_timeout(
     proxy: &str,
@@ -22,6 +57,7 @@ pub fn socks5_connect_domain_with_timeout(
     port: u16,
     timeout: Duration,
 ) -> std::io::Result<TcpStream> {
+    ensure_loopback_proxy(proxy)?;
     if host.is_empty() {
         return Err(Error::new(
             ErrorKind::InvalidInput,
@@ -114,6 +150,7 @@ pub fn socks5_connect_with_timeout<A: ToSocketAddrs>(
     target_addrs: A,
     timeout: Duration,
 ) -> std::io::Result<TcpStream> {
+    ensure_loopback_proxy(proxy)?;
     let proxy_addrs: Vec<SocketAddr> = proxy.to_socket_addrs()?.collect();
     if proxy_addrs.is_empty() {
         return Err(Error::new(
@@ -344,6 +381,19 @@ mod tests {
 
         proxy_thread.join().unwrap();
         server.join().unwrap();
+    }
+
+    #[test]
+    fn remote_socks_proxy_is_refused_before_connect() {
+        let err = socks5_connect_domain_with_timeout(
+            "203.0.113.5:9050",
+            "example.onion",
+            8333,
+            Duration::from_millis(50),
+        )
+        .unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(err.to_string().contains("loopback"));
     }
 
     #[test]
