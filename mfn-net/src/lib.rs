@@ -36,6 +36,7 @@ pub mod handshake;
 pub mod light_follow;
 pub mod peer_addr;
 pub mod peer_diversity;
+pub mod peer_exchange;
 pub mod production;
 pub mod serve;
 pub mod socks5;
