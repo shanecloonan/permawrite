@@ -36,14 +36,26 @@ jobs:
             ext: .exe
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.83.0
         with:
           targets: ${{ matrix.target }}
       - name: Build release binaries
+        shell: bash
         run: |
-          cargo build --release --target ${{ matrix.target }} -p mfn-node --bin mfnd
-          cargo build --release --target ${{ matrix.target }} -p mfn-cli --bin mfn-cli
-          cargo build --release --target ${{ matrix.target }} -p mfn-storage-operator --bin mfn-storage-operator
+          set -euo pipefail
+          epoch="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH="$epoch"
+          export CARGO_INCREMENTAL=0
+          export LC_ALL=C
+          export TZ=UTC
+          flags="-D warnings --remap-path-prefix=${GITHUB_WORKSPACE}=/permawrite -C target-cpu=generic -C debuginfo=0 -C incremental=false -C codegen-units=1"
+          case "${{ matrix.target }}" in
+            *linux*) flags="$flags -C link-arg=-Wl,--build-id=none" ;;
+          esac
+          export RUSTFLAGS="$flags"
+          cargo build --release --locked --target ${{ matrix.target }} -p mfn-node --bin mfnd
+          cargo build --release --locked --target ${{ matrix.target }} -p mfn-cli --bin mfn-cli
+          cargo build --release --locked --target ${{ matrix.target }} -p mfn-storage-operator --bin mfn-storage-operator
       - name: Stage artifacts
         shell: bash
         run: |
@@ -63,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.83.0
         with:
           targets: wasm32-unknown-unknown
       - name: Install wasm-pack
