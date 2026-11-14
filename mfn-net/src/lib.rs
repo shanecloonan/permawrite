@@ -39,6 +39,7 @@ pub mod production;
 pub mod serve;
 pub mod socks5;
 pub mod transport;
+pub mod tx_pad;
 pub mod validity_proof_v1;
 
 pub use block_sync::{
