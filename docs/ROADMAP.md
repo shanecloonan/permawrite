@@ -661,7 +661,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 | Id | Deliverable | Lane | Notes |
 |---|---|---|---|
 | **Tier 2** | Ring 32–64 + Bulletproof+ transcripts | 4+5 | Consensus version gate; wallet/CLI/WASM defaults — **after B-25** |
-| **B-35** | F7: consensus input-count padding (wallet floor shipped; finish `verify_transaction` pad) | 4+5 | Privacy shape closure before or with Tier 2 |
+| **B-35** | F7: consensus input-count padding (wallet floor shipped; finish `verify_transaction` pad) | 4+5 | ✓ **Shipped** gated — header v4 power-of-two buckets; Path A unchanged |
 | **B-37 / B6 / P6** | Hidden fees inside balance equation | 4 | Last plaintext amount; touches coinbase settlement — after B-25 |
 | **B-19** | F9: decoy-RNG entropy contract + conformance tests | 5 | Privacy before Tier 2 fork; after B-25 unless waived |
 | **B4 decoy** | Gamma calibration / age-band refinements if ring stays at 16 longer | 5 | Partially shipped; re-evaluate after Tier 2 |
@@ -758,7 +758,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-32** B3 multi-op evidence pack + assert | Phase 1 | 4+7 |
 | **B-33** B-13b human sign-off checklist | Phase 1 | 6+7+human |
 | **B-34** CI queue/stall cancel/re-dispatch | Phase 0 | 1 |
-| **B-35** F7 consensus input-count padding | Phase 3 | 4+5 |
+| **B-35** F7 consensus input-count padding | Phase 3 ✓ (header v4; Path A off) | 4+5 |
 | **B-36** F10 `f64` purge / CI lint | Phase 1–2 | 4 |
 | **B-37** B6/P6 hidden fees | Phase 3 | 4 |
 | **B-38** Repair/soak evidence + assert | Phase 1 | 1+7 |

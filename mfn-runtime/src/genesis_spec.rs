@@ -57,7 +57,7 @@ pub enum GenesisSpecError {
     UnsupportedVersion(u32),
 
     /// `header_version` is not in [`SUPPORTED_GENESIS_HEADER_VERSIONS`].
-    #[error("unsupported header_version {0} (supported: 1, 2, or 3)")]
+    #[error("unsupported header_version {0}")]
     UnsupportedHeaderVersion(u32),
 
     /// Hex decoding failed for a seed field.
@@ -731,11 +731,24 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unsupported_header_version() {
+    fn accepts_header_version_four() {
         let s = r#"{"version":1,"timestamp":0,"header_version":4,"validators":[]}"#;
+        let cfg = genesis_config_from_json_bytes(s.as_bytes()).unwrap();
+        assert_eq!(cfg.header_version, 4);
+    }
+
+    #[test]
+    fn rejects_unsupported_header_version() {
+        let bad = SUPPORTED_GENESIS_HEADER_VERSIONS
+            .iter()
+            .copied()
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1);
+        let s = format!(r#"{{"version":1,"timestamp":0,"header_version":{bad},"validators":[]}}"#);
         assert!(matches!(
             genesis_config_from_json_bytes(s.as_bytes()),
-            Err(GenesisSpecError::UnsupportedHeaderVersion(4))
+            Err(GenesisSpecError::UnsupportedHeaderVersion(v)) if v == bad
         ));
     }
 

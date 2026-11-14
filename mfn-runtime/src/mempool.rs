@@ -491,7 +491,10 @@ impl Mempool {
         }
 
         // (3) Cryptographic verification + canonical tx_id.
-        let result = verify_transaction(&tx, &state.params.ring_policy());
+        let result = verify_transaction(
+            &tx,
+            &state.params.ring_policy_for_header(state.header_version),
+        );
         if !result.ok {
             return Err(AdmitError::TxInvalid {
                 tx_id_hex: hex_prefix(&result.tx_id),

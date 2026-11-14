@@ -85,6 +85,18 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
             ring.min_input_count
         ));
     }
+    // B-35: header versions at or above HEADER_VERSION_INPUT_PAD set
+    // `input_count_buckets`. Path A / F-A leave the flag false, so a
+    // three-input spend stays valid there.
+    if ring.input_count_buckets
+        && !crate::block::input_count_is_padded_bucket(tx.inputs.len() as u32)
+    {
+        let n = tx.inputs.len();
+        let padded = crate::block::padded_input_count(n as u32);
+        errors.push(format!(
+            "input count {n} is not a canonical power-of-two bucket (pad to {padded})"
+        ));
+    }
     // F5 P20 / B-301: non-empty extra must be a well-formed MFEX
     // envelope. Opaque memos are a public fingerprint.
     if let Err(e) = crate::extra_codec::parse_mfex_extra(&tx.extra) {

@@ -24,8 +24,8 @@ Synced at Seat C **B-316** validity leaves (off consensus). Path A and F-A uncha
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-18** MFBN-1 VRF golden pin (`69957f57`); **B-315**; **B-314** (`8c71a43a`) | *Idle* | **B-35** consensus input-count pad. No B-13c; no DEFAULT flip |
-| **C** Validity proofs | **B-316** Winterfell emission + coinbase-split leaves (this commit) | *Idle* | STARK-friendly Merkle leaf, then **B-12** on Plonky3 |
+| **B** Protocol/Privacy | **B-35** input-count buckets at header v4 (this merge); **B-18** (`69957f57`) | *Idle* | **B-19** decoy-RNG entropy contract. No B-13c; no DEFAULT flip |
+| **C** Validity proofs | **B-316** Winterfell emission + coinbase-split leaves (on main) | *Idle* | STARK-friendly Merkle leaf, then **B-12** on Plonky3 |
 
 ### Hard locks (all seats)
 
@@ -58,7 +58,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done B-18 MFBN-1 VRF golden pin / Doing idle / Next B-35 consensus input-count pad (no B-13c, no DEFAULT flip)
+3agent — Seat B: Done B-35 input-count buckets (header v4, Path A off) / Doing idle / Next B-19 decoy-RNG entropy contract (no B-13c, no DEFAULT flip)
 3agent — Seat C: Done B-316 Winterfell emission + coinbase-split leaves / Doing idle / Next Merkle leaf, then B-12 on Plonky3
 (AGENTS.md §5 remains the claim surface)
 ```

@@ -5,7 +5,7 @@ use super::internal::*;
 use super::error::BlockError;
 use super::header::{
     block_id, Block, BlockHeader, HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH,
-    HEADER_VERSION_UTXO_QUORUM,
+    HEADER_VERSION_INPUT_PAD, HEADER_VERSION_UTXO_QUORUM,
 };
 use super::state::{
     ChainState, ConsensusParams, StorageEntry, StorageOperatorEntry, UtxoEntry, ValidatorStats,
@@ -60,8 +60,9 @@ pub struct GenesisConfig {
     pub endowment_params: EndowmentParams,
     /// Bonding / churn limits. [`None`] ⇒ [`DEFAULT_BONDING_PARAMS`](bonding::DEFAULT_BONDING_PARAMS).
     pub bonding_params: Option<BondingParams>,
-    /// Block header version for this chain (`1` or `2`). `2` includes
-    /// `utxo_root` in BLS signing bytes ([`HEADER_VERSION_UTXO_QUORUM`]).
+    /// Block header version for this chain. `2` includes `utxo_root` in BLS
+    /// signing bytes ([`HEADER_VERSION_UTXO_QUORUM`]). `4` engages B-35
+    /// input-count buckets ([`HEADER_VERSION_INPUT_PAD`]). Path A stays `1`.
     pub header_version: u32,
 }
 
@@ -76,6 +77,7 @@ pub const SUPPORTED_GENESIS_HEADER_VERSIONS: &[u32] = &[
     HEADER_VERSION,
     HEADER_VERSION_UTXO_QUORUM,
     HEADER_VERSION_FRAUD_SLASH,
+    HEADER_VERSION_INPUT_PAD,
 ];
 
 /// Build the genesis [`Block`].

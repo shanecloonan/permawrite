@@ -18,6 +18,15 @@ pub const HEADER_VERSION_UTXO_QUORUM: u32 = 2;
 /// fraud). Opt-in for new chains (Path B genesis / TL-7 ceremony).
 pub const HEADER_VERSION_FRAUD_SLASH: u32 = 3;
 
+/// Header version that requires canonical input-count buckets (**B-35**).
+///
+/// On this version every regular transaction's input count is a power of
+/// two at or above [`MIN_TX_INPUTS_UNIFORM_TIER`] (2, 4, 8, …). Counts in
+/// between would publish how many UTXOs the spend actually needed.
+/// Opt-in at genesis. [`HEADER_VERSION`] (Path A) and F-A stay below this
+/// gate, so their accepted shapes do not change.
+pub const HEADER_VERSION_INPUT_PAD: u32 = 4;
+
 /// Block header — the consensus-critical, hash-committed metadata.
 #[derive(Clone, Debug)]
 pub struct BlockHeader {

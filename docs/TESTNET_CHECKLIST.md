@@ -447,7 +447,7 @@ Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permane
 
 Strategic ordering: [`ROADMAP.md` Phase 3](./ROADMAP.md#phase-3--privacy-tier-2-and-metadata-closure-privacy-second). **Hard rule:** no Tier 2 / hidden fees until **B-25** or human waiver.
 
-- [ ] **B-35** — F7 consensus input-count padding.
+- [x] **B-35** — F7 consensus input-count buckets (power of two) behind `HEADER_VERSION_INPUT_PAD` (4). Path A / F-A stay off.
 - [ ] **B-37** — B6/P6 hidden fees inside balance equation.
 - [ ] **B-19** — F9 decoy-RNG entropy contract + tests.
 - [ ] **Tier 2** — Ring 32–64 + Bulletproof+ transcripts + wallet/WASM defaults + doc parity.

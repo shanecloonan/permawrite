@@ -578,7 +578,8 @@ fn verify_clsag_fraud_proof(proof: &TxFraudProof) -> Result<TxFraudVerdict, Frau
     if tx_index == 0 && is_coinbase_shaped(tx) {
         return Err(FraudProofError::CoinbaseNotClsagTarget(tx_index));
     }
-    let v = verify_transaction(tx, &RingPolicy::PRODUCTION);
+    let policy = RingPolicy::PRODUCTION.with_header_version(proof.block.header.version);
+    let v = verify_transaction(tx, &policy);
     if v.ok {
         return Err(FraudProofError::NotFraud);
     }
