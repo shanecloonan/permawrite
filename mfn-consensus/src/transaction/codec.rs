@@ -4,7 +4,7 @@
 
 use super::internal::*;
 use super::wire::{TransactionWire, TxInputWire, TxOutputWire};
-use super::{TX_VERSION, TX_VERSION_LEGACY};
+use super::{TX_VERSION, TX_VERSION_HIDDEN_FEE, TX_VERSION_LEGACY};
 
 /* ----------------------------------------------------------------------- *
  *  Wire codec (M2.0.10) — full transaction encode / decode                *
@@ -76,6 +76,18 @@ pub fn encode_transaction(tx: &TransactionWire) -> Vec<u8> {
                 w.blob(&encode_storage_commitment(c));
             }
         }
+    }
+
+    if tx.version == TX_VERSION_HIDDEN_FEE {
+        let commit = tx
+            .fee_commitment
+            .expect("hidden-fee tx encodes a fee commitment");
+        let proof = tx
+            .fee_range_proof
+            .as_ref()
+            .expect("hidden-fee tx encodes a fee range proof");
+        w.point(&commit);
+        w.blob(&encode_bulletproof(proof));
     }
 
     w.into_bytes()
@@ -262,6 +274,21 @@ pub(crate) fn read_transaction(r: &mut Reader<'_>) -> Result<TransactionWire, Tx
         });
     }
 
+    let (fee_commitment, fee_range_proof) = if version == TX_VERSION_HIDDEN_FEE {
+        let commitment = r.point()?;
+        let bp_bytes = r.blob()?;
+        let proof = decode_bulletproof(commitment, bp_bytes)?;
+        if encode_bulletproof(&proof) != bp_bytes {
+            return Err(TxDecodeError::NonCanonicalBlob {
+                field: "fee_range_proof",
+                index: 0,
+            });
+        }
+        (Some(commitment), Some(proof))
+    } else {
+        (None, None)
+    };
+
     Ok(TransactionWire {
         version,
         r_pub,
@@ -269,5 +296,7 @@ pub(crate) fn read_transaction(r: &mut Reader<'_>) -> Result<TransactionWire, Tx
         outputs,
         fee,
         extra,
+        fee_commitment,
+        fee_range_proof,
     })
 }

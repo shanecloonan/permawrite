@@ -67,14 +67,15 @@ pub use genesis::{
 };
 pub use header::{
     block_header_bytes, block_id, decode_block_header, header_signing_bytes, header_signing_hash,
-    Block, BlockHeader, HeaderDecodeError, HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH,
-    HEADER_VERSION_INPUT_PAD, HEADER_VERSION_UTXO_QUORUM,
+    Block, BlockHeader, DisclosedFee, HeaderDecodeError, HEADER_VERSION,
+    HEADER_VERSION_FRAUD_SLASH, HEADER_VERSION_HIDDEN_FEES, HEADER_VERSION_INPUT_PAD,
+    HEADER_VERSION_RETRIEVAL, HEADER_VERSION_TIER2, HEADER_VERSION_UTXO_QUORUM, TIER2_RING_SIZES,
 };
 pub use state::{
-    input_count_is_padded_bucket, padded_input_count, ChainState, ConsensusParams, PendingUnbond,
-    RingPolicy, StorageEntry, StorageOperatorEntry, StorageOperatorStats, UtxoEntry,
-    ValidatorStats, DEFAULT_CONSENSUS_PARAMS, MIN_TX_INPUTS_UNIFORM_TIER,
-    MIN_TX_OUTPUTS_UNIFORM_TIER, TEST_CONSENSUS_PARAMS,
+    input_count_is_padded_bucket, padded_input_count, tier2_ring_size_allowed, ChainState,
+    ConsensusParams, PendingUnbond, RingPolicy, StorageEntry, StorageOperatorEntry,
+    StorageOperatorStats, UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS,
+    MIN_TX_INPUTS_UNIFORM_TIER, MIN_TX_OUTPUTS_UNIFORM_TIER, TEST_CONSENSUS_PARAMS,
 };
 pub use wire::{
     decode_block, decode_block_body, encode_block, encode_block_body, storage_merkle_root,

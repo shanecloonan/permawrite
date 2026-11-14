@@ -19,12 +19,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat A equivocation height-bind (header version 5; version 4 remains B-35). **F5 1c+**, **B-19**, and **B-35** are on main. Nightly `#31861932921` **GREEN**.
+Synced at Seat A equivocation height-bind (header version 8). Versions 5–7 are Tier 2, B-37, and B-317. Lock rule is version 9. Nightly `#31861932921` **GREEN**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** RC/CI | Equivocation height-bind at header version 5 (this commit). Version 4 stays B-35. Path A and F-A stay on version 1 | *Idle* | Permanence and privacy units that do not need a live network. No B-13c; no DEFAULT flip |
-| **B** Protocol/Privacy | **F5 1c+** slash drops pending unbond; **B-19**; **B-35** header v4 | *Idle* | **B-17** ASN peer buckets. No B-13c; no DEFAULT flip |
+| **A** RC/CI | Equivocation height-bind at header version 8 (this merge). Versions 4–7 stay Seat B's gates. Path A and F-A stay on version 1 | *Idle* | Permanence and privacy units that do not need a live network. No B-13c; no DEFAULT flip |
+| **B** Protocol/Privacy | **B-317** retrieval challenges at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-316** Winterfell emission + coinbase-split leaves (on main) | *Idle* | STARK-friendly Merkle leaf, then **B-12** on Plonky3 |
 
 ### Hard locks (all seats)
@@ -57,8 +57,8 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done equivocation height-bind at header version 5 / Doing idle / Next permanence and privacy units that stay off the live network
-3agent — Seat B: Done F5 1c+ slash drops the bond-registry exit / Doing idle / Next B-17 ASN peer buckets (no B-13c, no DEFAULT flip)
+3agent — Seat A: Done equivocation height-bind at header version 8 / Doing idle / Next permanence and privacy units that stay off the live network
+3agent — Seat B: Done B-317 retrieval challenges at header v7 / Doing idle / Next output-count padding, header-gated (no DEFAULT flip)
 3agent — Seat C: Done B-316 Winterfell emission + coinbase-split leaves / Doing idle / Next Merkle leaf, then B-12 on Plonky3
 (AGENTS.md §5 remains the claim surface)
 ```

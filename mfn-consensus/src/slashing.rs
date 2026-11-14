@@ -27,10 +27,11 @@ pub const SLASH_KIND_INVALID_BLOCK: u8 = 1;
 /// Below this, a vote signs the header hash alone. Two honest votes from
 /// consecutive blocks then verify as equivocation, because height and slot
 /// sit in the evidence unsigned. Current genesis stays on header version 1,
-/// so the bound rule is inactive there. Header version 4 is B-35 input-count
-/// padding and does not use this rule. The signed message changes at this
-/// version, which is why the rule is gated.
-pub const HEADER_VERSION_EQUIVOCATION_BIND: u32 = 5;
+/// so the bound rule is inactive there. Versions 4–7 are already assigned
+/// (B-35 input padding, Tier 2 rings, B-37 hidden fees, B-317 retrieval)
+/// and do not use this rule. The signed message changes here, which is
+/// why the rule is gated. The lock rule is version 9.
+pub const HEADER_VERSION_EQUIVOCATION_BIND: u32 = 8;
 
 /// Domain-separated vote message `dhash(CONSENSUS_VOTE, height || slot || hash)`.
 ///
@@ -800,15 +801,23 @@ mod tests {
             verify_equivocation_evidence(&legacy, std::slice::from_ref(&val)),
             EvidenceCheck::Valid
         );
-        // B-35's header version 4 is input-count padding, not this bind.
-        assert_eq!(
-            verify_equivocation_evidence_for_header(
-                &legacy,
-                std::slice::from_ref(&val),
-                crate::block::HEADER_VERSION_INPUT_PAD
-            ),
-            EvidenceCheck::Valid
-        );
+        // Versions 4–7 belong to other gates and still accept a bare hash.
+        for version in [
+            crate::block::HEADER_VERSION_INPUT_PAD,
+            crate::block::HEADER_VERSION_TIER2,
+            crate::block::HEADER_VERSION_HIDDEN_FEES,
+            crate::block::HEADER_VERSION_RETRIEVAL,
+        ] {
+            assert_eq!(
+                verify_equivocation_evidence_for_header(
+                    &legacy,
+                    std::slice::from_ref(&val),
+                    version
+                ),
+                EvidenceCheck::Valid,
+                "header version {version} is not the height bind"
+            );
+        }
     }
 
     #[test]

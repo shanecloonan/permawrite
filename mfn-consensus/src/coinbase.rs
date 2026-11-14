@@ -178,6 +178,8 @@ pub fn build_coinbase_outputs(
         outputs: wire_outputs,
         fee: 0,
         extra: Vec::new(),
+        fee_commitment: None,
+        fee_range_proof: None,
     })
 }
 
