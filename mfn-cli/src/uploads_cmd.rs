@@ -459,19 +459,38 @@ fn storage_challenge_for_operator(
     }
 }
 
+/// Arguments for [`uploads_get`].
+pub struct UploadsGetRequest<'a> {
+    /// Wallet whose seed decrypts the file when `--key` is absent.
+    pub wallet_path: &'a Path,
+    /// Content id. The node's `data_root` must match.
+    pub content_root_hex: &'a str,
+    /// Commitment the operators serve.
+    pub commitment_hash_hex: &'a str,
+    /// Chunk servers, `host:port`.
+    pub peers: &'a [String],
+    /// Where to write the plaintext.
+    pub output_path: &'a Path,
+    /// Explicit 32-byte key file. `None` uses the wallet.
+    pub key_path: Option<&'a Path>,
+    /// SOCKS proxy. `None` dials peers directly.
+    pub socks: Option<&'a str>,
+}
+
 /// `uploads get` — fetch shards, check the content id, and decrypt.
 ///
 /// The node must report the same `data_root` for `commitment_hash_hex`.
 /// `socks` defaults to Tor at the CLI. `None` dials the peers directly.
-pub fn uploads_get(
-    client: &mut RpcClient,
-    content_root_hex: &str,
-    commitment_hash_hex: &str,
-    peers: &[String],
-    output_path: &Path,
-    key_path: Option<&Path>,
-    socks: Option<&str>,
-) -> Result<(), String> {
+pub fn uploads_get(client: &mut RpcClient, req: UploadsGetRequest<'_>) -> Result<(), String> {
+    let UploadsGetRequest {
+        wallet_path,
+        content_root_hex,
+        commitment_hash_hex,
+        peers,
+        output_path,
+        key_path,
+        socks,
+    } = req;
     let ch = client
         .get_storage_challenge(commitment_hash_hex)
         .map_err(|e| e.to_string())?;
@@ -488,19 +507,7 @@ pub fn uploads_get(
     }
     let mut content_root = [0u8; 32];
     content_root.copy_from_slice(&root_bytes);
-    let key = match key_path {
-        Some(path) => {
-            let bytes = std::fs::read(path)
-                .map_err(|e| format!("read upload key {}: {e}", path.display()))?;
-            if bytes.len() != 32 {
-                return Err("upload key must be 32 bytes".into());
-            }
-            let mut key = [0u8; 32];
-            key.copy_from_slice(&bytes);
-            Some(key)
-        }
-        None => None,
-    };
+    let key = resolve_upload_key(wallet_path, key_path)?;
     let plain = mfn_storage_operator::retrieve_content(
         &content_root,
         commitment_hash_hex,
@@ -519,6 +526,38 @@ pub fn uploads_get(
         .map_err(|e| format!("write {}: {e}", output_path.display()))?;
     println!("retrieve=ok bytes={}", plain.len());
     Ok(())
+}
+
+/// Key for `uploads get`.
+///
+/// `--key` wins. Otherwise the `upload.key` file beside the wallet is used.
+/// If that file is gone, the key is derived from the wallet seed. Seat F's
+/// 24-word phrase restores that seed.
+pub fn resolve_upload_key(
+    wallet_path: &Path,
+    key_path: Option<&Path>,
+) -> Result<Option<[u8; 32]>, String> {
+    if let Some(path) = key_path {
+        return Ok(Some(read_key_file(path)?));
+    }
+    let beside = wallet_path.with_file_name(mfn_storage::UPLOAD_KEY_FILE);
+    if beside.is_file() {
+        return Ok(Some(read_key_file(&beside)?));
+    }
+    let file = crate::wallet_store::WalletFile::load(wallet_path).map_err(|e| e.to_string())?;
+    let seed = file.seed_bytes().map_err(|e| e.to_string())?;
+    Ok(Some(mfn_storage::upload_key_from_seed(&seed)))
+}
+
+fn read_key_file(path: &Path) -> Result<[u8; 32], String> {
+    let bytes =
+        std::fs::read(path).map_err(|e| format!("read upload key {}: {e}", path.display()))?;
+    if bytes.len() != 32 {
+        return Err("upload key must be 32 bytes".into());
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&bytes);
+    Ok(key)
 }
 
 /// `uploads retrieve` — export payload bytes from a wallet-local upload artifact (**M3.27**).
@@ -994,6 +1033,30 @@ mod tests {
 
         std::fs::remove_file(&output).ok();
         std::fs::remove_dir_all(upload_artifacts_root(&wallet)).ok();
+        std::fs::remove_file(&wallet).ok();
+    }
+
+    #[test]
+    fn a_restored_seed_opens_the_upload_after_upload_key_is_deleted() {
+        use crate::wallet_cmd::wallet_restore;
+        use crate::wallet_store::KeyDerivation;
+        use mfn_storage::{decrypt_upload, encrypt_upload, upload_key_from_seed, UPLOAD_KEY_FILE};
+        let wallet = temp_wallet("seed-key");
+        let seed_hex = "44".repeat(32);
+        wallet_restore(&wallet, &seed_hex, KeyDerivation::MfnWalletV1, true).expect("restore");
+        let key_file = wallet.with_file_name(UPLOAD_KEY_FILE);
+        std::fs::remove_file(&key_file).expect("drop upload.key");
+        let key = resolve_upload_key(&wallet, None)
+            .expect("key")
+            .expect("some");
+        let mut seed = [0u8; 32];
+        seed.copy_from_slice(&hex::decode(seed_hex).expect("hex"));
+        assert_eq!(key, upload_key_from_seed(&seed));
+        let blob = encrypt_upload(b"opened from the seed", &key, &[7u8; 16]);
+        assert_eq!(
+            decrypt_upload(&blob, &key).expect("open"),
+            b"opened from the seed"
+        );
         std::fs::remove_file(&wallet).ok();
     }
 }

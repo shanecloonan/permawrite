@@ -165,14 +165,18 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 key_path,
                 socks,
             } => {
+                let path = resolve_wallet_path(global_wallet_path.as_deref());
                 uploads_get(
                     &mut client,
-                    &content_root_hex,
-                    &commitment_hash_hex,
-                    &peers,
-                    &output_path,
-                    key_path.as_deref(),
-                    socks.as_deref(),
+                    crate::uploads_cmd::UploadsGetRequest {
+                        wallet_path: &path,
+                        content_root_hex: &content_root_hex,
+                        commitment_hash_hex: &commitment_hash_hex,
+                        peers: &peers,
+                        output_path: &output_path,
+                        key_path: key_path.as_deref(),
+                        socks: socks.as_deref(),
+                    },
                 )
                 .map_err(CliError::Usage)?;
             }
