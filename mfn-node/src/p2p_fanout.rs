@@ -457,6 +457,9 @@ impl P2pPeerSet {
             Ok(mut q) => q.note_failure(peer_addr),
             Err(_) => return,
         };
+        if mfn_net::peer_ban::record_misbehavior(peer_addr) {
+            eprintln!("mfnd_p2p_peer_banned peer={peer_addr} reason={reason}");
+        }
         if let Some(duration) = remaining {
             eprintln!(
                 "mfnd_p2p_peer_quarantine peer={peer_addr} seconds={} reason={reason}",

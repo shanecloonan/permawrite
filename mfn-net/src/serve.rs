@@ -892,6 +892,10 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                             }
                         }
                     }
+                    if !crate::peer_ban::inbound_allowed(&peer.to_string()) {
+                        eprintln!("mfnd_p2p_banned peer={peer}");
+                        return;
+                    }
                     let _shutdown = ShutdownOnDrop(sock.try_clone().ok());
                     if let Err(e) = hello_v1_handshake(&mut sock, &genesis_id) {
                         eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=hello {e}");

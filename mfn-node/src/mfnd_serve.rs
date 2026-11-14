@@ -746,6 +746,11 @@ pub(crate) fn run_serve(
     if p2p_enabled {
         let transport = crate::network::init_active_p2p_transport_from_env()
             .map_err(|e| format!("mfnd serve: {e}"))?;
+        let ban_path = store.root().join("peer_bans.txt");
+        match mfn_net::peer_ban::BanTable::load(&ban_path) {
+            Ok(table) => mfn_net::peer_ban::install(table),
+            Err(e) => eprintln!("mfnd_p2p_ban_load_abort {e}"),
+        }
         if std::env::var("MFND_P2P_PAD")
             .ok()
             .is_some_and(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "on"))
