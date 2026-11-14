@@ -33,6 +33,7 @@ pub mod fraud_proof_v1;
 pub mod gossip;
 pub mod handshake;
 pub mod light_follow;
+pub mod noise_xx;
 pub mod peer_addr;
 pub mod peer_diversity;
 pub mod production;

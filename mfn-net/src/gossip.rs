@@ -479,6 +479,25 @@ fn push_tx_labeled_gossip_to_peer(
     tx_wire: &[u8],
     stem_wire: bool,
 ) -> Result<(), PushTxGossipError> {
+    if crate::noise_xx::encryption_configured() {
+        let mut sock = crate::transport::active_p2p_transport()
+            .connect_peer(peer_addr)
+            .map_err(|e| {
+                PushTxGossipError::Handshake(HelloHandshakeError::Io(std::io::Error::other(e)))
+            })?;
+        let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+        let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+        sock.write_all(crate::noise_xx::SESSION_MARKER)
+            .map_err(|e| PushTxGossipError::Handshake(HelloHandshakeError::Io(e)))?;
+        sock.flush()
+            .map_err(|e| PushTxGossipError::Handshake(HelloHandshakeError::Io(e)))?;
+        return crate::noise_xx::dial_encrypted_tx(
+            &mut sock, genesis_id, local_tip, tx_wire, stem_wire,
+        )
+        .map_err(|e| {
+            PushTxGossipError::Handshake(HelloHandshakeError::Io(std::io::Error::other(e)))
+        });
+    }
     let (mut sock, _remote) =
         tcp_connect_peer_v1_handshake_with_tip_exchange(peer_addr, genesis_id, local_tip)?;
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));

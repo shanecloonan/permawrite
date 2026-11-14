@@ -1,7 +1,7 @@
 //! `mfnd serve` P2P accept/dial threads and stdout harness lines (`mfnd_p2p_*`).
 
 use std::cmp::Ordering;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::{Arc, Mutex};
@@ -849,6 +849,37 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                                 let _ = s.shutdown(std::net::Shutdown::Both);
                             }
                         }
+                    }
+                    if crate::noise_xx::encryption_configured() {
+                        let mut magic = [0u8; 4];
+                        if sock.read_exact(&mut magic).is_err()
+                            || &magic != crate::noise_xx::SESSION_MARKER
+                        {
+                            eprintln!(
+                                "mfnd_p2p_encrypt_abort hid={hid} peer={peer} reason=marker"
+                            );
+                            return;
+                        }
+                        let local = local_chain_tip(&tip_cell, block_sync.as_ref());
+                        if let Some(h) = &gossip {
+                            match crate::noise_xx::accept_encrypted_session(
+                                &mut sock,
+                                &genesis_id,
+                                &local,
+                                h.as_ref(),
+                            ) {
+                                Ok(remote) => {
+                                    eprintln!("mfnd_p2p_encrypt=session hid={hid} peer={peer}");
+                                    log_peer_tip(hid, &peer.to_string(), &remote);
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "mfnd_p2p_encrypt_abort hid={hid} peer={peer} {e}"
+                                    );
+                                }
+                            }
+                        }
+                        return;
                     }
                     let _shutdown = ShutdownOnDrop(sock.try_clone().ok());
                     if let Err(e) = hello_v1_handshake(&mut sock, &genesis_id) {
