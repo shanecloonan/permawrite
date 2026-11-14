@@ -184,6 +184,9 @@ fn decode_row(payload: &[u8]) -> Result<(LightFollowRow, usize), LightFollowDeco
         payload[off + 3],
     ]) as usize;
     off += 4;
+    if n_slash > payload.len().saturating_sub(off) {
+        return Err(LightFollowDecodeError::Truncated);
+    }
     let mut slashings = Vec::with_capacity(n_slash);
     for _ in 0..n_slash {
         let (bytes, n) = read_len_prefixed(&payload[off..])?;
@@ -200,6 +203,9 @@ fn decode_row(payload: &[u8]) -> Result<(LightFollowRow, usize), LightFollowDeco
         payload[off + 3],
     ]) as usize;
     off += 4;
+    if n_bond > payload.len().saturating_sub(off) {
+        return Err(LightFollowDecodeError::Truncated);
+    }
     let mut bond_ops = Vec::with_capacity(n_bond);
     for _ in 0..n_bond {
         let (bytes, n) = read_len_prefixed(&payload[off..])?;
@@ -231,10 +237,13 @@ fn read_len_prefixed(payload: &[u8]) -> Result<(Vec<u8>, usize), LightFollowDeco
         return Err(LightFollowDecodeError::Truncated);
     }
     let len = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]) as usize;
-    if payload.len() < 4 + len {
+    let Some(end) = 4usize.checked_add(len) else {
+        return Err(LightFollowDecodeError::Truncated);
+    };
+    if payload.len() < end {
         return Err(LightFollowDecodeError::Truncated);
     }
-    Ok((payload[4..4 + len].to_vec(), 4 + len))
+    Ok((payload[4..end].to_vec(), end))
 }
 
 /// Serve [`GetLightFollowV1`] from the local block log (implemented in `mfn-node`).
