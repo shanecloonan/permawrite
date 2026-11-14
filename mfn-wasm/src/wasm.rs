@@ -3,12 +3,25 @@
 use wasm_bindgen::prelude::*;
 
 use crate::core::{
-    claim_pubkey_hex_from_seed, parse_seed_hex, storage_upload_preview_json,
-    wallet_address_json_from_seed,
+    claim_pubkey_hex_from_seed, parse_seed_hex, phrase_from_seed, seed_hex_from_phrase,
+    storage_upload_preview_json, wallet_address_json_from_seed,
 };
 
 fn js_err(msg: impl AsRef<str>) -> JsValue {
     JsValue::from_str(msg.as_ref())
+}
+
+/// 24-word recovery phrase for a 64-hex seed.
+#[wasm_bindgen(js_name = phraseFromSeedHex)]
+pub fn wasm_phrase_from_seed_hex(seed_hex: &str) -> Result<String, JsValue> {
+    let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
+    Ok(phrase_from_seed(&seed))
+}
+
+/// 64-hex seed from a 24-word recovery phrase.
+#[wasm_bindgen(js_name = seedHexFromPhrase)]
+pub fn wasm_seed_hex_from_phrase(phrase: &str) -> Result<String, JsValue> {
+    seed_hex_from_phrase(phrase).map_err(|e| js_err(e.to_string()))
 }
 
 /// Derive stealth address public keys from a 64-hex-char wallet seed.
