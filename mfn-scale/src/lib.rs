@@ -13,6 +13,7 @@ pub mod baseline;
 pub mod batch;
 pub mod fast_sync;
 pub mod header_sync;
+pub mod memory;
 pub mod prune;
 pub mod workload;
 
@@ -26,6 +27,7 @@ pub use header_sync::{
     synthetic_body, synthetic_body_matches, synthetic_chain, synthetic_header_id, HeaderFirstSync,
     HeaderSource, HeaderSyncConfig, MemorySource, SyncError, SyncHeader, SyncStats,
 };
+pub use memory::{AdmitError, BodyCache, DeviceClass, MemoryBudget};
 pub use prune::{BlockLog, BlockRecord, KeepClass, NodeRole, PruneError};
 pub use workload::{
     header_link_digest, prepare_verify_workload, PreparedWorkload, VerifyReport, WorkloadError,
