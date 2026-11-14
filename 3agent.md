@@ -24,7 +24,7 @@ Synced at Seat C **B-316** validity leaves (off consensus). Path A and F-A uncha
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-37** hidden fees at header v6 (this merge); Tier 2 rings at header v5 | *Idle* | Bulletproof+ verifier, gated off. No DEFAULT flip |
+| **B** Protocol/Privacy | **B-317** retrieval challenges at header v7 (this commit); **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-316** Winterfell emission + coinbase-split leaves (on main) | *Idle* | STARK-friendly Merkle leaf, then **B-12** on Plonky3 |
 
 ### Hard locks (all seats)
@@ -58,7 +58,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done B-37 hidden fees at header v6 (v1 keeps public fee) / Doing idle / Next Bulletproof+ verifier, gated off (no DEFAULT flip)
+3agent — Seat B: Done B-317 retrieval challenges at header v7 / Doing idle / Next output-count padding, header-gated (no DEFAULT flip)
 3agent — Seat C: Done B-316 Winterfell emission + coinbase-split leaves / Doing idle / Next Merkle leaf, then B-12 on Plonky3
 (AGENTS.md §5 remains the claim surface)
 ```

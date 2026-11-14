@@ -309,6 +309,7 @@ pub(crate) fn sync_wallet_light_from_node(
                 storage_proofs: Vec::new(),
                 storage_operator_ops: Vec::new(),
                 disclosed_fee: None,
+                retrieval_ops: Vec::new(),
             };
             wallet.ingest_block(&block);
 

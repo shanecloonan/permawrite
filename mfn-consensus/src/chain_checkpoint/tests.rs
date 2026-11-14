@@ -35,6 +35,7 @@ fn fresh_state() -> ChainState {
         next_validator_index: 0,
         pending_unbonds: BTreeMap::new(),
         header_version: 1,
+        retrieval: crate::retrieval::RetrievalRegistry::default(),
     }
 }
 
@@ -418,6 +419,7 @@ fn encode_is_independent_of_hashmap_iteration_order() {
         next_validator_index: s_a.next_validator_index,
         pending_unbonds: s_a.pending_unbonds.clone(),
         header_version: s_a.header_version,
+        retrieval: s_a.retrieval.clone(),
     };
     let mut utxo_pairs: Vec<_> = s_a.utxo.iter().collect();
     utxo_pairs.reverse();
@@ -477,7 +479,7 @@ fn rejects_unsupported_version() {
     };
     let mut bytes = encode_chain_checkpoint(&cp);
     // Bytes 4..8 are the version, big-endian. Flip past current.
-    let unsupported = CHAIN_CHECKPOINT_VERSION + 1;
+    let unsupported = CHAIN_CHECKPOINT_VERSION_MAX + 1;
     bytes[4..8].copy_from_slice(&unsupported.to_be_bytes());
     let plen = bytes.len() - 32;
     let new_tag = dhash(CHAIN_CHECKPOINT, &[&bytes[..plen]]);

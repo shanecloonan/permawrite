@@ -137,5 +137,6 @@ pub fn seal_block_storage_ops(
         bond_ops,
         storage_operator_ops,
         disclosed_fee: None,
+        retrieval_ops: Vec::new(),
     }
 }

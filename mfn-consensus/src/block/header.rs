@@ -39,6 +39,12 @@ pub const HEADER_VERSION_TIER2: u32 = 5;
 /// proof, and the block discloses only the sum.
 pub const HEADER_VERSION_HIDDEN_FEES: u32 = 6;
 
+/// Header version for on-chain retrieval challenges (**B-317**).
+///
+/// Below this version a block carries no retrieval section and silence
+/// does not slash a storage-operator bond. Path A and F-A stay below it.
+pub const HEADER_VERSION_RETRIEVAL: u32 = 7;
+
 /// Ring sizes a Tier 2 chain accepts. Header versions below
 /// [`HEADER_VERSION_TIER2`] keep the chain's uniform size (16 in production).
 pub const TIER2_RING_SIZES: [u32; 2] = [32, 64];
@@ -122,6 +128,9 @@ pub struct Block {
     /// Block-level fee sum opening. Present only on header version 6.
     /// Individual transaction fees stay inside commitments.
     pub disclosed_fee: Option<DisclosedFee>,
+    /// Retrieval challenges and responses. Empty, and omitted from the
+    /// wire, below header version 7.
+    pub retrieval_ops: Vec<crate::retrieval::RetrievalOp>,
 }
 
 /// Opening of `Σ fee_commitment` for a hidden-fee block (**B-37**).

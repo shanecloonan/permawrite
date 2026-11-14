@@ -97,6 +97,11 @@ pub const CHAIN_CHECKPOINT_MAGIC: [u8; 4] = *b"MFCC";
 /// wire-incompatible changes.
 pub const CHAIN_CHECKPOINT_VERSION: u32 = 13;
 
+/// Highest checkpoint this build decodes. Version 14 appends the retrieval
+/// registry and is written only for header version 7 and above. Version 13
+/// bytes are unchanged.
+pub const CHAIN_CHECKPOINT_VERSION_MAX: u32 = 14;
+
 /// Errors produced by the chain-checkpoint codec.
 ///
 /// `encode_chain_checkpoint` is infallible — every variant here is a
@@ -115,7 +120,7 @@ pub enum ChainCheckpointError {
 
     /// Format version is not supported by this build.
     #[error(
-        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 13"
+        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 14"
     )]
     UnsupportedVersion {
         /// The version encoded in the payload.

@@ -5,8 +5,8 @@ use super::internal::*;
 use super::error::BlockError;
 use super::header::{
     block_id, Block, BlockHeader, HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH,
-    HEADER_VERSION_HIDDEN_FEES, HEADER_VERSION_INPUT_PAD, HEADER_VERSION_TIER2,
-    HEADER_VERSION_UTXO_QUORUM,
+    HEADER_VERSION_HIDDEN_FEES, HEADER_VERSION_INPUT_PAD, HEADER_VERSION_RETRIEVAL,
+    HEADER_VERSION_TIER2, HEADER_VERSION_UTXO_QUORUM,
 };
 use super::state::{
     ChainState, ConsensusParams, StorageEntry, StorageOperatorEntry, UtxoEntry, ValidatorStats,
@@ -81,6 +81,7 @@ pub const SUPPORTED_GENESIS_HEADER_VERSIONS: &[u32] = &[
     HEADER_VERSION_INPUT_PAD,
     HEADER_VERSION_TIER2,
     HEADER_VERSION_HIDDEN_FEES,
+    HEADER_VERSION_RETRIEVAL,
 ];
 
 /// Build the genesis [`Block`].
@@ -118,6 +119,7 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
         bond_ops: Vec::new(),
         storage_operator_ops: Vec::new(),
         disclosed_fee: None,
+        retrieval_ops: Vec::new(),
     }
 }
 

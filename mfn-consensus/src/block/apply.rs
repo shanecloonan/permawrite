@@ -1049,6 +1049,47 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         bond_epoch_exit_count: next.bond_epoch_exit_count,
         next_validator_index: next.next_validator_index,
     };
+    if next.header_version < crate::HEADER_VERSION_RETRIEVAL {
+        if !block.retrieval_ops.is_empty() {
+            errors.push(BlockError::RetrievalRejected {
+                index: 0,
+                message: "retrieval ops require header version 7".into(),
+            });
+        }
+    } else {
+        let mut retrieval_bonds =
+            crate::retrieval::bonds_from_operator_entries(&next.storage_operators);
+        if let Err(err) = next.retrieval.apply_ops(
+            next.header_version,
+            block.header.height,
+            &block.retrieval_ops,
+            &mut retrieval_bonds,
+            &mut next.treasury,
+        ) {
+            errors.push(BlockError::RetrievalRejected {
+                index: 0,
+                message: format!("{err:?}"),
+            });
+        }
+        crate::retrieval::write_operator_bonds(&mut next.storage_operators, &retrieval_bonds);
+        for index in next.retrieval.forfeited_exits() {
+            next.pending_unbonds.remove(index);
+        }
+        for (index, op) in block.bond_ops.iter().enumerate() {
+            if let crate::bond_wire::BondOp::Unbond {
+                validator_index, ..
+            } = op
+            {
+                if next.retrieval.blocks_unbond(*validator_index) {
+                    errors.push(BlockError::RetrievalRejected {
+                        index,
+                        message: "unbond blocked by open retrieval challenge".into(),
+                    });
+                }
+            }
+        }
+    }
+
     match crate::validator_evolution::apply_bond_ops_evolution(
         block.header.height,
         &mut counters,
@@ -1096,6 +1137,20 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     //      stake. Bonded MFN stays in treasury -- for M1, bonding is a
     //      one-way contribution to permanence; an honorable exit only
     //      frees the operator from future slashing exposure.
+    let mut held_unbonds = std::collections::BTreeMap::new();
+    if next.header_version >= crate::HEADER_VERSION_RETRIEVAL {
+        let blocked: Vec<u32> = next
+            .pending_unbonds
+            .keys()
+            .copied()
+            .filter(|index| next.retrieval.blocks_unbond(*index))
+            .collect();
+        for index in blocked {
+            if let Some(pending) = next.pending_unbonds.remove(&index) {
+                held_unbonds.insert(index, pending);
+            }
+        }
+    }
     crate::validator_evolution::apply_unbond_settlements(
         block.header.height,
         &mut counters,
@@ -1103,6 +1158,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         &mut next.validators,
         &mut next.pending_unbonds,
     );
+    next.pending_unbonds.extend(held_unbonds);
 
     // Commit the counter mutations back to chain state.
     next.bond_epoch_id = counters.bond_epoch_id;

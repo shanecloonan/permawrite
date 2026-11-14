@@ -44,6 +44,7 @@ fn encode_block_body_parts(
     storage_operator_ops: &[crate::storage_operator_wire::StorageOperatorOp],
     header_version: u32,
     disclosed_fee: Option<crate::block::DisclosedFee>,
+    retrieval_ops: &[crate::retrieval::RetrievalOp],
 ) {
     w.varint(txs.len() as u64);
     for tx in txs {
@@ -75,10 +76,14 @@ fn encode_block_body_parts(
         w.u64(disclosed.total);
         w.scalar(&disclosed.blinding);
     }
+    if header_version >= crate::HEADER_VERSION_RETRIEVAL {
+        w.push(&crate::retrieval::encode_retrieval_ops(retrieval_ops));
+    }
 }
 
 /// Canonical body bytes (txs, bond ops, slashings, storage proofs, storage-operator ops) without a header.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn encode_block_body(
     txs: &[TransactionWire],
     bond_ops: &[BondOp],
@@ -87,6 +92,7 @@ pub fn encode_block_body(
     storage_operator_ops: &[crate::storage_operator_wire::StorageOperatorOp],
     header_version: u32,
     disclosed_fee: Option<crate::block::DisclosedFee>,
+    retrieval_ops: &[crate::retrieval::RetrievalOp],
 ) -> Vec<u8> {
     let mut w = Writer::new();
     encode_block_body_parts(
@@ -98,6 +104,7 @@ pub fn encode_block_body(
         storage_operator_ops,
         header_version,
         disclosed_fee,
+        retrieval_ops,
     );
     w.into_bytes()
 }
@@ -117,6 +124,8 @@ pub struct BlockBody {
     pub storage_operator_ops: Vec<crate::storage_operator_wire::StorageOperatorOp>,
     /// Fee-sum opening. `Some` only when the header version hides fees.
     pub disclosed_fee: Option<crate::block::DisclosedFee>,
+    /// Retrieval ops. Empty below header version 7.
+    pub retrieval_ops: Vec<crate::retrieval::RetrievalOp>,
 }
 
 /// Encode a full block (header bytes + canonical body section).
@@ -131,6 +140,7 @@ pub fn encode_block(b: &Block) -> Vec<u8> {
         &b.storage_operator_ops,
         b.header.version,
         b.disclosed_fee,
+        &b.retrieval_ops,
     );
     out.extend_from_slice(&body);
     out
@@ -260,6 +270,7 @@ pub fn decode_block(bytes: &[u8]) -> Result<Block, BlockDecodeError> {
         bond_ops: body.bond_ops,
         storage_operator_ops: body.storage_operator_ops,
         disclosed_fee: body.disclosed_fee,
+        retrieval_ops: body.retrieval_ops,
     })
 }
 
@@ -356,7 +367,18 @@ pub fn decode_block_body(bytes: &[u8], header_version: u32) -> Result<BlockBody,
         None
     };
 
-    if !r.end() {
+    let retrieval_ops = if header_version >= crate::HEADER_VERSION_RETRIEVAL {
+        let rest = r.bytes(r.remaining()).map_err(BlockDecodeError::Codec)?;
+        crate::retrieval::decode_retrieval_ops(rest).map_err(|_| {
+            BlockDecodeError::TrailingBytes {
+                remaining: rest.len(),
+            }
+        })?
+    } else {
+        Vec::new()
+    };
+
+    if header_version < crate::HEADER_VERSION_RETRIEVAL && !r.end() {
         return Err(BlockDecodeError::TrailingBytes {
             remaining: r.remaining(),
         });
@@ -369,6 +391,7 @@ pub fn decode_block_body(bytes: &[u8], header_version: u32) -> Result<BlockBody,
         storage_proofs,
         storage_operator_ops,
         disclosed_fee,
+        retrieval_ops,
     })
 }
 
