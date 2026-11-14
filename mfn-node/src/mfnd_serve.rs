@@ -746,6 +746,12 @@ pub(crate) fn run_serve(
     if p2p_enabled {
         let transport = crate::network::init_active_p2p_transport_from_env()
             .map_err(|e| format!("mfnd serve: {e}"))?;
+        let session_key_path = store.root().join("p2p_session.key");
+        if mfn_net::noise_xx::install_session_key_file(&session_key_path)
+            .map_err(|e| format!("mfnd serve: {e}"))?
+        {
+            println!("mfnd_p2p_encrypt=enabled");
+        }
         let ban_path = store.root().join("peer_bans.txt");
         match mfn_net::peer_ban::BanTable::load(&ban_path) {
             Ok(table) => mfn_net::peer_ban::install(table),
