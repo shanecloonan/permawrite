@@ -393,6 +393,7 @@ impl P2pPeerSet {
             self.remember_production_dial(&addr);
             return;
         }
+        mfn_net::peer_exchange::remember(&addr);
         self.note_peer_success(&addr);
         self.remember_production_dial(&addr);
         let changed = match (self.peers.lock(), self.durable_peers.lock()) {
@@ -425,6 +426,7 @@ impl P2pPeerSet {
 
     /// Clear transient score state after any successful peer exchange.
     pub fn note_peer_success(&self, peer_addr: &str) {
+        mfn_net::addrman::mark_dial_good(peer_addr);
         if let Ok(mut q) = self.quarantine.lock() {
             q.note_success(peer_addr);
         }

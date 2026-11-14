@@ -31,6 +31,7 @@ mod p2p_block_sync;
 mod p2p_boot;
 mod p2p_chunk_fanout;
 mod p2p_chunk_inbox;
+mod p2p_discovery;
 mod p2p_fanout;
 mod p2p_gossip;
 mod p2p_light_follow_fetch;
