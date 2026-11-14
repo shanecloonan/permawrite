@@ -460,6 +460,7 @@ impl Wallet {
             recipients: &all_recipients,
             fee,
             extra,
+            hidden_fee: false,
             ring_size,
             decoy_pool: &pool,
             current_height,
@@ -473,6 +474,88 @@ impl Wallet {
             self.mark_spent_by_utxo_key(&k);
         }
 
+        Ok(signed)
+    }
+
+    /// Spend using the strongest ring and fee shape this chain allows.
+    #[allow(clippy::too_many_arguments)]
+    ///
+    /// `explicit_ring` is `None` unless the caller named a size. `public_fee`
+    /// refuses on a chain that hides fees.
+    pub fn build_private_transfer<R>(
+        &mut self,
+        recipients: &[TransferRecipient],
+        fee: u64,
+        explicit_ring: Option<usize>,
+        public_fee: bool,
+        chain_state: &ChainState,
+        extra: &[u8],
+        rng: &mut R,
+    ) -> Result<SignedTransaction, WalletError>
+    where
+        R: FnMut() -> f64,
+    {
+        if recipients.is_empty() {
+            return Err(WalletError::NoRecipients);
+        }
+        if !extra.is_empty() {
+            if mfn_consensus::extra_codec::parse_mfex_extra(extra).is_err() {
+                return Err(WalletError::NonCanonicalTxExtra { len: extra.len() });
+            }
+            return Err(WalletError::TransferTxExtraNotEmpty { len: extra.len() });
+        }
+        let target = recipients
+            .iter()
+            .map(|r| r.value)
+            .fold(0u64, u64::saturating_add)
+            .saturating_add(fee);
+        let (chosen_refs, input_sum) = self.select_inputs_for_tx(target)?;
+        let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
+        let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
+        let change_value = input_sum.saturating_sub(target);
+        let mut all_recipients: Vec<TransferRecipient> = recipients.to_vec();
+        if change_value > 0 {
+            all_recipients.push(TransferRecipient {
+                recipient: mfn_consensus::Recipient {
+                    view_pub: self.keys.view_pub(),
+                    spend_pub: self.keys.spend_pub(),
+                },
+                value: change_value,
+            });
+        }
+        while all_recipients.len() < crate::WALLET_MIN_TX_OUTPUTS {
+            all_recipients.push(TransferRecipient {
+                recipient: mfn_consensus::Recipient {
+                    view_pub: self.keys.view_pub(),
+                    spend_pub: self.keys.spend_pub(),
+                },
+                value: 0,
+            });
+        }
+        let chosen_refs2: Vec<&OwnedOutput> = chosen_owned.iter().collect();
+        let pool = build_decoy_pool(chain_state, chosen_keys.iter().copied());
+        let privacy = crate::choose_spend_privacy(
+            chain_state.header_version,
+            pool.len(),
+            explicit_ring,
+            public_fee,
+        )?;
+        let current_height = u64::from(self.scan_height.unwrap_or(0));
+        let plan = TransferPlan {
+            inputs: &chosen_refs2,
+            recipients: &all_recipients,
+            fee,
+            extra,
+            hidden_fee: privacy.hidden_fee,
+            ring_size: privacy.ring_size,
+            decoy_pool: &pool,
+            current_height,
+            rng,
+        };
+        let signed = build_transfer(plan)?;
+        for k in chosen_keys {
+            self.mark_spent_by_utxo_key(&k);
+        }
         Ok(signed)
     }
 

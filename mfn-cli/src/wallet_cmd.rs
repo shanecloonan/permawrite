@@ -82,8 +82,10 @@ pub struct SendParams {
     pub amount: u64,
     /// Transaction fee (atomic units).
     pub fee: u64,
-    /// Ring size (≥ [`WALLET_MIN_RING_SIZE`], includes real input).
-    pub ring_size: usize,
+    /// Ring size when the caller named one. `None` uses the largest legal ring.
+    pub ring_size: Option<usize>,
+    /// Ask to publish the fee. Refused when the chain hides fees.
+    pub public_fee: bool,
     /// Optional `tx.extra` memo bytes (hex).
     pub extra: Vec<u8>,
     /// Print a single JSON object instead of key=value lines.
@@ -482,10 +484,12 @@ pub fn wallet_send(
             "amount must be greater than 0".into(),
         ));
     }
-    if params.ring_size < WALLET_MIN_RING_SIZE {
-        return Err(WalletCmdError::Usage(format!(
-            "ring-size must be at least {WALLET_MIN_RING_SIZE} (wallet/consensus floor)"
-        )));
+    if let Some(ring) = params.ring_size {
+        if ring < WALLET_MIN_RING_SIZE {
+            return Err(WalletCmdError::Usage(format!(
+                "ring-size must be at least {WALLET_MIN_RING_SIZE} (wallet/consensus floor)"
+            )));
+        }
     }
     let recipient = parse_recipient(&params.to_view_hex, &params.to_spend_hex)?;
     let mut file = WalletFile::load(path)?;
@@ -499,13 +503,14 @@ pub fn wallet_send(
         wallet.owned().map(|o| o.utxo_key()).collect();
     let mut rng = production_tx_rng;
     let signed = wallet
-        .build_transfer(
+        .build_private_transfer(
             &[TransferRecipient {
                 recipient,
                 value: params.amount,
             }],
             params.fee,
             params.ring_size,
+            params.public_fee,
             &chain_state,
             &params.extra,
             &mut rng,
@@ -563,7 +568,15 @@ fn print_send_outcome(outcome: &SendOutcome<'_>) -> Result<(), WalletCmdError> {
     );
     println!("fee={}", outcome.params.fee);
     println!("fee_mfn={}", mfn_wallet::format_mfn(outcome.params.fee));
-    println!("ring_size={}", outcome.params.ring_size);
+    println!(
+        "ring_size={}",
+        outcome
+            .params
+            .ring_size
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "largest-legal".to_string())
+    );
+    println!("public_fee={}", outcome.params.public_fee);
     println!("tx_id={}", outcome.tx_id);
     println!("mempool_len={}", outcome.mempool_len);
     println!("outcome={}", outcome.outcome_kind);
@@ -610,6 +623,7 @@ fn send_outcome_json(outcome: &SendOutcome<'_>) -> serde_json::Value {
         "fee": outcome.params.fee,
         "fee_mfn": mfn_wallet::format_mfn(outcome.params.fee),
         "ring_size": outcome.params.ring_size,
+        "public_fee": outcome.params.public_fee,
         "extra_len": outcome.params.extra.len(),
         "tx_id": outcome.tx_id,
         "mempool_len": outcome.mempool_len,
@@ -1442,7 +1456,8 @@ mod tests {
             to_spend_hex: "22".repeat(32),
             amount: 1_000,
             fee: 10,
-            ring_size: DEFAULT_RING_SIZE,
+            ring_size: Some(DEFAULT_RING_SIZE),
+            public_fee: false,
             extra: vec![0xaa, 0xbb],
             json: true,
         };

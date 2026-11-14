@@ -384,6 +384,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             || a == "--verify-checkpoint"
             || a == "--against-checkpoint"
             || a == "--json"
+            || a == "--public-fee"
         {
             positional.push(a);
             i += 1;
@@ -1571,7 +1572,8 @@ fn parse_money(raw: &str, what: &str) -> Result<u64, CliError> {
 
 pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
     let mut fee = DEFAULT_TRANSFER_FEE;
-    let mut ring_size = DEFAULT_RING_SIZE;
+    let mut ring_size: Option<usize> = None;
+    let mut public_fee = false;
     let mut extra: Vec<u8> = Vec::new();
     let mut json = false;
     let mut positional: Vec<&str> = Vec::new();
@@ -1591,27 +1593,27 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             i += 2;
             continue;
         }
+        if a == "--public-fee" {
+            public_fee = true;
+            i += 1;
+            continue;
+        }
         if a == "--ring-size" {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--ring-size requires a value".into()));
             };
-            ring_size = v.parse().map_err(|_| {
+            let parsed = v.parse().map_err(|_| {
                 CliError::Usage(
                     "--ring-size must be an integer >= 16 (wallet/consensus floor)".into(),
                 )
             })?;
-            if ring_size < mfn_wallet::WALLET_MIN_RING_SIZE {
+            if parsed < mfn_wallet::WALLET_MIN_RING_SIZE {
                 return Err(CliError::Usage(format!(
                     "--ring-size must be at least {} (wallet/consensus floor)",
                     mfn_wallet::WALLET_MIN_RING_SIZE
                 )));
             }
-            if let Err(msg) = mfn_consensus::tier2_ring_size_allowed(
-                mfn_consensus::HEADER_VERSION,
-                ring_size as u32,
-            ) {
-                return Err(CliError::Usage(msg.into()));
-            }
+            ring_size = Some(parsed);
             i += 2;
             continue;
         }
@@ -1666,6 +1668,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
         amount,
         fee,
         ring_size,
+        public_fee,
         extra,
         json,
     })

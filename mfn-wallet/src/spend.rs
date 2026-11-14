@@ -26,7 +26,10 @@
 //! call, but reusing it across inputs is fine because each input gets
 //! its own *independent* sample.
 
-use mfn_consensus::{sign_transaction, InputSpec, OutputSpec, Recipient, SignedTransaction};
+use mfn_consensus::{
+    sign_hidden_fee_transaction, sign_transaction, InputSpec, OutputSpec, Recipient,
+    SignedTransaction,
+};
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::{select_gamma_decoys, DecoyCandidate, DEFAULT_GAMMA_PARAMS};
 
@@ -63,8 +66,10 @@ pub struct TransferPlan<'a, R: FnMut() -> f64> {
     /// Recipients of the transfer (`Σ value` + `fee` must equal `Σ
     /// inputs.value`).
     pub recipients: &'a [TransferRecipient],
-    /// Public fee claimed by the producer.
+    /// Public fee claimed by the producer. Hidden when [`Self::hidden_fee`].
     pub fee: u64,
+    /// Use a fee commitment. Only legal when the chain header is version 6+.
+    pub hidden_fee: bool,
     /// Transfers must use empty extra. Well-formed MFEX is upload-only
     /// (F5 P20 / B-304); opaque memos are a typed refuse (B-301).
     pub extra: &'a [u8],
@@ -259,7 +264,12 @@ where
         output_specs.swap(i, j);
     }
 
-    Ok(sign_transaction(
+    let sign = if plan.hidden_fee {
+        sign_hidden_fee_transaction
+    } else {
+        sign_transaction
+    };
+    Ok(sign(
         input_specs,
         output_specs,
         plan.fee,
@@ -331,6 +341,7 @@ mod tests {
             recipients: &recipients,
             fee: 1_000,
             extra: &[],
+            hidden_fee: false,
             ring_size: crate::WALLET_MIN_RING_SIZE,
             decoy_pool: &decoys,
             current_height: 1,
@@ -368,6 +379,7 @@ mod tests {
             recipients: &recipients,
             fee: 1_000,
             extra: &[],
+            hidden_fee: false,
             ring_size: crate::WALLET_MIN_RING_SIZE - 1,
             decoy_pool: &decoys,
             current_height: 1,
@@ -404,6 +416,7 @@ mod tests {
             recipients: &recipients,
             fee: 1_000,
             extra: b"hello-memo",
+            hidden_fee: false,
             ring_size: crate::WALLET_MIN_RING_SIZE,
             decoy_pool: &decoys,
             current_height: 1,
@@ -444,6 +457,7 @@ mod tests {
             recipients: &recipients,
             fee: 1_000,
             extra: &extra,
+            hidden_fee: false,
             ring_size: crate::WALLET_MIN_RING_SIZE,
             decoy_pool: &decoys,
             current_height: 1,
@@ -487,6 +501,7 @@ mod tests {
             recipients: &recipients,
             fee: 1_000,
             extra: &extra,
+            hidden_fee: false,
             ring_size: crate::WALLET_MIN_RING_SIZE,
             decoy_pool: &decoys,
             current_height: 1,
@@ -523,6 +538,7 @@ mod tests {
             recipients: &recipients,
             fee,
             extra: &[],
+            hidden_fee: false,
             ring_size: crate::WALLET_MIN_RING_SIZE,
             decoy_pool: &decoys,
             current_height: 1,
@@ -568,6 +584,7 @@ mod tests {
             recipients: &recipients,
             fee,
             extra: &[],
+            hidden_fee: false,
             ring_size: crate::WALLET_MIN_RING_SIZE,
             decoy_pool: &decoys,
             current_height: 1,
@@ -619,6 +636,7 @@ mod tests {
                 recipients: &recipients,
                 fee,
                 extra: &[],
+                hidden_fee: false,
                 ring_size: crate::WALLET_MIN_RING_SIZE,
                 decoy_pool: &decoys,
                 current_height: 1,
