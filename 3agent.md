@@ -27,12 +27,12 @@ Synced at Seat C **B-12** Plonky3 aggregate (off consensus; not an inner verifie
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (this commit); **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
-| **F** Ease of use | **F-7** light-scan trust note | *Idle* | **F-8** browser upload keeps a local copy |
+| **F** Ease of use | **F-8** browser file backup card | *Idle* | **F-9** `wallet ready` checklist |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#32578440244` rust GREEN / scripts FAIL; Nightly `#31861932921` GREEN.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#32578440244` rust GREEN / scripts FAIL; Nightly `#31861932921` GREEN. PRs run slim CI (fmt, clippy, Linux tests/scripts); full multi-OS matrix + wasm + audit run on main push and nightly — watch the main head after merging.
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
