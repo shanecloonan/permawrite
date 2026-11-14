@@ -24,7 +24,7 @@ Synced at Seat C **F-A** public-devnet genesis + `vps-rollout-fa.sh` (owner runs
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-17** ASN buckets, /16 default (this commit); **F5 1c+** (`742434d3`); **B-19** (`d7045ab9`) | *Idle* | Tier 2 Bulletproof+ and ring 32–64, gated off. No B-13c; no DEFAULT flip |
+| **B** Protocol/Privacy | Tier 2 rings gated at header v5 (this commit); **B-17** (`f9b93b83`); **F5 1c+** (`742434d3`) | *Idle* | **B-37** hidden fees, gated off. Bulletproof+ verifier still open. No DEFAULT flip |
 | **C** Testnet/Onboarding | **F-A** genesis + `vps-rollout-fa.sh` (this commit) | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health |
 
 ### Hard locks (all seats)
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done B-17 ASN buckets with /16 default / Doing idle / Next Tier 2 range proofs and ring 32-64 gated off (no B-13c, no DEFAULT flip)
+3agent — Seat B: Done Tier 2 ring 32/64 gate (header v5, v1 stays 16) / Doing idle / Next B-37 hidden fees gated off; Bulletproof+ verifier still open (no DEFAULT flip)
 3agent — Seat C: Done Path A tip-22565 lag OK=7 / Doing idle / Next 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

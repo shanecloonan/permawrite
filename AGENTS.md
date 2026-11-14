@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** B-17 ASN diversity buckets (this commit). Empty ASN table keeps /16 redial. Path A and F-A unchanged. Prior head **F5 1c+** `742434d3`. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** Tier 2 ring 32/64 behind header v5 (this commit). Header v1 still requires ring 16. Bulletproof+ is not accepted. Path A and F-A unchanged. Prior head **B-17** `f9b93b83`. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-17** ASN buckets, empty table keeps /16 (this commit); **F5 1c+** (`742434d3`) | *Idle* — slash matrix frozen | Tier 2 range proofs and ring 32–64, version-gated and inactive. No B-297 clone | Lane 1 CI |
+| **4** Protocol | Tier 2 rings 32/64 at header v5 (this commit); **B-17** (`f9b93b83`) | *Idle* — slash matrix frozen | **B-37** hidden fees, version-gated. Bulletproof+ verifier still open. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-19** decoy-RNG contract (this commit); **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | **B-37** hidden fees, version-gated, after the Tier 2 gate | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
@@ -525,6 +525,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane 4 - Tier 2 ring gate** (this commit): header version 5 accepts ring 32 or 64 and rejects 16. Header v1 (`HEADER_VERSION`) still accepts only 16, including CLI `--ring-size` and WASM transfer/upload. Classic Bulletproofs stay the range proof; Bulletproof+ is not a wire option. `tier2_ring_sizes_stay_inactive_on_header_v1` PASS. No B-13c; no DEFAULT flip. Next: **B-37** hidden fees, same style of gate. *Observed (not staged):* none.
 
 1. **2026-11-14 - lane 4 - B-17 ASN peer buckets** (this commit): `diversity_bucket_key` uses a caller-supplied ASN when the IPv4 is listed, otherwise the /16. `peer_diversity_redial_candidates` still passes an empty table, so existing redial is unchanged. `b17_asn_collapses_distinct_prefix16_and_splits_one_prefix` PASS. No live ASN lookup. No B-13c; no DEFAULT flip. Next: Tier 2 behind a version gate. *Observed (not staged):* none.
 

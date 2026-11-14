@@ -107,13 +107,14 @@ pub use block::{
 pub use block::{
     apply_genesis, block_header_bytes, block_id, build_genesis, decode_block, decode_block_body,
     decode_block_header, encode_block, encode_block_body, genesis_header_version,
-    header_signing_bytes, header_signing_hash, storage_merkle_root, tx_merkle_root, Block,
-    BlockBody, BlockDecodeError, BlockError, BlockHeader, ChainState, ConsensusParams,
-    GenesisConfig, GenesisOutput, GenesisStorageOperator, HeaderDecodeError, PendingUnbond,
-    RingPolicy, StorageOperatorEntry, UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS,
-    HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH, HEADER_VERSION_INPUT_PAD,
-    HEADER_VERSION_UTXO_QUORUM, MIN_TX_INPUTS_UNIFORM_TIER, MIN_TX_OUTPUTS_UNIFORM_TIER,
-    SUPPORTED_GENESIS_HEADER_VERSIONS, TEST_CONSENSUS_PARAMS,
+    header_signing_bytes, header_signing_hash, storage_merkle_root, tier2_ring_size_allowed,
+    tx_merkle_root, Block, BlockBody, BlockDecodeError, BlockError, BlockHeader, ChainState,
+    ConsensusParams, GenesisConfig, GenesisOutput, GenesisStorageOperator, HeaderDecodeError,
+    PendingUnbond, RingPolicy, StorageOperatorEntry, UtxoEntry, ValidatorStats,
+    DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH, HEADER_VERSION_INPUT_PAD,
+    HEADER_VERSION_TIER2, HEADER_VERSION_UTXO_QUORUM, MIN_TX_INPUTS_UNIFORM_TIER,
+    MIN_TX_OUTPUTS_UNIFORM_TIER, SUPPORTED_GENESIS_HEADER_VERSIONS, TEST_CONSENSUS_PARAMS,
+    TIER2_RING_SIZES,
 };
 pub use bond_wire::{
     bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, BondOp, BondWireError,

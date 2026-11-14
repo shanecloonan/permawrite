@@ -5,7 +5,7 @@ use super::internal::*;
 use super::error::BlockError;
 use super::header::{
     block_id, Block, BlockHeader, HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH,
-    HEADER_VERSION_INPUT_PAD, HEADER_VERSION_UTXO_QUORUM,
+    HEADER_VERSION_INPUT_PAD, HEADER_VERSION_TIER2, HEADER_VERSION_UTXO_QUORUM,
 };
 use super::state::{
     ChainState, ConsensusParams, StorageEntry, StorageOperatorEntry, UtxoEntry, ValidatorStats,
@@ -78,6 +78,7 @@ pub const SUPPORTED_GENESIS_HEADER_VERSIONS: &[u32] = &[
     HEADER_VERSION_UTXO_QUORUM,
     HEADER_VERSION_FRAUD_SLASH,
     HEADER_VERSION_INPUT_PAD,
+    HEADER_VERSION_TIER2,
 ];
 
 /// Build the genesis [`Block`].

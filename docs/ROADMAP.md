@@ -660,7 +660,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 
 | Id | Deliverable | Lane | Notes |
 |---|---|---|---|
-| **Tier 2** | Ring 32–64 + Bulletproof+ transcripts | 4+5 | Consensus version gate; wallet/CLI/WASM defaults — **after B-25** |
+| **Tier 2** | Ring 32–64 + Bulletproof+ transcripts | 4+5 | Ring 32/64 gated at header v5 (inactive on v1). Bulletproof+ verifier not shipped |
 | **B-35** | F7: consensus input-count padding (wallet floor shipped; finish `verify_transaction` pad) | 4+5 | ✓ **Shipped** gated — header v4 power-of-two buckets; Path A unchanged |
 | **B-37 / B6 / P6** | Hidden fees inside balance equation | 4 | Last plaintext amount; touches coinbase settlement — after B-25 |
 | **B-19** | F9: decoy-RNG entropy contract + conformance tests | 5 | ✓ **Shipped** — [`DECOY_RNG.md`](./DECOY_RNG.md); no consensus change |

@@ -27,6 +27,15 @@ pub const HEADER_VERSION_FRAUD_SLASH: u32 = 3;
 /// gate, so their accepted shapes do not change.
 pub const HEADER_VERSION_INPUT_PAD: u32 = 4;
 
+/// Header version for Tier 2 rings (32 or 64). Opt-in genesis.
+/// [`HEADER_VERSION`] stays 16-uniform. Bulletproof transcripts stay the
+/// classic verifier; a Bulletproof+ transcript is not accepted on any version.
+pub const HEADER_VERSION_TIER2: u32 = 5;
+
+/// Ring sizes a Tier 2 chain accepts. Header versions below
+/// [`HEADER_VERSION_TIER2`] keep the chain's uniform size (16 in production).
+pub const TIER2_RING_SIZES: [u32; 2] = [32, 64];
+
 /// Block header — the consensus-critical, hash-committed metadata.
 #[derive(Clone, Debug)]
 pub struct BlockHeader {

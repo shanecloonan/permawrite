@@ -196,7 +196,13 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
                 ring.min_ring_size
             ));
         }
-        if ring.uniform_ring_size != 0 && ring_len as u32 != ring.uniform_ring_size {
+        if ring.tier2_rings {
+            if !crate::block::TIER2_RING_SIZES.contains(&(ring_len as u32)) {
+                errors.push(format!(
+                    "input {i}: ring size {ring_len} is not a Tier 2 size (32 or 64)"
+                ));
+            }
+        } else if ring.uniform_ring_size != 0 && ring_len as u32 != ring.uniform_ring_size {
             errors.push(format!(
                 "input {i}: ring size {ring_len} != uniform {}",
                 ring.uniform_ring_size
