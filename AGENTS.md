@@ -49,8 +49,9 @@ A **lane** is a standing role; an **agent** is whoever is currently working that
 | **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` | Emission/treasury identity sims for every economics-touching unit |
 | **7** | Testnet launch | Internet-facing go-live ([`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md)), VPS runbook, `seed_nodes` publication, faucet/observer/front-end ops, launch ceremony | Protocol tests (4/6), CI/Nightly fixes (1), evidence tooling (2) | Launch-blocker honesty (never fake TL completion; `launch-go-no-go` gate) |
 | **F** | Ease of use | User wallet, CLI, WASM, light-client receive, testnet-frontend, plain-language docs | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet | A person can use the network without reading a protocol spec |
+| **8** | Adversarial robustness (Seat G) | Untrusted-input guards, fuzz targets, resource caps, crash-safety tests | Validity proofs, ring/fee/slash rules, Noise/addrman, erasure shards, wallet UX, VPS | Hostile bytes do not panic or fork Path A / F-A |
 
-Adding lanes 8+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
+Adding lanes 9+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
 
 ---
 
@@ -142,6 +143,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 **Seat F (2026-11-14):** ease of use. Owns user-facing wallet/CLI/WASM/frontend flows. Does not edit Seat A economics, Seat B privacy/slash, or Seat C validity files. No VPS. No header-version or DEFAULT change.
 
+**Seat G (2026-11-14):** adversarial robustness (lane 8). Owns untrusted decode guards, fuzz targets, and resource caps. Does not edit validity proofs, ring/fee/slash rules, Noise/addrman, erasure shards, or wallet UX. No VPS. No header-version or DEFAULT change.
+
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
@@ -152,6 +155,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
+| **8** Hardening | **G-1** codec refuses oversized lengths before alloc (this commit). Claim base `c60c73e7` | *Idle* | **G-2** P2P declared-count caps | hostile codec tests |
 
 ---
 
@@ -161,6 +165,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| G | all | **G-1:** `Reader` rejects varint groups and repeat counts that do not fit the unread buffer, before allocating. `Writer` bytes are unchanged. No header bump. Path A and F-A unchanged. | **Done** |
 | C | B | **B-316 / B-317:** Seat C owns `validity_stark_coinbase.rs`, `validity_stark_merkle.rs`, and `docs/VALIDITY_STARK_BACKEND.md`. Do not edit those on the privacy/security track. B-35 stays Seat B. | **Open** |
 | 6 | 4 | **B-315 F-A:** first permanence fork is Path B / post-B-25 and sets drip=1, `storage_proof_reward=recommended_backstop_proof_reward` (1763), `subsidy_to_treasury_bps=1000`, and `min_storage_operator_bond=recommended_min_storage_operator_bond` in one genesis. Do not wire cold credit, the backstop cap, or replica seals on Path A. Do not DEFAULT-flip. Tail stays `>> 8`. | **Open** |
 | 6 | 4 | **B-314 PM19:** when wiring per-commit audit after **PM1**, call `cold_proof_overdue` / `recommended_cold_reward_multiplier_bps`; do not treat B5 global any-stale as a per-file obligation. Path A stays global. | **Open** |
@@ -535,6 +540,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane 8 / Seat G - G-1 hostile codec bounds** (this commit): `Reader::varint` / `blob` / `points` / `scalars` return errors instead of panicking or allocating from a declared count that the unread buffer cannot hold. `u64::MAX` still round-trips. Block, header, and transaction decoders are covered by `hostile_wire`. No header bump. Path A and F-A unchanged. Claim base `c60c73e7`. Next: **G-2** P2P declared-count caps.
 
 1. **2026-11-14 - lane F - F-8 file card** (this commit): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Claim base `4aedafe9`. Next: **F-9** `wallet ready`.
 

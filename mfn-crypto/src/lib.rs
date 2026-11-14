@@ -168,6 +168,17 @@ pub enum CryptoError {
     /// A varint encoding exceeded its size limit.
     #[error("varint too long")]
     VarintTooLong,
+    /// A repeat count would allocate more than the unread buffer can hold.
+    ///
+    /// Returned before any allocation. Honest `Writer` output never hits
+    /// this: the length prefix and the items are written together.
+    #[error("repeat count {claimed} does not fit in {remaining} unread bytes")]
+    CountExceedsBuffer {
+        /// Declared item count from the length prefix.
+        claimed: u64,
+        /// Bytes still unread when the count was rejected.
+        remaining: u64,
+    },
     /// A decoder reached the end of its expected input but found
     /// additional bytes in the buffer. Returned by strict, self-
     /// delimiting decoders (e.g. fixed-shape struct decoders) where a

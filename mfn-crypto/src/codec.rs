@@ -7,6 +7,11 @@
 //! These encodings define **chain identity** — two different implementations
 //! that disagree on a single byte produce different transaction or block IDs
 //! and therefore fork the chain. Treat any change here as consensus-critical.
+//!
+//! Readers reject lengths and varint groups that [`Writer`] cannot emit
+//! (a count bigger than the unread buffer, a 10th group that does not fit
+//! in a `u64`) before they allocate. Those inputs used to panic. Bytes
+//! [`Writer`] produces, including `u64::MAX`, still round-trip.
 
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::scalar::Scalar;
@@ -141,14 +146,21 @@ impl<'a> Reader<'a> {
     }
 
     /// Read exactly `n` bytes; advance the offset.
+    ///
+    /// A length that overflows `offset + n` is a short read, not a panic.
+    /// Callers pass lengths taken from the wire.
     pub fn bytes(&mut self, n: usize) -> Result<&'a [u8]> {
-        if self.offset + n > self.buf.len() {
+        let end = self
+            .offset
+            .checked_add(n)
+            .ok_or(CryptoError::ShortBuffer { needed: n })?;
+        if end > self.buf.len() {
             return Err(CryptoError::ShortBuffer {
-                needed: (self.offset + n) - self.buf.len(),
+                needed: end - self.buf.len(),
             });
         }
-        let out = &self.buf[self.offset..self.offset + n];
-        self.offset += n;
+        let out = &self.buf[self.offset..end];
+        self.offset = end;
         Ok(out)
     }
 
@@ -171,16 +183,29 @@ impl<'a> Reader<'a> {
         ]))
     }
 
-    /// Read a LEB128 varint. Capped at 70 bits to match the canonical reader.
+    /// Read a LEB128 varint.
+    ///
+    /// Groups that do not fit in a `u64` return [`CryptoError::VarintTooLong`].
+    /// The shift is checked before it is applied: a 10th group whose low 7
+    /// bits are greater than 1 used to overflow the shift and panic.
+    /// Encodings [`Writer`] emits, including `u64::MAX`, still decode.
     pub fn varint(&mut self) -> Result<u64> {
         let mut result: u64 = 0;
         let mut shift: u32 = 0;
         loop {
-            if shift > 63 {
+            if shift >= 64 {
                 return Err(CryptoError::VarintTooLong);
             }
             let b = self.u8()?;
-            result |= u64::from(b & 0x7f) << shift;
+            let bits = u64::from(b & 0x7f);
+            let room = 64 - shift;
+            // `room == 64` only on the first byte. Every later group has
+            // fewer than 64 bits left, and a payload that does not fit is
+            // not a `u64`.
+            if room < 64 && bits >= (1u64 << room) {
+                return Err(CryptoError::VarintTooLong);
+            }
+            result |= bits << shift;
             if (b & 0x80) == 0 {
                 return Ok(result);
             }
@@ -189,8 +214,12 @@ impl<'a> Reader<'a> {
     }
 
     /// Read a varint length and then that many bytes.
+    ///
+    /// The length is rejected when it is larger than the unread buffer,
+    /// before any addition that could overflow.
     pub fn blob(&mut self) -> Result<&'a [u8]> {
-        let n = self.varint()? as usize;
+        let n_raw = self.varint()?;
+        let n = self.repeat_len(n_raw, 1)?;
         self.bytes(n)
     }
 
@@ -213,8 +242,13 @@ impl<'a> Reader<'a> {
     }
 
     /// Read a varint length and then that many scalars.
+    ///
+    /// `n` is accepted only when `n * 32` bytes remain. The `Vec` is then
+    /// bounded by the buffer, so a short frame cannot force a multi-gigabyte
+    /// allocation.
     pub fn scalars(&mut self) -> Result<Vec<Scalar>> {
-        let n = self.varint()? as usize;
+        let n_raw = self.varint()?;
+        let n = self.repeat_len(n_raw, 32)?;
         let mut out = Vec::with_capacity(n);
         for _ in 0..n {
             out.push(self.scalar()?);
@@ -223,13 +257,40 @@ impl<'a> Reader<'a> {
     }
 
     /// Read a varint length and then that many points.
+    ///
+    /// Same budget as [`Self::scalars`]: one compressed point is 32 bytes,
+    /// and the allocation happens only after that budget fits.
     pub fn points(&mut self) -> Result<Vec<EdwardsPoint>> {
-        let n = self.varint()? as usize;
+        let n_raw = self.varint()?;
+        let n = self.repeat_len(n_raw, 32)?;
         let mut out = Vec::with_capacity(n);
         for _ in 0..n {
             out.push(self.point()?);
         }
         Ok(out)
+    }
+
+    /// Turn a wire count into a `Vec` length that fits in the unread buffer.
+    ///
+    /// `elem_len` is the minimum bytes each item consumes (1 for a blob
+    /// byte, 32 for a scalar or a compressed point).
+    fn repeat_len(&self, n_raw: u64, elem_len: usize) -> Result<usize> {
+        let n = usize::try_from(n_raw).map_err(|_| CryptoError::CountExceedsBuffer {
+            claimed: n_raw,
+            remaining: self.remaining() as u64,
+        })?;
+        let need = n
+            .checked_mul(elem_len)
+            .ok_or(CryptoError::CountExceedsBuffer {
+                claimed: n_raw,
+                remaining: self.remaining() as u64,
+            })?;
+        if need > self.remaining() {
+            return Err(CryptoError::ShortBuffer {
+                needed: need - self.remaining(),
+            });
+        }
+        Ok(n)
     }
 }
 
@@ -276,5 +337,63 @@ mod tests {
     fn short_buffer_errors() {
         let mut r = Reader::new(&[0x01, 0x02]);
         assert!(matches!(r.bytes(8), Err(CryptoError::ShortBuffer { .. })));
+    }
+
+    #[test]
+    fn u64_max_varint_round_trips() {
+        let mut w = Writer::new();
+        w.varint(u64::MAX);
+        let encoded = w.bytes().to_vec();
+        assert_eq!(encoded.len(), 10, "u64::MAX is ten LEB128 groups");
+        let mut r = Reader::new(&encoded);
+        assert_eq!(r.varint().expect("u64::MAX"), u64::MAX);
+        assert!(r.end());
+    }
+
+    #[test]
+    fn tenth_varint_group_that_does_not_fit_is_an_error() {
+        // Nine continuation bytes, then a payload of 2 at shift 63.
+        // `2 << 63` does not fit in u64 and used to panic under overflow checks.
+        for last in [0x02u8, 0x7f, 0xff] {
+            let mut raw = vec![0xff; 9];
+            raw.push(last);
+            let mut r = Reader::new(&raw);
+            assert!(
+                matches!(r.varint(), Err(CryptoError::VarintTooLong)),
+                "last byte {last:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn oversized_blob_and_repeat_counts_do_not_allocate() {
+        // Length prefix for 2^63, then two payload bytes. The addition
+        // `offset + length` used to overflow.
+        let mut huge = vec![0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01];
+        huge.extend_from_slice(&[0xaa, 0xbb]);
+        let mut r = Reader::new(&huge);
+        assert!(matches!(r.blob(), Err(CryptoError::ShortBuffer { .. })));
+
+        // One million points declared, four bytes present.
+        let mut points = Vec::new();
+        {
+            let mut w = Writer::new();
+            w.varint(1_000_000);
+            points.extend_from_slice(w.bytes());
+        }
+        points.extend_from_slice(&[1, 2, 3, 4]);
+        let mut r = Reader::new(&points);
+        assert!(matches!(r.points(), Err(CryptoError::ShortBuffer { .. })));
+        let mut r = Reader::new(&points);
+        assert!(matches!(r.scalars(), Err(CryptoError::ShortBuffer { .. })));
+    }
+
+    #[test]
+    fn bytes_rejects_length_that_overflows_the_offset() {
+        let mut r = Reader::new(&[0u8; 8]);
+        assert!(matches!(
+            r.bytes(usize::MAX),
+            Err(CryptoError::ShortBuffer { .. })
+        ));
     }
 }
