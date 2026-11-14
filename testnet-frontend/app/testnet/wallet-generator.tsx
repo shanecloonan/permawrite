@@ -25,6 +25,7 @@ import {
   loadMfnWasm,
 } from "@/lib/testnet/wasm-wallet";
 import { formatMfn, parseSpendAmount } from "@/lib/testnet/spend-amount";
+import FileKeep from "./file-keep";
 import { CopyButton, truncateId, useCopyFeedback } from "./ui";
 
 const FEE = 10_000;
@@ -557,6 +558,8 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
           {spendPreview.error ?? spendPreview.label}
         </p>
       </div>
+
+      <FileKeep />
 
       {(status || error) && (
         <p
