@@ -136,5 +136,6 @@ pub fn seal_block_storage_ops(
         storage_proofs,
         bond_ops,
         storage_operator_ops,
+        disclosed_fee: None,
     }
 }

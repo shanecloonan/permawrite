@@ -46,6 +46,7 @@ pub fn encode_block_proposal(p: &BlockProposal) -> Vec<u8> {
         &p.storage_proofs,
         &p.storage_operator_ops,
         p.unsealed_header.version,
+        None,
     );
     let mut w = Writer::new();
     w.push(PROPOSAL_MAGIC);

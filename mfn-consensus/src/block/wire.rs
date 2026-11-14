@@ -34,6 +34,7 @@ use super::header::{block_header_bytes, decode_block_header, Block, HeaderDecode
 /// `decode_block(&encode_block(b)) == Ok(b)` for every well-formed
 /// block (byte-for-byte round-trip). The decoded block re-derives the
 /// same header roots and the same [`block_id`].
+#[allow(clippy::too_many_arguments)]
 fn encode_block_body_parts(
     w: &mut Writer,
     txs: &[TransactionWire],
@@ -42,6 +43,7 @@ fn encode_block_body_parts(
     storage_proofs: &[StorageProof],
     storage_operator_ops: &[crate::storage_operator_wire::StorageOperatorOp],
     header_version: u32,
+    disclosed_fee: Option<crate::block::DisclosedFee>,
 ) {
     w.varint(txs.len() as u64);
     for tx in txs {
@@ -65,6 +67,14 @@ fn encode_block_body_parts(
             op,
         ));
     }
+    if header_version >= crate::HEADER_VERSION_HIDDEN_FEES {
+        let disclosed = disclosed_fee.unwrap_or(crate::block::DisclosedFee {
+            total: 0,
+            blinding: curve25519_dalek::scalar::Scalar::ZERO,
+        });
+        w.u64(disclosed.total);
+        w.scalar(&disclosed.blinding);
+    }
 }
 
 /// Canonical body bytes (txs, bond ops, slashings, storage proofs, storage-operator ops) without a header.
@@ -76,6 +86,7 @@ pub fn encode_block_body(
     storage_proofs: &[StorageProof],
     storage_operator_ops: &[crate::storage_operator_wire::StorageOperatorOp],
     header_version: u32,
+    disclosed_fee: Option<crate::block::DisclosedFee>,
 ) -> Vec<u8> {
     let mut w = Writer::new();
     encode_block_body_parts(
@@ -86,6 +97,7 @@ pub fn encode_block_body(
         storage_proofs,
         storage_operator_ops,
         header_version,
+        disclosed_fee,
     );
     w.into_bytes()
 }
@@ -103,6 +115,8 @@ pub struct BlockBody {
     pub storage_proofs: Vec<StorageProof>,
     /// Storage-operator registration ops (B3 phase 3b).
     pub storage_operator_ops: Vec<crate::storage_operator_wire::StorageOperatorOp>,
+    /// Fee-sum opening. `Some` only when the header version hides fees.
+    pub disclosed_fee: Option<crate::block::DisclosedFee>,
 }
 
 /// Encode a full block (header bytes + canonical body section).
@@ -116,6 +130,7 @@ pub fn encode_block(b: &Block) -> Vec<u8> {
         &b.storage_proofs,
         &b.storage_operator_ops,
         b.header.version,
+        b.disclosed_fee,
     );
     out.extend_from_slice(&body);
     out
@@ -244,6 +259,7 @@ pub fn decode_block(bytes: &[u8]) -> Result<Block, BlockDecodeError> {
         storage_proofs: body.storage_proofs,
         bond_ops: body.bond_ops,
         storage_operator_ops: body.storage_operator_ops,
+        disclosed_fee: body.disclosed_fee,
     })
 }
 
@@ -331,6 +347,15 @@ pub fn decode_block_body(bytes: &[u8], header_version: u32) -> Result<BlockBody,
         }
     }
 
+    let disclosed_fee = if header_version >= crate::HEADER_VERSION_HIDDEN_FEES {
+        Some(crate::block::DisclosedFee {
+            total: r.u64().map_err(BlockDecodeError::Codec)?,
+            blinding: r.scalar().map_err(BlockDecodeError::Codec)?,
+        })
+    } else {
+        None
+    };
+
     if !r.end() {
         return Err(BlockDecodeError::TrailingBytes {
             remaining: r.remaining(),
@@ -343,6 +368,7 @@ pub fn decode_block_body(bytes: &[u8], header_version: u32) -> Result<BlockBody,
         slashings,
         storage_proofs,
         storage_operator_ops,
+        disclosed_fee,
     })
 }
 

@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** F5 1c+ slash clears the bond-registry exit (this merge). Path A and F-A unchanged. Parent already has B-19, B-35 header v4, and Seat C **B-316** validity leaves. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** B-37 hidden fees behind header v6 (this merge). Header v1 keeps public `tx.fee`. Path A and F-A unchanged. Parent already has Tier 2 rings at header v5 and Seat C **B-316** validity leaves. Bulletproof+ verifier still open. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -143,8 +143,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **F5 1c+** slash drops `pending_unbonds` (this merge); **B-35** header v4; **B-316** Winterfell leaves (Seat C) | *Idle* — slash matrix frozen. Seat C holds validity files | **B-17** ASN peer buckets (Seat B). Merkle leaf next (Seat C). No B-297 clone | Lane 1 CI |
-| **5** Privacy | **B-19** decoy-RNG contract; **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | **B-37** hidden fees, version-gated, after the Tier 2 gate | Doc-accuracy duty |
+| **4** Protocol | **B-37** hidden fees at header v6 (this merge); Tier 2 rings at header v5; **B-316** Winterfell leaves (Seat C) | *Idle* — slash matrix frozen. Seat C holds validity files | Bulletproof+ verifier. No B-297 clone. No DEFAULT flip | Lane 1 CI |
+| **5** Privacy | **B-19** decoy-RNG contract; **B-37** hidden fees; **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | Doc accuracy after the hidden-fee gate | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 
@@ -226,7 +226,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) tip=5322 SUMMARY; **wave115** last_proven **22467** (`601cb854…`; this commit). Human SUMMARY still open |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
-| B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
+| B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | **Landed** (this commit) — local ASN table; empty table keeps /16 redial |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | **Landed** (this commit) — golden `(pk, H, β, π)` pin; no Elligator2 fork |
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | **Landed** (this commit) — [`docs/DECOY_RNG.md`](docs/DECOY_RNG.md); no consensus change |
 | B-20 | F6: producer↔treasury runway fee-shift policy | 6 | **B-309** helper landed; arm after B-13c + B-25; Path A stays 9000 |
@@ -270,7 +270,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-316 | F5 4a Winterfell leaves: `emission_at_height` + coinbase bps split | 4 (Seat C) | **Landed** on main — [`VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md). Off consensus. Recursion backend = Plonky3 when 4b.2 starts. No Path A / F-A change |
 | B-35 | F7 consensus input-count padding | 4+5 | **Landed** (this merge) — power-of-two buckets at header v4; Path A / F-A off |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
-| B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
+| B-37 | B6/P6 hidden fees inside balance equation | 4 | **Landed** (this commit) — header v6; header v1 keeps public `tx.fee` |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | **Runbook** + **D0 preflight helper** landed; arm day-of L4
@@ -530,7 +530,13 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 4 - F5 1c+ bond-registry slash** (this merge): `apply_equivocation_slashings` removes the offender's `pending_unbonds` entry when equivocation or invalid-block evidence applies. Full node and light client share the helper. Live stake forfeiture is unchanged; `stake_at_request` is not credited again. `f5_1c_slash_drops_bond_registry_exit` PASS. The integration tests now expect that drop. No B-13c; no DEFAULT flip. Next: **B-17**. *Observed (not staged):* none.
+1. **2026-11-14 - lane 4 - B-37 hidden fees** (this merge): tx version 3 carries a fee commitment and a range proof; plaintext `fee` is 0. `apply_block` checks the commitments open to the block's disclosed sum and settles coinbase from that sum. Header v1 still uses public `fee·H` and rejects version 3. `b37_hidden_fee_is_inactive_on_header_v1` PASS. No B-13c; no DEFAULT flip. Wallets still build plaintext-fee txs. Next: Bulletproof+ verifier, still gated. *Observed (not staged):* none.
+
+1. **2026-11-14 - lane 4 - Tier 2 ring gate** (parent): header version 5 accepts ring 32 or 64 and rejects 16. Header v1 still accepts only 16. Classic Bulletproofs stay the range proof; Bulletproof+ is not a wire option. `tier2_ring_sizes_stay_inactive_on_header_v1` PASS. No B-13c; no DEFAULT flip.
+
+1. **2026-11-14 - lane 4 - B-17 ASN peer buckets** (parent): `diversity_bucket_key` uses a caller-supplied ASN when the IPv4 is listed, otherwise the /16. `peer_diversity_redial_candidates` still passes an empty table, so existing redial is unchanged. `b17_asn_collapses_distinct_prefix16_and_splits_one_prefix` PASS. No live ASN lookup. No B-13c; no DEFAULT flip.
+
+1. **2026-11-14 - lane 4 - F5 1c+ bond-registry slash** (parent): `apply_equivocation_slashings` removes the offender's `pending_unbonds` entry when equivocation or invalid-block evidence applies. Full node and light client share the helper. Live stake forfeiture is unchanged; `stake_at_request` is not credited again. `f5_1c_slash_drops_bond_registry_exit` PASS. The integration tests now expect that drop. No B-13c; no DEFAULT flip.
 
 1. **2026-11-14 - lane 5 - B-19 decoy-RNG entropy contract** (parent): `production_decoy_rng` ignores the wallet seed; `seeded_rng` remains test mode and repeats indices. `crypto_random` logs once and panics if the OS CSPRNG fails (no seed fallback). WASM keeps `getrandom` `js` (`getRandomValues`). `b19_same_wallet_seed_does_not_fix_production_decoys` PASS. No consensus change. No B-13c; no DEFAULT flip.
 

@@ -4,7 +4,7 @@
 
 use super::internal::*;
 use super::wire::TransactionWire;
-use super::{TX_VERSION, TX_VERSION_LEGACY};
+use super::{TX_VERSION, TX_VERSION_HIDDEN_FEE, TX_VERSION_LEGACY};
 
 /* ----------------------------------------------------------------------- *
  *  Encoding                                                                *
@@ -47,6 +47,15 @@ pub fn tx_preimage(tx: &TransactionWire) -> [u8; 32] {
             None => {
                 w.u8(0);
             }
+        }
+    }
+
+    if tx.version == TX_VERSION_HIDDEN_FEE {
+        if let Some(commit) = &tx.fee_commitment {
+            w.point(commit);
+        }
+        if let Some(proof) = &tx.fee_range_proof {
+            w.blob(&encode_bulletproof(proof));
         }
     }
 

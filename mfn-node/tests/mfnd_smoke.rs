@@ -2164,6 +2164,8 @@ fn mfnd_serve_submit_tx_rejects_coinbase_shaped_wire() {
         outputs: Vec::new(),
         fee: 0,
         extra: Vec::new(),
+        fee_commitment: None,
+        fee_range_proof: None,
     };
     let tx_hex = hex::encode(encode_transaction(&bogus));
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);

@@ -4,8 +4,8 @@
 //! low-diversity warnings, and selects redial candidates in underrepresented /16
 //! blocks when diversity drops.
 
-use std::collections::BTreeSet;
-use std::net::IpAddr;
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{IpAddr, Ipv4Addr};
 
 use crate::peer_addr::{is_onion_host, parse_peer_host_port};
 
@@ -34,6 +34,42 @@ pub struct PeerDiversitySnapshot {
     pub distinct_other_hosts: usize,
     /// Session peers whose host parses as literal IPv4.
     pub ipv4_session_count: usize,
+}
+
+/// Diversity bucket for `host`.
+///
+/// When `asn` contains the literal IPv4 address, the bucket is `AS<n>`.
+/// Otherwise the bucket is the IPv4 /16. Non-IPv4 hosts have no bucket.
+/// An empty table is the P31 /16 behavior. There is no network lookup.
+#[must_use]
+pub fn diversity_bucket_key(host: &str, asn: &BTreeMap<Ipv4Addr, u32>) -> Option<String> {
+    let ip: IpAddr = host.parse().ok()?;
+    match ip {
+        IpAddr::V4(v4) => {
+            if let Some(n) = asn.get(&v4) {
+                Some(format!("AS{n}"))
+            } else {
+                let o = v4.octets();
+                Some(format!("{}.{}.0.0/16", o[0], o[1]))
+            }
+        }
+        IpAddr::V6(_) => None,
+    }
+}
+
+/// Distinct IPv4 diversity buckets in `peers`, using `asn` when a host is listed.
+#[must_use]
+pub fn distinct_diversity_buckets(peers: &[String], asn: &BTreeMap<Ipv4Addr, u32>) -> usize {
+    let mut buckets = BTreeSet::new();
+    for peer in peers {
+        let Ok((host, _)) = parse_peer_host_port(peer) else {
+            continue;
+        };
+        if let Some(key) = diversity_bucket_key(&host, asn) {
+            buckets.insert(key);
+        }
+    }
+    buckets.len()
 }
 
 /// IPv4 /16 bucket label (`a.b.0.0/16`), or `None` for non-IPv4 hosts.
@@ -126,21 +162,49 @@ pub fn peer_diversity_redial_candidates(
     min_distinct_prefix16: u32,
     max_redials: u32,
 ) -> Vec<String> {
-    if min_distinct_prefix16 == 0 || max_redials == 0 {
+    peer_diversity_redial_candidates_with_asn(
+        session_peers,
+        candidate_peers,
+        &BTreeMap::new(),
+        min_distinct_prefix16,
+        max_redials,
+    )
+}
+
+/// Same as [`peer_diversity_redial_candidates`], but a supplied ASN table
+/// collapses addresses that share an AS even when their /16 differs.
+///
+/// The table is local. Missing addresses stay on /16. Default callers pass
+/// an empty table, which is the existing /16 redial.
+#[must_use]
+pub fn peer_diversity_redial_candidates_with_asn(
+    session_peers: &[String],
+    candidate_peers: &[String],
+    asn: &BTreeMap<Ipv4Addr, u32>,
+    min_distinct_buckets: u32,
+    max_redials: u32,
+) -> Vec<String> {
+    if min_distinct_buckets == 0 || max_redials == 0 {
         return Vec::new();
     }
-    if peer_diversity_warning(session_peers, min_distinct_prefix16).is_none() {
+    if asn.is_empty() {
+        if peer_diversity_warning(session_peers, min_distinct_buckets).is_none() {
+            return Vec::new();
+        }
+    } else if distinct_diversity_buckets(session_peers, asn) >= min_distinct_buckets as usize
+        || ipv4_session_count(session_peers) < 2
+    {
         return Vec::new();
     }
 
     let live: BTreeSet<String> = session_peers.iter().cloned().collect();
-    let mut session_prefix16 = BTreeSet::new();
+    let mut session_buckets = BTreeSet::new();
     for peer in session_peers {
         let Ok((host, _)) = parse_peer_host_port(peer) else {
             continue;
         };
-        if let Some(key) = ipv4_prefix16_key(&host) {
-            session_prefix16.insert(key);
+        if let Some(key) = diversity_bucket_key(&host, asn) {
+            session_buckets.insert(key);
         }
     }
 
@@ -155,16 +219,28 @@ pub fn peer_diversity_redial_candidates(
         let Ok((host, _)) = parse_peer_host_port(candidate) else {
             continue;
         };
-        let Some(key) = ipv4_prefix16_key(&host) else {
+        let Some(key) = diversity_bucket_key(&host, asn) else {
             continue;
         };
-        if session_prefix16.contains(&key) {
+        if session_buckets.contains(&key) {
             continue;
         }
         picks.push(candidate.clone());
-        session_prefix16.insert(key);
+        session_buckets.insert(key);
     }
     picks
+}
+
+fn ipv4_session_count(peers: &[String]) -> usize {
+    peers
+        .iter()
+        .filter(|peer| {
+            parse_peer_host_port(peer)
+                .ok()
+                .and_then(|(host, _)| host.parse::<IpAddr>().ok())
+                .is_some_and(|ip| ip.is_ipv4())
+        })
+        .count()
 }
 
 /// Select diverse `HOST:PORT` peers to ship with checkpoint summaries (**F12** phase 0).
@@ -330,6 +406,27 @@ mod tests {
         assert_eq!(
             picks,
             vec!["10.1.0.4:8336".to_string(), "10.2.0.5:8337".to_string(),]
+        );
+    }
+
+    #[test]
+    fn b17_asn_collapses_distinct_prefix16_and_splits_one_prefix() {
+        let mut asn = BTreeMap::new();
+        asn.insert("10.0.0.1".parse().unwrap(), 100);
+        asn.insert("10.1.0.2".parse().unwrap(), 100);
+        asn.insert("10.0.0.9".parse().unwrap(), 200);
+        asn.insert("10.2.0.3".parse().unwrap(), 100);
+        let peers = vec!["10.0.0.1:8333".into(), "10.1.0.2:8334".into()];
+        assert_eq!(distinct_diversity_buckets(&peers, &BTreeMap::new()), 2);
+        assert_eq!(distinct_diversity_buckets(&peers, &asn), 1);
+
+        let sessions = vec!["10.0.0.1:8333".into(), "10.1.0.2:8334".into()];
+        let candidates = vec!["10.0.0.9:8335".into(), "10.2.0.3:8336".into()];
+        let picks = peer_diversity_redial_candidates_with_asn(&sessions, &candidates, &asn, 2, 2);
+        assert_eq!(picks, vec!["10.0.0.9:8335".to_string()]);
+        assert!(
+            peer_diversity_redial_candidates(&sessions, &candidates, 2, 2).is_empty(),
+            "empty ASN table keeps /16 redial: these sessions are already two /16s"
         );
     }
 

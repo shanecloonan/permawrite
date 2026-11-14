@@ -2822,6 +2822,7 @@ fn sample_empty_block() -> Block {
         storage_proofs: Vec::new(),
         bond_ops: Vec::new(),
         storage_operator_ops: Vec::new(),
+        disclosed_fee: None,
     }
 }
 
@@ -2957,6 +2958,7 @@ fn block_codec_empty_body_golden_shape() {
         storage_proofs: Vec::new(),
         bond_ops: Vec::new(),
         storage_operator_ops: Vec::new(),
+        disclosed_fee: None,
     };
     let bytes = encode_block(&b);
     // 306 (header) + 5 (five zero-length section varints) = 311.

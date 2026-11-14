@@ -43,10 +43,17 @@ pub const TX_VERSION: u32 = 2;
 /// Legacy wire format without per-output view tags.
 pub const TX_VERSION_LEGACY: u32 = 1;
 
-/// Whether `version` is accepted at transaction ingress.
+/// Fee is a commitment, not a public `u64`. Accepted only when the chain
+/// header version is [`crate::HEADER_VERSION_HIDDEN_FEES`].
+pub const TX_VERSION_HIDDEN_FEE: u32 = 3;
+
+/// Whether `version` is a known wire version.
+///
+/// Version 3 still fails on header v1: [`verify_transaction`] rejects it
+/// unless the hidden-fee policy is on.
 #[must_use]
 pub fn tx_version_supported(version: u32) -> bool {
-    version == TX_VERSION || version == TX_VERSION_LEGACY
+    version == TX_VERSION || version == TX_VERSION_LEGACY || version == TX_VERSION_HIDDEN_FEE
 }
 
 /// Canonical bit width of output range proofs. Amounts are 64-bit unsigned.
@@ -63,10 +70,11 @@ mod wire;
 mod tests;
 
 pub use build::{
-    sign_transaction, InputSpec, OutputSpec, Recipient, SignedTransaction, TxBuildError,
+    sign_hidden_fee_transaction, sign_transaction, InputSpec, OutputSpec, Recipient,
+    SignedTransaction, TxBuildError,
 };
 pub(crate) use codec::read_transaction;
 pub use codec::{decode_transaction, encode_transaction, TxDecodeError};
 pub use id::{tx_id, tx_preimage};
-pub use verify::{verify_transaction, VerifyResult};
+pub use verify::{fee_commitments_open, verify_transaction, VerifyResult};
 pub use wire::{TransactionWire, TxInputWire, TxOutputWire};

@@ -268,6 +268,9 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
 
     let mut coinbase_tx: Option<&TransactionWire> = None;
     let mut fee_sum: u128 = 0;
+    let hidden_fees = next.header_version >= crate::HEADER_VERSION_HIDDEN_FEES;
+    let mut fee_commits = Vec::new();
+    let mut hidden_burden: u128 = 0;
 
     for (ti, tx) in block.txs.iter().enumerate() {
         let is_coinbase_pos = ti == 0 && is_coinbase_shaped(tx);
@@ -374,7 +377,14 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
 
         // Fees accrue to the producer via the coinbase.
-        fee_sum += u128::from(tx.fee);
+        // Header v6 commits each fee and discloses only the block sum.
+        if hidden_fees {
+            if let Some(c) = tx.fee_commitment {
+                fee_commits.push(c);
+            }
+        } else {
+            fee_sum += u128::from(tx.fee);
+        }
 
         // Cross-tx + cross-chain key image gate.
         for ki in &v.key_images {
@@ -486,7 +496,9 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 }
             }
         }
-        if tx_storage_ok && tx_burden > 0 {
+        if tx_storage_ok && tx_burden > 0 && hidden_fees {
+            hidden_burden = hidden_burden.saturating_add(tx_burden);
+        } else if tx_storage_ok && tx_burden > 0 {
             let tx_treasury_share: u128 =
                 u128::from(tx.fee) * u128::from(emission_params.fee_to_treasury_bps) / 10_000;
             if tx_treasury_share < tx_burden {
@@ -1109,6 +1121,26 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     //      as a backstop. Treasury balance never goes negative.
     //   4. Coinbase output 0 = producer (subsidy + producer_fee);
     //      outputs 1..N = per-operator storage rewards.
+    if hidden_fees {
+        let (total, blinding) = match block.disclosed_fee {
+            Some(d) => (d.total, d.blinding),
+            None => (0, curve25519_dalek::scalar::Scalar::ZERO),
+        };
+        if !crate::fee_commitments_open(&fee_commits, total, &blinding) {
+            errors.push(BlockError::HiddenFeeOpening);
+        }
+        fee_sum = u128::from(total);
+        let share = fee_sum * u128::from(emission_params.fee_to_treasury_bps) / 10_000;
+        if share < hidden_burden {
+            errors.push(BlockError::UploadUnderfunded {
+                tx: 0,
+                burden: hidden_burden,
+                treasury_share: share,
+                fee: total,
+                fee_to_treasury_bps: emission_params.fee_to_treasury_bps,
+            });
+        }
+    }
     let treasury_fee: u128 = fee_sum * u128::from(emission_params.fee_to_treasury_bps) / 10_000;
     let producer_fee = fee_sum.saturating_sub(treasury_fee);
     // When no producer coinbase is required (legacy harness or validators

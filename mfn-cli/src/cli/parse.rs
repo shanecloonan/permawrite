@@ -1580,6 +1580,12 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
                     mfn_wallet::WALLET_MIN_RING_SIZE
                 )));
             }
+            if let Err(msg) = mfn_consensus::tier2_ring_size_allowed(
+                mfn_consensus::HEADER_VERSION,
+                ring_size as u32,
+            ) {
+                return Err(CliError::Usage(msg.into()));
+            }
             i += 2;
             continue;
         }
@@ -1733,6 +1739,12 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
                     mfn_wallet::WALLET_MIN_RING_SIZE
                 )));
             }
+            if let Err(msg) = mfn_consensus::tier2_ring_size_allowed(
+                mfn_consensus::HEADER_VERSION,
+                ring_size as u32,
+            ) {
+                return Err(CliError::Usage(msg.into()));
+            }
             i += 2;
             continue;
         }
@@ -1833,6 +1845,12 @@ pub(super) fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliE
                     "--ring-size must be at least {} (wallet/consensus floor)",
                     mfn_wallet::WALLET_MIN_RING_SIZE
                 )));
+            }
+            if let Err(msg) = mfn_consensus::tier2_ring_size_allowed(
+                mfn_consensus::HEADER_VERSION,
+                ring_size as u32,
+            ) {
+                return Err(CliError::Usage(msg.into()));
             }
             i += 2;
             continue;

@@ -299,6 +299,7 @@ mod tests {
             storage_proofs: Vec::new(),
             bond_ops: Vec::new(),
             storage_operator_ops: Vec::new(),
+            disclosed_fee: None,
         }
     }
 

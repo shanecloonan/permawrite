@@ -42,6 +42,9 @@ pub enum BlockError {
         /// Required minimum from endowment params.
         min_bond: u64,
     },
+    /// Hidden-fee commitments do not open to the block's disclosed sum.
+    #[error("hidden fee commitments do not open to the disclosed block total")]
+    HiddenFeeOpening,
     /// Header `version` didn't match the chain's genesis-pinned version.
     #[error("header version mismatch: expected {expected}, got {got}")]
     HeaderVersionMismatch {
