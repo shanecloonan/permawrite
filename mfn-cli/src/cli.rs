@@ -67,6 +67,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
     }
     let global_wallet_path = parsed.wallet_path.clone();
     match parsed.cmd {
+        Cmd::Help { text } => {
+            println!("{text}");
+        }
         Cmd::Status => {
             let status = client.get_status()?;
             println!(
@@ -519,6 +522,19 @@ mod tests {
     }
 
     #[test]
+    fn wallet_send_help_is_a_short_page() {
+        let p = parse_args(&["wallet".into(), "send".into(), "--help".into()]).unwrap();
+        match p.cmd {
+            Cmd::Help { text } => {
+                assert!(text.contains("100000000"));
+                assert!(text.contains("refused"));
+                assert!(!text.contains("checkpoint-log sign"));
+            }
+            _ => panic!("expected help"),
+        }
+    }
+
+    #[test]
     fn parse_wallet_send_json() {
         let view = "11".repeat(32);
         let spend = "22".repeat(32);
@@ -546,6 +562,41 @@ mod tests {
             }
             _ => panic!("expected wallet send"),
         }
+    }
+
+    #[test]
+    fn parse_wallet_send_coin_amount_and_keeps_bare_integers_atomic() {
+        let view = "11".repeat(32);
+        let spend = "22".repeat(32);
+        let p = parse_args(&[
+            "wallet".into(),
+            "send".into(),
+            view,
+            spend,
+            "1.5mfn".into(),
+            "--fee".into(),
+            "0.0001mfn".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Send(params),
+                ..
+            } => {
+                assert_eq!(params.amount, 150_000_000);
+                assert_eq!(params.fee, 10_000);
+            }
+            _ => panic!("expected wallet send"),
+        }
+        let err = parse_args(&[
+            "wallet".into(),
+            "send".into(),
+            "11".repeat(32),
+            "22".repeat(32),
+            "1.000000001mfn".into(),
+        ])
+        .expect_err("extra digit");
+        assert!(err.to_string().contains("decimal places"));
     }
 
     #[test]
