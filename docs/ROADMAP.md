@@ -648,7 +648,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 | **F5 4b.2** | Recursive STARK aggregation over batch-binding circuits | 4 | Follows 4b.1; backlog **B-12** — after L4 unless fix-forward |
 | **F5 1c+** | Fraud-proof producer slash hooks wired to bond registry | 4 | Interactive fraud phases 0–3b shipped; slash deferred |
 | **F5 4c** | Prover service / block-producer validity witness generation | 4 | After 4b.2 digest chain complete |
-| **B-18** | F15: document + test MFBN-1 VRF variant ([`PROBLEMS.md` §15](./PROBLEMS.md#15-the-vrf-is-rfc-9381-style-not-rfc-9381-conformant)) | 4 | Phase 2 security; before external audit |
+| **B-18** | F15: document + test MFBN-1 VRF variant ([`PROBLEMS.md` §15](./PROBLEMS.md#15-the-vrf-is-rfc-9381-style-not-rfc-9381-conformant)) | 4 | ✓ **Shipped** — golden `(pk, H, β, π)` pin; no Elligator2 fork |
 | **Observer** | Persisted tx index + explore parity under load (fix-forward as needed) | 7 | Partially shipped; monitor on public VPS |
 | **B-39** | Light-client honesty gate: [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) + JOIN/observer path match shipped F5; archive one contested-block soft-finality demo | 4+7 | Closes Phase 2; after 4b.2 stack CI/Nightly green |
 
@@ -741,7 +741,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-314** PM19 cold-proof cadence helper (Path A B5 stays global any-stale) | Phase 1 | 6 |
 | **B-315** Max-permanence upgrade design + non-consensus helpers (no Path A flip) | Phase 1 design / Path B fork | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
-| **B-18** MFBN-1 VRF variant docs/tests | Phase 2 | 4 |
+| **B-18** MFBN-1 VRF variant docs/tests | Phase 2 ✓ | 4 |
 | **B-19** Decoy-RNG entropy contract | Phase 3 | 5 |
 | **B-20** Producer↔treasury runway coupling | Phase 1 | 6 |
 | **B-21** Dandelion++ internet soak evidence | Phase 3 | 1 |

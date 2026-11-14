@@ -170,7 +170,7 @@ See [SECURITY_CONSIDERATIONS.md § 4](./SECURITY_CONSIDERATIONS.md#4-bls-aggrega
 
 ### 15. The VRF is RFC 9381-style, not RFC 9381-conformant
 
-> **Status: documented** — exact MFBN-1 variant spec in [`interop/VRF_MFBN1.md`](./interop/VRF_MFBN1.md). Security-equivalent to RFC 9381; off-the-shelf RFC verifiers reject proofs until they implement try-and-increment `hash_to_point`.
+> **Status: documented and conformance-pinned (B-18)** — exact MFBN-1 variant spec in [`interop/VRF_MFBN1.md`](./interop/VRF_MFBN1.md), with a golden `(pk, H, β, π)` vector asserted by `b18_mfbn1_reference_vector_is_pinned`. Security-equivalent to RFC 9381; off-the-shelf RFC verifiers reject proofs until they implement try-and-increment `hash_to_point`. No Elligator2 fork.
 
 `mfn-crypto/src/vrf.rs` substitutes the protocol's try-and-increment
 `hash_to_point` for the RFC-mandated Elligator2 hash-to-curve. Security is

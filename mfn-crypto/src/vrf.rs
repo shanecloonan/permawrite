@@ -343,6 +343,8 @@ pub fn decode_vrf_proof(b: &[u8]) -> Result<VrfProof> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use curve25519_dalek::edwards::CompressedEdwardsY;
+    use sha2::{Digest, Sha512};
 
     #[test]
     fn prove_verify_round_trip() {
@@ -447,6 +449,86 @@ mod tests {
         let b = vrf_keygen_from_seed(&seed).unwrap();
         assert_eq!(a.pk, b.pk);
         assert_eq!(a.x, b.x);
+    }
+
+    /// Independent copy of MFBN-1 try-and-increment `hash_to_point`.
+    ///
+    /// Kept beside [`hash_to_point`] so a silent switch to Elligator2, or a
+    /// change in counter endianness / cofactor clearing, fails this test
+    /// even if the library helper is edited to match itself.
+    fn spec_hash_to_point(input: &[u8]) -> curve25519_dalek::edwards::EdwardsPoint {
+        for counter in 0u32..1000 {
+            let mut hasher = Sha512::new();
+            hasher.update(input);
+            hasher.update(counter.to_be_bytes());
+            let digest = hasher.finalize();
+            let mut arr = [0u8; 32];
+            arr.copy_from_slice(&digest[..32]);
+            if let Some(point) = CompressedEdwardsY(arr).decompress() {
+                return point.mul_by_cofactor();
+            }
+        }
+        panic!("spec hash_to_point exhausted 1000 attempts");
+    }
+
+    fn spec_counter_decodes(input: &[u8], counter: u32) -> bool {
+        let mut hasher = Sha512::new();
+        hasher.update(input);
+        hasher.update(counter.to_be_bytes());
+        let digest = hasher.finalize();
+        let mut arr = [0u8; 32];
+        arr.copy_from_slice(&digest[..32]);
+        CompressedEdwardsY(arr).decompress().is_some()
+    }
+
+    /// B-18 / F15: golden MFBN-1 vector from [`docs/interop/VRF_MFBN1.md`].
+    ///
+    /// Seed is 32×`0x07`, message is ASCII `election seed slot 42`.
+    /// Drift here is a consensus break for leader election.
+    #[test]
+    fn b18_mfbn1_reference_vector_is_pinned() {
+        const PK: &str = "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c";
+        const H_HEX: &str = "8788174d593715da0d4b3701a507e27c164c91a3396bc4a6a323a628b555ccb4";
+        const BETA: &str = "e9cb7a6bc317935bd297c21f86c94094b890239c6b15645efbe92568dfe4b24d";
+        const PI: &str = "0c3d1c69aa9bd44183a5871daffb702e1b63f96a970c20ec2fedbb703bccd85330963f51fd98c39bdeed5e5fe3d35422276c5ea9475a9120d07e467156e408b0b19ad9db1677124cd76809d84c35cc07";
+
+        let kp = vrf_keygen_from_seed(&[0x07u8; 32]).unwrap();
+        assert_eq!(hex::encode(kp.pk.compress().as_bytes()), PK);
+
+        let msg = b"election seed slot 42";
+        let mut h_input = Vec::with_capacity(32 + msg.len());
+        h_input.extend_from_slice(kp.pk.compress().as_bytes());
+        h_input.extend_from_slice(msg);
+        assert!(
+            spec_counter_decodes(&h_input, 0),
+            "reference hash_to_point must succeed on counter 0 (big-endian)"
+        );
+        let h = spec_hash_to_point(&h_input);
+        assert_eq!(hex::encode(h.compress().as_bytes()), H_HEX);
+        assert_eq!(h, hash_to_point(&h_input).unwrap());
+        assert_eq!(h, vrf_h(&kp.pk, msg).unwrap());
+
+        let proved = vrf_prove(&kp, msg).unwrap();
+        let wire = encode_vrf_proof(&proved.proof);
+        assert_eq!(hex::encode(proved.output), BETA);
+        assert_eq!(hex::encode(wire), PI);
+        assert_eq!(wire.len(), VRF_PROOF_BYTES);
+
+        let decoded = decode_vrf_proof(&hex::decode(PI).unwrap()).unwrap();
+        assert_eq!(decoded, proved.proof);
+        let c_bytes = decoded.c.to_bytes();
+        assert_eq!(&c_bytes[..16], &wire[32..48]);
+        assert_eq!(&c_bytes[16..], &[0u8; 16], "challenge must be 128 bits");
+
+        let verified = vrf_verify(&kp.pk, msg, &decoded);
+        assert!(verified.ok);
+        assert_eq!(hex::encode(verified.output), BETA);
+
+        let mut flipped = wire;
+        flipped[0] ^= 0x01;
+        if let Ok(bad) = decode_vrf_proof(&flipped) {
+            assert!(!vrf_verify(&kp.pk, msg, &bad).ok);
+        }
     }
 
     #[test]
