@@ -1,0 +1,37 @@
+[package]
+name = "mfn-scale"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Permawrite scale lane: verification benchmarks, sync throughput, and light-client performance. Off consensus."
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[dependencies]
+mfn-crypto = { path = "../mfn-crypto" }
+curve25519-dalek = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+
+[dev-dependencies]
+# `html_reports` pulls plotters. The bench only needs the cargo harness.
+# clap 4.6 needs Rust edition 2024; keep the 4.5 line so this resolves on
+# compilers older than 1.85 as well as on CI's stable.
+criterion = { version = "=0.5.1", default-features = false, features = ["cargo_bench_support"] }
+# clap_builder 4.5.58+ depends on clap_lex 1, whose manifest needs edition 2024.
+clap = { version = ">=4.5.4, <4.5.58" }
+clap_builder = { version = ">=4.5.4, <4.5.58" }
+clap_lex = { version = ">=0.7.4, <0.8" }
+
+[[bench]]
+name = "verify"
+harness = false
