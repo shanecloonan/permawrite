@@ -340,6 +340,7 @@ Full treatment: [`STORAGE.md`](./STORAGE.md), [`PROBLEMS.md`](./PROBLEMS.md).
 - [`PRIVACY.md`](./PRIVACY.md) / [`STORAGE.md`](./STORAGE.md) / [`CONSENSUS.md`](./CONSENSUS.md) — subsystem deep dives
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — system-wide specification
 - [`../SECURITY.md`](../SECURITY.md) — vulnerability disclosure process
+- [`DESIGN_REVIEW_2026-11.md`](./DESIGN_REVIEW_2026-11.md) — 2026-11 fundamental-mechanics review (equivocation evidence, lock rule, replica/retrieval claims)
 
 **Maintenance rule:** whenever a consensus encoding, signing transcript, or
 verification rule changes, re-audit §§ 2–6 of this document in the same PR.

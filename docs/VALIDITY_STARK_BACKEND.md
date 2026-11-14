@@ -1,0 +1,59 @@
+# Validity STARK backend (F5 phase 4)
+
+Decision for recursive block validity. Off consensus: nothing here is a header
+field, a `DEFAULT_*` change, or a Path A / F-A genesis change.
+
+## What shipped in 4b.1
+
+`mfn-consensus/src/validity_stark_winterfell.rs` (Winterfell **0.10.1**, feature
+`winterfell`, base field `f128`, hasher Blake3-256, no field extension).
+
+The AIR is one quadratic step, `acc' = acc * 127 + chunk`, over
+`parent_checkpoint || block_wire`, plus three public counters (`tx_count`,
+`spora_count`, `coinbase_flag`) written onto a side column. Trace length is a
+power of two in `[8, 4096]`. Proof options match a fast conjectured ~96-bit
+setting: 32 queries, blowup 8, grinding 0, `FieldExtension::None`.
+
+That proof shows the prover hashed those bytes and those three counters. It
+does not show that a transaction, the coinbase, or a storage proof is valid.
+Witness kind `3` still replays `apply_block` after the STARK check.
+
+`dhash` (the Merkle compression in `mfn-crypto`) is domain-separated SHA-512.
+A SPoRA path is not a small AIR. A field accumulator is not a substitute for
+`verify_merkle_proof`.
+
+## Backend choice
+
+| Stage | Backend | Why |
+| --- | --- | --- |
+| **4a leaves** (this track) | **Stay on Winterfell 0.10** | Already linked, transparent setup, enough for algebraic leaves. Same options as 4b.1. |
+| **4b.2 / B-12 recursion** | **Re-express the leaves in Plonky3** | Winterfell 0.10 has `Prover` / `verify` and no recursive verifier, no IVC, and no composition API. Recursing it means arithmetizing FRI and Blake3 inside an AIR. Plonky3 is the maintained transparent STARK stack whose recursion path is actually used. The Winterfell leaves stay the conformance spec the port must match. |
+| **CLSAG / Bulletproof leaf** (later) | Halo2, only if we must verify curve25519 inside the circuit | Not the aggregator. Pasta/KZG assumptions are a worse fit for the "no trusted setup" story than a STARK. |
+| **Nova / HyperNova** | Not the first aggregator | Folding wants one repeated step. A block is several shapes (subsidy, fee split, Merkle, ring). |
+| **Groth16** | No | A trusted setup per circuit. |
+| **zkVM (SP1 / RISC Zero)** | Not this unit | A possible later shortcut to "prove `apply_block`". It does not replace small leaves we can audit against the Rust functions. |
+
+Phase 4a order stays: algebraic leaves first, then a STARK-friendly Merkle leaf
+once a compression is chosen, then rings. Aggregation waits until those leaves
+exist. SPoRA challenges stay Merkle-native; a validity proof may wrap
+`verify_storage_proof`, not replace the operator challenge.
+
+## Leaf landed with this decision (B-316)
+
+`mfn_consensus::validity_stark_coinbase`, still feature-gated, still not called
+from `apply_block`:
+
+1. **`emission_at_height`.** Public inputs are height, halving period, halving
+   count (at most 64), initial reward, tail, and the claimed subsidy. The
+   witness is the era quotient. The AIR checks `era * period + rem = height - 1`
+   with `rem < period`, then either the tail (`era >= count`) or
+   `initial = subsidy * 2^era + low` with `low < 2^era`. Height 0 forces
+   subsidy 0. The honest prover also requires the claim to equal
+   `emission::emission_at_height`; `verify` does not recompute that function.
+2. **Coinbase bps split** inside `producer_portion_amount` (no storage-proof
+   term). Public inputs are the subsidy, both bps values, the fee sum, and the
+   treasury / producer / portion outputs. The AIR checks
+   `amount * bps = treasury * 10000 + rem` with `rem <= 9999`, plus the two
+   exact sums. That is the unique integer quotient for `bps <= 10000`.
+
+Both verifiers reject a tampered public output. Neither proof is gossiped.
