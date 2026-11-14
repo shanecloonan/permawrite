@@ -15,6 +15,7 @@ pub mod fast_sync;
 pub mod header_sync;
 pub mod inclusion;
 pub mod memory;
+pub mod private_scan;
 pub mod prune;
 pub mod workload;
 
@@ -33,6 +34,7 @@ pub use inclusion::{
     InclusionError,
 };
 pub use memory::{AdmitError, BodyCache, DeviceClass, MemoryBudget};
+pub use private_scan::{scan_owned, OutputWindowRequest, ScanError};
 pub use prune::{BlockLog, BlockRecord, KeepClass, NodeRole, PruneError};
 pub use workload::{
     header_link_digest, prepare_verify_workload, PreparedWorkload, VerifyReport, WorkloadError,

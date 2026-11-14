@@ -153,7 +153,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
-| **I** Scale | **I-7** light inclusion proofs (this commit). Unknown headers refused. Off consensus. | *Idle* | **I-8** private output scan | `mfn-scale` inclusion tests |
+| **I** Scale | **I-8** private output scan (this commit). Requests are height windows. Off consensus. | *Idle* | **I-9** block-log index | `mfn-scale` scan tests |
 
 ---
 
@@ -537,6 +537,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane I - I-8 private scan** (this commit): an output-window request is two heights and eight bytes. `scan_owned` runs stealth detection locally. Alice and Bob send the same request and find different outputs. Next: **I-9** block-log index.
 
 1. **2026-11-14 - lane I - I-7 inclusion** (this commit): a header book admits only headers that link from a trusted genesis id. Tx and UTXO proofs must match that header's root. An unknown header id is refused. Next: **I-8** private output scan.
 
