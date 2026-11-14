@@ -54,9 +54,21 @@ use parse::{
 pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
     let argv: Vec<String> = args.into_iter().skip(1).collect();
     let parsed = parse_args(&argv)?;
+    let socks_open =
+        crate::tor_mode::tcp_port_open("127.0.0.1:9050", std::time::Duration::from_millis(200));
+    let request = if parsed.rpc_tor {
+        crate::tor_mode::TorRequest::On
+    } else if parsed.no_tor {
+        crate::tor_mode::TorRequest::Off
+    } else {
+        crate::tor_mode::TorRequest::Auto
+    };
+    let use_tor = crate::tor_mode::decide_tor(&parsed.rpc_addr, socks_open, request)
+        .map_err(|e| CliError::Usage(e.to_string()))?;
     let mut client = RpcClient::new(&parsed.rpc_addr);
-    if parsed.rpc_tor {
+    if use_tor {
         client = client.with_tor(&parsed.tor_socks5);
+        eprintln!("rpc_tor=on socks={}", parsed.tor_socks5);
     }
     if let Some(api_key) = parsed.rpc_api_key.clone().or_else(|| {
         std::env::var(MFN_RPC_API_KEY)
