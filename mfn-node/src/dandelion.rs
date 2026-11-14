@@ -46,6 +46,15 @@ impl DandelionConfig {
     }
 }
 
+/// Whether this node created the transaction or is relaying a stem.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HopKind {
+    /// Created here. Always enters the epoch stem. Never diffuses immediately.
+    Origin,
+    /// Received from one peer. May extend the stem or fail safe into fluff.
+    Relay,
+}
+
 /// How a fresh tx should leave this node.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RelayAction {
@@ -112,6 +121,44 @@ impl DandelionRelay {
         }
     }
 
+    /// Epoch stem: one successor for the whole epoch, per-hop fluff, embargo.
+    ///
+    /// `peers` must already exclude the inbound peer. Origin hops do not fluff.
+    pub fn forward(
+        &mut self,
+        tx_id: [u8; 32],
+        peers: &[String],
+        now: Instant,
+        hop: HopKind,
+    ) -> RelayAction {
+        if !self.config.enabled || peers.is_empty() {
+            return RelayAction::Fluff;
+        }
+        if hop == HopKind::Relay {
+            if let Some(entry) = self.pending.get(&tx_id) {
+                if now.saturating_duration_since(entry.first_seen) >= self.config.stem_timeout {
+                    self.pending.remove(&tx_id);
+                    return RelayAction::Fluff;
+                }
+            } else if self.hop_fluffs(&tx_id, now) {
+                return RelayAction::Fluff;
+            }
+        }
+        self.pending
+            .entry(tx_id)
+            .or_insert(PendingStem { first_seen: now });
+        let epoch = self.current_epoch(now);
+        let idx = epoch_successor(&self.node_salt, epoch, peers.len());
+        RelayAction::Stem {
+            peer: peers[idx].clone(),
+        }
+    }
+
+    fn hop_fluffs(&self, tx_id: &[u8; 32], now: Instant) -> bool {
+        fluff_roll_bps_for_node(&self.node_salt, tx_id, self.current_epoch(now))
+            <= self.config.fluff_probability_bps
+    }
+
     fn should_fluff(&self, tx_id: &[u8; 32], now: Instant) -> bool {
         if let Some(entry) = self.pending.get(tx_id) {
             if now.duration_since(entry.first_seen) >= self.config.stem_timeout {
@@ -130,6 +177,18 @@ impl DandelionRelay {
     }
 }
 
+/// One stem neighbor for `(node, epoch)`. The transaction id is not an input,
+/// so the anonymity graph is stable until the epoch rotates.
+pub fn epoch_successor(node_salt: &[u8; 32], epoch: u64, peer_count: usize) -> usize {
+    let mut w = Writer::new();
+    w.push(node_salt);
+    w.u64(epoch);
+    let h = dhash(b"MFBN-1/dandelion-epoch-v1", &[w.bytes()]);
+    let mut buf = [0u8; 8];
+    buf.copy_from_slice(&h[0..8]);
+    (u64::from_be_bytes(buf) as usize) % peer_count.max(1)
+}
+
 fn stem_peer_index(node_salt: &[u8; 32], epoch: u64, tx_id: &[u8; 32], peer_count: usize) -> usize {
     let mut w = Writer::new();
     w.push(node_salt);
@@ -140,6 +199,15 @@ fn stem_peer_index(node_salt: &[u8; 32], epoch: u64, tx_id: &[u8; 32], peer_coun
     buf.copy_from_slice(&h[0..8]);
     let n = u64::from_be_bytes(buf);
     (n as usize) % peer_count
+}
+
+fn fluff_roll_bps_for_node(node_salt: &[u8; 32], tx_id: &[u8; 32], epoch: u64) -> u16 {
+    let mut w = Writer::new();
+    w.push(node_salt);
+    w.push(tx_id);
+    w.u64(epoch);
+    let h = dhash(b"MFBN-1/dandelion-hop-v1", &[w.bytes()]);
+    u16::from_be_bytes([h[0], h[1]]) % 10_001
 }
 
 fn fluff_roll_bps(tx_id: &[u8; 32], epoch: u64) -> u16 {
@@ -214,6 +282,43 @@ mod tests {
             RelayAction::Stem {
                 peer: ps[0].clone()
             }
+        );
+    }
+
+    #[test]
+    fn three_node_epoch_stem_hides_the_origin_from_a_neighbor() {
+        let mut cfg = DandelionConfig::enabled();
+        cfg.fluff_probability_bps = 0;
+        cfg.epoch_secs = 600;
+        cfg.stem_timeout = Duration::from_secs(30);
+        let mut alice = DandelionRelay::new(cfg.clone(), [1u8; 32]);
+        let mut bob = DandelionRelay::new(cfg.clone(), [2u8; 32]);
+        let mut carol = DandelionRelay::new(cfg, [3u8; 32]);
+        let now = Instant::now();
+        let peers = vec!["bob".to_string(), "carol".to_string()];
+        let tx = [9u8; 32];
+        let RelayAction::Stem { peer: first } = alice.forward(tx, &peers, now, HopKind::Origin)
+        else {
+            panic!("origin stems");
+        };
+        let RelayAction::Stem { peer: second_tx } =
+            alice.forward([8u8; 32], &peers, now, HopKind::Origin)
+        else {
+            panic!("same epoch stems");
+        };
+        assert_eq!(first, second_tx, "the epoch has one stem successor");
+        let idle = if first == "bob" { "carol" } else { "bob" };
+        let relay = if first == "bob" { &mut bob } else { &mut carol };
+        let next_peers = vec!["alice".to_string(), idle.to_string()];
+        let RelayAction::Stem { peer: next } = relay.forward(tx, &next_peers, now, HopKind::Relay)
+        else {
+            panic!("relay keeps the stem when fluff probability is zero");
+        };
+        assert!(next == "alice" || next == idle);
+        assert_eq!(
+            alice.forward(tx, &peers, now + Duration::from_secs(30), HopKind::Relay),
+            RelayAction::Fluff,
+            "the embargo fluffs instead of dropping the transaction"
         );
     }
 }

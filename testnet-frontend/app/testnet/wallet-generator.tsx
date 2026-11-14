@@ -30,6 +30,7 @@ import {
   headerVersionFromHex,
   requireTwoOutputs,
 } from "@/lib/testnet/spend-privacy";
+import { formatMfn, parseSpendAmount } from "@/lib/testnet/spend-amount";
 import FileKeep from "./file-keep";
 import { CopyButton, truncateId, useCopyFeedback } from "./ui";
 
@@ -95,6 +96,16 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
   }, []);
 
   const balance = useMemo(() => totalBalance(sync), [sync]);
+  const spendPreview = useMemo(() => {
+    try {
+      return { label: parseSpendAmount(sendAmount).label, error: null as string | null };
+    } catch (err) {
+      return {
+        label: null as string | null,
+        error: err instanceof Error ? err.message : "Enter an amount.",
+      };
+    }
+  }, [sendAmount]);
 
   const adopt = useCallback((w: GeneratedWallet) => {
     const sess: SessionWallet = {
@@ -255,10 +266,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
     setError(null);
     setStatus(null);
     try {
-      const amount = Number(sendAmount);
-      if (!Number.isFinite(amount) || amount < 1) {
-        throw new Error("amount must be a positive number");
-      }
+      const amount = parseSpendAmount(sendAmount).atomic;
       const dest = decodeWalletAddress(sendTo.trim());
       await loadMfnWasm();
       const tip = await rpc<{ tip_height?: number }>("get_tip", {});
@@ -369,7 +377,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
       });
       setHistory(loadHistory(session.seedHex));
       setStatus(
-        `Sent ${amount.toLocaleString()} · tx ${truncateId(built.tx_id)} · refresh after the next block for change.`,
+        `Sent ${formatMfn(amount)} (${amount.toLocaleString()} atomic). It is pending until a block includes it. tx ${truncateId(built.tx_id)}`,
       );
       setSendAmount("100000");
     } catch (e) {
@@ -545,7 +553,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
           <input
             value={sendAmount}
             onChange={(e) => setSendAmount(e.target.value)}
-            placeholder="Amount (atomic)"
+            placeholder="1mfn or atomic units"
             className="w-40 rounded-lg border border-[var(--pw-line)] bg-[var(--pw-code)] px-3 py-2 font-mono text-[11px] text-[var(--pw-code-ink)] outline-none focus:border-[var(--pw-accent)]/50"
           />
           <button
@@ -557,6 +565,13 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
             {busy === "send" ? "Sending…" : "Send"}
           </button>
         </div>
+        <p
+          className={`text-xs leading-relaxed ${
+            spendPreview.error ? "text-red-300/90" : "text-[var(--pw-muted)]"
+          }`}
+        >
+          {spendPreview.error ?? spendPreview.label}
+        </p>
       </div>
 
       <FileKeep />
