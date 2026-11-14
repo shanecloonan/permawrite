@@ -47,9 +47,11 @@
 
 #![warn(missing_docs)]
 
+pub mod amount;
 pub mod claiming;
 pub mod keys;
 
+pub use amount::{format_mfn, parse_amount, AmountError, ATOMIC_PER_MFN, MFN_DISPLAY_DECIMALS};
 pub use claiming::ClaimingIdentity;
 pub use keys::{wallet_from_seed, WalletKeys};
 
