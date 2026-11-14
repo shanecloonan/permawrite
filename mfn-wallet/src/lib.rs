@@ -50,10 +50,12 @@
 pub mod amount;
 pub mod claiming;
 pub mod keys;
+pub mod mnemonic;
 
 pub use amount::{format_mfn, parse_amount, AmountError, ATOMIC_PER_MFN, MFN_DISPLAY_DECIMALS};
 pub use claiming::ClaimingIdentity;
 pub use keys::{wallet_from_seed, WalletKeys};
+pub use mnemonic::{mnemonic_from_seed, seed_from_mnemonic, MnemonicError};
 
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod decoy;
