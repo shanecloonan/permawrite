@@ -26,7 +26,7 @@ This unit names the carve-out in code so PM8 cannot “helpfully” drop the wro
 
 [`RETENTION_POLICY_VERSION`](../mfn-consensus/src/archive_retention.rs) is **1**. `V1_PERMANENCE_KEEP` and `V1_PRIVACY_KEEP` are the frozen classes. Moving one of those fields off its class, or flipping a `*_may_prune` const to true, fails `retention_v1_cannot_relax_keep_classes_without_a_version_bump` until the version constant is bumped in the same change. A live chain still needs a new genesis or a header-version gate before a relaxed rule can apply. Path A and F-A do not prune.
 
-[`CHAIN_STATE_FIELD_COUNT`](../mfn-consensus/src/archive_retention.rs) = **25**, matching `ChainState` today (`fee_shift_window` is ConsensusKeep). Adding a field without classifying it fails `b310_every_chain_state_field_is_classified` once the count is bumped with a new variant — the inventory is the complexity fail-closed.
+[`CHAIN_STATE_FIELD_COUNT`](../mfn-consensus/src/archive_retention.rs) = **26**, matching `ChainState` today (`fee_shift_window` and `retrieval` are both ConsensusKeep). Adding a field without classifying it fails `b310_every_chain_state_field_is_classified` once the count is bumped with a new variant — the inventory is the complexity fail-closed.
 
 ### Why not prune Path A this unit?
 

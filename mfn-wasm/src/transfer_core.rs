@@ -140,6 +140,11 @@ pub fn build_transfer_json(plan_json: &str) -> Result<String, WasmCoreError> {
             plan.ring_size
         )));
     }
+    if let Err(msg) =
+        mfn_consensus::tier2_ring_size_allowed(mfn_consensus::HEADER_VERSION, plan.ring_size as u32)
+    {
+        return Err(WasmCoreError::InvalidHex(msg.into()));
+    }
     if plan.inputs.len() < WALLET_MIN_TX_INPUTS {
         // B-197: actionable parity with CLI `require_f7_owned_input_floor` (**B-189**).
         return Err(WasmCoreError::InvalidHex(format!(

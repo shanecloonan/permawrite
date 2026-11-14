@@ -54,10 +54,10 @@ pub(crate) fn encode_endowment_params(
     if checkpoint_version >= 13 {
         w.u8(p.deflation_funded_drip);
     }
-    if checkpoint_version >= 14 {
+    if checkpoint_version >= 15 {
         w.u8(p.fee_runway_shift);
     }
-    if checkpoint_version >= 15 {
+    if checkpoint_version >= 16 {
         w.u8(p.cold_proof_cadence);
     }
 }
@@ -98,7 +98,7 @@ fn encode_storage_entry(w: &mut Writer, e: &StorageEntry, checkpoint_version: u3
     w.u32(e.last_proven_height);
     w.u64(e.last_proven_slot);
     encode_u128(w, e.pending_yield_ppb);
-    if checkpoint_version >= 15 {
+    if checkpoint_version >= 16 {
         w.u64(e.anchor_slot);
     }
 }
@@ -135,7 +135,12 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
 
     // ---- Header ----
     w.push(&CHAIN_CHECKPOINT_MAGIC);
-    w.u32(CHAIN_CHECKPOINT_VERSION);
+    let write_version = if parts.state.header_version >= crate::HEADER_VERSION_RETRIEVAL {
+        super::CHAIN_CHECKPOINT_VERSION_MAX
+    } else {
+        CHAIN_CHECKPOINT_VERSION
+    };
+    w.u32(write_version);
 
     // ---- Identity ----
     w.push(&parts.genesis_id);
@@ -160,16 +165,8 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
     // ---- Frozen params ----
     encode_consensus_params(&mut w, &parts.state.params);
     encode_bonding_params(&mut w, &parts.state.bonding_params);
-    encode_emission_params(
-        &mut w,
-        &parts.state.emission_params,
-        CHAIN_CHECKPOINT_VERSION,
-    );
-    encode_endowment_params(
-        &mut w,
-        &parts.state.endowment_params,
-        CHAIN_CHECKPOINT_VERSION,
-    );
+    encode_emission_params(&mut w, &parts.state.emission_params, write_version);
+    encode_endowment_params(&mut w, &parts.state.endowment_params, write_version);
     if CHAIN_CHECKPOINT_VERSION >= 12 {
         w.u32(parts.state.subsidy_bps_activation_height);
         w.push(&parts.state.subsidy_bps_activation_value.to_be_bytes());
@@ -177,7 +174,7 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
 
     // ---- Treasury ----
     encode_u128(&mut w, parts.state.treasury);
-    if CHAIN_CHECKPOINT_VERSION >= 14 {
+    if write_version >= 15 {
         encode_fee_shift_window(&mut w, &parts.state.fee_shift_window);
     }
 
@@ -228,7 +225,7 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
     w.varint(storage_keys.len() as u64);
     for k in storage_keys {
         w.push(k);
-        encode_storage_entry(&mut w, &parts.state.storage[k], CHAIN_CHECKPOINT_VERSION);
+        encode_storage_entry(&mut w, &parts.state.storage[k], write_version);
     }
 
     if CHAIN_CHECKPOINT_VERSION >= 6 {
@@ -257,6 +254,12 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
     let utxo_tree_bytes = encode_utxo_tree_state(&parts.state.utxo_tree);
     w.varint(utxo_tree_bytes.len() as u64);
     w.push(&utxo_tree_bytes);
+
+    if write_version >= 17 {
+        let retrieval = crate::retrieval::encode_registry(&parts.state.retrieval);
+        w.varint(retrieval.len() as u64);
+        w.push(&retrieval);
+    }
 
     // ---- Trailing integrity tag ----
     let payload = w.into_bytes();

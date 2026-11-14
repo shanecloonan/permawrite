@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** PM41 backstop mint cap applies only when one proof's prize fits the per-slot cap (this commit). Path A's 0.1 MFN prize stays unbounded. Prior: cold-proof cadence gate, default 0. Prior head **F5 1c+** `9355955c`. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** PM41 backstop mint cap applies only when one proof's prize fits the per-slot cap (this merge). Path A's 0.1 MFN prize stays unbounded. Prior: cold-proof cadence gate, default 0. **B-317** retrieval is header v7. Checkpoint v14 stays B-317's v13-plus-registry form. Fee shift is checkpoint v15 and cold cadence is v16. Header v7 writes checkpoint v17. No DEFAULT flip. Prior head **B-317** `a62ae384`.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -143,9 +143,9 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **F5 1c+** slash drops `pending_unbonds`; **B-35** header v4; **B-316** Winterfell leaves (Seat C) | *Idle* — slash matrix frozen. Seat C holds validity files | **B-17** ASN peer buckets (Seat B). Merkle leaf next (Seat C). No B-297 clone | Lane 1 CI |
-| **5** Privacy | **B-19** decoy-RNG contract (`c330b780`); **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | **B-37** hidden fees, version-gated, after the Tier 2 gate | Doc-accuracy duty |
-| **6** Permanence | PM41 mint cap armed only when `storage_proof_reward` fits the per-slot cap (this commit). Path A prize stays unbounded. Prior: cold-proof cadence gate (default 0). | *Idle* | Replica seals and retrieval slash still unwired. No B-13c; no DEFAULT flip | Emission sims |
+| **4** Protocol | **B-317** retrieval at header v7; **B-37** hidden fees at v6; Tier 2 rings at v5; **B-35** at v4; **B-316** Winterfell leaves (Seat C) | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding, header-gated. No B-297 clone. No DEFAULT flip | Lane 1 CI |
+| **5** Privacy | **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after B-317 | Doc-accuracy duty |
+| **6** Permanence | PM41 mint cap armed only when `storage_proof_reward` fits the per-slot cap (this merge). Path A prize stays unbounded. Prior: cold-proof cadence gate (default 0). Checkpoint v14 stays the retrieval extension of v13. | *Idle* | Replica seals and retrieval slash still unwired. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 
 ---
@@ -226,7 +226,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) tip=5322 SUMMARY; **wave115** last_proven **22467** (`601cb854…`; this commit). Human SUMMARY still open |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
-| B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
+| B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | **Landed** (this commit) — local ASN table; empty table keeps /16 redial |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | **Landed** (this commit) — golden `(pk, H, β, π)` pin; no Elligator2 fork |
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | **Landed** (`c330b780`) — [`docs/DECOY_RNG.md`](docs/DECOY_RNG.md); no consensus change |
 | B-20 | F6: producer↔treasury runway fee-shift policy | 6 | **Landed** behind `fee_runway_shift` (default 0, checkpoint v14). Path A and F-A files stay 9000. Not armed on either genesis |
@@ -268,9 +268,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-314 | PM19 per-commitment cold-proof cadence (not wired) | 6 | **Gate landed** — `cold_proof_cadence` default 0 (checkpoint v15). Flag 1 credits `recommended_credited_slots` and uses `cold_proof_overdue`. Path A and F-A files stay on the hot window. Bounty multiplier not applied |
 | B-315 | Max-permanence upgrade design + non-consensus helpers | 6 | **Landed** (this commit) — solvency stress, state projection, replica/retrieval helpers. No Path A flip. First fork = **F-A** after B-25 / Path B |
 | B-316 | F5 4a Winterfell leaves: `emission_at_height` + coinbase bps split | 4 (Seat C) | **Landed** on main — [`VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md). Off consensus. Recursion backend = Plonky3 when 4b.2 starts. No Path A / F-A change |
+| B-317 | Economic retrieval challenge (silence slashes the storage-operator bond) | 4+5 | **Landed** (this commit) — header v7; Path A / F-A off. Design: [`RETRIEVAL_CHALLENGE.md`](docs/RETRIEVAL_CHALLENGE.md) |
 | B-35 | F7 consensus input-count padding | 4+5 | **Landed** (this merge) — power-of-two buckets at header v4; Path A / F-A off |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
-| B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
+| B-37 | B6/P6 hidden fees inside balance equation | 4 | **Landed** (this commit) — header v6; header v1 keeps public `tx.fee` |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | **Runbook** + **D0 preflight helper** landed; arm day-of L4
@@ -530,7 +531,17 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 6 - PM41 backstop mint cap gate** (this commit): `backstop_mint_cap_applies` is true only when one proof's prize is at or under `recommended_backstop_mint_cap_per_slot`. `apply_block` then refuses a block whose minted backstop exceeds that cap (`BackstopMintAboveCap`). Path A's 0.1 MFN prize is above the cap, so the live chain stays unbounded. `pm41_cap_refuses_mint_only_when_the_prize_fits_the_cap` PASS. No genesis file edit. No B-13c; no DEFAULT flip.
+1. **2026-11-14 - lane 6 - PM41 backstop mint cap gate** (this merge): `backstop_mint_cap_applies` is true only when one proof's prize is at or under `recommended_backstop_mint_cap_per_slot`. `apply_block` then refuses a block whose minted backstop exceeds that cap (`BackstopMintAboveCap`). Path A's 0.1 MFN prize is above the cap, so the live chain stays unbounded. Checkpoint v14 stays **B-317**'s v13-plus-registry form. Fee shift is checkpoint v15, cold cadence is v16, and header v7 writes v17. `pm41_cap_refuses_mint_only_when_the_prize_fits_the_cap` PASS. No genesis file edit. No B-13c; no DEFAULT flip.
+
+1. **2026-11-14 - lane 4+5 - B-317 retrieval challenges** (`a62ae384`): a one-time key posts a bonded challenge; silence slashes the storage-operator bond (floor and cap), pays a bounty, and drops the queued exit including `pending_unbonds`. A valid Merkle response forfeits part of the deposit to the operator and the treasury. An open challenge rejects `BondOp::Unbond` for that index and holds settlement. Header v1 omits the section. Checkpoint v13 bytes stay; header v7 writes the registry. `b317_*` PASS. No DEFAULT flip. Seat C **B-316** validity leaves are untouched. *Observed (not staged):* none.
+
+1. **2026-11-14 - lane 4 - B-37 hidden fees** (this merge): tx version 3 carries a fee commitment and a range proof; plaintext `fee` is 0. `apply_block` checks the commitments open to the block's disclosed sum and settles coinbase from that sum. Header v1 still uses public `fee·H` and rejects version 3. `b37_hidden_fee_is_inactive_on_header_v1` PASS. No B-13c; no DEFAULT flip. Wallets still build plaintext-fee txs. Next: Bulletproof+ verifier, still gated. *Observed (not staged):* none.
+
+1. **2026-11-14 - lane 4 - Tier 2 ring gate** (parent): header version 5 accepts ring 32 or 64 and rejects 16. Header v1 still accepts only 16. Classic Bulletproofs stay the range proof; Bulletproof+ is not a wire option. `tier2_ring_sizes_stay_inactive_on_header_v1` PASS. No B-13c; no DEFAULT flip.
+
+1. **2026-11-14 - lane 4 - B-17 ASN peer buckets** (parent): `diversity_bucket_key` uses a caller-supplied ASN when the IPv4 is listed, otherwise the /16. `peer_diversity_redial_candidates` still passes an empty table, so existing redial is unchanged. `b17_asn_collapses_distinct_prefix16_and_splits_one_prefix` PASS. No live ASN lookup. No B-13c; no DEFAULT flip.
+
+1. **2026-11-14 - lane 4 - F5 1c+ bond-registry slash** (parent): `apply_equivocation_slashings` removes the offender's `pending_unbonds` entry when equivocation or invalid-block evidence applies. Full node and light client share the helper. Live stake forfeiture is unchanged; `stake_at_request` is not credited again. `f5_1c_slash_drops_bond_registry_exit` PASS. The integration tests now expect that drop. No B-13c; no DEFAULT flip.
 
 1. **2026-11-14 - lane 6 - cold-proof cadence gate** (this commit): `cold_proof_cadence` default 0, checkpoint v15, plus `StorageEntry::anchor_slot` so file age is the anchor slot rather than the last proof. When the flag is 1, `accrue_proof_reward` credits `recommended_credited_slots` and B5 staleness uses `cold_proof_overdue`. Path A and F-A files stay at 0, so the hot window remains the live rule. `cold_cadence_credits_an_old_file_past_the_hot_window` and `cold_cadence_keeps_a_year_old_file_off_the_hot_window_alarm` PASS. Genesis id tests PASS. No B-13c; no DEFAULT flip. Bounty multiplier is not applied.
 

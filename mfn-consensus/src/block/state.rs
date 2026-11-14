@@ -155,6 +155,15 @@ pub struct RingPolicy {
     /// [`HEADER_VERSION_INPUT_PAD`](super::HEADER_VERSION_INPUT_PAD).
     /// Path A and F-A leave this `false`.
     pub input_count_buckets: bool,
+    /// When set, every input ring must be 32 or 64 (**Tier 2**).
+    ///
+    /// Engaged only at [`HEADER_VERSION_TIER2`](super::header::HEADER_VERSION_TIER2).
+    /// Path A and F-A leave this `false` and keep uniform 16.
+    pub tier2_rings: bool,
+    /// When set, regular txs must use a hidden fee commitment (**B-37**).
+    ///
+    /// Engaged only at header version 6. Path A and F-A leave this `false`.
+    pub hidden_fees: bool,
 }
 
 impl RingPolicy {
@@ -166,6 +175,8 @@ impl RingPolicy {
         min_output_count: MIN_TX_OUTPUTS_UNIFORM_TIER,
         min_input_count: MIN_TX_INPUTS_UNIFORM_TIER,
         input_count_buckets: false,
+        tier2_rings: false,
+        hidden_fees: false,
     };
 
     /// Test harness: allow small rings; uniform + shape floors not enforced.
@@ -175,6 +186,8 @@ impl RingPolicy {
         min_output_count: 0,
         min_input_count: 0,
         input_count_buckets: false,
+        tier2_rings: false,
+        hidden_fees: false,
     };
 
     /// Copy this policy and engage B-35 buckets when `header_version` is
@@ -183,8 +196,30 @@ impl RingPolicy {
     pub fn with_header_version(self, header_version: u32) -> Self {
         Self {
             input_count_buckets: header_version >= super::header::HEADER_VERSION_INPUT_PAD,
+            tier2_rings: header_version >= super::header::HEADER_VERSION_TIER2,
+            hidden_fees: header_version >= super::header::HEADER_VERSION_HIDDEN_FEES,
             ..self
         }
+    }
+}
+
+/// Whether `ring_size` is legal at `header_version`.
+///
+/// Below [`HEADER_VERSION_TIER2`](super::header::HEADER_VERSION_TIER2) the
+/// only production size is 16. At that version the only sizes are 32 and 64.
+pub fn tier2_ring_size_allowed(header_version: u32, ring_size: u32) -> Result<(), &'static str> {
+    if header_version < super::header::HEADER_VERSION_TIER2 {
+        if ring_size == 16 {
+            Ok(())
+        } else if super::header::TIER2_RING_SIZES.contains(&ring_size) {
+            Err("ring 32 or 64 requires header version 5 (Tier 2); this chain is below that gate")
+        } else {
+            Err("ring size must be 16 on this header version")
+        }
+    } else if super::header::TIER2_RING_SIZES.contains(&ring_size) {
+        Ok(())
+    } else {
+        Err("Tier 2 header requires ring size 32 or 64")
     }
 }
 
@@ -258,6 +293,8 @@ impl ConsensusParams {
                 0
             },
             input_count_buckets: false,
+            tier2_rings: false,
+            hidden_fees: false,
         }
     }
 
@@ -379,6 +416,9 @@ pub struct ChainState {
     pub pending_unbonds: BTreeMap<u32, PendingUnbond>,
     /// Block header version pinned at genesis (`1` or `2`).
     pub header_version: u32,
+    /// Open retrieval challenges and operator-bond exits (**B-317**).
+    /// Empty on header versions below 7. Checkpoint v13 omits it.
+    pub retrieval: crate::retrieval::RetrievalRegistry,
 }
 
 impl ChainState {
@@ -410,6 +450,7 @@ impl ChainState {
             next_validator_index: 0,
             pending_unbonds: BTreeMap::new(),
             header_version: super::header::HEADER_VERSION,
+            retrieval: crate::retrieval::RetrievalRegistry::default(),
         }
     }
 

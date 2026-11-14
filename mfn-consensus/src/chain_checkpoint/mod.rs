@@ -41,8 +41,8 @@
 //!   BondingParams              (1×u64 + 4×u32)
 //!   EmissionParams             (4×u64 + 1×u32 + 2×u16; v11+ adds subsidy_to_treasury_bps)
 //!   (v12) subsidy schedule     u32 height + u16 bps (0,0 = inactive)
-//!   EndowmentParams            (4×u64 + 2×u8 + 2×u64; v13+ adds deflation_funded_drip; v14+ adds fee_runway_shift)
-//!   (v14) fee-shift window     5×u64 (zeros when the B-20 gate is off)
+//!   EndowmentParams            (4×u64 + 2×u8 + 2×u64; v13+ adds deflation_funded_drip; v15+ adds fee_runway_shift; v16+ adds cold_proof_cadence)
+//!   (v15) fee-shift window     5×u64 (zeros when the B-20 gate is off; absent on v14)
 //!
 //!   treasury                    u128
 //!
@@ -94,9 +94,25 @@ use mfn_crypto::utxo_tree::UtxoTreeDecodeError;
 /// 4-byte magic header. ASCII `"MFCC"` = `M(oney)F(und) C(hain) C(heckpoint)`.
 pub const CHAIN_CHECKPOINT_MAGIC: [u8; 4] = *b"MFCC";
 
-/// Currently-supported chain-checkpoint format version. Bumped only on
-/// wire-incompatible changes.
-pub const CHAIN_CHECKPOINT_VERSION: u32 = 15;
+/// Checkpoint written for header versions below retrieval.
+///
+/// Version 15 adds the fee-shift window. Version 16 adds cold-proof cadence.
+/// Version 13 bytes stay the pre-B-317 layout.
+pub const CHAIN_CHECKPOINT_VERSION: u32 = 16;
+
+/// B-317's extension of version 13: the retrieval registry is appended and
+/// the fee-shift / cold-cadence fields are absent.
+pub const CHAIN_CHECKPOINT_VERSION_RETRIEVAL_V14: u32 = 14;
+
+/// Highest checkpoint this build decodes. Version 17 is version 16 plus the
+/// retrieval registry, written when the header version is 7 or higher.
+pub const CHAIN_CHECKPOINT_VERSION_MAX: u32 = 17;
+
+/// `true` when this checkpoint version carries the retrieval registry.
+#[inline]
+pub(crate) fn checkpoint_has_retrieval(version: u32) -> bool {
+    version == CHAIN_CHECKPOINT_VERSION_RETRIEVAL_V14 || version >= CHAIN_CHECKPOINT_VERSION_MAX
+}
 
 /// Errors produced by the chain-checkpoint codec.
 ///
@@ -116,7 +132,7 @@ pub enum ChainCheckpointError {
 
     /// Format version is not supported by this build.
     #[error(
-        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 15"
+        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 17"
     )]
     UnsupportedVersion {
         /// The version encoded in the payload.

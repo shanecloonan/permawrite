@@ -42,6 +42,9 @@ pub enum BlockError {
         /// Required minimum from endowment params.
         min_bond: u64,
     },
+    /// Hidden-fee commitments do not open to the block's disclosed sum.
+    #[error("hidden fee commitments do not open to the disclosed block total")]
+    HiddenFeeOpening,
     /// Header `version` didn't match the chain's genesis-pinned version.
     #[error("header version mismatch: expected {expected}, got {got}")]
     HeaderVersionMismatch {
@@ -415,6 +418,14 @@ pub enum BlockError {
         commit_hash: String,
         /// Configured replication for the commitment.
         max: u8,
+    },
+    /// A retrieval challenge, response, or unbond was rejected (**B-317**).
+    #[error("retrieval[{index}]: {message}")]
+    RetrievalRejected {
+        /// Index of the offending op, or 0 when the failure is the section.
+        index: usize,
+        /// Why it was rejected.
+        message: String,
     },
     /// Operator-salted proof from an unregistered operator (B3 phase 3).
     #[error("storage_proofs[{index}]: unregistered operator {operator_id}")]

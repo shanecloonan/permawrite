@@ -2,9 +2,7 @@
 
 use super::internal::*;
 
-use super::{
-    ChainCheckpoint, ChainCheckpointError, CHAIN_CHECKPOINT_MAGIC, CHAIN_CHECKPOINT_VERSION,
-};
+use super::{ChainCheckpoint, ChainCheckpointError, CHAIN_CHECKPOINT_MAGIC};
 
 /* ----------------------------------------------------------------------- *
  *  Decode                                                                   *
@@ -81,12 +79,12 @@ fn decode_endowment_params(
         } else {
             0
         },
-        fee_runway_shift: if checkpoint_version >= 14 {
+        fee_runway_shift: if checkpoint_version >= 15 {
             read_u8(r, "endowment_params.fee_runway_shift")?
         } else {
             0
         },
-        cold_proof_cadence: if checkpoint_version >= 15 {
+        cold_proof_cadence: if checkpoint_version >= 16 {
             read_u8(r, "endowment_params.cold_proof_cadence")?
         } else {
             0
@@ -125,7 +123,7 @@ fn decode_storage_entry(
     let last_proven_height = read_u32(r, "storage[i].last_proven_height")?;
     let last_proven_slot = read_u64(r, "storage[i].last_proven_slot")?;
     let pending_yield_ppb = read_u128(r, "storage[i].pending_yield_ppb")?;
-    let anchor_slot = if checkpoint_version >= 15 {
+    let anchor_slot = if checkpoint_version >= 16 {
         read_u64(r, "storage[i].anchor_slot")?
     } else {
         last_proven_slot
@@ -345,7 +343,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         return Err(ChainCheckpointError::BadMagic { got: magic });
     }
     let version = read_u32(&mut r, "version")?;
-    if !(1..=CHAIN_CHECKPOINT_VERSION).contains(&version) {
+    if !(1..=super::CHAIN_CHECKPOINT_VERSION_MAX).contains(&version) {
         return Err(ChainCheckpointError::UnsupportedVersion { got: version });
     }
 
@@ -383,7 +381,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     .validate()?;
 
     let treasury = read_u128(&mut r, "treasury")?;
-    let fee_shift_window = if version >= 14 {
+    let fee_shift_window = if version >= 15 {
         crate::emission::FeeShiftWindow {
             start_slot: read_u64(&mut r, "fee_shift_window.start_slot")?,
             proof_blocks: read_u64(&mut r, "fee_shift_window.proof_blocks")?,
@@ -526,7 +524,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     let claims = match version {
         1 => BTreeMap::new(),
         2 => decode_claims_state_v2(&mut r)?,
-        3..=CHAIN_CHECKPOINT_VERSION => decode_claims_state_v3(&mut r)?,
+        3..=super::CHAIN_CHECKPOINT_VERSION_MAX => decode_claims_state_v3(&mut r)?,
         _ => {
             return Err(ChainCheckpointError::UnsupportedVersion { got: version });
         }
@@ -542,6 +540,21 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         })?;
     let utxo_tree: UtxoTreeState = decode_utxo_tree_state(utxo_tree_bytes)
         .map_err(|source| ChainCheckpointError::InvalidUtxoTree { source })?;
+
+    let retrieval = if super::checkpoint_has_retrieval(version) {
+        let n = read_len(&mut r, "retrieval.len")?;
+        let bytes = r.bytes(n).map_err(|_| CheckpointReadError::Truncated {
+            field: "retrieval",
+            needed: n,
+        })?;
+        crate::retrieval::decode_registry(bytes).map_err(|_| {
+            ChainCheckpointError::TrailingBytes {
+                remaining: bytes.len(),
+            }
+        })?
+    } else {
+        crate::retrieval::RetrievalRegistry::default()
+    };
 
     if !r.end() {
         return Err(ChainCheckpointError::TrailingBytes {
@@ -593,7 +606,12 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         bond_epoch_exit_count: counters.bond_epoch_exit_count,
         next_validator_index: counters.next_validator_index,
         pending_unbonds,
-        header_version: crate::block::HEADER_VERSION,
+        header_version: if super::checkpoint_has_retrieval(version) {
+            crate::HEADER_VERSION_RETRIEVAL
+        } else {
+            crate::block::HEADER_VERSION
+        },
+        retrieval,
     };
 
     Ok(ChainCheckpoint { genesis_id, state })
