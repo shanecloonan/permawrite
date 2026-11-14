@@ -56,7 +56,20 @@ pub struct MempoolConfig {
     /// Per-tx minimum fee in atomic units. `0` disables the gate.
     /// This is a *local policy* knob; consensus enforces no minimum.
     pub min_fee: u64,
+    /// Largest encoded transaction the pool will hold.
+    ///
+    /// Checked before signature verification, so a multi-megabyte gossip
+    /// payload cannot spend a verify. Local policy; consensus block limits
+    /// are separate.
+    pub max_tx_bytes: usize,
+    /// Sum of encoded sizes the pool will hold at once.
+    pub max_pool_bytes: usize,
 }
+
+/// Default cap on one pooled transaction (1 MiB).
+pub const DEFAULT_MAX_TX_BYTES: usize = 1024 * 1024;
+/// Default cap on the whole pool's encoded bytes (32 MiB).
+pub const DEFAULT_MAX_POOL_BYTES: usize = 32 * 1024 * 1024;
 
 impl MempoolConfig {
     /// Sensible defaults for a single-node demo:
@@ -67,6 +80,8 @@ impl MempoolConfig {
         Self {
             max_entries: 4096,
             min_fee: 0,
+            max_tx_bytes: DEFAULT_MAX_TX_BYTES,
+            max_pool_bytes: DEFAULT_MAX_POOL_BYTES,
         }
     }
 }
@@ -96,6 +111,9 @@ pub struct MempoolEntry {
     /// Chain height at the time of admission. Informational only —
     /// drives nothing today but useful for future age-based eviction.
     pub admitted_at_height: Option<u32>,
+    /// `encode_transaction` length, so eviction can keep the pool byte
+    /// counter honest without encoding again.
+    pub wire_len: usize,
 }
 
 /* ----------------------------------------------------------------------- *
@@ -193,6 +211,26 @@ pub enum AdmitError {
         lowest_fee: u64,
         /// Fee of the rejected tx.
         proposed_fee: u64,
+    },
+
+    /// Encoded transaction exceeds [`MempoolConfig::max_tx_bytes`].
+    #[error("tx is {wire_len} bytes, mempool max is {max_tx_bytes}")]
+    TxTooLarge {
+        /// Encoded size.
+        wire_len: usize,
+        /// Configured per-tx cap.
+        max_tx_bytes: usize,
+    },
+
+    /// Admitting the tx would push the pool past [`MempoolConfig::max_pool_bytes`].
+    #[error("mempool holds {held} bytes; adding {wire_len} exceeds {max_pool_bytes}")]
+    PoolBytes {
+        /// Bytes already held, after the evictions this admit would have made.
+        held: usize,
+        /// Encoded size of the rejected tx.
+        wire_len: usize,
+        /// Configured pool cap.
+        max_pool_bytes: usize,
     },
 
     /// `tx.inputs` is empty. Either a malformed wire-form tx or a
@@ -404,6 +442,8 @@ pub struct Mempool {
     /// Reverse index: key-image bytes → tx_id of the entry that owns
     /// that key image. Drives RBF conflict detection in O(1).
     by_key_image: HashMap<[u8; 32], [u8; 32]>,
+    /// Sum of [`MempoolEntry::wire_len`] for entries currently stored.
+    wire_bytes: usize,
 }
 
 impl Mempool {
@@ -413,7 +453,14 @@ impl Mempool {
             config,
             by_tx_id: HashMap::new(),
             by_key_image: HashMap::new(),
+            wire_bytes: 0,
         }
+    }
+
+    /// Encoded bytes currently held.
+    #[inline]
+    pub fn wire_bytes(&self) -> usize {
+        self.wire_bytes
     }
 
     /// Borrow the mempool's config.
@@ -480,6 +527,23 @@ impl Mempool {
         // (1) Coinbase / degenerate txs.
         if tx.inputs.is_empty() {
             return Err(AdmitError::NoInputs);
+        }
+
+        // Size is local policy and is checked before signature verification
+        // so a huge payload cannot spend a verify.
+        let wire_len = mfn_consensus::encode_transaction(&tx).len();
+        if wire_len > self.config.max_tx_bytes {
+            return Err(AdmitError::TxTooLarge {
+                wire_len,
+                max_tx_bytes: self.config.max_tx_bytes,
+            });
+        }
+        if wire_len > self.config.max_pool_bytes {
+            return Err(AdmitError::PoolBytes {
+                held: self.wire_bytes,
+                wire_len,
+                max_pool_bytes: self.config.max_pool_bytes,
+            });
         }
 
         // (2) Local min-fee policy.
@@ -872,6 +936,27 @@ impl Mempool {
             }
         }
 
+        // Byte budget after the evictions this admit is about to make.
+        let mut freed = 0usize;
+        for displaced_id in &conflicting_entries {
+            if let Some(entry) = self.by_tx_id.get(displaced_id) {
+                freed = freed.saturating_add(entry.wire_len);
+            }
+        }
+        if let Some(victim) = evicted_for_room {
+            if let Some(entry) = self.by_tx_id.get(&victim) {
+                freed = freed.saturating_add(entry.wire_len);
+            }
+        }
+        let held_after = self.wire_bytes.saturating_sub(freed);
+        if held_after.saturating_add(wire_len) > self.config.max_pool_bytes {
+            return Err(AdmitError::PoolBytes {
+                held: held_after,
+                wire_len,
+                max_pool_bytes: self.config.max_pool_bytes,
+            });
+        }
+
         // Apply mutations only after every check passed.
         for displaced_id in &conflicting_entries {
             self.evict_internal(displaced_id);
@@ -885,8 +970,10 @@ impl Mempool {
             tx_id,
             key_image_bytes: key_image_bytes.clone(),
             admitted_at_height: state.height,
+            wire_len,
             tx,
         };
+        self.wire_bytes = self.wire_bytes.saturating_add(wire_len);
         for ki in &key_image_bytes {
             self.by_key_image.insert(*ki, tx_id);
         }
@@ -942,6 +1029,7 @@ impl Mempool {
         let mut out: Vec<TransactionWire> = Vec::with_capacity(take_ids.len());
         for id in &take_ids {
             if let Some(entry) = self.by_tx_id.remove(id) {
+                self.wire_bytes = self.wire_bytes.saturating_sub(entry.wire_len);
                 for ki in &entry.key_image_bytes {
                     self.by_key_image.remove(ki);
                 }
@@ -989,10 +1077,12 @@ impl Mempool {
     pub fn clear(&mut self) {
         self.by_tx_id.clear();
         self.by_key_image.clear();
+        self.wire_bytes = 0;
     }
 
     fn evict_internal(&mut self, tx_id: &[u8; 32]) {
         if let Some(entry) = self.by_tx_id.remove(tx_id) {
+            self.wire_bytes = self.wire_bytes.saturating_sub(entry.wire_len);
             for ki in &entry.key_image_bytes {
                 self.by_key_image.remove(ki);
             }
@@ -1739,6 +1829,7 @@ mod tests {
         let mut pool = Mempool::new(MempoolConfig {
             max_entries: 100,
             min_fee: 500,
+            ..MempoolConfig::default_config()
         });
         let err = pool.admit(tx, chain.state()).unwrap_err();
         assert!(matches!(
@@ -1869,6 +1960,55 @@ mod tests {
     }
 
     #[test]
+    fn byte_budget_rejects_oversized_tx_and_tracks_held_bytes() {
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 200);
+        let wire_len = mfn_consensus::encode_transaction(&tx).len();
+        assert!(wire_len > 1, "signed tx should have a body");
+
+        let mut tiny = Mempool::new(MempoolConfig {
+            max_tx_bytes: wire_len - 1,
+            ..MempoolConfig::default_config()
+        });
+        let err = tiny.admit(tx.clone(), chain.state()).unwrap_err();
+        assert!(matches!(
+            err,
+            AdmitError::TxTooLarge {
+                wire_len: got,
+                max_tx_bytes,
+            } if got == wire_len && max_tx_bytes == wire_len - 1
+        ));
+        assert!(tiny.is_empty());
+        assert_eq!(tiny.wire_bytes(), 0);
+
+        let mut tight = Mempool::new(MempoolConfig {
+            max_tx_bytes: wire_len,
+            max_pool_bytes: wire_len - 1,
+            ..MempoolConfig::default_config()
+        });
+        let err = tight.admit(tx.clone(), chain.state()).unwrap_err();
+        assert!(matches!(err, AdmitError::PoolBytes { .. }));
+        assert_eq!(tight.wire_bytes(), 0);
+
+        let mut pool = Mempool::new(MempoolConfig {
+            max_tx_bytes: wire_len,
+            max_pool_bytes: wire_len,
+            ..MempoolConfig::default_config()
+        });
+        pool.admit(tx.clone(), chain.state()).expect("fits exactly");
+        assert_eq!(pool.wire_bytes(), wire_len);
+        assert_eq!(pool.len(), 1);
+        // A second copy is a duplicate, not a byte-budget failure, and must
+        // leave the counter untouched.
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        assert!(matches!(err, AdmitError::DuplicateTx { .. }));
+        assert_eq!(pool.wire_bytes(), wire_len);
+        assert_eq!(pool.drain(1).len(), 1);
+        assert_eq!(pool.wire_bytes(), 0);
+        assert!(pool.is_empty());
+    }
+
+    #[test]
     fn size_cap_evicts_lowest_fee_when_pool_full() {
         // Build a chain whose UTXO set contains BOTH spendable inputs
         // plus enough decoys for two rings.
@@ -1960,6 +2100,7 @@ mod tests {
         let mut pool = Mempool::new(MempoolConfig {
             max_entries: 1,
             min_fee: 0,
+            ..MempoolConfig::default_config()
         });
         pool.admit(tx_low.clone(), chain2.state())
             .expect("admit low");
