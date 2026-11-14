@@ -170,10 +170,15 @@ impl WalletFile {
 
     /// Load and validate a wallet file.
     pub fn load(path: &Path) -> Result<Self, WalletStoreError> {
+        let meta = fs::metadata(path)?;
+        if meta.len() > MAX_WALLET_FILE_BYTES as u64 {
+            return Err(WalletStoreError::Invalid(format!(
+                "wallet file is {} bytes; maximum is {MAX_WALLET_FILE_BYTES}",
+                meta.len()
+            )));
+        }
         let bytes = fs::read(path)?;
-        let file: WalletFile = serde_json::from_slice(&bytes)?;
-        file.validate()?;
-        Ok(file)
+        parse_wallet_bytes(&bytes)
     }
 
     fn validate(&self) -> Result<(), WalletStoreError> {
@@ -181,6 +186,18 @@ impl WalletFile {
             return Err(WalletStoreError::Invalid(format!(
                 "unsupported wallet version {} (expected 1 or {WALLET_FILE_VERSION})",
                 self.version
+            )));
+        }
+        if self.owned_outputs.len() > MAX_WALLET_TRACKED_KEYS {
+            return Err(WalletStoreError::Invalid(format!(
+                "wallet has {} owned outputs; maximum is {MAX_WALLET_TRACKED_KEYS}",
+                self.owned_outputs.len()
+            )));
+        }
+        if self.pending_spent_utxo_keys.len() > MAX_WALLET_TRACKED_KEYS {
+            return Err(WalletStoreError::Invalid(format!(
+                "wallet has {} pending spends; maximum is {MAX_WALLET_TRACKED_KEYS}",
+                self.pending_spent_utxo_keys.len()
             )));
         }
         let _ = self.seed_bytes()?;
@@ -230,6 +247,31 @@ fn keys_from_seed(seed: &[u8; 32], derivation: KeyDerivation) -> WalletKeys {
 
 /// Default wallet path when `--wallet` is omitted.
 pub const DEFAULT_WALLET_PATH: &str = "wallet.json";
+
+/// Largest wallet file `load` will read.
+///
+/// A scan cache of tens of thousands of outputs fits. A multi-gigabyte
+/// file does not get parsed.
+pub const MAX_WALLET_FILE_BYTES: usize = 32 * 1024 * 1024;
+
+/// Cap on cached owned outputs and on pending-spend keys.
+///
+/// Checked after JSON parse, so a file under the byte cap still cannot
+/// expand into an unbounded Vec.
+pub const MAX_WALLET_TRACKED_KEYS: usize = 100_000;
+
+/// Parse wallet JSON that was already size-checked.
+pub fn parse_wallet_bytes(bytes: &[u8]) -> Result<WalletFile, WalletStoreError> {
+    if bytes.len() > MAX_WALLET_FILE_BYTES {
+        return Err(WalletStoreError::Invalid(format!(
+            "wallet file is {} bytes; maximum is {MAX_WALLET_FILE_BYTES}",
+            bytes.len()
+        )));
+    }
+    let file: WalletFile = serde_json::from_slice(bytes)?;
+    file.validate()?;
+    Ok(file)
+}
 
 #[cfg(test)]
 mod tests {
@@ -327,5 +369,57 @@ mod tests {
         let a = keys_from_seed(&seed, KeyDerivation::MfnWalletV1);
         let b = keys_from_seed(&seed, KeyDerivation::PayoutStealthV1);
         assert_ne!(a.view_pub().compress(), b.view_pub().compress());
+    }
+
+    #[test]
+    fn parse_rejects_a_file_past_the_byte_cap() {
+        let mut bytes = vec![b' '; MAX_WALLET_FILE_BYTES + 1];
+        bytes[0] = b'{';
+        let err = parse_wallet_bytes(&bytes).expect_err("oversize");
+        let msg = err.to_string();
+        assert!(msg.contains("maximum"), "{msg}");
+    }
+
+    #[test]
+    fn parse_rejects_too_many_pending_spends() {
+        let mut file = WalletFile::new(&[9u8; 32], KeyDerivation::MfnWalletV1);
+        file.pending_spent_utxo_keys = vec!["ab".repeat(32); MAX_WALLET_TRACKED_KEYS + 1];
+        let raw = serde_json::to_vec(&file).expect("json");
+        assert!(raw.len() < MAX_WALLET_FILE_BYTES);
+        let err = parse_wallet_bytes(&raw).expect_err("too many keys");
+        assert!(err.to_string().contains("pending spends"), "{err}");
+    }
+
+    #[test]
+    fn parse_rejects_truncated_and_nested_junk() {
+        assert!(parse_wallet_bytes(b"").is_err());
+        assert!(parse_wallet_bytes(b"{").is_err());
+        assert!(parse_wallet_bytes(b"null").is_err());
+        // Deep nesting hits serde's recursion limit instead of overflowing the stack.
+        let mut nested = String::new();
+        for _ in 0..200 {
+            nested.push('[');
+        }
+        for _ in 0..200 {
+            nested.push(']');
+        }
+        assert!(parse_wallet_bytes(nested.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn load_round_trips_through_a_temp_file() {
+        let dir = std::env::temp_dir();
+        let path = dir.join(format!(
+            "mfn-wallet-bounds-{}-{}.json",
+            std::process::id(),
+            MAX_WALLET_FILE_BYTES
+        ));
+        let mut file = WalletFile::new(&[0x44; 32], KeyDerivation::MfnWalletV1);
+        file.scan_height = Some(7);
+        file.save(&path).expect("save");
+        let loaded = WalletFile::load(&path).expect("load");
+        assert_eq!(loaded.seed_bytes().unwrap(), [0x44; 32]);
+        assert_eq!(loaded.scan_height, Some(7));
+        let _ = std::fs::remove_file(&path);
     }
 }
