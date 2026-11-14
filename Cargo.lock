@@ -737,6 +737,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-source-bundle"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "mfn-storage"
 version = "0.1.0"
 dependencies = [
