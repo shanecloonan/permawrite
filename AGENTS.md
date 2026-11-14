@@ -134,14 +134,16 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** B-18 MFBN-1 VRF conformance pin (this commit). Path A and F-A genesis files and `DEFAULT_*` unchanged. Prior head easy permanence guards `dd97d418`. Nightly workflow is `disabled_inactivity` (dispatch 422); test matrix on `4e96ef7f` was GREEN. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** **B-316** validity-proof backend decision + Winterfell emission/coinbase leaves (this commit). Off consensus. Path A and F-A unchanged. Prior head **B-18** `69957f57`. No B-13c; no DEFAULT flip.
+
+**Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-18** MFBN-1 VRF golden pin (this commit); **B-305** (`704280f7`) | *Idle* — slash matrix frozen | **B-35** consensus input-count pad. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-316** Winterfell emission + coinbase-split leaves (this commit); **B-18** MFBN-1 VRF pin (`69957f57`); **B-305** (`704280f7`) | *Idle* — slash matrix frozen. Seat C holds validity files | **B-35** still Phase 3 / B-25 (Seat B). Merkle leaf next (Seat C), then B-12 on Plonky3. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
@@ -154,6 +156,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| C | B | **B-316:** Seat C owns `validity_stark_coinbase.rs` and `docs/VALIDITY_STARK_BACKEND.md`. Do not edit those on the privacy/security track. B-35 stays Seat B. | **Open** |
 | 6 | 4 | **B-315 F-A:** first permanence fork is Path B / post-B-25 and sets drip=1, `storage_proof_reward=recommended_backstop_proof_reward` (1763), `subsidy_to_treasury_bps=1000`, and `min_storage_operator_bond=recommended_min_storage_operator_bond` in one genesis. Do not wire cold credit, the backstop cap, or replica seals on Path A. Do not DEFAULT-flip. Tail stays `>> 8`. | **Open** |
 | 6 | 4 | **B-314 PM19:** when wiring per-commit audit after **PM1**, call `cold_proof_overdue` / `recommended_cold_reward_multiplier_bps`; do not treat B5 global any-stale as a per-file obligation. Path A stays global. | **Open** |
 | 6 | 7 | **B-313 tail:** Path B / post-B-25 ceremony may set `tail_emission = recommended_tail_emission` (`>> 9`). Do not silent-fork Path A (`>> 8`). PM13 still forbids 0. | **Open** |
@@ -264,6 +267,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-313 | Tail-emission size helper (`>> 9`; not a schedule flip) | 6 | **Landed** `9028debb` — `recommended_tail_emission`; Path A stays `>> 8`; enable = Path B / post-B-25 |
 | B-314 | PM19 per-commitment cold-proof cadence (not wired) | 6 | **Landed** — `cold_proof_overdue` / bounty bps; Path A B5 stays global any-stale; wire after **PM1**. Design: [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md) |
 | B-315 | Max-permanence upgrade design + non-consensus helpers | 6 | **Landed** (this commit) — solvency stress, state projection, replica/retrieval helpers. No Path A flip. First fork = **F-A** after B-25 / Path B |
+| B-316 | F5 4a Winterfell leaves: `emission_at_height` + coinbase bps split | 4 (Seat C) | **Landed** (this commit) — [`VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md). Off consensus. Recursion backend = Plonky3 when 4b.2 starts. No Path A / F-A change |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -526,7 +530,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 4 - B-18 MFBN-1 VRF conformance pin** (this commit): `b18_mfbn1_reference_vector_is_pinned` locks pk, H (try-and-increment counter 0), β, and the 80-byte π for seed `0x07`×32 and msg `election seed slot 42`. `docs/interop/VRF_MFBN1.md` states ed25519 expansion, nonce, and `dhash` challenge framing. No Elligator2 fork. Path A and F-A unchanged. No B-13c; no DEFAULT flip; slash matrix frozen. Claim base `dd97d418`. Local `cargo test -p mfn-crypto` + fmt/clippy on the crate. Next: **B-35**. *Observed (not staged):* none.
+1. **2026-11-14 - lane 4 / Seat C - B-316 validity STARK leaves** (this commit): surveyed `validity_stark_winterfell.rs` (batch binder only; Winterfell 0.10 has no recursion API). Decision in [`docs/VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md): stay on Winterfell for 4a; 4b.2 / B-12 ports the leaves to Plonky3. Landed `validity_stark_coinbase` proofs of `emission_at_height` and the bps split inside `producer_portion_amount` (no storage term). `b316_*` PASS; `cargo fmt` + `clippy -p mfn-consensus -D warnings` green. Not wired into `apply_block`, gossip, or genesis. No DEFAULT flip; Path A and F-A unchanged. Rebased onto **B-18** `69957f57`. Next: STARK-friendly Merkle leaf, then B-12 aggregation. *Observed (not staged):* none.
+
+1. **2026-11-14 - lane 4 - B-18 MFBN-1 VRF conformance pin** (`69957f57`): `b18_mfbn1_reference_vector_is_pinned` locks pk, H (try-and-increment counter 0), β, and the 80-byte π for seed `0x07`×32 and msg `election seed slot 42`. `docs/interop/VRF_MFBN1.md` states ed25519 expansion, nonce, and `dhash` challenge framing. No Elligator2 fork. Path A and F-A unchanged. No B-13c; no DEFAULT flip; slash matrix frozen. Next: **B-35**.
 
 1. **2026-11-13 - lane 6 - easy permanence guards** (this commit): endowment principal saturates at 0 with a runway alert; `settle_storage_reward` is what `apply_block` debits (treasury cannot go negative; mint is the only new storage value); `SupplyAudit` rejects fee-as-mint and wrap; retention policy v1 freezes PermanenceKeep/PrivacyKeep; history prune still requires a covering checkpoint; funded commitments stay. Not wired: replica floor (no seal on the wire), retrieval slash (no audit tx), proof-window constant (would change Path A genesis). No DEFAULT flip; Path A and F-A files unchanged.
 
