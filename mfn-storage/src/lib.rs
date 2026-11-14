@@ -92,8 +92,8 @@ pub use spora::{
 };
 pub use stripe::{
     is_exact_shard_stripe, open_shard_stripe, prepare_shard_stripe, split_committed_stripe,
-    validate_storage_commitment_for_header, PreparedStripe, StripeError, HEADER_VERSION_SHARDS,
-    STRIPE_SHARDS,
+    upload_should_stripe, validate_storage_commitment_for_header, PreparedStripe, StripeError,
+    HEADER_VERSION_SHARDS, STRIPE_SHARDS,
 };
 pub use upload_crypt::{
     decrypt_upload, encrypt_upload, upload_blob_is_encrypted, upload_key_from_seed,

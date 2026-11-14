@@ -178,6 +178,15 @@ pub fn validate_storage_commitment_for_header(
     Ok(())
 }
 
+/// `true` when an upload should be a 12-shard stripe.
+///
+/// Header version 9 and above always stripe. Below that, only an explicit
+/// request does. Path A stays header version 1.
+#[must_use]
+pub fn upload_should_stripe(header_version: u32, requested: bool) -> bool {
+    requested || header_version >= HEADER_VERSION_SHARDS
+}
+
 fn stripe_layout() -> ErasureLayout {
     ErasureLayout {
         data_shards: RECOMMENDED_DATA_SHARDS,
@@ -195,6 +204,14 @@ fn shard_len_for(plaintext_len: usize) -> usize {
 mod tests {
     use super::*;
     use crate::spora::build_storage_commitment;
+
+    #[test]
+    fn header_v9_stripes_without_a_flag_and_path_a_does_not() {
+        assert!(upload_should_stripe(HEADER_VERSION_SHARDS, false));
+        assert!(upload_should_stripe(1, true));
+        assert!(!upload_should_stripe(1, false));
+        assert!(!upload_should_stripe(8, false));
+    }
 
     #[test]
     fn four_of_twelve_rebuild_and_v9_accepts_only_the_stripe() {

@@ -672,7 +672,8 @@ pub fn wallet_upload(
         OsRng.fill_bytes(&mut nonce);
         mfn_storage::encrypt_upload(&plain, &mfn_storage::upload_key_from_seed(&seed), &nonce)
     };
-    let prepared = if params.sharded {
+    let sharded = mfn_storage::upload_should_stripe(chain_state.header_version, params.sharded);
+    let prepared = if sharded {
         Some(
             mfn_storage::prepare_shard_stripe(&body)
                 .map_err(|e| WalletCmdError::Usage(format!("shard stripe: {e:?}")))?,
@@ -683,7 +684,7 @@ pub fn wallet_upload(
     let data = prepared.as_ref().map(|p| p.bytes.clone()).unwrap_or(body);
     let chunk_size = prepared.as_ref().map(|p| p.chunk_size as usize);
 
-    let priced_len = if params.sharded {
+    let priced_len = if sharded {
         data.len() as u64
     } else {
         storage_size_bucket(data.len() as u64)
