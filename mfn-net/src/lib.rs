@@ -84,7 +84,7 @@ pub use light_follow::{
     LIGHT_FOLLOW_V1_TAG, MAX_LIGHT_FOLLOW_PER_GET_V1,
 };
 pub use peer_addr::{
-    is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
+    is_i2p_host, is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
 };
 pub use peer_diversity::{
     checkpoint_anchor_peer_candidates, distinct_diversity_buckets, diversity_bucket_key,
