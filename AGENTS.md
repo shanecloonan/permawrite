@@ -153,7 +153,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
-| **G** Security | **G-1** untrusted codec counts refuse before allocation (this commit). Claim base `11e1781b` | *Idle* | **G-2** checkpoint length caps | `g1_untrusted_codec` |
+| **G** Security | **G-8** partition, reorg, and equivocation harness (this commit). Claim base `02ba4bc6` | *Idle* | **G-9** fuzz targets | `g8_partition` |
 
 ---
 
@@ -538,7 +538,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane G - G-1 untrusted codec counts** (this commit): `Reader` refuses a length prefix that does not fit the unread bytes before `Vec::with_capacity`. `bytes` uses checked cursor math. Bulletproof and range `n` must fit in `u32`. Honest encodings are unchanged. `g1_untrusted_codec` feeds mutated frames to block, tx, header, CLSAG, and proof decoders. Claim base `11e1781b`. Next: **G-2** checkpoint length caps.
+1. **2026-11-14 - lane G - G-8 partition harness** (this commit): two nodes can extend through a partition, the taller chain wins on reconnect, a spend that existed only on the abandoned fork is spendable again, and two seals from one producer at one height stay visible as equivocation. Claim base `02ba4bc6`. Next: **G-9** fuzz targets.
+1. **2026-11-14 - lane G - G-1 untrusted codec counts** (on main): `Reader` refuses a length prefix that does not fit the unread bytes before `Vec::with_capacity`. `bytes` uses checked cursor math. Bulletproof and range `n` must fit in `u32`. Honest encodings are unchanged. `g1_untrusted_codec` feeds mutated frames to block, tx, header, CLSAG, and proof decoders. Claim base `11e1781b`. Next: **G-2** checkpoint length caps.
 
 1. **2026-11-14 - lane F - F-8 file card** (this commit): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Claim base `4aedafe9`. Next: **F-9** `wallet ready`.
 
