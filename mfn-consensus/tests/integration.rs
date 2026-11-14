@@ -4452,8 +4452,9 @@ mod unbond_lifecycle {
         );
         // 1M credited to treasury (slash) on top of any prior delta.
         assert!(fx.state.treasury >= pre_treasury + 1_000_000);
-        // Pending unbond entry stays — settles as a zombie at unlock height.
-        assert!(fx.state.pending_unbonds.contains_key(&v1_idx));
+        // F5 1c+: the slash drops the queued exit. Stake was forfeited
+        // above, so settlement must not credit `stake_at_request` again.
+        assert!(!fx.state.pending_unbonds.contains_key(&v1_idx));
     }
 
     #[test]

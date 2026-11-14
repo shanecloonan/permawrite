@@ -193,8 +193,8 @@ fn equivocation_during_unbond_delay_still_zeros_stake() {
         "equivocation during unbond delay still zeros stake"
     );
     assert!(
-        st.pending_unbonds.contains_key(&v1_idx),
-        "pending unbond entry survives slash until settlement"
+        !st.pending_unbonds.contains_key(&v1_idx),
+        "F5 1c+ drops the queued exit when the slash forfeits stake"
     );
     let root_after = validator_set_root(&st.validators);
     assert_ne!(root_before, root_after);
