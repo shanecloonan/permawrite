@@ -8,7 +8,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::validity_stark_plonky3::{
-    verify_aggregated_outputs, AggregateError, AggregatedOutputs, AggregatedProof,
+    babybear_merkle_root, prove_aggregated, verify_aggregated_outputs, AggregateError,
+    AggregatedClaim, AggregatedOutputs, AggregatedProof,
 };
 
 const MAGIC: &[u8] = b"MFVW";
@@ -28,6 +29,44 @@ struct OwnedEnvelope {
     proof: AggregatedProof,
 }
 
+/// Witness for a block that moved no fee and named no user tx or storage proof.
+///
+/// The two openings are of a public zero leaf. The statement always opens two
+/// paths; the empty claim is the zero fee and the zero counts, not those leaves.
+pub fn prove_empty_block_witness(parent_digest: [u32; 4]) -> Result<Vec<u8>, AggregateError> {
+    let claim = AggregatedClaim {
+        fee_sum: 0,
+        fee_to_treasury_bps: 0,
+        treasury_fee: 0,
+        producer_fee: 0,
+        leaves_a: vec![0],
+        index_a: 0,
+        leaves_b: vec![0],
+        index_b: 0,
+        tx_count: 0,
+        spora_count: 0,
+        parent_digest,
+    };
+    let proof = prove_aggregated(&claim)?;
+    let root = babybear_merkle_root(&[0])?;
+    let outputs = AggregatedOutputs {
+        fee_sum: 0,
+        fee_to_treasury_bps: 0,
+        treasury_fee: 0,
+        producer_fee: 0,
+        remainder: 0,
+        leaf_a: 0,
+        root_a: root,
+        index_a: 0,
+        leaf_b: 0,
+        root_b: root,
+        index_b: 0,
+        tx_count: 0,
+        spora_count: 0,
+        parent_digest,
+    };
+    encode_aggregated_witness(&outputs, &proof)
+}
 /// Encode a proof and the outputs it was checked against.
 pub fn encode_aggregated_witness(
     outputs: &AggregatedOutputs,
@@ -149,5 +188,19 @@ mod tests {
             verify_aggregated_witness(bytes),
             Err(AggregateError::WitnessMalformed)
         );
+    }
+
+    #[test]
+    fn b322_empty_block_witness_checks_zero_fee_and_zero_counts() {
+        let parent = [4, 3, 2, 1];
+        let bytes = prove_empty_block_witness(parent).unwrap();
+        let outputs = verify_aggregated_witness(&bytes).unwrap();
+        assert_eq!(outputs.fee_sum, 0);
+        assert_eq!(outputs.treasury_fee, 0);
+        assert_eq!(outputs.producer_fee, 0);
+        assert_eq!(outputs.tx_count, 0);
+        assert_eq!(outputs.spora_count, 0);
+        assert_eq!(outputs.parent_digest, parent);
+        assert!(prove_empty_block_witness([u32::MAX, 0, 0, 0]).is_err());
     }
 }

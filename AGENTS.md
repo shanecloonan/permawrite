@@ -135,7 +135,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** **B-321** witness size cap (this commit). Off consensus. Prior unit **B-320**. **B-18** is on main. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** **B-322** empty-block witness (this commit). Off consensus. Prior unit **B-321**. **B-18** is on main. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-321** witness size cap (this commit); **B-320**; **B-319**; **B-318**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-319**; **B-318**; **B-39**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-318**; **B-39**; **B-12**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-39**; **B-12**; **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-12**; **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); retrieval **B-317** header v7; **B-37**; **B-316** | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding (Seat B). Inner STARK verifier still open (Seat C). No B-297 clone. No DEFAULT flip | Lane 1 CI |
+| **4** Protocol | **B-322** empty-block witness (this commit); **B-321**; **B-320**; **B-319**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-320**; **B-319**; **B-318**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-319**; **B-318**; **B-39**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-318**; **B-39**; **B-12**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-39**; **B-12**; **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-12**; **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); retrieval **B-317** header v7; **B-37**; **B-316** | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding (Seat B). Inner STARK verifier still open (Seat C). No B-297 clone. No DEFAULT flip | Lane 1 CI |
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
@@ -275,7 +275,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-319 | Pin a coinbase claim as the four parent-digest limbs | 4 (Seat C) | **Landed** — not a Winterfell-proof hash. No Path A / F-A change |
 | B-320 | Name tx and SPoRA counts in the Plonky3 aggregate | 4 (Seat C) | **Landed** — cap 1_024. Not wired into `apply_block` |
 | B-35 | F7 consensus input-count padding | 4+5 | **Landed** — power-of-two buckets at header v4; Path A / F-A off |
-| B-321 | Refuse a validity witness over 1 MiB before parsing | 4 (Seat C) | **Landed** (this commit) — frame script does not run the STARK |
+| B-321 | Refuse a validity witness over 1 MiB before parsing | 4 (Seat C) | **Landed** — frame script does not run the STARK |
+| B-322 | Empty-block witness: zero fee and zero tx/SPoRA counts | 4 (Seat C) | **Landed** (this commit) — openings are a public zero leaf. Off consensus |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | **Landed** (this commit) — header v6; header v1 keeps public `tx.fee` |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
@@ -537,7 +538,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 4 / Seat C - B-321 witness size cap** (this commit): `verify_aggregated_witness` refuses a blob over 1 MiB before JSON parsing. `b321_witness_over_one_mebibyte_is_refused` PASS. `scripts/check-validity-witness-frame.py` checks magic, version, size, and the JSON keys, and does not run the STARK. Off consensus. Claim base `56a67c52`. Next: empty-block witness. *Observed (not staged):* none.
+1. **2026-11-14 - lane 4 / Seat C - B-322 empty-block witness** (this commit): `prove_empty_block_witness` builds an `MFVW` envelope whose fee, tx count, and SPoRA count are 0. The two openings are a public zero leaf, because the statement always opens two paths. `b322_empty_block_witness_checks_zero_fee_and_zero_counts` PASS. A parent limb that does not fit BabyBear is refused. Off consensus. Read `emission.rs` and `spora.rs` first; no bug found in those checks to fix before this. Claim base `8891538e`. Next: inner STARK verifier. *Observed (not staged):* none.
+
+1. **2026-11-14 - lane 4 / Seat C - B-321 witness size cap**: refuse over 1 MiB before parse. Frame script does not run the STARK. Off consensus.
 
 1. **2026-11-14 - lane 4 / Seat C - B-320 tx and SPoRA counts**: public inputs and trace columns, cap 1_024. Off consensus.
 
@@ -550,14 +553,6 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 1. **2026-11-14 - lane 4 / Seat C - B-12 Plonky3 aggregate**: one BabyBear STARK checks the fee bps split and two depth-4 openings (`x^7`, 4 rounds). Not a Winterfell-in-Winterfell verifier. Feature `plonky3` is off by default. Off consensus.
 
 1. **2026-11-14 - lane 4 / Seat C - B-317 field-Merkle opening**: `field_merkle_compress` is 8-round MiMC-5 on Winterfell `f128`, depth 4, pad element 2. Not `dhash` / SPoRA. Off consensus.
-
-1. **2026-11-14 - lane 4 - F5 1c+ bond-registry slash** (on main): `apply_equivocation_slashings` drops the offender's pending unbond. Next: **B-17**.
-
-1. **2026-11-14 - lane 5 - B-19 decoy-RNG entropy contract** (on main): `production_decoy_rng` ignores the wallet seed. No consensus change.
-
-1. **2026-11-14 - lane 4 / Seat C - field-Merkle opening** (this merge): `field_merkle_compress` is 8-round MiMC-5 on Winterfell `f128`, depth 4. Not `dhash` / SPoRA, and not Seat B's retrieval **B-317**. Off consensus. Next: **B-12** Plonky3 aggregation.
-
-1. **2026-11-14 - lane 4+5 - B-317 retrieval challenges** (on main): a one-time key posts a bonded challenge; silence slashes the storage-operator bond. Header v1 omits the section. Seat C validity leaves are a different unit.
 
 1. **2026-11-14 - lane 4 - F5 1c+ bond-registry slash** (on main): `apply_equivocation_slashings` removes the offender's `pending_unbonds` entry when equivocation or invalid-block evidence applies. Live stake forfeiture is unchanged. Next: **B-17**.
 

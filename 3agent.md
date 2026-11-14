@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat C **B-321** witness size cap (off consensus). Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
+Synced at Seat C **B-322** empty-block witness (off consensus). Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
-| **C** Validity proofs | **B-321** witness size cap (this commit); **B-320**; **B-319** | *Idle* | Empty-block witness |
+| **C** Validity proofs | **B-322** empty-block witness (this commit); **B-321**; **B-320** | *Idle* | Inner STARK verifier |
 
 ### Hard locks (all seats)
 
@@ -59,6 +59,6 @@ L4 public testnet harden
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
 3agent — Seat B: Done B-317 retrieval challenges at header v7 / Doing idle / Next output-count padding, header-gated (no DEFAULT flip)
-3agent — Seat C: Done B-321 witness size cap / Doing idle / Next empty-block witness
+3agent — Seat C: Done B-322 empty-block witness / Doing idle / Next inner STARK verifier
 (AGENTS.md §5 remains the claim surface)
 ```
