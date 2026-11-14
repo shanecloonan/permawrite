@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** field-Merkle opening merged with main. Retrieval **B-317** (header v7) stays Seat B's unit already on main. Path A and F-A unchanged. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** **B-12** Plonky3 statement aggregate (this commit). Off consensus. Not an inner-proof verifier. Path A and F-A unchanged. Prior unit **B-317**. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | field-Merkle opening (this merge, Seat C); retrieval **B-317** header v7; **B-37**; **B-316** | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding (Seat B). **B-12** Plonky3 next (Seat C). No B-297 clone. No DEFAULT flip | Lane 1 CI |
+| **4** Protocol | **B-12** Plonky3 aggregate of split + two openings (this commit); **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); retrieval **B-317** header v7; **B-37**; **B-316** | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding (Seat B). Inner STARK verifier still open (Seat C). No B-297 clone. No DEFAULT flip | Lane 1 CI |
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
@@ -219,7 +219,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 | ID | Item | Suggested lane | Notes |
 | --- | --- | --- | --- |
-| B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | Follows `6377812`; defer until L4 unless fix-forward |
+| B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | **First slice** (this commit): one Plonky3 proof of the bps split plus two BabyBear openings. Not a verifier of a Winterfell proof. Feature `plonky3` is not default. |
 | B-13 | Parameter fork umbrella: `subsidy_to_treasury_bps = 1000` | 6 | Split into **B-13a** (sims) → **B-13b** (fork policy) → **B-13c** (enable + ops comms). **Not** TL Path B genesis. [`ROADMAP.md` Phase 1](docs/ROADMAP.md#phase-1--permanence-depth-on-the-live-chain-permanence-first) |
 | B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** 256+512 sims (this commit elevates 256); genesis stays 0; human B-33 still open
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | **Draft** same-chain+activation-height (B-265 honesty); human cells still open
@@ -530,6 +530,14 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane 4 / Seat C - B-12 Plonky3 aggregate** (this commit): one BabyBear STARK checks the fee bps split and two depth-4 openings (`x^7`, 4 rounds). Not a Winterfell-in-Winterfell verifier. Feature `plonky3` is off by default. Off consensus. Rebased onto **B-35** on main. Next: inner STARK verifier.
+
+1. **2026-11-14 - lane 4 / Seat C - B-317 field-Merkle opening**: `field_merkle_compress` is 8-round MiMC-5 on Winterfell `f128`, depth 4, pad element 2. Not `dhash` / SPoRA. Off consensus.
+
+1. **2026-11-14 - lane 4 - F5 1c+ bond-registry slash** (on main): `apply_equivocation_slashings` drops the offender's pending unbond. Next: **B-17**.
+
+1. **2026-11-14 - lane 5 - B-19 decoy-RNG entropy contract** (on main): `production_decoy_rng` ignores the wallet seed. No consensus change.
 
 1. **2026-11-14 - lane 4 / Seat C - field-Merkle opening** (this merge): `field_merkle_compress` is 8-round MiMC-5 on Winterfell `f128`, depth 4. Not `dhash` / SPoRA, and not Seat B's retrieval **B-317**. Off consensus. Next: **B-12** Plonky3 aggregation.
 

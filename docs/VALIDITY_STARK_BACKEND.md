@@ -69,3 +69,12 @@ This does not verify `mfn_crypto::merkle` or a SPoRA path. Those compress with
 SHA-512 `dhash`. The fifth-power rounds are there so the parent mix is not a
 single multiplication. Raising the depth is a constant change; it is not a
 consensus fork.
+
+## B-12 first Plonky3 aggregate
+
+`mfn_consensus::validity_stark_plonky3` (feature `plonky3`, not a default
+feature) is one BabyBear STARK of three statements: the fee basis-point split,
+and two depth-4 openings under a 4-round seventh-power hash. It is statement
+aggregation. It does not verify a Winterfell proof inside another proof. That
+inner verifier is the rest of B-12. Numbers that do not fit in BabyBear are
+rejected. Path A and F-A are unchanged.
