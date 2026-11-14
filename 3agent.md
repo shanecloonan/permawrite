@@ -15,6 +15,7 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | **B** Protocol/Privacy | Consensus / privacy / economics | Lanes 4–5–6 | **B-296**, Nightly cancel, VPS/faucet |
 | **C** Validity proofs | F5 phase 4 / B-12 / B-39 (research) | `validity_stark_*`, FRAUD_PROOFS phase 4 | VPS, faucet, Seat A economics, Seat B privacy/slash |
 | **F** Ease of use | Wallet, CLI, WASM, frontend for ordinary people | User flows in `mfn-wallet`, `mfn-cli`, `mfn-wasm`, `testnet-frontend` | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet |
+| **G** Security hardening | Hostile input must not crash, stall, or fork the node | Fuzz, resource limits, adversarial tests, minimal decode fixes | Other seats' features, VPS/faucet, header-version flips |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
@@ -28,6 +29,7 @@ Synced at Seat C **B-12** Plonky3 aggregate (off consensus; not an inner verifie
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (this commit); **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
 | **F** Ease of use | **F-8** browser file backup card | *Idle* | **F-9** `wallet ready` checklist |
+| **G** Security | **G-8** partition harness | *Idle* | **G-9** fuzz targets |
 
 ### Hard locks (all seats)
 
