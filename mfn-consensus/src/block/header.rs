@@ -45,6 +45,12 @@ pub const HEADER_VERSION_HIDDEN_FEES: u32 = 6;
 /// does not slash a storage-operator bond. Path A and F-A stay below it.
 pub const HEADER_VERSION_RETRIEVAL: u32 = 7;
 
+/// Header version that requires power-of-two output counts (**B-318**).
+///
+/// A 3-output spend publishes that the transaction needed three outputs.
+/// At this version the count must be 2, 4, 8, …. Header v1 still accepts 3.
+pub const HEADER_VERSION_OUTPUT_PAD: u32 = 8;
+
 /// Ring sizes a Tier 2 chain accepts. Header versions below
 /// [`HEADER_VERSION_TIER2`] keep the chain's uniform size (16 in production).
 pub const TIER2_RING_SIZES: [u32; 2] = [32, 64];

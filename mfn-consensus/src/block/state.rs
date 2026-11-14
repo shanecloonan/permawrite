@@ -151,6 +151,11 @@ pub struct RingPolicy {
     /// [`HEADER_VERSION_INPUT_PAD`](super::HEADER_VERSION_INPUT_PAD).
     /// Path A and F-A leave this `false`.
     pub input_count_buckets: bool,
+    /// When set, every regular transaction's output count is a power of
+    /// two at or above the uniform-tier floor (**B-318**).
+    ///
+    /// Engaged only at header version 8. Path A and F-A leave this `false`.
+    pub output_count_buckets: bool,
     /// When set, every input ring must be 32 or 64 (**Tier 2**).
     ///
     /// Engaged only at [`HEADER_VERSION_TIER2`](super::header::HEADER_VERSION_TIER2).
@@ -171,6 +176,7 @@ impl RingPolicy {
         min_output_count: MIN_TX_OUTPUTS_UNIFORM_TIER,
         min_input_count: MIN_TX_INPUTS_UNIFORM_TIER,
         input_count_buckets: false,
+        output_count_buckets: false,
         tier2_rings: false,
         hidden_fees: false,
     };
@@ -182,6 +188,7 @@ impl RingPolicy {
         min_output_count: 0,
         min_input_count: 0,
         input_count_buckets: false,
+        output_count_buckets: false,
         tier2_rings: false,
         hidden_fees: false,
     };
@@ -192,6 +199,7 @@ impl RingPolicy {
     pub fn with_header_version(self, header_version: u32) -> Self {
         Self {
             input_count_buckets: header_version >= super::header::HEADER_VERSION_INPUT_PAD,
+            output_count_buckets: header_version >= super::header::HEADER_VERSION_OUTPUT_PAD,
             tier2_rings: header_version >= super::header::HEADER_VERSION_TIER2,
             hidden_fees: header_version >= super::header::HEADER_VERSION_HIDDEN_FEES,
             ..self
@@ -232,6 +240,20 @@ pub fn padded_input_count(n: u32) -> u32 {
 #[must_use]
 pub fn input_count_is_padded_bucket(n: u32) -> bool {
     n >= MIN_TX_INPUTS_UNIFORM_TIER && n.is_power_of_two()
+}
+
+/// Next power-of-two output count at or above the uniform-tier floor.
+///
+/// `2` stays `2`. `3` becomes `4`.
+#[must_use]
+pub fn padded_output_count(n: u32) -> u32 {
+    n.max(MIN_TX_OUTPUTS_UNIFORM_TIER).next_power_of_two()
+}
+
+/// `true` when `n` is a B-318 output bucket.
+#[must_use]
+pub fn output_count_is_padded_bucket(n: u32) -> bool {
+    n >= MIN_TX_OUTPUTS_UNIFORM_TIER && n.is_power_of_two()
 }
 
 /// Consensus parameters baked into the chain at genesis. Changing any of
@@ -289,6 +311,7 @@ impl ConsensusParams {
                 0
             },
             input_count_buckets: false,
+            output_count_buckets: false,
             tier2_rings: false,
             hidden_fees: false,
         }
