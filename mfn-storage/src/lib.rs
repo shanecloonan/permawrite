@@ -18,6 +18,7 @@
 //!   bounty helper (not wired; Path A B5 stays global any-stale).
 //! - [`replica_health`] — **B-315** unique-seal / repair-bounty / retrieval
 //!   verdict helpers (not wired).
+//! - [`integrity`] — chunk bytes must open the commitment `data_root`.
 //!
 //! ## Layering
 //!
@@ -38,6 +39,7 @@
 pub mod cold_proof;
 pub mod commitment;
 pub mod endowment;
+pub mod integrity;
 pub mod lottery;
 pub mod replica_health;
 pub mod spora;
@@ -61,6 +63,10 @@ pub use endowment::{
     validate_endowment_params, AccrueArgs, AccrueResult, EndowmentError, EndowmentParams,
     EndowmentRunwayAlert, BACKSTOP_REFERENCE_SIZE_BYTES, DEFAULT_ENDOWMENT_PARAMS, PPB,
     RECOMMENDED_OPERATOR_SLASH_BPS,
+};
+pub use integrity::{
+    accept_opened_chunk, chunk_opens_data_root, decode_opened_chunk, encode_opened_chunk,
+    IntegrityError,
 };
 pub use lottery::{rank_spora_lottery, spora_lottery_window_seed};
 pub use replica_health::{
