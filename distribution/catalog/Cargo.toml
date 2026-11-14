@@ -1,0 +1,20 @@
+[workspace]
+
+[package]
+name = "mfn-catalog"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "Pick a release only when enough independent mirrors agree on its hash."
+
+[[bin]]
+name = "mfn-catalog"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
