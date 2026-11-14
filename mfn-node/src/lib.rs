@@ -31,6 +31,7 @@ mod p2p_block_sync;
 mod p2p_boot;
 mod p2p_chunk_fanout;
 mod p2p_chunk_inbox;
+mod p2p_discovery;
 mod p2p_fanout;
 mod p2p_gossip;
 mod p2p_light_follow_fetch;
@@ -39,6 +40,7 @@ mod p2p_reconnect_plan;
 mod p2p_repair_sweep;
 mod role_topology;
 mod rpc_peer_exposure;
+mod rpc_source_cap;
 mod runner;
 
 pub use archive_export::{
