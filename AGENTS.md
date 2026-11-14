@@ -138,6 +138,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
+**Seat F (2026-11-14):** ease of use. Owns wallet, CLI, WASM, and the testnet page. Does not edit consensus, economics, or validity proofs. Next: the page checks headers itself before it shows a balance.
+
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
