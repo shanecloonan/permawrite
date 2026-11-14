@@ -23,6 +23,7 @@ use super::CliError;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Cmd {
     Status,
+    PermanenceSim,
     Tip,
     Methods,
     BlockHeader {
@@ -182,6 +183,7 @@ pub(super) fn usage() -> &'static str {
      \n\
      commands:\n\
        status            print machine-readable node status (get_status)\n\
+       permanence-sim    20-year operator-churn repair and endowment report\n\
        tip               print chain tip (get_tip)\n\
        methods           list JSON-RPC methods (list_methods)\n\
        block-header H    block header at height H (get_block_header)\n\
@@ -446,6 +448,15 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 )));
             }
             Cmd::Status
+        }
+        "permanence-sim" => {
+            if positional.len() != 1 {
+                return Err(CliError::Usage(format!(
+                    "permanence-sim takes no arguments\n{}",
+                    usage()
+                )));
+            }
+            Cmd::PermanenceSim
         }
         "tip" => {
             if positional.len() != 1 {
