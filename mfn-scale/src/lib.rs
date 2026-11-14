@@ -10,12 +10,15 @@
 #![warn(clippy::all)]
 
 pub mod baseline;
+pub mod batch;
 pub mod workload;
 
 pub use baseline::{
     BASELINE_BULLETPROOF_BITS, BASELINE_CLSAG_RING, BASELINE_HEADER_LINK_BLOCKS,
     BASELINE_HEADER_LINK_HEX, BASELINE_MERKLE_LEAVES, BASELINE_MERKLE_PROOFS, BASELINE_RANGE_BITS,
 };
+pub use batch::{chunk_ranges, proofs_from_workload, verify_batch, verify_one, BatchProof};
 pub use workload::{
     header_link_digest, prepare_verify_workload, PreparedWorkload, VerifyReport, WorkloadError,
+    CLSAG_WORKLOAD_MESSAGE,
 };

@@ -29,7 +29,7 @@ Synced at Seat C **B-12** Plonky3 aggregate (off consensus; not an inner verifie
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (this commit); **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
 | **F** Ease of use | **F-8** browser file backup card | *Idle* | **F-9** `wallet ready` checklist |
-| **I** Scale | **I-1** verification baseline | *Idle* | **I-2** parallel batch verify |
+| **I** Scale | **I-2** parallel batch verify | *Idle* | **I-3** headers-first sync |
 
 ### Hard locks (all seats)
 

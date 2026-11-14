@@ -12,7 +12,9 @@ use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use mfn_scale::workload::prepare_verify_workload;
-use mfn_scale::{header_link_digest, BASELINE_HEADER_LINK_BLOCKS};
+use mfn_scale::{
+    header_link_digest, proofs_from_workload, verify_batch, BASELINE_HEADER_LINK_BLOCKS,
+};
 
 fn verify_benches(c: &mut Criterion) {
     let prepared = prepare_verify_workload().expect("workload");
@@ -36,6 +38,13 @@ fn verify_benches(c: &mut Criterion) {
     });
     group.bench_function("full_pass", |b| {
         b.iter(|| black_box(prepared.verify()));
+    });
+    let batch = proofs_from_workload(&prepared, 2);
+    group.bench_function("batch_parallel_4", |b| {
+        b.iter(|| black_box(verify_batch(&batch, 4)));
+    });
+    group.bench_function("batch_sequential", |b| {
+        b.iter(|| black_box(verify_batch(&batch, 1)));
     });
     group.finish();
 }

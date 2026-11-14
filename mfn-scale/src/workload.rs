@@ -22,7 +22,10 @@ use crate::baseline::{
 
 const HEADER_LINK_DOMAIN: &[u8] = b"MFN-1/scale-header-link/v1";
 const MERKLE_LEAF_DOMAIN: &[u8] = b"MFN-1/scale-merkle-leaf/v1";
-const CLSAG_MESSAGE: &[u8] = b"MFN-1/scale-clsag/v1";
+/// Message the pinned CLSAG signs. Batch checks must use the same bytes.
+pub const CLSAG_WORKLOAD_MESSAGE: &[u8] = b"MFN-1/scale-clsag/v1";
+
+const CLSAG_MESSAGE: &[u8] = CLSAG_WORKLOAD_MESSAGE;
 
 /// Why [`prepare_verify_workload`] could not build a proof.
 #[derive(Debug, thiserror::Error)]
@@ -103,6 +106,54 @@ impl PreparedWorkload {
     #[must_use]
     pub fn merkle_root(&self) -> [u8; 32] {
         self.merkle_root
+    }
+
+    /// Borrowed Merkle root.
+    #[must_use]
+    pub fn merkle_root_ref(&self) -> &[u8; 32] {
+        &self.merkle_root
+    }
+
+    /// Leaf and inclusion proof pairs, in index order.
+    #[must_use]
+    pub fn merkle_entries(&self) -> &[([u8; 32], MerkleProof)] {
+        &self.merkle_items
+    }
+
+    /// Ring the CLSAG was signed under.
+    #[must_use]
+    pub fn clsag_ring(&self) -> &ClsagRing {
+        &self.clsag_ring
+    }
+
+    /// Pseudo-output commitment for the CLSAG.
+    #[must_use]
+    pub fn clsag_pseudo(&self) -> &EdwardsPoint {
+        &self.clsag_pseudo
+    }
+
+    /// CLSAG signature over the pinned message.
+    #[must_use]
+    pub fn clsag_signature(&self) -> &ClsagSignature {
+        &self.clsag_sig
+    }
+
+    /// Commitment the Borromean proof opens.
+    #[must_use]
+    pub fn range_commitment(&self) -> &EdwardsPoint {
+        &self.range_commit
+    }
+
+    /// Borromean range proof.
+    #[must_use]
+    pub fn range_proof(&self) -> &RangeProof {
+        &self.range_proof
+    }
+
+    /// Bulletproof for the workload value.
+    #[must_use]
+    pub fn bulletproof(&self) -> &BulletproofRange {
+        &self.bulletproof
     }
 }
 
