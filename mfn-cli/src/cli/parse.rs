@@ -141,6 +141,10 @@ pub(crate) enum OperatorSub {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum WalletSub {
     New,
+    /// Seal the seed with `MFN_WALLET_PASSPHRASE`.
+    Lock,
+    /// Write the seed in plaintext again. Requires the same passphrase.
+    Unlock,
     Restore {
         seed_hex: String,
         key_derivation: KeyDerivation,
@@ -194,6 +198,8 @@ pub(super) fn usage() -> &'static str {
        mempool           list mempool tx ids (get_mempool)\n\
        call METHOD       arbitrary JSON-RPC call; prints pretty JSON result\n\
        wallet new        create wallet.json with a fresh 32-byte seed\n\
+       wallet lock       seal the seed with MFN_WALLET_PASSPHRASE (not a command-line flag)\n\
+       wallet unlock     write the seed in plaintext again (requires the passphrase)\n\
        wallet restore SEED_HEX  restore wallet.json from a 32-byte seed\n\
                          options: --key-derivation mfn_wallet_v1|payout_stealth_v1\n\
        wallet address    print view/spend public keys from wallet file\n\
@@ -1158,7 +1164,7 @@ pub(super) fn parse_wallet_cmd(
         "balance" => WalletSub::Balance(parse_wallet_scan_args(&rest[1..], "balance")?),
         "status" => WalletSub::Status(parse_wallet_status_args(&rest[1..])?),
         "backup-info" => WalletSub::BackupInfo(parse_wallet_backup_info_args(&rest[1..])?),
-        "new" | "address" => {
+        "new" | "address" | "lock" | "unlock" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
                     "wallet {sub_name} takes no extra arguments\n{}",
@@ -1168,6 +1174,8 @@ pub(super) fn parse_wallet_cmd(
             match *sub_name {
                 "new" => WalletSub::New,
                 "address" => WalletSub::Address,
+                "lock" => WalletSub::Lock,
+                "unlock" => WalletSub::Unlock,
                 _ => unreachable!(),
             }
         }
