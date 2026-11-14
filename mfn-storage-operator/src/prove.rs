@@ -149,7 +149,7 @@ fn prove_with_parts(
                 .into(),
         ));
     }
-    let proof = if ch.operator_salted {
+    let mut proof = if ch.operator_salted {
         build_storage_proof_operator_salted(
             commit,
             &prev,
@@ -172,6 +172,10 @@ fn prove_with_parts(
         )
         .map_err(|e| ProveError::Usage(format!("build_storage_proof: {e}")))?
     };
+    if ch.header_version >= mfn_storage::HEADER_VERSION_SEALED_REPLICA {
+        proof = mfn_storage::seal_storage_proof(&proof, commit)
+            .map_err(|e| ProveError::Usage(format!("seal storage proof: {e:?}")))?;
+    }
     if proof.proof.index as u32 != ch.chunk_index {
         return Err(ProveError::Usage(format!(
             "built proof chunk index {} != challenge {}",

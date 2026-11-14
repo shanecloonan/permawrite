@@ -705,6 +705,7 @@ fn storage_challenge_for_operator(
         operator_salted: ch.operator_salted,
         operator_keys_required: ch.operator_keys_required,
         operator_identity: ch.operator_identity.clone(),
+        header_version: ch.header_version,
     }
 }
 
@@ -749,6 +750,7 @@ mod tests {
             operator_salted: true,
             operator_keys_required: false,
             operator_identity: Some("44".repeat(32)),
+            header_version: 0,
         };
 
         let value = storage_challenge_json(&challenge);
@@ -791,6 +793,7 @@ mod tests {
             operator_salted: false,
             operator_keys_required: false,
             operator_identity: None,
+            header_version: 0,
         };
         let submit = crate::rpc::SubmitStorageProofResult {
             commit_hash: "11".repeat(32),

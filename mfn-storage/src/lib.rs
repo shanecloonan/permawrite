@@ -39,7 +39,9 @@ pub mod cold_proof;
 pub mod commitment;
 pub mod endowment;
 pub mod lottery;
+pub mod replica_encode;
 pub mod replica_health;
+pub mod sealed_proof;
 pub mod spora;
 
 pub use cold_proof::{
@@ -69,6 +71,9 @@ pub use replica_health::{
     retrieval_slash_eligible, GeoClass, ReplicaAssessError, ReplicaAssessment, ReplicaWindow,
     RetrievalAudit, MIN_DIVERSE_FAILURE_DOMAINS, REPAIR_BOUNTY_CAP_BPS, REPAIR_BOUNTY_STEP_BPS,
     REPLICA_PAYOUT_CONCENTRATED_BPS, REPLICA_PAYOUT_FULL_BPS, REPLICA_PAYOUT_PARTIAL_BPS,
+};
+pub use sealed_proof::{
+    seal_storage_proof, verify_storage_proof_sealed, HEADER_VERSION_SEALED_REPLICA,
 };
 pub use spora::{
     build_endowment_surplus_range_proof, build_storage_commitment, build_storage_proof,

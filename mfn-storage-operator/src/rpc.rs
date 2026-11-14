@@ -78,6 +78,10 @@ pub struct StorageChallenge {
     /// Operator identity when salted challenge completed with payout pubs.
     #[serde(default)]
     pub operator_identity: Option<String>,
+    /// Chain header version. `0` from nodes that do not send it.
+    /// At [`mfn_storage::HEADER_VERSION_SEALED_REPLICA`] the proof chunk is sealed.
+    #[serde(default)]
+    pub header_version: u32,
 }
 
 /// `submit_storage_proof` admission summary.
