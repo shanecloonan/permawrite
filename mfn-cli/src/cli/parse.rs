@@ -22,6 +22,11 @@ use super::CliError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Cmd {
+    /// Printed by `--help`. Exit success. The text is the page.
+    Help {
+        /// Help page body.
+        text: String,
+    },
     Status,
     Tip,
     Methods,
@@ -428,6 +433,11 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             i += 2;
             continue;
         }
+        if a == "--help" || a == "-h" {
+            positional.push(a);
+            i += 1;
+            continue;
+        }
         if a.starts_with('-') {
             return Err(CliError::Usage(format!(
                 "unknown option `{a}`\n{}",
@@ -438,82 +448,93 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         i += 1;
     }
     if positional.is_empty() {
-        return Err(CliError::Usage(format!("missing COMMAND\n{}", usage())));
+        return Err(CliError::Usage(crate::help::help_for(&[])));
     }
-    let cmd = match positional[0] {
-        "status" => {
-            if positional.len() != 1 {
+    let cmd = if positional.iter().any(|token| is_help_token(token)) {
+        let topic: Vec<&str> = positional
+            .iter()
+            .copied()
+            .filter(|token| !is_help_token(token))
+            .collect();
+        Cmd::Help {
+            text: crate::help::help_for(&topic),
+        }
+    } else {
+        match positional[0] {
+            "status" => {
+                if positional.len() != 1 {
+                    return Err(CliError::Usage(format!(
+                        "status takes no arguments\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Status
+            }
+            "tip" => {
+                if positional.len() != 1 {
+                    return Err(CliError::Usage(format!(
+                        "tip takes no arguments\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Tip
+            }
+            "methods" => {
+                if positional.len() != 1 {
+                    return Err(CliError::Usage(format!(
+                        "methods takes no arguments\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Methods
+            }
+            "block-header" => {
+                if positional.len() != 2 {
+                    return Err(CliError::Usage(format!(
+                        "block-header requires HEIGHT\n{}",
+                        usage()
+                    )));
+                }
+                let height: u32 = positional[1]
+                    .parse()
+                    .map_err(|_| CliError::Usage("HEIGHT must be a positive integer".into()))?;
+                if height == 0 {
+                    return Err(CliError::Usage("HEIGHT must be at least 1".into()));
+                }
+                Cmd::BlockHeader { height }
+            }
+            "mempool" => {
+                if positional.len() != 1 {
+                    return Err(CliError::Usage(format!(
+                        "mempool takes no arguments\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Mempool
+            }
+            "call" => {
+                if positional.len() != 2 {
+                    return Err(CliError::Usage(format!(
+                        "call requires METHOD\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Raw {
+                    method: positional[1].to_string(),
+                    params_json,
+                }
+            }
+            "wallet" => parse_wallet_cmd(&positional[1..], wallet_path.clone(), force)?,
+            "claims" => parse_claims_cmd(&positional[1..])?,
+            "uploads" => parse_uploads_cmd(&positional[1..])?,
+            "operator" => parse_operator_cmd(&positional[1..])?,
+            "checkpoint-log" => parse_checkpoint_log_cmd(&positional[1..])?,
+            other => {
                 return Err(CliError::Usage(format!(
-                    "status takes no arguments\n{}",
+                    "unknown command `{other}`\n{}",
                     usage()
                 )));
             }
-            Cmd::Status
-        }
-        "tip" => {
-            if positional.len() != 1 {
-                return Err(CliError::Usage(format!(
-                    "tip takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            Cmd::Tip
-        }
-        "methods" => {
-            if positional.len() != 1 {
-                return Err(CliError::Usage(format!(
-                    "methods takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            Cmd::Methods
-        }
-        "block-header" => {
-            if positional.len() != 2 {
-                return Err(CliError::Usage(format!(
-                    "block-header requires HEIGHT\n{}",
-                    usage()
-                )));
-            }
-            let height: u32 = positional[1]
-                .parse()
-                .map_err(|_| CliError::Usage("HEIGHT must be a positive integer".into()))?;
-            if height == 0 {
-                return Err(CliError::Usage("HEIGHT must be at least 1".into()));
-            }
-            Cmd::BlockHeader { height }
-        }
-        "mempool" => {
-            if positional.len() != 1 {
-                return Err(CliError::Usage(format!(
-                    "mempool takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            Cmd::Mempool
-        }
-        "call" => {
-            if positional.len() != 2 {
-                return Err(CliError::Usage(format!(
-                    "call requires METHOD\n{}",
-                    usage()
-                )));
-            }
-            Cmd::Raw {
-                method: positional[1].to_string(),
-                params_json,
-            }
-        }
-        "wallet" => parse_wallet_cmd(&positional[1..], wallet_path.clone(), force)?,
-        "claims" => parse_claims_cmd(&positional[1..])?,
-        "uploads" => parse_uploads_cmd(&positional[1..])?,
-        "operator" => parse_operator_cmd(&positional[1..])?,
-        "checkpoint-log" => parse_checkpoint_log_cmd(&positional[1..])?,
-        other => {
-            return Err(CliError::Usage(format!(
-                "unknown command `{other}`\n{}",
-                usage()
-            )));
         }
     };
     Ok(Parsed {
@@ -524,6 +545,10 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         wallet_path,
         cmd,
     })
+}
+
+fn is_help_token(token: &str) -> bool {
+    token == "--help" || token == "-h" || token == "help"
 }
 
 fn parse_env_bool(raw: &str) -> Result<bool, String> {
@@ -1102,10 +1127,7 @@ pub(super) fn parse_wallet_cmd(
     force: bool,
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
-        return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|setup|restore|address|scan|light-scan|balance|status|backup-info|send|upload|claim|export-trusted-summary|import-trusted-summary|show-trusted-summary|compare-trusted-summary)\n{}",
-            usage()
-        )));
+        return Err(CliError::Usage(crate::help::help_for(&["wallet"])));
     };
     let sub = match *sub_name {
         "light-scan" => WalletSub::LightScan(parse_wallet_light_scan_args(&rest[1..])?),

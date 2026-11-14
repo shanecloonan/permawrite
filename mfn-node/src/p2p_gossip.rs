@@ -18,6 +18,7 @@ use crate::fraud_contest::{
 };
 use crate::p2p_chunk_fanout::new_storage_commits_in_block;
 use crate::p2p_fanout::P2pPeerSet;
+use crate::relay_budget::RelayBudget;
 
 fn fraud_label_with_slash_hint(base: String, consensus_wire: &[u8]) -> String {
     if let Some(hint) = fraud_proof_producer_slash_hint(consensus_wire) {
@@ -39,6 +40,7 @@ pub struct P2pGossipHandler {
     tip_cell: TipSnapshot,
     peers: Option<Arc<P2pPeerSet>>,
     contests: FraudContestRegistryCell,
+    relay_budget: Mutex<RelayBudget>,
 }
 
 impl P2pGossipHandler {
@@ -59,6 +61,7 @@ impl P2pGossipHandler {
             tip_cell,
             peers,
             contests: new_fraud_contest_registry(),
+            relay_budget: Mutex::new(RelayBudget::production()),
         })
     }
 
@@ -201,6 +204,14 @@ impl GossipHandler for P2pGossipHandler {
     }
 
     fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
+        let allowed = self
+            .relay_budget
+            .lock()
+            .ok()
+            .is_some_and(|mut budget| budget.allow(std::time::Instant::now()));
+        if !allowed {
+            return "rejected:relay_budget".to_string();
+        }
         let tx = match decode_transaction(tx_wire) {
             Ok(t) => t,
             Err(e) => return format!("rejected:decode:{e}"),
