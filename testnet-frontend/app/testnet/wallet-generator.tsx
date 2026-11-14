@@ -30,6 +30,7 @@ import {
   headerVersionFromHex,
   requireTwoOutputs,
 } from "@/lib/testnet/spend-privacy";
+import FileKeep from "./file-keep";
 import { CopyButton, truncateId, useCopyFeedback } from "./ui";
 
 const FEE = 10_000;
@@ -557,6 +558,8 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
           </button>
         </div>
       </div>
+
+      <FileKeep />
 
       {(status || error) && (
         <p

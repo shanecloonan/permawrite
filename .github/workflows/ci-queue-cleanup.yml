@@ -35,6 +35,11 @@ jobs:
                 per_page: 50,
               });
               for (const run of data.workflow_runs) {
+                if (run.event === "schedule") {
+                  preserved += 1;
+                  core.info(`Preserving scheduled full-matrix CI run id=${run.id}`);
+                  continue;
+                }
                 if (run.head_sha === headSha) {
                   preserved += 1;
                   core.info(`Preserving current-commit CI run id=${run.id} sha=${run.head_sha.slice(0, 7)}`);
