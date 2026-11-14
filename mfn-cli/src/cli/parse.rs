@@ -76,6 +76,21 @@ pub(crate) enum UploadsSub {
         peers: Vec<String>,
         params: UploadsFetchHttpParams,
     },
+    /// Fetch a content id from shard peers, verify the root, and decrypt.
+    Get {
+        /// Data root hex. This is the content id.
+        content_root_hex: String,
+        /// Commitment hash the operators serve under.
+        commitment_hash_hex: String,
+        /// Where to write the plaintext.
+        output_path: std::path::PathBuf,
+        /// `host:port` chunk servers.
+        peers: Vec<String>,
+        /// 32-byte upload key. Required when the payload is `MFUP`.
+        key_path: Option<std::path::PathBuf>,
+        /// SOCKS5 proxy. `None` dials peers directly.
+        socks: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,6 +255,8 @@ wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
        uploads fetch-http HASH OUT PEER [PEER...] [replace]\n\
                          HTTP backfill chunks from peer(s), then export payload.bin (**M3.28**)\n\
                         options: --json\n\
+       uploads get ROOT COMMIT OUT --peer HOST:PORT [--peer HOST:PORT...] [--key FILE] [--socks ADDR | --direct]\n\
+         fetch shards over Tor SOCKS by default (127.0.0.1:9050), rebuild, verify the root, decrypt\n\
        operator challenge COMMIT_HASH_HEX  next-block SPoRA challenge (get_storage_challenge)\n\
                          options: --json\n\
        operator prove COMMIT_HASH_HEX [FILE]  build proof; omit FILE to use --wallet upload artifact\n\
@@ -377,6 +394,8 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             || a == "--verify-checkpoint"
             || a == "--against-checkpoint"
             || a == "--json"
+            || a == "--direct"
+            || a == "--sharded"
         {
             positional.push(a);
             i += 1;
@@ -413,6 +432,9 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--signer-seed-hex"
                 | "--checkpoint-hex"
                 | "--append"
+                | "--peer"
+                | "--key"
+                | "--socks"
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
@@ -556,7 +578,7 @@ pub(super) fn parse_claims_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 pub(super) fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "uploads requires SUBCOMMAND (list|local|status|retrieve|fetch-http)\n{}",
+            "uploads requires SUBCOMMAND (list|local|status|retrieve|fetch-http|get)\n{}",
             usage()
         )));
     };
@@ -566,6 +588,7 @@ pub(super) fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         "status" => UploadsSub::Status(parse_inventory_output_args("uploads status", &rest[1..])?),
         "retrieve" => parse_uploads_retrieve_args(&rest[1..])?,
         "fetch-http" => parse_uploads_fetch_http_args(&rest[1..])?,
+        "get" => parse_uploads_get_args(&rest[1..])?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown uploads subcommand `{other}`\n{}",
@@ -622,6 +645,92 @@ pub(super) fn parse_uploads_fetch_http_args(rest: &[&str]) -> Result<UploadsSub,
         output_path: std::path::PathBuf::from(rest[1]),
         peers,
         params,
+    })
+}
+
+pub(super) fn parse_uploads_get_args(rest: &[&str]) -> Result<UploadsSub, CliError> {
+    if rest.len() < 3 {
+        return Err(CliError::Usage(format!(
+            "uploads get requires ROOT COMMIT OUT --peer HOST:PORT\n{}",
+            usage()
+        )));
+    }
+    let content_root_hex = rest[0].to_string();
+    let commitment_hash_hex = rest[1].to_string();
+    let output_path = std::path::PathBuf::from(rest[2]);
+    let mut peers = Vec::new();
+    let mut key_path = None;
+    let mut direct = false;
+    let mut socks_explicit = false;
+    let mut socks = Some(mfn_net::DEFAULT_TOR_SOCKS5.to_string());
+    let mut args = rest[3..].iter().copied();
+    while let Some(arg) = args.next() {
+        match arg {
+            "--peer" => {
+                let Some(peer) = args.next() else {
+                    return Err(CliError::Usage(format!(
+                        "uploads get --peer requires HOST:PORT\n{}",
+                        usage()
+                    )));
+                };
+                peers.push(peer.to_string());
+            }
+            "--key" => {
+                let Some(path) = args.next() else {
+                    return Err(CliError::Usage(format!(
+                        "uploads get --key requires a file\n{}",
+                        usage()
+                    )));
+                };
+                key_path = Some(std::path::PathBuf::from(path));
+            }
+            "--direct" => {
+                if socks_explicit {
+                    return Err(CliError::Usage(format!(
+                        "uploads get accepts either --direct or --socks\n{}",
+                        usage()
+                    )));
+                }
+                direct = true;
+                socks = None;
+            }
+            "--socks" => {
+                if direct {
+                    return Err(CliError::Usage(format!(
+                        "uploads get accepts either --direct or --socks\n{}",
+                        usage()
+                    )));
+                }
+                let Some(addr) = args.next() else {
+                    return Err(CliError::Usage(format!(
+                        "uploads get --socks requires ADDR\n{}",
+                        usage()
+                    )));
+                };
+                socks_explicit = true;
+                socks = Some(addr.to_string());
+            }
+            other => {
+                return Err(CliError::Usage(format!(
+                    "unknown uploads get argument `{other}`\n{}",
+                    usage()
+                )));
+            }
+        }
+    }
+    if peers.is_empty() {
+        return Err(CliError::Usage(format!(
+            "uploads get requires at least one --peer\n{}",
+            usage()
+        )));
+    }
+    Ok(UploadsSub::Get {
+        content_root_hex,
+        commitment_hash_hex,
+        output_path,
+        peers,
+        key_path,
+        socks,
     })
 }
 

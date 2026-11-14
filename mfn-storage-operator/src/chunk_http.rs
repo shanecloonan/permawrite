@@ -111,6 +111,9 @@ fn chunk_bytes_for_artifact(
     commit_hex: &str,
     chunk_index: u32,
 ) -> Result<Vec<u8>, String> {
+    if let Some(bytes) = shard_file(wallet_path, commit_hex, chunk_index) {
+        return Ok(bytes);
+    }
     let loaded = load_upload_artifact(wallet_path, commit_hex).map_err(|e| e.to_string())?;
     let commit = &loaded.built.commit;
     let chunks = chunk_data(&loaded.payload, commit.chunk_size as usize)
@@ -120,6 +123,18 @@ fn chunk_bytes_for_artifact(
         .get(idx)
         .ok_or_else(|| format!("chunk_index {chunk_index} >= num_chunks {}", chunks.len()))?;
     Ok(slice.to_vec())
+}
+
+fn shard_file(wallet_path: &Path, commit_hex: &str, chunk_index: u32) -> Option<Vec<u8>> {
+    let raw = hex::decode(commit_hex).ok()?;
+    if raw.len() != 32 {
+        return None;
+    }
+    let mut hash = [0u8; 32];
+    hash.copy_from_slice(&raw);
+    let path = crate::upload_artifact_store::upload_artifact_dir(wallet_path, &hash)
+        .join(format!("shard-{chunk_index:02}.bin"));
+    std::fs::read(path).ok()
 }
 
 fn write_http_ok(stream: &mut TcpStream, body: &[u8]) -> Result<(), ChunkServeError> {

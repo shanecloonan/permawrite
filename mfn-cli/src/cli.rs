@@ -17,7 +17,7 @@ use crate::operator_cmd::{
 };
 use crate::rpc::RpcClient;
 use crate::uploads_cmd::{
-    uploads_fetch_http, uploads_list, uploads_local, uploads_retrieve, uploads_status,
+    uploads_fetch_http, uploads_get, uploads_list, uploads_local, uploads_retrieve, uploads_status,
 };
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_backup_info, wallet_balance, wallet_claim,
@@ -156,6 +156,25 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
                 uploads_retrieve(&path, &commitment_hash_hex, &output_path, force)
                     .map_err(CliError::Usage)?;
+            }
+            UploadsSub::Get {
+                content_root_hex,
+                commitment_hash_hex,
+                output_path,
+                peers,
+                key_path,
+                socks,
+            } => {
+                uploads_get(
+                    &mut client,
+                    &content_root_hex,
+                    &commitment_hash_hex,
+                    &peers,
+                    &output_path,
+                    key_path.as_deref(),
+                    socks.as_deref(),
+                )
+                .map_err(CliError::Usage)?;
             }
             UploadsSub::FetchHttp {
                 commitment_hash_hex,
@@ -957,6 +976,61 @@ mod tests {
         ])
         .expect_err("bad modifier");
         assert!(bad.to_string().contains("expected `replace`"));
+    }
+
+    #[test]
+    fn parse_uploads_get_defaults_to_tor_socks() {
+        let root = "ab".repeat(32);
+        let commit = "cd".repeat(32);
+        let p = parse_args(&[
+            "uploads".into(),
+            "get".into(),
+            root.clone(),
+            commit.clone(),
+            "out.bin".into(),
+            "--peer".into(),
+            "127.0.0.1:9".into(),
+            "--key".into(),
+            "upload.key".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub:
+                    UploadsSub::Get {
+                        content_root_hex,
+                        commitment_hash_hex,
+                        peers,
+                        key_path,
+                        socks,
+                        ..
+                    },
+            } => {
+                assert_eq!(content_root_hex, root);
+                assert_eq!(commitment_hash_hex, commit);
+                assert_eq!(peers, vec!["127.0.0.1:9".to_string()]);
+                assert_eq!(key_path, Some(std::path::PathBuf::from("upload.key")));
+                assert_eq!(socks.as_deref(), Some(mfn_net::DEFAULT_TOR_SOCKS5));
+            }
+            _ => panic!("expected uploads get"),
+        }
+        let direct = parse_args(&[
+            "uploads".into(),
+            "get".into(),
+            root,
+            commit,
+            "out.bin".into(),
+            "--peer".into(),
+            "127.0.0.1:9".into(),
+            "--direct".into(),
+        ])
+        .unwrap();
+        match direct.cmd {
+            Cmd::Uploads {
+                sub: UploadsSub::Get { socks, .. },
+            } => assert!(socks.is_none()),
+            _ => panic!("expected direct get"),
+        }
     }
 
     #[test]
