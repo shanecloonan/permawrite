@@ -140,6 +140,13 @@ pub(crate) enum WalletSub {
         seed_hex: String,
         key_derivation: KeyDerivation,
     },
+    /// 24-word recovery phrase. Always restores a user wallet (`mfn_wallet_v1`).
+    RestoreMnemonic {
+        /// Words in order. One argv may contain the whole phrase.
+        words: Vec<String>,
+    },
+    /// Print the 24-word phrase for an existing user wallet.
+    ShowMnemonic,
     Address,
     Scan(WalletScanParams),
     LightScan(LightScanParams),
@@ -187,9 +194,11 @@ pub(super) fn usage() -> &'static str {
        block-header H    block header at height H (get_block_header)\n\
        mempool           list mempool tx ids (get_mempool)\n\
        call METHOD       arbitrary JSON-RPC call; prints pretty JSON result\n\
-       wallet new        create wallet.json with a fresh 32-byte seed\n\
+       wallet new        create wallet.json and print a 24-word recovery phrase\n\
        wallet restore SEED_HEX  restore wallet.json from a 32-byte seed\n\
                          options: --key-derivation mfn_wallet_v1|payout_stealth_v1\n\
+       wallet restore --mnemonic WORD...  restore from the 24 words (user wallets)\n\
+       wallet mnemonic   print the 24-word phrase for an existing user wallet\n\
        wallet address    print view/spend public keys from wallet file\n\
        wallet scan       scan full blocks from node tip (get_block)\n\
                          options: --json\n\
@@ -367,6 +376,15 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         if a == "--include-claims" {
             positional.push(a);
             i += 1;
+            continue;
+        }
+        if a == "--mnemonic" {
+            positional.push(a);
+            i += 1;
+            while i < args.len() && !args[i].starts_with('-') {
+                positional.push(args[i].as_str());
+                i += 1;
+            }
             continue;
         }
         if a == "--pin-trusted-summary"
@@ -1100,7 +1118,7 @@ pub(super) fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|restore|address|scan|light-scan|balance|status|backup-info|send|upload|claim|export-trusted-summary|import-trusted-summary|show-trusted-summary|compare-trusted-summary)\n{}",
+            "wallet requires SUBCOMMAND (new|restore|mnemonic|address|scan|light-scan|balance|status|backup-info|send|upload|claim|export-trusted-summary|import-trusted-summary|show-trusted-summary|compare-trusted-summary)\n{}",
             usage()
         )));
     };
@@ -1123,7 +1141,7 @@ pub(super) fn parse_wallet_cmd(
         "balance" => WalletSub::Balance(parse_wallet_scan_args(&rest[1..], "balance")?),
         "status" => WalletSub::Status(parse_wallet_status_args(&rest[1..])?),
         "backup-info" => WalletSub::BackupInfo(parse_wallet_backup_info_args(&rest[1..])?),
-        "new" | "address" => {
+        "new" | "address" | "mnemonic" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
                     "wallet {sub_name} takes no extra arguments\n{}",
@@ -1133,6 +1151,7 @@ pub(super) fn parse_wallet_cmd(
             match *sub_name {
                 "new" => WalletSub::New,
                 "address" => WalletSub::Address,
+                "mnemonic" => WalletSub::ShowMnemonic,
                 _ => unreachable!(),
             }
         }
@@ -1156,10 +1175,23 @@ pub(super) fn parse_wallet_cmd(
 pub(super) fn parse_wallet_restore_args(rest: &[&str]) -> Result<WalletSub, CliError> {
     let mut seed_hex: Option<String> = None;
     let mut key_derivation = KeyDerivation::MfnWalletV1;
+    let mut mnemonic_mode = false;
+    let mut words = Vec::new();
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
+        if a == "--mnemonic" {
+            mnemonic_mode = true;
+            i += 1;
+            continue;
+        }
         if a == "--key-derivation" {
+            if mnemonic_mode {
+                return Err(CliError::Usage(
+                    "wallet restore --mnemonic always restores a user wallet. Operator payout keys stay as SEED_HEX with --key-derivation payout_stealth_v1\n"
+                        .into(),
+                ));
+            }
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage(
                     "wallet restore --key-derivation requires mfn_wallet_v1 or payout_stealth_v1\n"
@@ -1176,18 +1208,35 @@ pub(super) fn parse_wallet_restore_args(rest: &[&str]) -> Result<WalletSub, CliE
                 usage()
             )));
         }
-        if seed_hex.is_some() {
-            return Err(CliError::Usage(format!(
-                "wallet restore accepts exactly one SEED_HEX\n{}",
-                usage()
-            )));
+        if mnemonic_mode {
+            words.push((*a).to_string());
+        } else {
+            if seed_hex.is_some() {
+                return Err(CliError::Usage(format!(
+                    "wallet restore accepts exactly one SEED_HEX\n{}",
+                    usage()
+                )));
+            }
+            seed_hex = Some(a.to_string());
         }
-        seed_hex = Some(a.to_string());
         i += 1;
+    }
+    if mnemonic_mode {
+        if seed_hex.is_some() {
+            return Err(CliError::Usage(
+                "wallet restore accepts a recovery phrase or SEED_HEX, not both\n".into(),
+            ));
+        }
+        if words.is_empty() {
+            return Err(CliError::Usage(
+                "wallet restore --mnemonic requires the 24 words from `wallet new`\n".into(),
+            ));
+        }
+        return Ok(WalletSub::RestoreMnemonic { words });
     }
     let Some(seed_hex) = seed_hex else {
         return Err(CliError::Usage(format!(
-            "wallet restore requires SEED_HEX\n{}",
+            "wallet restore requires SEED_HEX or --mnemonic WORD...\n{}",
             usage()
         )));
     };

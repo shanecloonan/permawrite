@@ -12,8 +12,8 @@ use mfn_storage_operator::upload_artifact_store::{
 };
 use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
-    ClaimingIdentity, TransferRecipient, Wallet, WalletError, WALLET_MIN_RING_SIZE,
-    WALLET_MIN_TX_INPUTS,
+    mnemonic_from_seed, seed_from_mnemonic, ClaimingIdentity, TransferRecipient, Wallet,
+    WalletError, WALLET_MIN_RING_SIZE, WALLET_MIN_TX_INPUTS,
 };
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha512};
@@ -206,11 +206,53 @@ pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     let mut file = WalletFile::new(&seed, KeyDerivation::MfnWalletV1);
     file.save(path)?;
     print_address_lines(&file)?;
+    println!("mnemonic={}", mnemonic_from_seed(&seed));
     println!("wallet_path={}", path.display());
     println!("wallet_version={WALLET_FILE_VERSION}");
     eprintln!(
-        "warning: back up wallet file and seed_hex; loss of either means permanent loss of funds"
+        "warning: write these 24 words on paper, in order. They restore your money. Anyone who sees them can spend it. The words do not restore files you uploaded — keep the upload-artifacts folder too"
     );
+    Ok(())
+}
+
+/// `wallet restore --mnemonic` — user-wallet seed from a 24-word phrase.
+pub fn wallet_restore_mnemonic(
+    path: &Path,
+    words: &[String],
+    force: bool,
+) -> Result<(), WalletCmdError> {
+    if path.exists() && !force {
+        return Err(WalletCmdError::Usage(format!(
+            "wallet file already exists at {}; pass --force to overwrite",
+            path.display()
+        )));
+    }
+    let phrase = words.join(" ");
+    let seed = seed_from_mnemonic(&phrase).map_err(|e| WalletCmdError::Usage(e.to_string()))?;
+    let mut file = WalletFile::new(&seed, KeyDerivation::MfnWalletV1);
+    file.save(path)?;
+    print_address_lines(&file)?;
+    println!("wallet_path={}", path.display());
+    println!("wallet_version={WALLET_FILE_VERSION}");
+    eprintln!(
+        "warning: restored a user wallet from the recovery phrase. Keep the words off chats, photos, and shell history"
+    );
+    Ok(())
+}
+
+/// `wallet mnemonic` — print the phrase for an existing user wallet.
+pub fn wallet_show_mnemonic(path: &Path) -> Result<(), WalletCmdError> {
+    let file = WalletFile::load(path)?;
+    if file.key_derivation != KeyDerivation::MfnWalletV1 {
+        return Err(WalletCmdError::Usage(
+            "operator payout wallets do not use a recovery phrase. Back up seed_hex offline, and do not paste it into a chat".into(),
+        ));
+    }
+    let seed = file.seed_bytes()?;
+    eprintln!(
+        "warning: these 24 words spend your money. Do not photograph them or paste them into a chat"
+    );
+    println!("mnemonic={}", mnemonic_from_seed(&seed));
     Ok(())
 }
 
@@ -1159,6 +1201,44 @@ mod tests {
                 && msg.contains(&WALLET_MIN_RING_SIZE.to_string()),
             "expected rewritten ring-floor message, got {msg}"
         );
+    }
+
+    #[test]
+    fn wallet_new_and_mnemonic_restore_share_a_seed() {
+        let created = temp_wallet_path("new-mnemonic");
+        wallet_new(&created, false).expect("new");
+        let file = WalletFile::load(&created).expect("load");
+        let seed = file.seed_bytes().expect("seed");
+        let phrase = mnemonic_from_seed(&seed);
+        let words: Vec<String> = phrase.split_whitespace().map(str::to_string).collect();
+        assert_eq!(words.len(), 24);
+
+        let restored = temp_wallet_path("restore-mnemonic");
+        wallet_restore_mnemonic(&restored, &words, false).expect("restore phrase");
+        let again = WalletFile::load(&restored).expect("load restored");
+        assert_eq!(again.seed_hex, file.seed_hex);
+        assert_eq!(again.key_derivation, KeyDerivation::MfnWalletV1);
+        wallet_show_mnemonic(&restored).expect("show");
+
+        let payout = temp_wallet_path("payout-no-phrase");
+        wallet_restore(
+            &payout,
+            &"ab".repeat(32),
+            KeyDerivation::PayoutStealthV1,
+            false,
+        )
+        .expect("payout");
+        let refused = wallet_show_mnemonic(&payout).expect_err("payout phrase");
+        assert!(refused.to_string().contains("payout"));
+
+        let bad =
+            wallet_restore_mnemonic(&temp_wallet_path("bad-phrase"), &["abandon".into()], false)
+                .expect_err("short");
+        assert!(bad.to_string().contains("24 English words"));
+
+        let _ = std::fs::remove_file(created);
+        let _ = std::fs::remove_file(restored);
+        let _ = std::fs::remove_file(payout);
     }
 
     #[test]

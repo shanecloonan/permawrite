@@ -21,8 +21,8 @@ use crate::uploads_cmd::{
 };
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_backup_info, wallet_balance, wallet_claim,
-    wallet_new, wallet_restore, wallet_scan, wallet_send, wallet_status, wallet_upload,
-    WalletCmdError,
+    wallet_new, wallet_restore, wallet_restore_mnemonic, wallet_scan, wallet_send,
+    wallet_show_mnemonic, wallet_status, wallet_upload, WalletCmdError,
 };
 
 /// CLI parse or RPC failure.
@@ -322,6 +322,10 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                     seed_hex,
                     key_derivation,
                 } => wallet_restore(&path, &seed_hex, key_derivation, force)?,
+                WalletSub::RestoreMnemonic { words } => {
+                    wallet_restore_mnemonic(&path, &words, force)?
+                }
+                WalletSub::ShowMnemonic => wallet_show_mnemonic(&path)?,
                 WalletSub::Address => wallet_address(&path)?,
                 WalletSub::Scan(params) => wallet_scan(&path, &mut client, params)?,
                 WalletSub::LightScan(ref params) => wallet_light_scan(&path, &mut client, params)?,
@@ -627,6 +631,25 @@ mod tests {
                 assert!(params.json);
             }
             _ => panic!("expected wallet upload"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_restore_mnemonic_words() {
+        let words = [
+            "abandon", "abandon", "abandon", "abandon", "abandon", "abandon", "abandon", "abandon",
+            "abandon", "abandon", "abandon", "abandon", "abandon", "abandon", "abandon", "abandon",
+            "abandon", "abandon", "abandon", "abandon", "abandon", "abandon", "abandon", "art",
+        ];
+        let mut args = vec!["wallet".into(), "restore".into(), "--mnemonic".into()];
+        args.extend(words.iter().map(|w| (*w).to_string()));
+        let p = parse_args(&args).unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::RestoreMnemonic { words: got },
+                ..
+            } => assert_eq!(got, words),
+            _ => panic!("expected mnemonic restore"),
         }
     }
 
