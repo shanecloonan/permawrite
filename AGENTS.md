@@ -138,7 +138,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** **B-320** wallet input pad to the power-of-two bucket when a spare UTXO exists (this commit). Three inputs become four. Header v1 still spends three when no fourth UTXO exists. Header v4 refuses that short count. **B-319** is the parent. **G-1**, Seat F **F-8**, and Seat C **B-12** are on main. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** **B-321** retrieval forfeit of a departed operator stays in treasury (this commit). A valid answer no longer inserts a bond the write-back would drop. Header v7 only. **B-320** is the parent. **G-1**, Seat F **F-8**, and Seat C **B-12** are on main. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -149,8 +149,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-318** output-count buckets at header v8; **B-317** retrieval; **B-12** on main | *Idle* — slash matrix frozen. Seat C holds validity files | Departed-operator forfeit (B-321). Inner STARK verifier stays with Seat C. No B-297 clone. No DEFAULT flip | Lane 1 CI |
-| **5** Privacy | **B-320** wallet pads inputs to 2/4/8 when a spare UTXO exists (this commit); **B-319** output pad | *Idle* | Keep privacy docs matched to the header gates | Doc-accuracy duty |
+| **4** Protocol | **B-321** departed-operator forfeit stays in treasury (this commit); **B-317** retrieval; **B-12** on main | *Idle* — slash matrix frozen. Seat C holds validity files | Next privacy gate stays header-gated. Inner STARK verifier stays with Seat C. No B-297 clone. No DEFAULT flip | Lane 1 CI |
+| **5** Privacy | **B-320** wallet input pad; **B-319** output pad | *Idle* | Keep privacy docs matched to the header gates | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **8** Anonymity | — | **D-1** Dandelion stem privacy (claim base `4aedafe9`): origin never fluffs; per-hop coin; stem wire stays stem | Onion-only advertise; inbound /16 cap | Seat D |
@@ -280,7 +280,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-317 | Economic retrieval challenge (silence slashes the storage-operator bond) | 4+5 | **Landed** on main — header v7; Path A / F-A off. Design: [`RETRIEVAL_CHALLENGE.md`](docs/RETRIEVAL_CHALLENGE.md). Seat C's field-Merkle opening is a different unit in `validity_stark_merkle` |
 | B-318 | F7 output-count padding (power-of-two buckets) | 4+5 | **Landed** — header v8; header v1 still accepts 3 outputs |
 | B-319 | Wallet pads output counts to the B-318 bucket | 5 | **Landed** — 2 stays 2; 3 becomes 4. Valid on header v1 |
-| B-320 | Wallet pads input counts to the B-35 bucket | 5 | **Landed** (this commit) — spare UTXO pads 3→4. Header v1 keeps 3 when no spare. Header v4 refuses |
+| B-320 | Wallet pads input counts to the B-35 bucket | 5 | **Landed** — spare UTXO pads 3→4. Header v1 keeps 3 when no spare. Header v4 refuses |
+| B-321 | Retrieval forfeit of a departed operator stays in treasury | 4 | **Landed** (this commit) — no new bond entry on a valid answer. Supply conserved |
 | B-35 | F7 consensus input-count padding | 4+5 | **Landed** — power-of-two buckets at header v4; Path A / F-A off |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | **Landed** (this commit) — header v6; header v1 keeps public `tx.fee` |
@@ -543,7 +544,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 5 - B-320 wallet input buckets** (this commit): `select_inputs_for_tx` pads with real spare UTXOs until the count is 2, 4, 8, …. Three covering inputs plus a fourth become four on every header. Three with no spare still spend on header v1 and return `TxInputCountNotBucket` on header v4. No fake inputs. CLI maps the error. No DEFAULT flip. *Observed (not staged):* none.
+1. **2026-11-14 - lane 4 - B-321 departed-operator forfeit** (this commit): a valid retrieval answer used to `or_insert` a bond for an operator who had already left the set. `write_operator_bonds` only updates operators still present, so that share left the supply. The share now joins treasury. `b321_forfeit_of_a_departed_operator_stays_in_treasury` checks an empty bond map and conserved total. Header v7 only. No DEFAULT flip. *Observed (not staged):* none.
+
+1. **2026-11-14 - lane 5 - B-320 wallet input buckets** (parent): `select_inputs_for_tx` pads with real spare UTXOs until the count is 2, 4, 8, …. Three covering inputs plus a fourth become four on every header. Three with no spare still spend on header v1 and return `TxInputCountNotBucket` on header v4. No fake inputs. CLI maps the error. No DEFAULT flip. *Observed (not staged):* none.
 
 1. **2026-11-14 - lane 5 - B-319 wallet output buckets** (parent): spend, upload, and the wallet transfer builder pad with zero-value outputs until the count is 2, 4, 8, …. `three_recipients_pad_to_four_outputs` verifies under production policy and with the v8 flag on. Two-output transfers stay two. No DEFAULT flip. *Observed (not staged):* none.
 

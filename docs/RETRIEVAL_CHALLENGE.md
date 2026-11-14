@@ -13,7 +13,7 @@ Header version 7 (`HEADER_VERSION_RETRIEVAL`). Below that, blocks omit the retri
 The slash hits `StorageOperatorEntry.bond_amount` only. Validator equivocation evidence is a separate path.
 
 - Silence slashes `min(bond, clamp(bond * 2500 / 10000, 100, 1_000_000))`. Half of that slash is a bounty to the challenger. The rest is credited to the treasury. The challenger's deposit is returned. A queued bond exit for that operator is dropped, including a matching `pending_unbonds` entry, so the exit cannot pay the old bond.
-- A valid response does not reduce the bond. A quarter of the deposit is forfeited: half of the forfeit is added to the operator's bond, half to the treasury. The rest is credited to the challenger's refund key.
+- A valid response does not reduce the bond. A quarter of the deposit is forfeited: half of the forfeit is added to the operator's bond, half to the treasury. The rest is credited to the challenger's refund key. If that operator is already gone from the bond map, the operator's half joins the treasury instead of creating a bond entry the write-back would drop.
 - While a challenge is open, `BondOp::Unbond` for that operator index is rejected, and an already queued unbond is not settled.
 
 Deposits, refunds, bounties, bond moves, and treasury credits are checked against one sum in `b317_supply_is_conserved`.
@@ -30,4 +30,4 @@ The commitment and the chunk index are on the chain, so an observer learns which
 
 ## Tests
 
-`mfn-consensus` `retrieval::tests`: an honest response clears the challenge and does not slash; silence slashes, pays the bounty, and drops the exit; a false accusation costs the challenger; supply is conserved; an open challenge blocks the bond exit; header version 1 ignores the section.
+`mfn-consensus` `retrieval::tests`: an honest response clears the challenge and does not slash; silence slashes, pays the bounty, and drops the exit; a false accusation costs the challenger; supply is conserved; an open challenge blocks the bond exit; a departed operator's forfeit stays in treasury; header version 1 ignores the section.
