@@ -676,6 +676,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-mirror"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "mfn-storage",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "mfn-net"
 version = "0.1.0"
 dependencies = [
