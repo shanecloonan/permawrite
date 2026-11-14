@@ -113,6 +113,8 @@ pub struct UploadParams {
     pub message: Option<Vec<u8>>,
     /// Print a single JSON object instead of key=value lines.
     pub json: bool,
+    /// When true, anchor the file in the clear. The default upload is encrypted.
+    pub plaintext: bool,
 }
 
 /// Parameters for `wallet claim`.
@@ -599,17 +601,35 @@ pub fn wallet_upload(
             "replication must be at least 1".into(),
         ));
     }
-    let data = std::fs::read(&params.file_path)
+    let plain = std::fs::read(&params.file_path)
         .map_err(|e| WalletCmdError::Usage(format!("read {}: {e}", params.file_path.display())))?;
-    if data.is_empty() {
+    if plain.is_empty() {
         return Err(WalletCmdError::Usage("upload file is empty".into()));
     }
-    if data.len() > MAX_UPLOAD_BYTES {
+    if plain.len() > MAX_UPLOAD_BYTES {
         return Err(WalletCmdError::Usage(format!(
             "upload file exceeds maximum size ({} bytes > {MAX_UPLOAD_BYTES})",
-            data.len()
+            plain.len()
         )));
     }
+    let file_bytes = plain.len();
+    let (data, upload_key) = if params.plaintext {
+        (plain, None)
+    } else {
+        use rand_core::RngCore;
+        let mut key = [0u8; 32];
+        let mut nonce = [0u8; 16];
+        rand_core::OsRng.fill_bytes(&mut key);
+        rand_core::OsRng.fill_bytes(&mut nonce);
+        let sealed = mfn_storage::encrypt_upload(&plain, &key, &nonce);
+        if sealed.len() > MAX_UPLOAD_BYTES {
+            return Err(WalletCmdError::Usage(format!(
+                "encrypted upload exceeds maximum size ({} bytes > {MAX_UPLOAD_BYTES})",
+                sealed.len()
+            )));
+        }
+        (sealed, Some(key))
+    };
     if params.message.is_some() && !params.extra.is_empty() {
         return Err(WalletCmdError::Usage(
             "cannot set both --message (authorship claim) and --extra on upload".into(),
@@ -712,12 +732,21 @@ pub fn wallet_upload(
         Some(&submit.tx_id),
     )
     .map_err(|e| e.to_string());
+    if let (Some(key), Ok(meta)) = (upload_key, artifact_save.as_ref()) {
+        let key_path = meta.dir.join(mfn_storage::UPLOAD_KEY_FILE);
+        if let Err(e) = write_upload_key(&key_path, &key) {
+            eprintln!(
+                "warning: encrypted upload key was not saved to {}: {e}",
+                key_path.display()
+            );
+        }
+    }
 
     let outcome = UploadOutcome {
         stats: &stats,
         path,
         params,
-        file_bytes: data.len(),
+        file_bytes,
         fee,
         min_fee: art.min_fee,
         burden: art.burden,
@@ -738,6 +767,21 @@ pub fn wallet_upload(
             submit.outcome_kind
         );
     }
+    Ok(())
+}
+
+fn write_upload_key(path: &Path, key: &[u8; 32]) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let mut file = opts.open(path)?;
+    file.write_all(key)?;
+    file.sync_all()?;
     Ok(())
 }
 
@@ -769,6 +813,7 @@ fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdErro
     println!("utxo_cache={}", outcome.stats.used_utxo_cache);
     println!("file={}", outcome.params.file_path.display());
     println!("bytes={}", outcome.file_bytes);
+    println!("upload_encrypted={}", !outcome.params.plaintext);
     println!("replication={}", outcome.params.replication);
     println!("anchor_value={}", outcome.params.anchor_value);
     println!("fee={}", outcome.fee);
@@ -821,6 +866,7 @@ fn upload_outcome_json(outcome: &UploadOutcome<'_>) -> serde_json::Value {
         "utxo_cache": outcome.stats.used_utxo_cache,
         "file": outcome.params.file_path.display().to_string(),
         "bytes": outcome.file_bytes,
+        "upload_encrypted": !outcome.params.plaintext,
         "replication": outcome.params.replication,
         "anchor_value": outcome.params.anchor_value,
         "fee": outcome.fee,
@@ -1310,6 +1356,7 @@ mod tests {
             anchor_spend_hex: None,
             message: Some(b"signed by me".to_vec()),
             json: true,
+            plaintext: true,
         };
         let stats = SyncStats {
             tip_height: 11,
