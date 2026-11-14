@@ -129,18 +129,45 @@ pub fn env_skip_manifest_seeds() -> bool {
     )
 }
 
+/// Environment variable: comma-separated extra boot peers, independent of the manifest.
+pub const MFND_P2P_EXTRA_SEEDS_ENV: &str = "MFND_P2P_EXTRA_SEEDS";
+
+/// Parse a comma-separated extra-seed list (`MFND_P2P_EXTRA_SEEDS`).
+pub fn extra_seeds_from_value(raw: &str) -> Result<Vec<String>, String> {
+    let parts = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(str::to_string)
+        .collect();
+    normalize_peer_addrs(parts, MFND_P2P_EXTRA_SEEDS_ENV)
+}
+
+/// Read [`MFND_P2P_EXTRA_SEEDS_ENV`]. Unset means no extra seeds.
+pub fn extra_seeds_from_env() -> Result<Vec<String>, String> {
+    match std::env::var(MFND_P2P_EXTRA_SEEDS_ENV) {
+        Ok(raw) => extra_seeds_from_value(&raw),
+        Err(std::env::VarError::NotPresent) => Ok(Vec::new()),
+        Err(std::env::VarError::NotUnicode(_)) => {
+            Err(format!("{MFND_P2P_EXTRA_SEEDS_ENV} must be valid UTF-8"))
+        }
+    }
+}
+
 /// Merge manifest seeds (when present) into explicit `--p2p-dial` addresses.
 pub fn merge_boot_peer_dials(
     explicit: &mut Vec<String>,
     genesis_spec: Option<&Path>,
 ) -> Result<BootPeerDialMergeReport, String> {
-    merge_boot_peer_dials_inner(explicit, genesis_spec, env_skip_manifest_seeds())
+    let extra = extra_seeds_from_env()?;
+    merge_boot_peer_dials_inner(explicit, genesis_spec, env_skip_manifest_seeds(), &extra)
 }
 
 fn merge_boot_peer_dials_inner(
     explicit: &mut Vec<String>,
     genesis_spec: Option<&Path>,
     skip_manifest_seeds: bool,
+    extra_seeds: &[String],
 ) -> Result<BootPeerDialMergeReport, String> {
     *explicit = normalize_peer_addrs(std::mem::take(explicit), "explicit --p2p-dial")?;
     if let Some(g) = genesis_spec {
@@ -149,6 +176,9 @@ fn merge_boot_peer_dials_inner(
                 push_unique_peer_addr(explicit, addr);
             }
         }
+    }
+    for addr in extra_seeds {
+        push_unique_peer_addr(explicit, addr.clone());
     }
     let configured = explicit.len();
     if explicit.len() > MAX_BOOT_PEER_DIALS {
@@ -253,7 +283,7 @@ mod tests {
         )
         .expect("write manifest");
         let mut explicit = vec!["203.0.113.10:4001".into()];
-        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false).expect("merge");
+        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false, &[]).expect("merge");
         assert_eq!(explicit, vec!["203.0.113.10:4001", "203.0.113.11:4001",]);
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -278,7 +308,7 @@ mod tests {
         )
         .expect("write manifest");
         let mut explicit = vec!["127.0.0.1:19001".into()];
-        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), true).expect("merge");
+        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), true, &[]).expect("merge");
         assert_eq!(explicit, vec!["127.0.0.1:19001"]);
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -304,7 +334,7 @@ mod tests {
         )
         .expect("write manifest");
         let mut explicit = vec![" 203.0.113.10:4001 ".into()];
-        let err = merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false)
+        let err = merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false, &[])
             .expect_err("bad seed");
         assert!(err.contains("bad host"), "err={err}");
         std::fs::remove_dir_all(&dir).ok();
@@ -333,7 +363,7 @@ mod tests {
 
         let mut explicit = Vec::new();
         let report =
-            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false).expect("merge");
+            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false, &[]).expect("merge");
         assert_eq!(explicit.len(), MAX_BOOT_PEER_DIALS);
         assert_eq!(report.configured, MAX_BOOT_PEER_DIALS + 10);
         assert_eq!(report.retained, MAX_BOOT_PEER_DIALS);
@@ -370,7 +400,7 @@ mod tests {
 
         let mut explicit = vec!["198.51.100.10:4001".into(), "198.51.100.11:4001".into()];
         let report =
-            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false).expect("merge");
+            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false, &[]).expect("merge");
         assert_eq!(explicit.len(), MAX_BOOT_PEER_DIALS);
         assert_eq!(report.configured, MAX_BOOT_PEER_DIALS + 2);
         assert_eq!(report.dropped, 2);
@@ -401,5 +431,24 @@ mod tests {
         assert_eq!(added, 1);
         assert_eq!(explicit, vec!["203.0.113.20:4001", "203.0.113.21:4001",]);
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn extra_seeds_append_when_manifest_seeds_are_skipped() {
+        let extra =
+            extra_seeds_from_value("seed-a.example:19001, seed-a.example:19001, seed-b.onion:8333")
+                .expect("extra");
+        let mut explicit = vec!["127.0.0.1:19001".into()];
+        merge_boot_peer_dials_inner(&mut explicit, None, true, &extra).expect("merge");
+        assert_eq!(
+            explicit,
+            vec![
+                "127.0.0.1:19001".to_string(),
+                "seed-a.example:19001".to_string(),
+                "seed-b.onion:8333".to_string(),
+            ]
+        );
+        assert!(extra_seeds_from_value("not a peer").is_err());
+        assert!(extra_seeds_from_value("").unwrap().is_empty());
     }
 }

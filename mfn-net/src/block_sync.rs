@@ -433,6 +433,10 @@ pub fn serve_post_handshake_v1(
             0x0b => {
                 let addr = crate::gossip::P2pAdvertiseV1::decode_payload(&payload)
                     .map_err(|e| PostHandshakeError::Advertise(e.to_string()))?;
+                if let Err(reason) = crate::advertise_policy::dialable_advertised_peer(addr) {
+                    eprintln!("mfnd_p2p_advertise_reject peer={peer} addr={addr} {reason}");
+                    continue;
+                }
                 crate::addrman::learn_address(addr);
                 if let Some(ps) = fanout_peers {
                     ps.register_peer(addr);

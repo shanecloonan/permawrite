@@ -539,6 +539,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
 1. **2026-11-14 - lane G - G-9 libFuzzer target** (this commit): `fuzz/untrusted_decode` feeds truncated bytes to the block, transaction, and header codecs, P2P payload decoders, JSON-RPC text, and `WalletFile::load`. The crate is outside the workspace so PR CI does not build libFuzzer. Claim base `02ba4bc6`. Next: **G-10** nightly fuzz job.
+1. **2026-11-14 - lane G - G-1 untrusted codec counts** (on main): `Reader` refuses a length prefix that does not fit the unread bytes before `Vec::with_capacity`. `bytes` uses checked cursor math. Bulletproof and range `n` must fit in `u32`. Honest encodings are unchanged. `g1_untrusted_codec` feeds mutated frames to block, tx, header, CLSAG, and proof decoders. Claim base `11e1781b`. Next: **G-2** checkpoint length caps.
 
 1. **2026-11-14 - lane F - F-8 file card** (this commit): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Claim base `4aedafe9`. Next: **F-9** `wallet ready`.
 
