@@ -87,7 +87,7 @@ pub mod store {
 pub use mfn_store::{ChainPersistence, ChainStore, RedbChainStore, StoreError, StoreSave};
 pub use network::NetworkConfig;
 
-pub use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction};
+pub use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction, RelayRole};
 pub use crate::p2p_fanout::P2pPeerSet;
 pub use crate::runner::{
     produce_config_from_env, ProduceConfig, ProductionEngine, ProductionEngineDeps,

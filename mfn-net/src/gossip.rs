@@ -60,6 +60,14 @@ pub trait FanoutPeerSet: Send + Sync {
     }
     /// Forward `tx_wire` to every registered peer except `except_peer`.
     fn fanout_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>);
+    /// Forward `tx_wire`, preserving the Dandelion stem/fluff class.
+    ///
+    /// `stem` is true for [`crate::frame::TxStemV1`]. The default ignores the
+    /// class and calls [`Self::fanout_fresh_tx`].
+    fn fanout_tx(&self, tx_wire: &[u8], except_peer: Option<&str>, stem: bool) {
+        let _ = stem;
+        self.fanout_fresh_tx(tx_wire, except_peer);
+    }
     /// Forward a verified body-root fraud proof to peers except `except_peer` (**F5**).
     fn fanout_fraud_proof(&self, _consensus_wire: &[u8], _except_peer: Option<&str>) {}
     /// Saved P2P listen addresses for catch-up dials (**M2.3.26**).
@@ -76,6 +84,14 @@ pub trait FanoutPeerSet: Send + Sync {
 pub trait GossipHandler: Send + Sync {
     /// Admit or reject a transaction wire blob; return a short outcome label for stdout.
     fn on_tx_v1(&self, tx_wire: &[u8]) -> String;
+
+    /// Admit a [`crate::frame::TxStemV1`] body.
+    ///
+    /// The default treats stem like fluff. Nodes that run Dandelion++ override
+    /// this so a stem is not diffused at the first hop.
+    fn on_tx_stem_v1(&self, tx_wire: &[u8]) -> String {
+        self.on_tx_v1(tx_wire)
+    }
 
     /// Apply or reject a block wire blob; return a short outcome label for stdout.
     fn on_block_v1(&self, block_wire: &[u8]) -> String;
@@ -152,6 +168,22 @@ pub enum GossipRecvError {
     UnknownTag(u8),
 }
 
+/// Deliver one transaction gossip frame, keeping stem and fluff on separate hooks.
+pub fn deliver_tx_frame(
+    handler: &dyn GossipHandler,
+    tag: u8,
+    payload: &[u8],
+) -> Result<(), GossipPayloadDecodeError> {
+    if tag == crate::frame::TX_STEM_V1_TAG {
+        let tx = TxStemV1::decode_payload(payload)?;
+        let _ = handler.on_tx_stem_v1(tx.tx_wire());
+    } else {
+        let tx = TxV1::decode_payload(payload)?;
+        let _ = handler.on_tx_v1(tx.tx_wire());
+    }
+    Ok(())
+}
+
 /// Read gossip frames until [`GossipEndV1`].
 pub fn recv_gossip_v1<R: Read>(
     r: &mut R,
@@ -165,12 +197,7 @@ pub fn recv_gossip_v1<R: Read>(
         }
         match payload[0] {
             tag if is_tx_gossip_tag(tag) => {
-                let tx_wire = if tag == crate::frame::TX_STEM_V1_TAG {
-                    TxStemV1::decode_payload(&payload)?.tx_wire().to_vec()
-                } else {
-                    TxV1::decode_payload(&payload)?.tx_wire().to_vec()
-                };
-                let _ = handler.on_tx_v1(&tx_wire);
+                deliver_tx_frame(handler, tag, &payload)?;
                 stats.tx_frames = stats.tx_frames.saturating_add(1);
             }
             0x07 => {
@@ -601,6 +628,41 @@ mod tests {
         let stats = recv_gossip_v1(&mut Cursor::new(wire), &handler).unwrap();
         assert_eq!(stats.tx_frames, 1);
         assert_eq!(handler.tx.lock().unwrap()[0], tx_wire);
+    }
+
+    #[test]
+    fn recv_gossip_keeps_stem_and_fluff_on_separate_hooks() {
+        let stem = vec![9u8, 9];
+        let fluff = vec![8u8, 8];
+        let mut wire = Vec::new();
+        send_tx_stem_v1(&mut wire, &stem).unwrap();
+        send_tx_v1(&mut wire, &fluff).unwrap();
+        send_gossip_end_v1(&mut wire).unwrap();
+        struct Split {
+            stem: std::sync::Mutex<Vec<Vec<u8>>>,
+            fluff: std::sync::Mutex<Vec<Vec<u8>>>,
+        }
+        impl GossipHandler for Split {
+            fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
+                self.fluff.lock().unwrap().push(tx_wire.to_vec());
+                "fluff".into()
+            }
+            fn on_tx_stem_v1(&self, tx_wire: &[u8]) -> String {
+                self.stem.lock().unwrap().push(tx_wire.to_vec());
+                "stem".into()
+            }
+            fn on_block_v1(&self, _: &[u8]) -> String {
+                "block".into()
+            }
+        }
+        let handler = Split {
+            stem: std::sync::Mutex::new(Vec::new()),
+            fluff: std::sync::Mutex::new(Vec::new()),
+        };
+        let stats = recv_gossip_v1(&mut Cursor::new(wire), &handler).unwrap();
+        assert_eq!(stats.tx_frames, 2);
+        assert_eq!(handler.stem.lock().unwrap().as_slice(), &[stem]);
+        assert_eq!(handler.fluff.lock().unwrap().as_slice(), &[fluff]);
     }
 
     #[test]

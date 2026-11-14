@@ -10,7 +10,7 @@ use crate::chunk_v1::CHUNK_V1_TAG;
 use crate::chunk_v2::CHUNK_V2_TAG;
 use crate::frame::{
     is_tx_gossip_tag, read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError,
-    TxStemV1, TxV1, MAX_FRAME_PAYLOAD_LEN, TX_STEM_V1_TAG,
+    MAX_FRAME_PAYLOAD_LEN, TX_STEM_V1_TAG,
 };
 use crate::fraud_proof_v1::{FraudProofV1, FRAUD_PROOF_V1_TAG};
 use crate::gossip::{
@@ -495,12 +495,7 @@ fn recv_gossip_v1_from_first<R: Read>(
     let mut handle_first = |payload: &[u8]| -> Result<(), GossipRecvError> {
         match payload[0] {
             tag if is_tx_gossip_tag(tag) => {
-                let tx_wire = if tag == TX_STEM_V1_TAG {
-                    TxStemV1::decode_payload(payload)?.tx_wire().to_vec()
-                } else {
-                    TxV1::decode_payload(payload)?.tx_wire().to_vec()
-                };
-                let _ = handler.on_tx_v1(&tx_wire);
+                crate::gossip::deliver_tx_frame(handler, tag, payload)?;
                 stats.tx_frames = stats.tx_frames.saturating_add(1);
             }
             0x07 => {

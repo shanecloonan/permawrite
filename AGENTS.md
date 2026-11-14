@@ -48,8 +48,9 @@ A **lane** is a standing role; an **agent** is whoever is currently working that
 | **5** | Privacy surface | Wallet/CLI/WASM ring defaults, privacy doc accuracy, no-silent-downgrade UX | M7.10 replication, GHA rehearsal | Privacy-doc accuracy vs shipped behavior |
 | **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` | Emission/treasury identity sims for every economics-touching unit |
 | **7** | Testnet launch | Internet-facing go-live ([`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md)), VPS runbook, `seed_nodes` publication, faucet/observer/front-end ops, launch ceremony | Protocol tests (4/6), CI/Nightly fixes (1), evidence tooling (2) | Launch-blocker honesty (never fake TL completion; `launch-go-no-go` gate) |
+| **8** | Network anonymity | `mfn-net` transport, Dandelion relay, peer admission, RPC exposure | Consensus rules, `validity_stark_*`, wallet ring policy, VPS/faucet | No clearnet leak and no origin-linked stem |
 
-Adding lanes 8+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
+Adding lanes 9+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
 
 ---
 
@@ -147,6 +148,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
+| **8** Anonymity | — | **D-1** Dandelion stem privacy (claim base `4aedafe9`): origin never fluffs; per-hop coin; stem wire stays stem | Onion-only advertise; inbound /16 cap | Seat D |
 
 ---
 
