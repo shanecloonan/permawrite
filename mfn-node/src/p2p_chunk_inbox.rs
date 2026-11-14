@@ -407,6 +407,7 @@ mod tests {
                 last_proven_height: 0,
                 last_proven_slot: 0,
                 pending_yield_ppb: 0,
+                anchor_slot: 0,
             },
         );
 
@@ -444,6 +445,7 @@ mod tests {
                 last_proven_height: 0,
                 last_proven_slot: 0,
                 pending_yield_ppb: 0,
+                anchor_slot: 0,
             },
         );
         assert!(

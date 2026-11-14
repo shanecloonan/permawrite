@@ -134,6 +134,12 @@ pub struct EndowmentParams {
     /// (**B-20**). Default `0`. Path A and the F-A genesis file leave this
     /// off. Must be 0 or 1. Does not rewrite the stored emission schedule.
     pub fee_runway_shift: u8,
+    /// When `1`, [`accrue_proof_reward`] credits
+    /// [`recommended_credited_slots`](crate::cold_proof::recommended_credited_slots)
+    /// (age-scaled, up to ~30 days) instead of the hot
+    /// `proof_reward_window_slots` cap. Default `0`. Path A and the F-A
+    /// file leave this off. Must be 0 or 1.
+    pub cold_proof_cadence: u8,
 }
 
 /// Canonical defaults.
@@ -154,6 +160,7 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     require_endowment_range_proof: 0,
     deflation_funded_drip: 0, // B-306 inert; Path A keeps fee+backstop payouts
     fee_runway_shift: 0,      // B-20 inert; Path A fee split stays 9000
+    cold_proof_cadence: 0,    // F-B inert; Path A credits the hot window only
 };
 
 /* ----------------------------------------------------------------------- *
@@ -236,6 +243,11 @@ pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentErr
     if p.fee_runway_shift > 1 {
         return Err(EndowmentError::InvalidFeeRunwayShift {
             got: p.fee_runway_shift,
+        });
+    }
+    if p.cold_proof_cadence > 1 {
+        return Err(EndowmentError::InvalidColdProofCadence {
+            got: p.cold_proof_cadence,
         });
     }
     Ok(())
@@ -656,6 +668,9 @@ pub struct AccrueArgs<'a> {
     pub last_proven_slot: u64,
     /// Current block's slot.
     pub current_slot: u64,
+    /// Slots since the commitment was anchored. Used only when
+    /// `params.cold_proof_cadence == 1`. `0` keeps the hot-window cap.
+    pub file_age_slots: u64,
     /// Endowment params (defaults to [`DEFAULT_ENDOWMENT_PARAMS`]).
     pub params: &'a EndowmentParams,
 }
@@ -702,7 +717,11 @@ pub fn accrue_proof_reward(args: AccrueArgs<'_>) -> Result<AccrueResult, Endowme
     }
     let required_e = required_endowment(args.size_bytes, args.replication, args.params)?;
     let elapsed_raw = args.current_slot - args.last_proven_slot;
-    let credited = elapsed_raw.min(args.params.proof_reward_window_slots);
+    let credited = if args.params.cold_proof_cadence == 1 {
+        crate::cold_proof::recommended_credited_slots(elapsed_raw, args.file_age_slots, args.params)
+    } else {
+        elapsed_raw.min(args.params.proof_reward_window_slots)
+    };
     let incoming_ppb = incoming_ppb_for_credited(credited, required_e, &args)?;
     let total_ppb = args
         .pending_ppb
@@ -905,6 +924,12 @@ pub enum EndowmentError {
         /// Caller-supplied flag.
         got: u8,
     },
+    /// `cold_proof_cadence` must be 0 or 1.
+    #[error("cold_proof_cadence must be 0 or 1, got {got}")]
+    InvalidColdProofCadence {
+        /// Caller-supplied flag.
+        got: u8,
+    },
     /// An intermediate `u128` product overflowed.
     #[error("u128 overflow in endowment math")]
     Overflow,
@@ -1092,6 +1117,7 @@ mod tests {
             last_proven_slot: 100,
             current_slot: 100,
             params: &p(),
+            file_age_slots: 0,
         })
         .unwrap();
         assert_eq!(res.payout, 0);
@@ -1109,9 +1135,43 @@ mod tests {
             last_proven_slot: 0,
             current_slot: elapsed,
             params: &p(),
+            file_age_slots: 0,
         })
         .unwrap();
         assert_eq!(res.credited_slots, p().proof_reward_window_slots);
+    }
+
+    #[test]
+    fn cold_cadence_credits_an_old_file_past_the_hot_window() {
+        let elapsed = 1_000_000u64;
+        let age = crate::cold_proof::RECOMMENDED_COLD_AGE_SLOTS;
+        let mut hot = p();
+        hot.deflation_funded_drip = 1;
+        let mut cold = hot;
+        cold.cold_proof_cadence = 1;
+        let run = |params: &EndowmentParams, age_slots: u64| {
+            accrue_proof_reward(AccrueArgs {
+                size_bytes: 1 << 30,
+                replication: 3,
+                pending_ppb: 0,
+                last_proven_slot: 0,
+                current_slot: elapsed,
+                file_age_slots: age_slots,
+                params,
+            })
+            .unwrap()
+        };
+        let hot_res = run(&hot, age);
+        let cold_res = run(&cold, age);
+        let young = run(&cold, 0);
+        assert_eq!(hot_res.credited_slots, hot.proof_reward_window_slots);
+        assert_eq!(
+            cold_res.credited_slots,
+            crate::cold_proof::RECOMMENDED_COLD_PROOF_MAX_INTERVAL_SLOTS
+        );
+        assert_eq!(young.credited_slots, cold.proof_reward_window_slots);
+        assert!(cold_res.payout > hot_res.payout);
+        assert_eq!(DEFAULT_ENDOWMENT_PARAMS.cold_proof_cadence, 0);
     }
 
     #[test]
@@ -1126,6 +1186,7 @@ mod tests {
             last_proven_slot: last,
             current_slot: now,
             params: &params,
+            file_age_slots: 0,
         };
         let r1 = accrue_proof_reward(args(0, 1, 0)).unwrap();
         let r2 = accrue_proof_reward(args(1, 2, r1.new_pending_ppb)).unwrap();
@@ -1146,6 +1207,7 @@ mod tests {
             last_proven_slot: 100,
             current_slot: 50,
             params: &p(),
+            file_age_slots: 0,
         })
         .unwrap();
         assert_eq!(res.payout, 0);
@@ -1191,6 +1253,7 @@ mod tests {
             last_proven_slot: 0,
             current_slot: p().proof_reward_window_slots,
             params: &p(),
+            file_age_slots: 0,
         })
         .unwrap();
         assert_eq!(res.payout, 0);
@@ -1229,6 +1292,7 @@ mod tests {
                 last_proven_slot: slot,
                 current_slot: next,
                 params: &drip,
+                file_age_slots: 0,
             })
             .unwrap();
             total_payout += res.payout;
@@ -1257,6 +1321,7 @@ mod tests {
             last_proven_slot: 0,
             current_slot: both.proof_reward_window_slots,
             params: &both,
+            file_age_slots: 0,
         })
         .unwrap();
         let mut yield_only = both;
@@ -1268,6 +1333,7 @@ mod tests {
             last_proven_slot: 0,
             current_slot: both.proof_reward_window_slots,
             params: &yield_only,
+            file_age_slots: 0,
         })
         .unwrap();
         assert_eq!(from_yield, control);
@@ -1415,6 +1481,7 @@ mod tests {
             last_proven_slot: 10,
             current_slot: 40,
             params: &params,
+            file_age_slots: 0,
         };
         let got = accrue_proof_reward(args).expect("accrue");
         assert!(got.new_pending_ppb < PPB);

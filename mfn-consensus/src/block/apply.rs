@@ -435,6 +435,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                         last_proven_height: block.header.height,
                         last_proven_slot: u64::from(block.header.slot),
                         pending_yield_ppb: 0,
+                        anchor_slot: u64::from(block.header.slot),
                     });
                     new_storages.push(sc.clone());
                 }
@@ -949,6 +950,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             last_proven_slot: baseline_slot,
             current_slot,
             params: &next.endowment_params,
+            file_age_slots: current_slot.saturating_sub(entry.anchor_slot),
         }) {
             Ok(payout_accrual) => {
                 if b3_operator_salted && commit_state_updated.contains(&proof.commit_hash) {
@@ -968,6 +970,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                             last_proven_slot: baseline_slot,
                             current_slot,
                             params: &next.endowment_params,
+                            file_age_slots: current_slot.saturating_sub(entry.anchor_slot),
                         }) {
                             Ok(a) => a,
                             Err(e) => {
@@ -989,6 +992,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                             last_proven_height: block.header.height,
                             last_proven_slot: current_slot,
                             pending_yield_ppb: state_accrual.new_pending_ppb,
+                            anchor_slot: entry.anchor_slot,
                         },
                     );
                     if b3_operator_salted {
@@ -1065,6 +1069,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 last_proven_slot: baseline_slot,
                 current_slot,
                 params: &next.endowment_params,
+                file_age_slots: current_slot.saturating_sub(entry.anchor_slot),
             }) {
                 Ok(payout_accrual) => {
                     if b3_operator_salted && commit_state_updated.contains(&proof.commit_hash) {
@@ -1082,6 +1087,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                                 last_proven_slot: baseline_slot,
                                 current_slot,
                                 params: &next.endowment_params,
+                                file_age_slots: current_slot.saturating_sub(entry.anchor_slot),
                             }) {
                                 Ok(a) => a,
                                 Err(e) => {
@@ -1103,6 +1109,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                                 last_proven_height: block.header.height,
                                 last_proven_slot: current_slot,
                                 pending_yield_ppb: state_accrual.new_pending_ppb,
+                                anchor_slot: entry.anchor_slot,
                             },
                         );
                         if b3_operator_salted {

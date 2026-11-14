@@ -165,6 +165,7 @@ pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState,
                 last_proven_height: 0,
                 last_proven_slot: 0,
                 pending_yield_ppb: 0,
+                anchor_slot: 0,
             },
         );
     }

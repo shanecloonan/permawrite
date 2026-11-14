@@ -1696,6 +1696,7 @@ fn ppb_bonus_increases_validator_coinbase_and_treasury_drain() {
         last_proven_slot: 0,
         current_slot: u64::from(slot),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue");
     assert!(
@@ -1781,6 +1782,7 @@ fn prefunded_treasury_fully_covers_ppb_storage_reward_without_backstop() {
         last_proven_slot: 0,
         current_slot: u64::from(slot),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue");
     assert!(
@@ -1947,6 +1949,7 @@ fn ppb_pending_carryover_pays_on_second_proof_block() {
         last_proven_slot: 0,
         current_slot: u64::from(slot1),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("probe accrual");
     assert_eq!(
@@ -1965,6 +1968,7 @@ fn ppb_pending_carryover_pays_on_second_proof_block() {
         last_proven_slot: 0,
         current_slot: u64::from(slot1),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue block 1");
     assert_eq!(
@@ -2015,6 +2019,7 @@ fn ppb_pending_carryover_pays_on_second_proof_block() {
         last_proven_slot: u64::from(slot1),
         current_slot: u64::from(slot2),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue block 2");
     assert!(
@@ -2535,6 +2540,7 @@ fn bond_liveness_fee_ppb_storage_proof_compose_in_treasury_closed_loop() {
         last_proven_slot: 0,
         current_slot: u64::from(slot),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue");
     assert!(
@@ -2658,6 +2664,7 @@ fn equivocation_bond_liveness_fee_ppb_and_storage_proof_compose_in_treasury_clos
         last_proven_slot: 0,
         current_slot: u64::from(slot),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue");
     assert!(

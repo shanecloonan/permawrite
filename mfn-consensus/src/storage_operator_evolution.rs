@@ -30,7 +30,14 @@ pub fn storage_audit_challenge_active(
     }
     let window = params.proof_reward_window_slots;
     storage.values().any(|e| {
-        e.commit.replication >= 1 && current_slot.saturating_sub(e.last_proven_slot) > window
+        if e.commit.replication < 1 {
+            return false;
+        }
+        if params.cold_proof_cadence == 1 {
+            let age = current_slot.saturating_sub(e.anchor_slot);
+            return mfn_storage::cold_proof_overdue(e.last_proven_slot, current_slot, age, params);
+        }
+        current_slot.saturating_sub(e.last_proven_slot) > window
     })
 }
 
@@ -121,6 +128,7 @@ mod tests {
                 last_proven_height: 0,
                 last_proven_slot: 0,
                 pending_yield_ppb: 0,
+                anchor_slot: 0,
             },
         );
         map
@@ -148,6 +156,28 @@ mod tests {
         params.operator_audit_missed_cap = 0;
         let storage = stale_storage();
         assert!(!storage_audit_challenge_active(&storage, 10_000, &params));
+    }
+
+    #[test]
+    fn cold_cadence_keeps_a_year_old_file_off_the_hot_window_alarm() {
+        let mut params = DEFAULT_ENDOWMENT_PARAMS;
+        params.operator_salted_challenges = 1;
+        params.operator_audit_missed_cap = 3;
+        let mut storage = stale_storage();
+        let now = mfn_storage::cold_proof::RECOMMENDED_COLD_AGE_SLOTS + 8_000;
+        for entry in storage.values_mut() {
+            entry.anchor_slot = 0;
+            entry.last_proven_slot = mfn_storage::cold_proof::RECOMMENDED_COLD_AGE_SLOTS;
+        }
+        assert!(
+            storage_audit_challenge_active(&storage, now, &params),
+            "Path A hot window still alarms an 8000-slot gap"
+        );
+        params.cold_proof_cadence = 1;
+        assert!(
+            !storage_audit_challenge_active(&storage, now, &params),
+            "a year-old file is not overdue until the cold interval"
+        );
     }
 
     #[test]

@@ -251,6 +251,7 @@ fn seed_ppb_pending_and_expected_payout(
         last_proven_slot: entry.last_proven_slot,
         current_slot: u64::from(slot),
         params: ep,
+        file_age_slots: 0,
     })
     .expect("accrue PPB payout");
     accrual.payout

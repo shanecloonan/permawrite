@@ -7,7 +7,8 @@
 //!
 //! This module names the missing **per-commitment** obligation: how long
 //! since the last proof is too long, given file age, and how a later bounty
-//! should escalate. Not read by `apply_block`.
+//! should escalate. `apply_block` reads the credit cap and the overdue
+//! predicate only when `EndowmentParams::cold_proof_cadence == 1`.
 
 use crate::endowment::EndowmentParams;
 

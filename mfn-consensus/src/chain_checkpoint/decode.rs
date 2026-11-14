@@ -86,6 +86,11 @@ fn decode_endowment_params(
         } else {
             0
         },
+        cold_proof_cadence: if checkpoint_version >= 15 {
+            read_u8(r, "endowment_params.cold_proof_cadence")?
+        } else {
+            0
+        },
     })
 }
 
@@ -103,6 +108,7 @@ fn decode_utxo_entry(r: &mut Reader<'_>, index: usize) -> Result<UtxoEntry, Chai
 fn decode_storage_entry(
     r: &mut Reader<'_>,
     index: usize,
+    checkpoint_version: u32,
 ) -> Result<StorageEntry, ChainCheckpointError> {
     // The inner storage-commitment codec enforces "no trailing bytes"
     // itself, so we hand it exactly the slice we framed on the encode
@@ -119,11 +125,17 @@ fn decode_storage_entry(
     let last_proven_height = read_u32(r, "storage[i].last_proven_height")?;
     let last_proven_slot = read_u64(r, "storage[i].last_proven_slot")?;
     let pending_yield_ppb = read_u128(r, "storage[i].pending_yield_ppb")?;
+    let anchor_slot = if checkpoint_version >= 15 {
+        read_u64(r, "storage[i].anchor_slot")?
+    } else {
+        last_proven_slot
+    };
     Ok(StorageEntry {
         commit,
         last_proven_height,
         last_proven_slot,
         pending_yield_ppb,
+        anchor_slot,
     })
 }
 
@@ -466,7 +478,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
             }
         }
         prev_storage_key = Some(key);
-        let entry = decode_storage_entry(&mut r, i)?;
+        let entry = decode_storage_entry(&mut r, i, version)?;
         storage.insert(key, entry);
     }
 

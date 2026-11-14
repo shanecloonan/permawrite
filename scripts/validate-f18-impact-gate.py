@@ -71,6 +71,8 @@ def genesis_problems() -> list[str]:
         problems.append("Path A min_storage_operator_bond must stay 0")
     if a_en.get("fee_runway_shift", 0) != 0:
         problems.append("Path A fee_runway_shift must stay 0")
+    if a_en.get("cold_proof_cadence", 0) != 0:
+        problems.append("Path A cold_proof_cadence must stay 0")
 
     f_em = path_fa.get("emission") or {}
     f_en = path_fa.get("endowment") or {}
@@ -84,6 +86,8 @@ def genesis_problems() -> list[str]:
         problems.append("F-A min_storage_operator_bond must stay 25769800")
     if f_en.get("fee_runway_shift", 0) != 0:
         problems.append("F-A fee_runway_shift must stay off (B-20 is a separate gate)")
+    if f_en.get("cold_proof_cadence", 0) != 0:
+        problems.append("F-A cold_proof_cadence must stay off")
     if f_em.get("fee_to_treasury_bps", 9000) != 9000:
         problems.append("F-A fee_to_treasury_bps must stay 9000")
     return problems

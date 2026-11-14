@@ -57,6 +57,9 @@ pub(crate) fn encode_endowment_params(
     if checkpoint_version >= 14 {
         w.u8(p.fee_runway_shift);
     }
+    if checkpoint_version >= 15 {
+        w.u8(p.cold_proof_cadence);
+    }
 }
 
 pub(crate) fn encode_fee_shift_window(w: &mut Writer, window: &crate::emission::FeeShiftWindow) {
@@ -88,13 +91,16 @@ fn encode_storage_operator_stats(w: &mut Writer, s: &crate::block::StorageOperat
     w.u32(s.last_audit_height);
 }
 
-fn encode_storage_entry(w: &mut Writer, e: &StorageEntry) {
+fn encode_storage_entry(w: &mut Writer, e: &StorageEntry, checkpoint_version: u32) {
     let commit_bytes = encode_storage_commitment(&e.commit);
     w.varint(commit_bytes.len() as u64);
     w.push(&commit_bytes);
     w.u32(e.last_proven_height);
     w.u64(e.last_proven_slot);
     encode_u128(w, e.pending_yield_ppb);
+    if checkpoint_version >= 15 {
+        w.u64(e.anchor_slot);
+    }
 }
 
 fn encode_authorship_claim_record(w: &mut Writer, rec: &AuthorshipClaimRecord) {
@@ -222,7 +228,7 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
     w.varint(storage_keys.len() as u64);
     for k in storage_keys {
         w.push(k);
-        encode_storage_entry(&mut w, &parts.state.storage[k]);
+        encode_storage_entry(&mut w, &parts.state.storage[k], CHAIN_CHECKPOINT_VERSION);
     }
 
     if CHAIN_CHECKPOINT_VERSION >= 6 {

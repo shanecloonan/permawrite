@@ -309,6 +309,7 @@ pub fn storage_proof_operator_settlements(
             last_proven_slot: baseline_slot,
             current_slot,
             params: endowment_params,
+            file_age_slots: current_slot.saturating_sub(entry.anchor_slot),
         }) {
             settlements.push((proof.clone(), accrual.payout));
         }

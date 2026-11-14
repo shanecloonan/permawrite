@@ -362,6 +362,7 @@ mod apply_rules_tests {
                 last_proven_height: 1,
                 last_proven_slot: 1,
                 pending_yield_ppb: 0,
+                anchor_slot: 0,
             },
         );
         assert!(check_claim_storage_binding(&claim2, &storage));

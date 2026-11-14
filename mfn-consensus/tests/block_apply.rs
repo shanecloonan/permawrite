@@ -1626,6 +1626,7 @@ fn accepted_storage_proof_updates_provenance_and_treasury() {
         last_proven_slot: 0,
         current_slot: u64::from(slot),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue");
     assert!(
@@ -1692,6 +1693,7 @@ fn storage_proof_accrual_respects_proof_reward_window_at_apply_block() {
         last_proven_slot: 0,
         current_slot: u64::from(slot),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue");
     assert_eq!(
@@ -1827,6 +1829,7 @@ fn dual_distinct_storage_proofs_positive_yield_accrues_both_entries() {
         last_proven_slot: 0,
         current_slot: u64::from(slot),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue a");
     let accrual_b = accrue_proof_reward(AccrueArgs {
@@ -1836,6 +1839,7 @@ fn dual_distinct_storage_proofs_positive_yield_accrues_both_entries() {
         last_proven_slot: 0,
         current_slot: u64::from(slot),
         params: &ep,
+        file_age_slots: 0,
     })
     .expect("accrue b");
     assert!(

@@ -71,6 +71,10 @@ pub struct StorageEntry {
     /// per-slot yield across proofs so even commitments whose per-slot
     /// payout is `<< 1` base unit eventually earn integer base units.
     pub pending_yield_ppb: u128,
+    /// Slot when this commitment was anchored. File age for the cold-proof
+    /// cadence is `current_slot - anchor_slot`. Ignored while
+    /// `cold_proof_cadence == 0`.
+    pub anchor_slot: u64,
 }
 
 /// Registered storage-operator record (B3 phase 3). Keyed by

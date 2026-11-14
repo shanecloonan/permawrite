@@ -19,11 +19,11 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat A permanence gates (B-23, B-20, B-44, B-24). **F5 1c+**, **B-19**, **B-35**, and **B-316** are on main. Path A and F-A genesis files unchanged.
+Synced at Seat A cold-proof cadence gate (default 0). Prior: B-23, B-20, B-44, B-24. **F5 1c+** is on main.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **A** Permanence sims | B-23 F18 gate; B-20 fee shift behind `fee_runway_shift=0`; B-44 lottery on the F-A bundle only; B-24 settlement proptest (this commit) | *Idle* | Replica seals and retrieval slash still unwired. No B-13c; no DEFAULT flip |
+| **A** Permanence sims | Cold-proof cadence gate (this commit, default 0). Prior: B-23, B-20, B-44, B-24 | *Idle* | Replica seals and retrieval slash still unwired. No B-13c; no DEFAULT flip |
 | **B** Protocol/Privacy | **F5 1c+** slash drops pending unbond; **B-19**; **B-35** header v4 | *Idle* | **B-17** ASN peer buckets. No B-13c; no DEFAULT flip |
 | **C** Validity proofs | **B-316** Winterfell emission + coinbase-split leaves (on main) | *Idle* | STARK-friendly Merkle leaf, then **B-12** on Plonky3 |
 
@@ -57,7 +57,7 @@ L4 public testnet harden
 ## Chat announcement (copy)
 
 ```text
-3agent — Seat A: Done B-23 F18 gate, B-20 fee-shift gate, B-44 F-A lottery, B-24 settlement proptest / Doing idle / Next replica seals and retrieval slash (no B-13c)
+3agent — Seat A: Done cold-proof cadence gate (default off) / Doing idle / Next replica seals and retrieval slash (no B-13c)
 3agent — Seat B: Done F5 1c+ slash drops the bond-registry exit / Doing idle / Next B-17 ASN peer buckets (no B-13c, no DEFAULT flip)
 3agent — Seat C: Done B-316 Winterfell emission + coinbase-split leaves / Doing idle / Next Merkle leaf, then B-12 on Plonky3
 (AGENTS.md §5 remains the claim surface)

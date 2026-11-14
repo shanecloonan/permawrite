@@ -323,6 +323,7 @@ fn rich_state() -> ChainState {
                 last_proven_height: 100 + seed as u32,
                 last_proven_slot: 1_000 + seed as u64,
                 pending_yield_ppb: 1234 * (seed as u128 + 1),
+                anchor_slot: 0,
             },
         );
     }

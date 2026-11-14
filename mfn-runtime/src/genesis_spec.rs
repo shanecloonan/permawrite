@@ -298,6 +298,8 @@ struct EndowmentSection {
     deflation_funded_drip: Option<u8>,
     /// B-20 fee-runway shift. Default `0`. Path A and F-A files leave it off.
     fee_runway_shift: Option<u8>,
+    /// F-B cold-proof credit. Default `0`. Path A and F-A files leave it off.
+    cold_proof_cadence: Option<u8>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -431,6 +433,7 @@ fn merge_endowment(base: EndowmentParams, file: Option<EndowmentSection>) -> End
             .deflation_funded_drip
             .unwrap_or(base.deflation_funded_drip),
         fee_runway_shift: e.fee_runway_shift.unwrap_or(base.fee_runway_shift),
+        cold_proof_cadence: e.cold_proof_cadence.unwrap_or(base.cold_proof_cadence),
     }
 }
 
@@ -1015,6 +1018,10 @@ mod tests {
             cfg.endowment_params.fee_runway_shift, 0,
             "B-20 fee shift stays off on Path A genesis"
         );
+        assert_eq!(
+            cfg.endowment_params.cold_proof_cadence, 0,
+            "cold-proof cadence stays off on Path A genesis"
+        );
         assert!(
             !mfn_consensus::spora_inclusion::fa_spora_lottery_armed(
                 &cfg.emission_params,
@@ -1084,6 +1091,7 @@ mod tests {
         assert_eq!(state.emission_params.subsidy_to_treasury_bps, 1000);
         assert_eq!(state.endowment_params.deflation_funded_drip, 1);
         assert_eq!(state.endowment_params.fee_runway_shift, 0);
+        assert_eq!(state.endowment_params.cold_proof_cadence, 0);
         assert_eq!(state.endowment_params.min_storage_operator_bond, bond);
         assert!(
             mfn_consensus::spora_inclusion::fa_spora_lottery_armed(
