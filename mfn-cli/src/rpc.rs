@@ -735,6 +735,7 @@ impl RpcClient {
                 kind: P2pTransportKind::Tor,
                 tor_socks5: proxy.clone(),
                 onion_only: false,
+                overlay_only: false,
             };
             return cfg.connect_peer(&self.addr).map_err(RpcError::Io);
         }

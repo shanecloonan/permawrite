@@ -9,6 +9,7 @@ use std::thread;
 use std::time::Instant;
 
 use crate::gossip::send_p2p_advertise_v1;
+use crate::peer_admission::{InboundAdmission, InboundAdmissionGuard};
 use crate::{
     exchange_chain_tip_v1_as_listener, exchange_goodbye_v1_as_listener, hello_v1_handshake,
     pull_blocks_to_tip, recv_ping_send_pong, serve_post_handshake_v1,
@@ -732,6 +733,11 @@ fn recv_post_handshake(
         hid,
         peer: peer.to_string(),
     };
+    if crate::peer_exchange::asking() {
+        if let Err(e) = crate::peer_exchange::send_getaddr(sock) {
+            eprintln!("mfnd_p2p_getaddr_abort peer={peer} {e}");
+        }
+    }
     loop {
         let gossip_stats = match serve_post_handshake_v1(
             sock,
@@ -805,6 +811,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
     } = cfg;
     let local_p2p_listen = listener.local_addr().ok();
     let inbound_in_flight = Arc::new(AtomicUsize::new(0));
+    let inbound_admission = Arc::new(Mutex::new(InboundAdmission::default()));
     thread::Builder::new()
         .name("mfnd-p2p".into())
         .spawn(move || loop {
@@ -815,7 +822,28 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                     continue;
                 }
             };
+            let permit = match inbound_admission.lock() {
+                Ok(mut admission) => match admission.try_acquire(&peer.to_string()) {
+                    Ok(permit) => permit,
+                    Err(reason) => {
+                        eprintln!("mfnd_p2p_inbound_subnet_cap peer={peer} {reason}");
+                        let _ = sock.shutdown(std::net::Shutdown::Both);
+                        drop(sock);
+                        continue;
+                    }
+                },
+                Err(_) => {
+                    eprintln!("mfnd_p2p_inbound_admission_poisoned peer={peer}");
+                    let _ = sock.shutdown(std::net::Shutdown::Both);
+                    drop(sock);
+                    continue;
+                }
+            };
             if !try_acquire_inbound_handler_slot(&inbound_in_flight) {
+                drop(InboundAdmissionGuard::new(
+                    Arc::clone(&inbound_admission),
+                    permit,
+                ));
                 eprintln!(
                     "mfnd_p2p_inbound_cap_reached peer={peer} cap={P2P_MAX_INBOUND_HANDLERS}"
                 );
@@ -825,6 +853,8 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
             }
             let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
             let slot_counter = Arc::clone(&inbound_in_flight);
+            let admit_guard =
+                InboundAdmissionGuard::new(Arc::clone(&inbound_admission), permit);
             let tip_cell = Arc::clone(&tip_cell);
             let hid_counter = Arc::clone(&hid_counter);
             let gossip = gossip.clone();
@@ -838,6 +868,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                 .name(format!("mfnd-p2p-in-{hid}"))
                 .spawn(move || {
                     let _slot = InboundHandlerSlot(&slot_counter);
+                    let _admit = admit_guard;
                     let mut sock = sock;
                     let t0 = Instant::now();
                     let _ = sock.set_read_timeout(Some(P2P_INBOUND_HELLO_IO_TIMEOUT));
