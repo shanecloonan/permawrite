@@ -163,7 +163,9 @@ pub use consensus::{
     ConsensusError, FinalityProof, ProducerProof, SlotContext, ValidatorSecrets,
 };
 pub use consensus::{
-    validator_leaf_bytes, validator_leaf_hash, validator_set_root, Validator, ValidatorPayout,
+    lock_on_polka, lock_rule_active, may_vote_locked, second_finalization_conflicts,
+    validator_leaf_bytes, validator_leaf_hash, validator_set_root, HeightLock, Polka, Validator,
+    ValidatorPayout, HEADER_VERSION_LOCK_RULE,
 };
 pub use constitution::{validate_constitution, ConstitutionError, CONSTITUTIONAL_MIN_RING_SIZE};
 pub use emission::{

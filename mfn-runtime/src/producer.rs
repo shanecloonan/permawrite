@@ -38,9 +38,10 @@
 
 use mfn_consensus::{
     build_unsealed_header_storage_ops, cast_vote, encode_finality_proof, finalize,
-    header_signing_hash, seal_block_storage_ops, try_produce_slot, Block, BlockHeader, BondOp,
-    ConsensusError, ConsensusParams, FinalityProof, ProducerProof, SlashEvidence, SlotContext,
-    TransactionWire, Validator, ValidatorSecrets,
+    header_signing_hash, may_vote_locked, seal_block_storage_ops, try_produce_slot, Block,
+    BlockHeader, BondOp, ConsensusError, ConsensusParams, FinalityProof, HeightLock, Polka,
+    ProducerProof, SlashEvidence, SlotContext, TransactionWire, Validator, ValidatorSecrets,
+    HEADER_VERSION_LOCK_RULE,
 };
 use mfn_storage::StorageProof;
 
@@ -153,6 +154,56 @@ pub enum ProducerError {
     /// — typically caused by a malformed vote or an empty vote list.
     #[error("BLS aggregation failed: {0}")]
     Aggregation(String),
+
+    /// Header version requires a lock context. Call
+    /// [`vote_on_proposal_locked`] instead of [`vote_on_proposal`].
+    #[error("header version {HEADER_VERSION_LOCK_RULE} requires vote_on_proposal_locked")]
+    LockRuleRequired,
+
+    /// The validator is locked on a different block and has no later polka
+    /// for this one.
+    #[error("locked on another block at round {locked_round:?}; refusing round {round}")]
+    LockedOnOtherBlock {
+        /// Round of the vote being refused.
+        round: u32,
+        /// Round of the lock, when there is one.
+        locked_round: Option<u32>,
+    },
+}
+
+/// Lock inputs for [`vote_on_proposal_locked`].
+pub struct VoteLockContext<'a> {
+    /// This validator's lock at the height being voted.
+    pub lock: &'a HeightLock,
+    /// Round of the vote.
+    pub round: u32,
+    /// A polka that may unlock a different block. `None` keeps the lock.
+    pub newer_polka: Option<&'a Polka>,
+}
+
+/// Decide whether a vote is allowed before any signature is made.
+///
+/// `with_lock_context` is false for [`vote_on_proposal`]. At
+/// [`HEADER_VERSION_LOCK_RULE`] that entry point refuses, so a locked
+/// height cannot be voted through the old one-round helper.
+pub fn locked_vote_gate(
+    header_version: u32,
+    lock: &HeightLock,
+    round: u32,
+    block_hash: &[u8; 32],
+    newer_polka: Option<&Polka>,
+    with_lock_context: bool,
+) -> Result<(), ProducerError> {
+    if header_version >= HEADER_VERSION_LOCK_RULE && !with_lock_context {
+        return Err(ProducerError::LockRuleRequired);
+    }
+    if !may_vote_locked(header_version, lock, round, block_hash, newer_polka) {
+        return Err(ProducerError::LockedOnOtherBlock {
+            round,
+            locked_round: lock.round,
+        });
+    }
+    Ok(())
 }
 
 /* ----------------------------------------------------------------------- *
@@ -246,6 +297,50 @@ pub fn build_proposal(
 /// only fires for malformed inputs (the consensus layer doesn't
 /// distinguish "you didn't sign" from "the signature is bad").
 pub fn vote_on_proposal(
+    proposal: &BlockProposal,
+    state: &mfn_consensus::ChainState,
+    voter: &Validator,
+    voter_secrets: &ValidatorSecrets,
+    producer: &Validator,
+    params: ConsensusParams,
+) -> Result<mfn_bls::CommitteeVote, ProducerError> {
+    locked_vote_gate(
+        proposal.unsealed_header.version,
+        &HeightLock::default(),
+        0,
+        &proposal.header_hash,
+        None,
+        false,
+    )?;
+    cast_proposal_vote(proposal, state, voter, voter_secrets, producer, params)
+}
+
+/// Cast a vote that carries this validator's height lock.
+///
+/// Below [`HEADER_VERSION_LOCK_RULE`] the lock is ignored. At that
+/// version and above, a locked validator signs only its locked block
+/// unless `newer_polka` names this proposal's hash from a later round.
+pub fn vote_on_proposal_locked(
+    proposal: &BlockProposal,
+    state: &mfn_consensus::ChainState,
+    voter: &Validator,
+    voter_secrets: &ValidatorSecrets,
+    producer: &Validator,
+    params: ConsensusParams,
+    vote_lock: &VoteLockContext<'_>,
+) -> Result<mfn_bls::CommitteeVote, ProducerError> {
+    locked_vote_gate(
+        proposal.unsealed_header.version,
+        vote_lock.lock,
+        vote_lock.round,
+        &proposal.header_hash,
+        vote_lock.newer_polka,
+        true,
+    )?;
+    cast_proposal_vote(proposal, state, voter, voter_secrets, producer, params)
+}
+
+fn cast_proposal_vote(
     proposal: &BlockProposal,
     state: &mfn_consensus::ChainState,
     voter: &Validator,
@@ -354,9 +449,9 @@ mod tests {
     use crate::{Chain, ChainConfig};
     use mfn_bls::bls_keygen_from_seed;
     use mfn_consensus::{
-        build_coinbase, emission_at_height, ConsensusParams, GenesisConfig, PayoutAddress,
-        Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
-        TEST_CONSENSUS_PARAMS,
+        build_coinbase, emission_at_height, ConsensusParams, GenesisConfig, HeightLock,
+        PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+        HEADER_VERSION_LOCK_RULE, TEST_CONSENSUS_PARAMS,
     };
     use mfn_crypto::stealth::stealth_gen;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -524,5 +619,23 @@ mod tests {
             mfn_consensus::block_id(&staged_block.header),
             "staged and solo paths must produce the same block id"
         );
+    }
+
+    #[test]
+    fn current_genesis_ignores_the_lock_and_the_gated_version_requires_it() {
+        let other = [9u8; 32];
+        let lock = HeightLock {
+            round: Some(1),
+            block_hash: Some([1u8; 32]),
+        };
+        assert!(locked_vote_gate(1, &lock, 2, &other, None, false).is_ok());
+        assert!(matches!(
+            locked_vote_gate(HEADER_VERSION_LOCK_RULE, &lock, 2, &other, None, false),
+            Err(ProducerError::LockRuleRequired)
+        ));
+        assert!(matches!(
+            locked_vote_gate(HEADER_VERSION_LOCK_RULE, &lock, 2, &other, None, true),
+            Err(ProducerError::LockedOnOtherBlock { round: 2, .. })
+        ));
     }
 }

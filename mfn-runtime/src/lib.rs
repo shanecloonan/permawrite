@@ -61,8 +61,8 @@ pub use mempool_snapshot::{
     MEMPOOL_SNAPSHOT_VERSION,
 };
 pub use producer::{
-    build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs,
-    BlockProposal, ProducerError,
+    build_proposal, locked_vote_gate, produce_solo_block, seal_proposal, vote_on_proposal,
+    vote_on_proposal_locked, BlockInputs, BlockProposal, ProducerError, VoteLockContext,
 };
 pub use proof_pool::{ProofAdmitError, ProofAdmitOutcome, ProofPool, ProofPoolConfig};
 pub use proof_pool_snapshot::{
