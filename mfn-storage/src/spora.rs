@@ -392,6 +392,10 @@ pub fn decode_merkle_proof_reader(r: &mut Reader<'_>) -> Result<MerkleProof, Spo
     let index = r.varint().map_err(SporaError::Codec)?;
     let n = r.varint().map_err(SporaError::Codec)?;
     let n_usize: usize = usize::try_from(n).map_err(|_| SporaError::TooManyChunks)?;
+    let need = n_usize.checked_mul(33).ok_or(SporaError::TooManyChunks)?;
+    if need > r.remaining() {
+        return Err(SporaError::TooManyChunks);
+    }
     let mut siblings: Vec<[u8; 32]> = Vec::with_capacity(n_usize);
     let mut right_side: Vec<bool> = Vec::with_capacity(n_usize);
     for _ in 0..n_usize {
