@@ -226,6 +226,7 @@ wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
                          options: --replication N --fee N --anchor-value N --ring-size N (default 16, wallet/consensus floor)\n\
                          --anchor-view HEX --anchor-spend HEX --extra HEX --sharded\n\
                          --message TEXT | --message-hex HEX (MFCL claim bound to upload)\n\
+                         --plaintext   upload the file without the seed-derived encryption\n\
                          --json\n\
        wallet claim DATA_ROOT_HEX         disabled - use wallet upload --message (bound claims only)\n\
                          options: --message TEXT | --message-hex HEX --commit-hash HEX\n\
@@ -396,6 +397,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             || a == "--json"
             || a == "--direct"
             || a == "--sharded"
+            || a == "--plaintext"
         {
             positional.push(a);
             i += 1;
@@ -1771,6 +1773,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
     let mut message: Option<Vec<u8>> = None;
     let mut json = false;
     let mut sharded = false;
+    let mut plaintext = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < rest.len() {
@@ -1782,6 +1785,11 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
         }
         if a == "--sharded" {
             sharded = true;
+            i += 1;
+            continue;
+        }
+        if a == "--plaintext" {
+            plaintext = true;
             i += 1;
             continue;
         }
@@ -1919,6 +1927,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
         message,
         json,
         sharded,
+        plaintext,
     })
 }
 
