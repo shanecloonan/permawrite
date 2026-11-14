@@ -330,4 +330,9 @@ fn reference_frontends_wire_production_tx_rng_not_seeded_rng() {
             "{label}: use production_tx_rng alias, not mfn_crypto::crypto_random directly"
         );
     }
+    let wasm_manifest = include_str!("../../mfn-wasm/Cargo.toml");
+    assert!(
+        wasm_manifest.contains("getrandom") && wasm_manifest.contains("[\"js\"]"),
+        "wasm decoy entropy must be getrandom/js (crypto.getRandomValues)"
+    );
 }

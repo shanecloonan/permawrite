@@ -134,15 +134,15 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** B-35 input-count buckets behind header v4 (this commit). Path A and F-A genesis files and `DEFAULT_*` unchanged. Prior head **B-18** `69957f57`. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** B-19 decoy-RNG entropy contract (this commit). Path A and F-A genesis files and `DEFAULT_*` unchanged. Prior head **B-35** `e6aacfd1`. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-35** input-count buckets at header v4 (this commit); **B-18** (`69957f57`) | *Idle* — slash matrix frozen | **B-19** decoy-RNG entropy contract. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
-| **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
+| **4** Protocol | **B-35** input-count buckets at header v4 (`e6aacfd1`); **B-18** (`69957f57`) | *Idle* — slash matrix frozen | **F5 1c+** slash clears the bond registry. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **5** Privacy | **B-19** decoy-RNG contract (this commit); **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | **B-37** hidden fees, version-gated, after the Tier 2 gate | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 
@@ -225,7 +225,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | **Landed** (this commit) — golden `(pk, H, β, π)` pin; no Elligator2 fork |
-| B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy; after L4 + B-25 unless waived |
+| B-19 | F9: decoy-RNG entropy contract + tests | 5 | **Landed** (this commit) — [`docs/DECOY_RNG.md`](docs/DECOY_RNG.md); no consensus change |
 | B-20 | F6: producer↔treasury runway fee-shift policy | 6 | **B-309** helper landed; arm after B-13c + B-25; Path A stays 9000 |
 | B-21 | B7 Dandelion++ internet soak evidence | 1 | Unblocks P16; after L4 |
 | B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** - tip **4262** Path A (entries=11); seed offline on VPS only |
@@ -525,6 +525,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane 5 - B-19 decoy-RNG entropy contract** (this commit): `production_decoy_rng` ignores the wallet seed; `seeded_rng` remains test mode and repeats indices. `crypto_random` logs once and panics if the OS CSPRNG fails (no seed fallback). WASM keeps `getrandom` `js` (`getRandomValues`). `b19_same_wallet_seed_does_not_fix_production_decoys` PASS. No consensus change. No B-13c; no DEFAULT flip. Next: **F5 1c+**. *Observed (not staged):* none.
 
 1. **2026-11-14 - lane 4 - B-35 input-count buckets** (this commit): `verify_transaction` rejects input counts that are not a power of two (2, 4, 8, …) when `header_version >= HEADER_VERSION_INPUT_PAD` (4). `apply_block` and mempool pass `ring_policy_for_header`. Header v1 (Path A) and F-A still accept a 3-input spend. `b35_input_buckets_follow_header_version_and_reject_three` PASS. No B-13c; no DEFAULT flip; slash matrix frozen. Wallet floor stays 2. Next: **B-19**. *Observed (not staged):* none.
 
