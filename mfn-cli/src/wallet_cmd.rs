@@ -1241,6 +1241,16 @@ mod tests {
         );
     }
 
+    #[test]
+    fn map_wallet_build_err_rewrites_input_count_not_bucket() {
+        let err = map_wallet_build_err(WalletError::TxInputCountNotBucket { got: 3, pad_to: 4 });
+        let msg = err.to_string();
+        assert!(
+            msg.contains("padded to 4") && msg.contains("power-of-two"),
+            "expected bucket message, got {msg}"
+        );
+    }
+
     /// B-217: wallet-layer ring-floor rejects rewrite to the CLI refuse wording.
     #[test]
     fn map_wallet_build_err_rewrites_ring_size_below_minimum() {
