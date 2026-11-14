@@ -148,7 +148,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
-| **8** Storage (Seat E) | **E-18** payload reload (parent) | **E-19** auto-stripe at header v9 (this commit) | Retrieve key from the wallet seed. No VPS | stripe gate test |
+| **8** Storage (Seat E) | **E-19** auto-stripe (parent) | **E-20** retrieve key from the wallet seed (this commit) | No VPS | seed retrieve test |
 
 ---
 
@@ -533,7 +533,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 8 / Seat E - E-19 auto-stripe** (this commit): `wallet upload` stripes when the chain `header_version` is 9 or higher, and also when `--sharded` is set. Header version 1 (Path A) stays a size bucket unless the flag is passed. Version 8 is still left for Seat B.
+1. **2026-11-14 - lane 8 / Seat E - E-20 retrieve from the wallet seed** (this commit): `uploads get` decrypts with `--key` when given, otherwise `upload.key`, otherwise `upload_key_from_seed` of the wallet seed. Deleting `upload.key` still opens the file. The 24-word phrase restores that seed. Path A unchanged.
+
+1. **2026-11-14 - lane 8 / Seat E - E-19 auto-stripe** (parent): `wallet upload` stripes when the chain `header_version` is 9 or higher, and also when `--sharded` is set. Header version 1 (Path A) stays a size bucket unless the flag is passed. Version 8 is still left for Seat B.
 
 1. **2026-11-14 - lane 8 / Seat E - E-18 shard payload reload** (parent): `load_upload_artifact` rebuilds `payload.bin` from any four `shard-NN.bin` files when the payload file is missing. The prove loop loads artifacts through that function, so a proof can still be built. Path A unchanged.
 
