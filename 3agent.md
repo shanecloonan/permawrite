@@ -14,7 +14,9 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | **A** RC/CI | CI, Nightly, board integrity | Lanes 1–2 | **B-296**, protocol tests |
 | **B** Protocol/Privacy | Consensus / privacy / economics | Lanes 4–5–6 | **B-296**, Nightly cancel, VPS/faucet |
 | **C** Validity proofs | F5 phase 4 / B-12 / B-39 (research) | `validity_stark_*`, FRAUD_PROOFS phase 4 | VPS, faucet, Seat A economics, Seat B privacy/slash |
+| **D** Network anonymity | Transport, Dandelion, eclipse/DoS, RPC exposure | Lane 8: `mfn-net`, node P2P, RPC bind | Consensus, `validity_stark_*`, wallet rings, VPS/faucet |
 | **F** Ease of use | Wallet, CLI, WASM, frontend for ordinary people | User flows in `mfn-wallet`, `mfn-cli`, `mfn-wasm`, `testnet-frontend` | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet |
+| **G** Security hardening | Hostile input must not crash, stall, or fork the node | Fuzz, resource limits, adversarial tests, minimal decode fixes | Other seats' features, VPS/faucet, header-version flips |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
@@ -27,7 +29,9 @@ Synced at Seat C **B-12** Plonky3 aggregate (off consensus; not an inner verifie
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (this commit); **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
+| **D** Network anonymity | — | **D-1** Dandelion stem privacy (claim base `4aedafe9`) | Onion advertise; inbound subnet cap |
 | **F** Ease of use | **F-8** browser file backup card | *Idle* | **F-9** `wallet ready` checklist |
+| **G** Security | **G-1** codec count cap | *Idle* | **G-2** checkpoint length caps |
 
 ### Hard locks (all seats)
 
