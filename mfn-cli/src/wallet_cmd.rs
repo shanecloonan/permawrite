@@ -193,6 +193,44 @@ struct SendOutcome<'a> {
     owned_count_after_send: usize,
 }
 
+/// `wallet lock` — seal the seed with `MFN_WALLET_PASSPHRASE`.
+pub fn wallet_lock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if file.is_locked() {
+        return Err(WalletCmdError::Usage(
+            "wallet is already locked. The same passphrase still opens it".into(),
+        ));
+    }
+    let pass = crate::wallet_lock::passphrase_from_env()
+        .map_err(|e| WalletCmdError::Usage(e.to_string()))?;
+    file.lock_passphrase = Some(pass);
+    file.save(path)?;
+    println!("wallet_locked=true");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is sealed. Keep MFN_WALLET_PASSPHRASE somewhere safe. It is not in the wallet file. Losing it loses the money"
+    );
+    Ok(())
+}
+
+/// `wallet unlock` — write the seed in plaintext again.
+pub fn wallet_unlock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if !file.is_locked() {
+        return Err(WalletCmdError::Usage(
+            "wallet is not locked, so there is nothing to unlock".into(),
+        ));
+    }
+    file.unlock_in_memory();
+    file.save(path)?;
+    println!("wallet_locked=false");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is plaintext in the wallet file again. Anyone who can read the file can spend"
+    );
+    Ok(())
+}
+
 /// `wallet new` — generate seed and write wallet file.
 pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     if path.exists() && !force {
