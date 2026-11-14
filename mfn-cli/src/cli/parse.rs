@@ -150,6 +150,8 @@ pub(crate) enum WalletSub {
         key_derivation: KeyDerivation,
     },
     Address,
+    /// Local checklist. No node.
+    Ready,
     Scan(WalletScanParams),
     LightScan(LightScanParams),
     Balance(WalletScanParams),
@@ -203,6 +205,7 @@ pub(super) fn usage() -> &'static str {
        wallet restore SEED_HEX  restore wallet.json from a 32-byte seed\n\
                          options: --key-derivation mfn_wallet_v1|payout_stealth_v1\n\
        wallet address    print view/spend public keys from wallet file\n\
+       wallet ready      local checklist: what to do next (no node)\n\
        wallet scan       scan full blocks from node tip (get_block)\n\
                          options: --json\n\
        wallet light-scan verify headers + evolution, scan txs only (**M3.11**)\n\
@@ -1164,7 +1167,7 @@ pub(super) fn parse_wallet_cmd(
         "balance" => WalletSub::Balance(parse_wallet_scan_args(&rest[1..], "balance")?),
         "status" => WalletSub::Status(parse_wallet_status_args(&rest[1..])?),
         "backup-info" => WalletSub::BackupInfo(parse_wallet_backup_info_args(&rest[1..])?),
-        "new" | "address" | "lock" | "unlock" => {
+        "new" | "address" | "ready" | "lock" | "unlock" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
                     "wallet {sub_name} takes no extra arguments\n{}",
@@ -1174,6 +1177,7 @@ pub(super) fn parse_wallet_cmd(
             match *sub_name {
                 "new" => WalletSub::New,
                 "address" => WalletSub::Address,
+                "ready" => WalletSub::Ready,
                 "lock" => WalletSub::Lock,
                 "unlock" => WalletSub::Unlock,
                 _ => unreachable!(),

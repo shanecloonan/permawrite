@@ -193,6 +193,69 @@ struct SendOutcome<'a> {
     owned_count_after_send: usize,
 }
 
+/// Facts `wallet ready` can see without talking to a node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReadyFacts {
+    /// A scan height is saved.
+    pub has_scan: bool,
+    /// Cached owned outputs.
+    pub owned: usize,
+    /// Upload artifact files next to the wallet.
+    pub artifact_count: usize,
+}
+
+/// Next steps for a person who just created a wallet. No network calls.
+pub fn ready_lines(facts: ReadyFacts) -> Vec<String> {
+    let mut lines = vec![
+        "This wallet can receive money.".to_string(),
+        "The seed restores money. It does not restore files you upload.".to_string(),
+    ];
+    if !facts.has_scan {
+        lines.push(
+            "Next: wallet light-scan. It checks headers on this computer, then shows a balance."
+                .to_string(),
+        );
+    } else if facts.owned < 2 {
+        lines.push(format!(
+            "Saved coins: {}. A private send needs 2. A faucet sends two.",
+            facts.owned
+        ));
+    } else {
+        lines.push("You have at least two coins, so a private send is possible.".to_string());
+    }
+    if facts.artifact_count == 0 {
+        lines.push(
+            "No upload artifacts next to this wallet. After an upload, keep that folder too."
+                .to_string(),
+        );
+    } else {
+        lines.push(format!(
+            "{} upload artifact(s) sit next to this wallet. Back that folder up with the wallet file.",
+            facts.artifact_count
+        ));
+    }
+    lines.push("The ring size stays at 16 or more. A smaller ring is refused.".to_string());
+    lines
+}
+
+/// `wallet ready` — local checklist. Does not contact a node.
+pub fn wallet_ready(path: &Path) -> Result<(), WalletCmdError> {
+    let file = WalletFile::load(path)?;
+    let artifacts = list_upload_artifacts(path)
+        .map_err(|e| WalletCmdError::Usage(format!("list upload artifacts: {e}")))?;
+    let facts = ReadyFacts {
+        has_scan: file.scan_height.is_some(),
+        owned: file.owned_outputs.len(),
+        artifact_count: artifacts.len(),
+    };
+    print_address_lines(&file)?;
+    for line in ready_lines(facts) {
+        println!("{line}");
+    }
+    println!("wallet_path={}", path.display());
+    Ok(())
+}
+
 /// `wallet lock` — seal the seed with `MFN_WALLET_PASSPHRASE`.
 pub fn wallet_lock(path: &Path) -> Result<(), WalletCmdError> {
     let mut file = WalletFile::load(path)?;
@@ -1191,6 +1254,27 @@ mod tests {
             "mfn-wallet-cmd-{name}-{}-{nanos}.json",
             std::process::id()
         ))
+    }
+
+    #[test]
+    fn ready_lines_for_a_new_wallet_point_at_light_scan() {
+        let lines = ready_lines(ReadyFacts {
+            has_scan: false,
+            owned: 0,
+            artifact_count: 0,
+        });
+        let text = lines.join("\n");
+        assert!(text.contains("does not restore files"));
+        assert!(text.contains("light-scan"));
+        assert!(text.contains("refused"));
+        let funded = ready_lines(ReadyFacts {
+            has_scan: true,
+            owned: 2,
+            artifact_count: 1,
+        });
+        let funded_text = funded.join("\n");
+        assert!(funded_text.contains("private send is possible"));
+        assert!(funded_text.contains("1 upload artifact"));
     }
 
     #[test]
