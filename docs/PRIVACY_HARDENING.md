@@ -652,6 +652,10 @@ verify + cross-check, and exercises the `mfn-wasm` checkpoint_log unit. TL-9
 
 ---
 
+## F18 impact gate (B-23)
+
+`scripts/ci-check` runs `validate-f18-impact-gate`. The gate fails if the wallet ring floor (`WALLET_MIN_RING_SIZE = 16`), the constitutional ring floor, the default fee/subsidy split, the inert Path A endowment drip, or the `apply_block` SPoRA verify calls disappear. Path A genesis stays at subsidy 0, drip 0, and bond 0. The F-A file keeps drip 1, prize 1763, subsidy 1000 bps, and bond 25_769_800. This note is itself a needle: deleting it fails the gate. It does not hash unrelated edits.
+
 ## Prioritization
 
 | Impact / effort | Items |

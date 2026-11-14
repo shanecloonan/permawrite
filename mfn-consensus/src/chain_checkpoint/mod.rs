@@ -41,7 +41,8 @@
 //!   BondingParams              (1×u64 + 4×u32)
 //!   EmissionParams             (4×u64 + 1×u32 + 2×u16; v11+ adds subsidy_to_treasury_bps)
 //!   (v12) subsidy schedule     u32 height + u16 bps (0,0 = inactive)
-//!   EndowmentParams            (4×u64 + 2×u8 + 2×u64; v13+ adds deflation_funded_drip)
+//!   EndowmentParams            (4×u64 + 2×u8 + 2×u64; v13+ adds deflation_funded_drip; v14+ adds fee_runway_shift)
+//!   (v14) fee-shift window     5×u64 (zeros when the B-20 gate is off)
 //!
 //!   treasury                    u128
 //!
@@ -95,7 +96,7 @@ pub const CHAIN_CHECKPOINT_MAGIC: [u8; 4] = *b"MFCC";
 
 /// Currently-supported chain-checkpoint format version. Bumped only on
 /// wire-incompatible changes.
-pub const CHAIN_CHECKPOINT_VERSION: u32 = 13;
+pub const CHAIN_CHECKPOINT_VERSION: u32 = 14;
 
 /// Errors produced by the chain-checkpoint codec.
 ///
@@ -115,7 +116,7 @@ pub enum ChainCheckpointError {
 
     /// Format version is not supported by this build.
     #[error(
-        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 13"
+        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 14"
     )]
     UnsupportedVersion {
         /// The version encoded in the payload.

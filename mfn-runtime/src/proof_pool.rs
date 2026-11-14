@@ -224,7 +224,7 @@ impl ProofPool {
                 out.push(proof);
             }
         }
-        out
+        order_for_inclusion(state, prev_block_id, next_height, out)
     }
 
     /// Remove proofs that landed in `block.storage_proofs` (commit + operator).
@@ -252,6 +252,35 @@ impl ProofPool {
     pub fn clear(&mut self) {
         self.by_key.clear();
     }
+}
+
+fn order_for_inclusion(
+    state: &ChainState,
+    prev_block_id: &[u8; 32],
+    next_height: u32,
+    proofs: Vec<StorageProof>,
+) -> Vec<StorageProof> {
+    let emission = state.effective_emission_params(next_height);
+    if !mfn_consensus::spora_inclusion::fa_spora_lottery_armed(&emission, &state.endowment_params)
+        || proofs.len() < 2
+    {
+        return proofs;
+    }
+    let slot = u64::from(next_height);
+    let window = state.endowment_params.proof_reward_window_slots;
+    let mut indexed: Vec<(usize, StorageProof)> = proofs.into_iter().enumerate().collect();
+    indexed.sort_by_key(|(index, proof)| {
+        let operator_id =
+            operator_identity_from_payout(&proof.operator_view_pub, &proof.operator_spend_pub);
+        let score = mfn_consensus::spora_inclusion::lottery_operator_score(
+            prev_block_id,
+            slot,
+            window,
+            &operator_id,
+        );
+        (proof.commit_hash, score, operator_id, *index)
+    });
+    indexed.into_iter().map(|(_, proof)| proof).collect()
 }
 
 fn verify_for_state(

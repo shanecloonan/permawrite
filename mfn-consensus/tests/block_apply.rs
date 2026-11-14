@@ -847,6 +847,129 @@ fn b3_two_operator_proofs_same_block_accepted() {
     }
 }
 
+fn fa_lottery_endowment() -> EndowmentParams {
+    let mut endowment = EndowmentParams {
+        operator_salted_challenges: 1,
+        min_replication: 1,
+        deflation_funded_drip: 1,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    endowment.min_storage_operator_bond =
+        mfn_storage::recommended_min_storage_operator_bond(&endowment).expect("bond");
+    endowment
+}
+
+fn fa_lottery_emission(endowment: &EndowmentParams) -> EmissionParams {
+    let prize = mfn_storage::recommended_backstop_proof_reward(endowment).expect("prize");
+    EmissionParams {
+        storage_proof_reward: prize,
+        subsidy_to_treasury_bps: 1000,
+        ..DEFAULT_EMISSION_PARAMS
+    }
+}
+
+fn apply_two_proofs(
+    state0: &ChainState,
+    proofs_in_order: Vec<mfn_storage::StorageProof>,
+) -> ApplyOutcome {
+    let unsealed = build_unsealed_header(state0, &[], &[], &[], &proofs_in_order, 5_000, 1_000);
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs_in_order,
+    );
+    apply_block(state0, &block)
+}
+
+#[test]
+fn b44_fa_lottery_pays_one_winner_independent_of_body_order() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 1, None).unwrap();
+    let endowment = fa_lottery_endowment();
+    let emission = fa_lottery_emission(&endowment);
+    assert!(mfn_consensus::spora_inclusion::fa_spora_lottery_armed(
+        &emission, &endowment
+    ));
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: emission,
+        endowment_params: endowment,
+        bonding_params: None,
+        header_version: 1,
+    };
+    let g = build_genesis(&cfg);
+    let mut state0 = apply_genesis(&g, &cfg).unwrap();
+    state0.treasury = 50_000_000;
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], 5_000, 1_000);
+    let p0 = mfn_storage::build_test_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+    );
+    let (v1, s1) = mfn_storage::test_operator_payout_keys_alt();
+    let p1 = mfn_storage::build_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+        v1,
+        s1,
+    )
+    .unwrap();
+
+    let forward = match apply_two_proofs(&state0, vec![p0.clone(), p1.clone()]) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("forward: {errors:?}"),
+    };
+    let reverse = match apply_two_proofs(&state0, vec![p1.clone(), p0.clone()]) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("reverse: {errors:?}"),
+    };
+    assert_eq!(forward.treasury, reverse.treasury);
+    assert!(
+        forward.treasury < state0.treasury,
+        "a winner must be paid from the treasury"
+    );
+    let only = match apply_two_proofs(&state0, vec![p0.clone()]) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("single: {errors:?}"),
+    };
+    assert_eq!(
+        forward.treasury, only.treasury,
+        "two in-block proofs pay one winner, not both"
+    );
+
+    let mut path_a = state0.clone();
+    path_a.emission_params = DEFAULT_EMISSION_PARAMS;
+    path_a.endowment_params = EndowmentParams {
+        operator_salted_challenges: 1,
+        min_replication: 1,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    match apply_two_proofs(&path_a, vec![p0, p1]) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofReplicationExceeded { .. })),
+                "Path A still rejects the extra body-order proof, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("Path A must not pay both proofs at replication 1"),
+    }
+}
+
 #[test]
 fn b3_duplicate_operator_proof_rejected() {
     let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();

@@ -61,6 +61,10 @@ Write-Host "==> consensus f64 lint (B-36 / F10)"
 powershell -NoProfile -File scripts/validate-consensus-f64-lint.ps1 | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Write-Host "==> privacy/permanence impact gate (B-23 / F18)"
+powershell -NoProfile -File scripts/validate-f18-impact-gate.ps1 | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "==> RC helper scripts smoke"
 powershell -NoProfile -File scripts/validate-rc-helper-scripts.ps1 | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

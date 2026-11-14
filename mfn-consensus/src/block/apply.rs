@@ -243,7 +243,29 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             got: next.subsidy_bps_activation_value,
         });
     }
-    let emission_params = next.effective_emission_params(block.header.height);
+    let mut emission_params = next.effective_emission_params(block.header.height);
+    // B-44: decide from the schedule, before any per-block fee-bps overlay.
+    let lottery_armed =
+        crate::spora_inclusion::fa_spora_lottery_armed(&emission_params, &next.endowment_params);
+    if next.endowment_params.fee_runway_shift == 1 {
+        let slot = u64::from(block.header.slot);
+        crate::emission::prepare_fee_shift_window(
+            &mut next.fee_shift_window,
+            slot,
+            next.endowment_params.proof_reward_window_slots,
+        );
+        let obs = crate::emission::FeeShiftObservation {
+            treasury_base_units: next.treasury,
+            treasury_floor_base_units: crate::emission::B28_PATH_A_TREASURY_FLOOR_BASE_UNITS,
+            proof_blocks: next.fee_shift_window.prev_proof_blocks,
+            backstop_blocks: next.fee_shift_window.prev_backstop_blocks,
+        };
+        emission_params.fee_to_treasury_bps = crate::emission::recommended_fee_to_treasury_bps(
+            emission_params.fee_to_treasury_bps,
+            &obs,
+        );
+    }
+    let mut lottery_deferred: Vec<(usize, StorageProof, StorageEntry, [u8; 32])> = Vec::new();
 
     // Storage commitments newly anchored this block (in declaration order),
     // for the post-block storage-root check.
@@ -831,7 +853,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                     continue;
                 }
             };
-            if count >= entry.commit.replication {
+            if count >= entry.commit.replication && !lottery_armed {
                 errors.push(BlockError::StorageProofReplicationExceeded {
                     index: pi,
                     commit_hash: hex_short(&proof.commit_hash),
@@ -900,6 +922,12 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 index: pi,
                 reason: verdict,
             });
+            continue;
+        }
+        if lottery_armed {
+            let operator_id =
+                operator_identity_from_payout(&proof.operator_view_pub, &proof.operator_spend_pub);
+            lottery_deferred.push((pi, proof.clone(), entry, operator_id));
             continue;
         }
         let (baseline_slot, baseline_pending) = if b3_operator_salted {
@@ -982,6 +1010,119 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 output: pi,
                 reason: format!("accrue: {e}"),
             }),
+        }
+    }
+
+    if lottery_armed && !lottery_deferred.is_empty() {
+        let window_slots = next.endowment_params.proof_reward_window_slots;
+        let prior = block.header.prev_hash;
+        let candidates: Vec<crate::spora_inclusion::LotteryCandidate> = lottery_deferred
+            .iter()
+            .map(
+                |(_, proof, entry, operator_id)| crate::spora_inclusion::LotteryCandidate {
+                    commit_hash: proof.commit_hash,
+                    operator_id: *operator_id,
+                    max_winners: usize::from(entry.commit.replication),
+                },
+            )
+            .collect();
+        let paid = crate::spora_inclusion::lottery_winner_keys(
+            &prior,
+            current_slot,
+            window_slots,
+            &candidates,
+        );
+        let mut winners: Vec<_> = lottery_deferred
+            .into_iter()
+            .filter(|(_, proof, _, operator_id)| paid.contains(&(proof.commit_hash, *operator_id)))
+            .collect();
+        winners.sort_by_key(|(_, proof, _, operator_id)| {
+            let score = crate::spora_inclusion::lottery_operator_score(
+                &prior,
+                current_slot,
+                window_slots,
+                operator_id,
+            );
+            (proof.commit_hash, score, *operator_id)
+        });
+        for (pi, proof, entry, operator_id) in winners {
+            let (baseline_slot, baseline_pending) = if b3_operator_salted {
+                *commit_baseline
+                    .entry(proof.commit_hash)
+                    .or_insert((entry.last_proven_slot, entry.pending_yield_ppb))
+            } else {
+                (entry.last_proven_slot, entry.pending_yield_ppb)
+            };
+            let payout_replication = if b3_operator_salted {
+                1
+            } else {
+                entry.commit.replication
+            };
+            match accrue_proof_reward(AccrueArgs {
+                size_bytes: entry.commit.size_bytes,
+                replication: payout_replication,
+                pending_ppb: baseline_pending,
+                last_proven_slot: baseline_slot,
+                current_slot,
+                params: &next.endowment_params,
+            }) {
+                Ok(payout_accrual) => {
+                    if b3_operator_salted && commit_state_updated.contains(&proof.commit_hash) {
+                        accepted_storage_proofs += 1;
+                        storage_bonus_total =
+                            storage_bonus_total.saturating_add(payout_accrual.payout);
+                        accepted_proof_settlements.push((proof.clone(), payout_accrual.payout));
+                        proved_operators.insert(operator_id);
+                    } else {
+                        let state_accrual = if b3_operator_salted {
+                            match accrue_proof_reward(AccrueArgs {
+                                size_bytes: entry.commit.size_bytes,
+                                replication: entry.commit.replication,
+                                pending_ppb: baseline_pending,
+                                last_proven_slot: baseline_slot,
+                                current_slot,
+                                params: &next.endowment_params,
+                            }) {
+                                Ok(a) => a,
+                                Err(e) => {
+                                    errors.push(BlockError::EndowmentMathFailed {
+                                        tx: 0,
+                                        output: pi,
+                                        reason: format!("accrue state: {e}"),
+                                    });
+                                    continue;
+                                }
+                            }
+                        } else {
+                            payout_accrual
+                        };
+                        next.storage.insert(
+                            proof.commit_hash,
+                            StorageEntry {
+                                commit: entry.commit,
+                                last_proven_height: block.header.height,
+                                last_proven_slot: current_slot,
+                                pending_yield_ppb: state_accrual.new_pending_ppb,
+                            },
+                        );
+                        if b3_operator_salted {
+                            commit_state_updated.insert(proof.commit_hash);
+                        }
+                        accepted_storage_proofs += 1;
+                        storage_bonus_total =
+                            storage_bonus_total.saturating_add(payout_accrual.payout);
+                        accepted_proof_settlements.push((proof, payout_accrual.payout));
+                        if b3_operator_salted {
+                            proved_operators.insert(operator_id);
+                        }
+                    }
+                }
+                Err(e) => errors.push(BlockError::EndowmentMathFailed {
+                    tx: 0,
+                    output: pi,
+                    reason: format!("accrue: {e}"),
+                }),
+            }
         }
     }
 
@@ -1185,6 +1326,14 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     let computed_root = utxo_tree_root(&next.utxo_tree);
     if computed_root != block.header.utxo_root {
         errors.push(BlockError::UtxoRootMismatch);
+    }
+
+    if errors.is_empty() && next.endowment_params.fee_runway_shift == 1 {
+        crate::emission::record_fee_shift_block(
+            &mut next.fee_shift_window,
+            accepted_storage_proofs > 0,
+            settlement.minted_backstop,
+        );
     }
 
     if !errors.is_empty() {

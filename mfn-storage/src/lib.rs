@@ -62,7 +62,7 @@ pub use endowment::{
     EndowmentRunwayAlert, BACKSTOP_REFERENCE_SIZE_BYTES, DEFAULT_ENDOWMENT_PARAMS, PPB,
     RECOMMENDED_OPERATOR_SLASH_BPS,
 };
-pub use lottery::{rank_spora_lottery, spora_lottery_window_seed};
+pub use lottery::{rank_spora_lottery, spora_lottery_operator_score, spora_lottery_window_seed};
 pub use replica_health::{
     assess_replica_window, distinct_replica_floor_met, repair_bounty_multiplier_bps,
     replica_payout_weight_bps, replica_seal_root, retrieval_opens_repair_bounty,

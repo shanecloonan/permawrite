@@ -350,6 +350,9 @@ pub struct ChainState {
     /// Permanence treasury, in base units (gains the fee→treasury share
     /// of every regular tx).
     pub treasury: u128,
+    /// Prior-window counters for the B-20 fee shift. Stays zero unless
+    /// `endowment_params.fee_runway_shift == 1`.
+    pub fee_shift_window: crate::emission::FeeShiftWindow,
     /// Cryptographic UTXO accumulator. Every output the chain ever
     /// anchors is appended in deterministic order.
     pub utxo_tree: UtxoTreeState,
@@ -394,6 +397,7 @@ impl ChainState {
             subsidy_bps_activation_value: 0,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             treasury: 0,
+            fee_shift_window: crate::emission::FeeShiftWindow::default(),
             utxo_tree: empty_utxo_tree(),
             bonding_params: DEFAULT_BONDING_PARAMS,
             bond_epoch_id: 0,

@@ -65,6 +65,8 @@ pub enum ChainStateField {
     EndowmentParams,
     /// [`crate::block::ChainState::treasury`].
     Treasury,
+    /// [`crate::block::ChainState::fee_shift_window`].
+    FeeShiftWindow,
     /// [`crate::block::ChainState::utxo_tree`].
     UtxoTree,
     /// [`crate::block::ChainState::bonding_params`].
@@ -84,7 +86,7 @@ pub enum ChainStateField {
 }
 
 /// Must equal the number of fields on [`crate::block::ChainState`].
-pub const CHAIN_STATE_FIELD_COUNT: usize = 24;
+pub const CHAIN_STATE_FIELD_COUNT: usize = 25;
 
 /// Retention policy generation.
 ///
@@ -131,6 +133,7 @@ pub const CHAIN_STATE_FIELDS: [ChainStateField; CHAIN_STATE_FIELD_COUNT] = [
     ChainStateField::SubsidyBpsActivationValue,
     ChainStateField::EndowmentParams,
     ChainStateField::Treasury,
+    ChainStateField::FeeShiftWindow,
     ChainStateField::UtxoTree,
     ChainStateField::BondingParams,
     ChainStateField::BondEpochId,
@@ -165,6 +168,7 @@ pub fn chain_state_field_retention(field: ChainStateField) -> Retention {
         | ChainStateField::SubsidyBpsActivationHeight
         | ChainStateField::SubsidyBpsActivationValue
         | ChainStateField::Treasury
+        | ChainStateField::FeeShiftWindow
         | ChainStateField::BondingParams
         | ChainStateField::BondEpochId
         | ChainStateField::BondEpochEntryCount
@@ -346,6 +350,7 @@ mod tests {
             subsidy_bps_activation_value,
             endowment_params,
             treasury,
+            fee_shift_window,
             utxo_tree,
             bonding_params,
             bond_epoch_id,
@@ -372,6 +377,7 @@ mod tests {
             subsidy_bps_activation_value,
             endowment_params,
             treasury,
+            fee_shift_window,
             utxo_tree,
             bonding_params,
             bond_epoch_id,
@@ -381,6 +387,6 @@ mod tests {
             pending_unbonds,
             header_version,
         );
-        assert_eq!(CHAIN_STATE_FIELD_COUNT, 24);
+        assert_eq!(CHAIN_STATE_FIELD_COUNT, 25);
     }
 }

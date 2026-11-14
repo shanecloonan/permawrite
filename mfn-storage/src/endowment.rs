@@ -129,6 +129,11 @@ pub struct EndowmentParams {
     /// Path A: operators are paid from treasury inflows + `storage_proof_reward`.
     /// Ignored when `real_yield_ppb > 0`. Must be 0 or 1.
     pub deflation_funded_drip: u8,
+    /// When `1`, `apply_block` may raise `fee_to_treasury_bps` for the
+    /// current block when the prior proof window shows a stressed treasury
+    /// (**B-20**). Default `0`. Path A and the F-A genesis file leave this
+    /// off. Must be 0 or 1. Does not rewrite the stored emission schedule.
+    pub fee_runway_shift: u8,
 }
 
 /// Canonical defaults.
@@ -148,6 +153,7 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     operator_slash_bps: 0,
     require_endowment_range_proof: 0,
     deflation_funded_drip: 0, // B-306 inert; Path A keeps fee+backstop payouts
+    fee_runway_shift: 0,      // B-20 inert; Path A fee split stays 9000
 };
 
 /* ----------------------------------------------------------------------- *
@@ -225,6 +231,11 @@ pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentErr
     if p.deflation_funded_drip > 1 {
         return Err(EndowmentError::InvalidDeflationFundedDrip {
             got: p.deflation_funded_drip,
+        });
+    }
+    if p.fee_runway_shift > 1 {
+        return Err(EndowmentError::InvalidFeeRunwayShift {
+            got: p.fee_runway_shift,
         });
     }
     Ok(())
@@ -885,6 +896,12 @@ pub enum EndowmentError {
     /// `deflation_funded_drip` must be 0 or 1.
     #[error("deflation_funded_drip must be 0 or 1, got {got}")]
     InvalidDeflationFundedDrip {
+        /// Caller-supplied flag.
+        got: u8,
+    },
+    /// `fee_runway_shift` must be 0 or 1.
+    #[error("fee_runway_shift must be 0 or 1, got {got}")]
+    InvalidFeeRunwayShift {
         /// Caller-supplied flag.
         got: u8,
     },

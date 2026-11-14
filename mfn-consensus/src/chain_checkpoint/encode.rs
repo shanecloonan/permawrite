@@ -54,6 +54,17 @@ pub(crate) fn encode_endowment_params(
     if checkpoint_version >= 13 {
         w.u8(p.deflation_funded_drip);
     }
+    if checkpoint_version >= 14 {
+        w.u8(p.fee_runway_shift);
+    }
+}
+
+pub(crate) fn encode_fee_shift_window(w: &mut Writer, window: &crate::emission::FeeShiftWindow) {
+    w.u64(window.start_slot);
+    w.u64(window.proof_blocks);
+    w.u64(window.backstop_blocks);
+    w.u64(window.prev_proof_blocks);
+    w.u64(window.prev_backstop_blocks);
 }
 
 pub(crate) fn encode_u128(w: &mut Writer, v: u128) {
@@ -160,6 +171,9 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
 
     // ---- Treasury ----
     encode_u128(&mut w, parts.state.treasury);
+    if CHAIN_CHECKPOINT_VERSION >= 14 {
+        encode_fee_shift_window(&mut w, &parts.state.fee_shift_window);
+    }
 
     // ---- Bond counters (flat on ChainState) ----
     w.u64(parts.state.bond_epoch_id);

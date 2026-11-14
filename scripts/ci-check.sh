@@ -55,6 +55,8 @@ echo "==> workflow YAML encoding (UTF-8)"
 bash scripts/validate-workflow-encoding.sh
 echo "==> consensus f64 lint (B-36 / F10)"
 bash scripts/validate-consensus-f64-lint.sh
+echo "==> privacy/permanence impact gate (B-23 / F18)"
+bash scripts/validate-f18-impact-gate.sh
 echo "==> RC helper scripts smoke"
 bash scripts/validate-rc-helper-scripts.sh
 if (( run_docs )); then

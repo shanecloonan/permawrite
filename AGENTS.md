@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** F5 1c+ slash clears the bond-registry exit (this merge). Path A and F-A unchanged. Parent already has B-19, B-35 header v4, and Seat C **B-316** validity leaves. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** B-23 F18 gate, B-20 fee-shift behind `fee_runway_shift` (default 0, checkpoint v14), B-44 SPoRA lottery on the F-A bundle, B-24 settlement proptest (this commit). Path A and F-A genesis files and `DEFAULT_*` unchanged. Prior head **F5 1c+** `9355955c`. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -143,9 +143,9 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **F5 1c+** slash drops `pending_unbonds` (this merge); **B-35** header v4; **B-316** Winterfell leaves (Seat C) | *Idle* — slash matrix frozen. Seat C holds validity files | **B-17** ASN peer buckets (Seat B). Merkle leaf next (Seat C). No B-297 clone | Lane 1 CI |
-| **5** Privacy | **B-19** decoy-RNG contract; **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | **B-37** hidden fees, version-gated, after the Tier 2 gate | Doc-accuracy duty |
-| **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
+| **4** Protocol | **F5 1c+** slash drops `pending_unbonds`; **B-35** header v4; **B-316** Winterfell leaves (Seat C) | *Idle* — slash matrix frozen. Seat C holds validity files | **B-17** ASN peer buckets (Seat B). Merkle leaf next (Seat C). No B-297 clone | Lane 1 CI |
+| **5** Privacy | **B-19** decoy-RNG contract (`c330b780`); **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | **B-37** hidden fees, version-gated, after the Tier 2 gate | Doc-accuracy duty |
+| **6** Permanence | B-23 F18 ci-check gate; B-20 fee shift behind `fee_runway_shift=0`; B-44 lottery on the F-A bundle only; B-24 two-operator settlement proptest (this commit). Easy guards; **B-315**; **B-314** (`8c71a43a`) | *Idle* | Owner runs `vps-rollout-fa.sh --apply`. Replica seals and retrieval slash still unwired. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 
 ---
@@ -163,7 +163,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 6 | 2 | **B-312 PM22 RPC:** when exposing treasury runway, call `treasury_runway_slots` / `RunwayObservation::alert`; do not invent a second formula. Path A prize vs ~2.9e6 treasury is honestly `Short`. | **Open** |
 | 6 | 4 | **B-311 PM41 cap:** when wiring after **B-306b**, refuse (or truncate+log) backstop mint above `recommended_backstop_mint_cap_for_window`. Do not enforce on Path A's 0.1 MFN prize — one proof already exceeds the slot cap. | **Open** |
 | 6 | 4 | **B-310 PM8 bodies:** when wiring prune, call `historical_block_body_may_prune`; never drop storage / UTXO / spent key images. Path A stays full `chain.blocks` until an archival-node role exists. | **Open** |
-| 6 | 4 | **B-308 lottery ranking:** wire `rank_spora_lottery` / `spora_lottery_window_seed(prior_block_id, …)` in `apply_block` after **B-32**. Do not invent a second hash; do not seed from producer VRF (leader bias). Path A stays body-order until **B-44**. | **Open** |
+| 6 | 4 | **B-308 lottery ranking:** wire `rank_spora_lottery` / `spora_lottery_window_seed(prior_block_id, …)` in `apply_block` after **B-32**. Do not invent a second hash; do not seed from producer VRF (leader bias). Path A stays body-order until **B-44**. | **Done** (B-44: F-A bundle only; Path A body order; seed is prior block id) |
 | 7 | 4 | **Hub inbound CLOSE-WAIT leak:** `:19101` fills `P2P_MAX_INBOUND_HANDLERS=48` (`inbound_cap_reached`); silent/half-closed inbound holds the slot for the 30s hello timeout; vote fanout EAGAIN; tip stuck **22495**. | **Done** (B-300 inbound hello 3s + shutdown + session IO timeout) |
 | 6 | 4 | **B-28-post CI window:** after tip CI on B-262 (or successor) GREEN, please **hold one Rust land** (~5-10 min) so lane6 can push ssert-b28-treasury-thresholds --mode post / -Mode post + ci-check needles with full CI. Body ready (live post FAIL-closed on Path A). | **Done** (landed this commit; tip CI watch) |
 | 6 | 7 | **Path A lag FAIL:** outside-in tip=16453 ckpt_max=16341 **lag=112**. Closed by **B-264** tip-16456 land (assert OK lag=-1; evidence `outside-in-tip-ckpt-lag-20260806T184223Z.txt`). | **Done** (B-264) |
@@ -228,12 +228,12 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | **Landed** (this commit) — golden `(pk, H, β, π)` pin; no Elligator2 fork |
-| B-19 | F9: decoy-RNG entropy contract + tests | 5 | **Landed** (this commit) — [`docs/DECOY_RNG.md`](docs/DECOY_RNG.md); no consensus change |
-| B-20 | F6: producer↔treasury runway fee-shift policy | 6 | **B-309** helper landed; arm after B-13c + B-25; Path A stays 9000 |
+| B-19 | F9: decoy-RNG entropy contract + tests | 5 | **Landed** (`c330b780`) — [`docs/DECOY_RNG.md`](docs/DECOY_RNG.md); no consensus change |
+| B-20 | F6: producer↔treasury runway fee-shift policy | 6 | **Landed** behind `fee_runway_shift` (default 0, checkpoint v14). Path A and F-A files stay 9000. Not armed on either genesis |
 | B-21 | B7 Dandelion++ internet soak evidence | 1 | Unblocks P16; after L4 |
 | B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** - tip **4262** Path A (entries=11); seed offline on VPS only |
-| B-23 | F18: privacy/permanence regression gate in ci-check | 2 | Phase 1; after L4 |
-| B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | Phase 1; after B3 multi-op internet evidence |
+| B-23 | F18: privacy/permanence regression gate in ci-check | 2 | **Landed** — `validate-f18-impact-gate` in ci-check. Ring floor, Path A zeros, F-A bundle, SPoRA verify |
+| B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | **Local proptest landed** (`b24_two_operator_payouts_conserve_treasury_and_supply`). Live multi-op pack still after B-32. Slash-clone matrix stays frozen |
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | **Soak refreshed** tip 5200->5202 (B-125); prior 5146->5148; participant JOIN half = lane-3 SUMMARY / post-B-15 |
@@ -277,7 +277,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd :1910x + socat :1900x; EXT 19001–19003 OPEN; tip~4031 |
 | B-42 | Invite-load smoke before TL-9 | 3+7 | Preflight PASS; serialize `bda9a419`; staggered JOINs last_proven **22487** (iris) + **22492** (join-a `ea7cba7c`) + **22560** (join-b `6a1468fc`, this commit). Concurrent rehearsal x2 still open — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | **Draft** — `docs/PATH_B_GENESIS_FREEZE.md`; human cells TBD; no ceremony |
-| B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; ranking helper **B-308** landed; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
+| B-44 | PM3 windowed SPoRA lottery work package | 4+6 | **Landed for the F-A bundle only** (`fa_spora_lottery_armed`). Path A stays body order. Live two-host evidence is still **B-32** |
 | B-45 | B3 operator-salted challenge/prove/pool path | 4 | **Landed** — unblocks honest multi-op SPoRA on salted genesis; Hetzner mfnd roll = lane 7 |
 | B-46 | Tip-stall ops harden: `Wants=` + hub dial extras | 4+7 | **Landed** `4d07b7d` — tip 4031→4034+ |
 | B-47 | Faucet EAGAIN harden (health/CLI race) | 7+2 | **Done** (`fe56ca8`) — health lock + runRetry; VPS faucet restarted idle; tip 4047+ |
@@ -530,13 +530,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 4 - F5 1c+ bond-registry slash** (this merge): `apply_equivocation_slashings` removes the offender's `pending_unbonds` entry when equivocation or invalid-block evidence applies. Full node and light client share the helper. Live stake forfeiture is unchanged; `stake_at_request` is not credited again. `f5_1c_slash_drops_bond_registry_exit` PASS. The integration tests now expect that drop. No B-13c; no DEFAULT flip. Next: **B-17**. *Observed (not staged):* none.
+1. **2026-11-14 - lane 6 - B-23 / B-20 / B-44 / B-24** (this commit): F18 ci-check gate; `fee_runway_shift` default 0 (checkpoint v14) so a stressed prior window raises fee-to-treasury only when the gate is on; SPoRA lottery pays `rank_spora_lottery` winners only when the F-A economics bundle is active; two-operator settlement proptest. Path A and F-A files and `DEFAULT_*` unchanged. Genesis id tests still match the manifests. Rebased onto **F5 1c+** `9355955c`. No B-13c; no DEFAULT flip. *Observed (not staged):* none.
 
-1. **2026-11-14 - lane 5 - B-19 decoy-RNG entropy contract** (parent): `production_decoy_rng` ignores the wallet seed; `seeded_rng` remains test mode and repeats indices. `crypto_random` logs once and panics if the OS CSPRNG fails (no seed fallback). WASM keeps `getrandom` `js` (`getRandomValues`). `b19_same_wallet_seed_does_not_fix_production_decoys` PASS. No consensus change. No B-13c; no DEFAULT flip.
+1. **2026-11-14 - lane 4 - F5 1c+ bond-registry slash** (`9355955c`): `apply_equivocation_slashings` removes the offender's `pending_unbonds` entry when equivocation or invalid-block evidence applies. Full node and light client share the helper. Live stake forfeiture is unchanged; `stake_at_request` is not credited again. `f5_1c_slash_drops_bond_registry_exit` PASS. No B-13c; no DEFAULT flip. Next: **B-17**. *Observed (not staged):* none.
 
-1. **2026-11-14 - lane 4 - B-35 input-count buckets** (parent): `verify_transaction` rejects input counts that are not a power of two (2, 4, 8, …) when `header_version >= HEADER_VERSION_INPUT_PAD` (4). Header v1 still accepts a 3-input spend. Genesis spec accepts header version 4 and rejects one past the supported maximum (`3f2ab5fc`). No B-13c; no DEFAULT flip.
+1. **2026-11-14 - lane 5 - B-19 decoy-RNG entropy contract** (`c330b780`): `production_decoy_rng` ignores the wallet seed; `seeded_rng` remains test mode and repeats indices. `crypto_random` logs once and panics if the OS CSPRNG fails (no seed fallback). WASM keeps `getrandom` `js` (`getRandomValues`). `b19_same_wallet_seed_does_not_fix_production_decoys` PASS. No consensus change. No B-13c; no DEFAULT flip. Next: **F5 1c+**. *Observed (not staged):* none.
 
-1. **2026-11-14 - lane 4 / Seat C - B-316 validity STARK leaves** (on main): surveyed `validity_stark_winterfell.rs` (batch binder only; Winterfell 0.10 has no recursion API). Decision in [`docs/VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md): stay on Winterfell for 4a; 4b.2 / B-12 ports the leaves to Plonky3. Landed `validity_stark_coinbase` proofs of `emission_at_height` and the bps split inside `producer_portion_amount` (no storage term). Not wired into `apply_block`, gossip, or genesis. No DEFAULT flip; Path A and F-A unchanged. Next: STARK-friendly Merkle leaf, then B-12 aggregation.
+1. **2026-11-14 - lane 4 - B-35 input-count buckets** (`db888b6b`): `verify_transaction` rejects input counts that are not a power of two (2, 4, 8, …) when `header_version >= HEADER_VERSION_INPUT_PAD` (4). Header v1 still accepts a 3-input spend. Genesis spec accepts header version 4 and rejects one past the supported maximum (`3f2ab5fc`). No B-13c; no DEFAULT flip.
+
+1. **2026-11-14 - lane 4 / Seat C - B-316 validity STARK leaves** (`d6b47d5c`): surveyed `validity_stark_winterfell.rs` (batch binder only; Winterfell 0.10 has no recursion API). Decision in [`docs/VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md): stay on Winterfell for 4a; 4b.2 / B-12 ports the leaves to Plonky3. Landed `validity_stark_coinbase` proofs of `emission_at_height` and the bps split inside `producer_portion_amount` (no storage term). Not wired into `apply_block`, gossip, or genesis. No DEFAULT flip; Path A and F-A unchanged. Next: STARK-friendly Merkle leaf, then B-12 aggregation.
 
 1. **2026-11-14 - lane 4 - B-18 MFBN-1 VRF conformance pin** (`69957f57`): `b18_mfbn1_reference_vector_is_pinned` locks pk, H (try-and-increment counter 0), β, and the 80-byte π for seed `0x07`×32 and msg `election seed slot 42`. `docs/interop/VRF_MFBN1.md` states ed25519 expansion, nonce, and `dhash` challenge framing. No Elligator2 fork. Path A and F-A unchanged. No B-13c; no DEFAULT flip; slash matrix frozen. Next: **B-35**.
 

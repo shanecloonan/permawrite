@@ -372,7 +372,9 @@ impl FeeShiftObservation {
 ///
 /// Healthy runway → hold `current_bps`. Stressed runway →
 /// `min(10000, current_bps + RECOMMENDED_FEE_SHIFT_STEP_BPS)`.
-/// Does not mutate [`DEFAULT_EMISSION_PARAMS`] and is not read by `apply_block`.
+/// Does not mutate [`DEFAULT_EMISSION_PARAMS`]. `apply_block` reads it only
+/// when `EndowmentParams::fee_runway_shift == 1` (**B-20**). Path A leaves
+/// that flag at 0, so the live fee split stays the stored bps.
 #[must_use]
 pub fn recommended_fee_to_treasury_bps(current_bps: u16, obs: &FeeShiftObservation) -> u16 {
     if !obs.permanence_runway_stressed() {
@@ -381,6 +383,58 @@ pub fn recommended_fee_to_treasury_bps(current_bps: u16, obs: &FeeShiftObservati
     current_bps
         .saturating_add(RECOMMENDED_FEE_SHIFT_STEP_BPS)
         .min(10_000)
+}
+
+/// Rolling proof-window counters for the **B-20** fee shift.
+///
+/// `prev_*` is the last completed window and is what
+/// [`recommended_fee_to_treasury_bps`] sees. The current window fills as
+/// blocks are applied. Checkpoint v14 persists this. Older checkpoints
+/// decode as zeros. Absent when `fee_runway_shift` is 0: `apply_block`
+/// does not advance it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct FeeShiftWindow {
+    /// Slot at which the current window started.
+    pub start_slot: u64,
+    /// Proof blocks recorded in the current window.
+    pub proof_blocks: u64,
+    /// Current-window proof blocks that minted a storage backstop.
+    pub backstop_blocks: u64,
+    /// Proof blocks in the previous completed window.
+    pub prev_proof_blocks: u64,
+    /// Previous-window proof blocks that minted a storage backstop.
+    pub prev_backstop_blocks: u64,
+}
+
+/// Close the window when `slot` has moved past it, then mark `start_slot`
+/// if this is the first armed block. Does not record the current block.
+pub fn prepare_fee_shift_window(window: &mut FeeShiftWindow, slot: u64, window_slots: u64) {
+    if window_slots == 0 {
+        return;
+    }
+    if window.proof_blocks == 0 && window.backstop_blocks == 0 && window.start_slot == 0 {
+        window.start_slot = slot;
+        return;
+    }
+    let end = window.start_slot.saturating_add(window_slots);
+    if slot >= end {
+        window.prev_proof_blocks = window.proof_blocks;
+        window.prev_backstop_blocks = window.backstop_blocks;
+        window.proof_blocks = 0;
+        window.backstop_blocks = 0;
+        window.start_slot = slot;
+    }
+}
+
+/// Count this block in the current window after settlement.
+pub fn record_fee_shift_block(window: &mut FeeShiftWindow, had_proof: bool, minted_backstop: u128) {
+    if !had_proof {
+        return;
+    }
+    window.proof_blocks = window.proof_blocks.saturating_add(1);
+    if minted_backstop > 0 {
+        window.backstop_blocks = window.backstop_blocks.saturating_add(1);
+    }
 }
 
 /// **PM22** warn when remaining treasury drain time is under one default
@@ -1025,6 +1079,29 @@ mod tests {
         shifted.fee_to_treasury_bps = rec;
         assert!(validate_emission_params(&shifted).is_ok());
         assert_eq!(shifted.subsidy_to_treasury_bps, 0);
+    }
+
+    #[test]
+    fn b20_window_keeps_prior_stress_until_it_rolls() {
+        let mut window = FeeShiftWindow {
+            prev_proof_blocks: 4,
+            prev_backstop_blocks: 3,
+            ..FeeShiftWindow::default()
+        };
+        prepare_fee_shift_window(&mut window, 10, 7_200);
+        assert_eq!(window.start_slot, 10);
+        assert_eq!(window.prev_proof_blocks, 4);
+        assert_eq!(window.prev_backstop_blocks, 3);
+        record_fee_shift_block(&mut window, true, 1);
+        assert_eq!(window.proof_blocks, 1);
+        assert_eq!(window.backstop_blocks, 1);
+        prepare_fee_shift_window(&mut window, 20, 7_200);
+        assert_eq!(window.prev_proof_blocks, 4, "inside the window, prev holds");
+        prepare_fee_shift_window(&mut window, 10 + 7_200, 7_200);
+        assert_eq!(window.prev_proof_blocks, 1);
+        assert_eq!(window.prev_backstop_blocks, 1);
+        assert_eq!(window.proof_blocks, 0);
+        assert_eq!(window.start_slot, 10 + 7_200);
     }
 
     #[test]

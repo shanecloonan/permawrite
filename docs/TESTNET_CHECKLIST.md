@@ -440,7 +440,7 @@ Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permane
 - [ ] **B-38** — Repair/soak evidence + assert.
 - [ ] **B-28** — Treasury watch + numeric OPERATORS alert thresholds (after B-13c; draft thresholds + `assert-b28-treasury-thresholds.*` landed `980ac1ef` (**CI `#31096968523` GREEN**) — arm live post-enable).
 - [ ] **B-25** — Phase 1 permanence go/no-go (30d soak + treasury bounds) — gate before Tier 2 / Path B.
-- [ ] **B-23** — F18 privacy/permanence regression gate in `ci-check` (parallel after L4; does not block B-13a).
+- [x] **B-23** — F18 privacy/permanence regression gate in `ci-check` (`validate-f18-impact-gate`).
 - [ ] **B-36** — F10 `f64` CI lint on consensus path (parallel after L4).
 
 ## Phase 3 privacy tier 2 (after B-25 — do not start early; not maturity L6)

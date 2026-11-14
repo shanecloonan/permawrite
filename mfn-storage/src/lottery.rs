@@ -5,10 +5,8 @@
 //! given a window seed and operator identities, it returns a deterministic
 //! winner order independent of proof arrival order.
 //!
-//! Wiring it is a coinbase fork (a later-arriving but lottery-winning proof
-//! can displace a body-first proof). Do not call this from `apply_block`
-//! until **B-32** multi-op evidence exists and **B-44** lands the windowed
-//! pool.
+//! `apply_block` calls this only when the F-A parameter bundle is active
+//! (**B-44**). Path A stays body order.
 
 use mfn_crypto::domain::SPORA_LOTTERY;
 use mfn_crypto::hash::dhash;
@@ -35,6 +33,16 @@ pub fn spora_lottery_window_seed(prior_block_id: &[u8; 32], window_start_slot: u
     )
 }
 
+/// Score one operator inside a window. Lower bytes sort first (total order
+/// with the operator id as the tie break).
+#[must_use]
+pub fn spora_lottery_operator_score(window_seed: &[u8; 32], operator_id: &[u8; 32]) -> [u8; 32] {
+    dhash(
+        SPORA_LOTTERY,
+        &[RANK_LABEL, window_seed.as_slice(), operator_id.as_slice()],
+    )
+}
+
 /// Rank operator identities for a window and return up to `max_winners`.
 ///
 /// - Duplicate ids are collapsed (canonical unique set).
@@ -56,13 +64,7 @@ pub fn rank_spora_lottery(
 
     let mut scored: Vec<([u8; 32], [u8; 32])> = unique
         .into_iter()
-        .map(|id| {
-            let score = dhash(
-                SPORA_LOTTERY,
-                &[RANK_LABEL, window_seed.as_slice(), id.as_slice()],
-            );
-            (score, id)
-        })
+        .map(|id| (spora_lottery_operator_score(window_seed, &id), id))
         .collect();
     scored.sort_unstable();
     scored

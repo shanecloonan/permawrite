@@ -81,6 +81,11 @@ fn decode_endowment_params(
         } else {
             0
         },
+        fee_runway_shift: if checkpoint_version >= 14 {
+            read_u8(r, "endowment_params.fee_runway_shift")?
+        } else {
+            0
+        },
     })
 }
 
@@ -366,6 +371,17 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     .validate()?;
 
     let treasury = read_u128(&mut r, "treasury")?;
+    let fee_shift_window = if version >= 14 {
+        crate::emission::FeeShiftWindow {
+            start_slot: read_u64(&mut r, "fee_shift_window.start_slot")?,
+            proof_blocks: read_u64(&mut r, "fee_shift_window.proof_blocks")?,
+            backstop_blocks: read_u64(&mut r, "fee_shift_window.backstop_blocks")?,
+            prev_proof_blocks: read_u64(&mut r, "fee_shift_window.prev_proof_blocks")?,
+            prev_backstop_blocks: read_u64(&mut r, "fee_shift_window.prev_backstop_blocks")?,
+        }
+    } else {
+        crate::emission::FeeShiftWindow::default()
+    };
 
     let bond_epoch_id = read_u64(&mut r, "bond_counters.bond_epoch_id")?;
     let bond_epoch_entry_count = read_u32(&mut r, "bond_counters.bond_epoch_entry_count")?;
@@ -557,6 +573,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         subsidy_bps_activation_value,
         endowment_params,
         treasury,
+        fee_shift_window,
         utxo_tree,
         bonding_params,
         bond_epoch_id: counters.bond_epoch_id,

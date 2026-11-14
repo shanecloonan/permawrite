@@ -1145,6 +1145,125 @@ fn b268f_apply_block_rejects_overlay_bps_above_10000() {
 }
 
 #[test]
+fn b20_fee_shift_gate_changes_coinbase_only_when_armed() {
+    let fixture = ValidatorFixture::three_validators();
+    let armed_endowment = EndowmentParams {
+        fee_runway_shift: 1,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let (mut armed, spend, input_pad) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        50_000_000_000,
+        &fixture,
+        None,
+        armed_endowment,
+        false,
+    );
+    armed.treasury = 0;
+    armed.fee_shift_window.prev_proof_blocks = 4;
+    armed.fee_shift_window.prev_backstop_blocks = 3;
+    let fee = 10_000u64;
+    let (signed, _, _) = spend.sign_self_transfer(&input_pad, fee);
+    let mut shifted = TEST_EMISSION;
+    shifted.fee_to_treasury_bps = 10_000;
+    let coinbase_shifted = build_validator_coinbase(
+        1,
+        &shifted,
+        u128::from(fee),
+        &fixture.payout,
+        &armed,
+        1,
+        &[],
+        &armed_endowment,
+    );
+    let state = match apply_validator_block(
+        &fixture,
+        &armed,
+        1,
+        vec![coinbase_shifted, signed.tx.clone()],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("armed stress must apply: {errors:?}"),
+    };
+    assert_eq!(
+        state.treasury,
+        u128::from(fee),
+        "stressed gate sends the whole fee"
+    );
+    assert_eq!(state.fee_shift_window.prev_proof_blocks, 4);
+    assert_eq!(DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps, 9000);
+    assert_eq!(armed.endowment_params.fee_runway_shift, 1);
+
+    let coinbase_hold = build_validator_coinbase(
+        1,
+        &TEST_EMISSION,
+        u128::from(fee),
+        &fixture.payout,
+        &armed,
+        1,
+        &[],
+        &armed_endowment,
+    );
+    match apply_validator_block(
+        &fixture,
+        &armed,
+        1,
+        vec![coinbase_hold, signed.tx],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Err { .. } => {}
+        ApplyOutcome::Ok { .. } => panic!("9000 coinbase must not match a 10000 split"),
+    }
+
+    let (mut held, spend_b, pad_b) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        50_000_000_000,
+        &fixture,
+        None,
+        DEFAULT_ENDOWMENT_PARAMS,
+        false,
+    );
+    held.treasury = 0;
+    held.fee_shift_window.prev_proof_blocks = 4;
+    held.fee_shift_window.prev_backstop_blocks = 3;
+    let (signed_b, _, _) = spend_b.sign_self_transfer(&pad_b, fee);
+    let coinbase_path_a = build_validator_coinbase(
+        1,
+        &TEST_EMISSION,
+        u128::from(fee),
+        &fixture.payout,
+        &held,
+        1,
+        &[],
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    let held_state = match apply_validator_block(
+        &fixture,
+        &held,
+        1,
+        vec![coinbase_path_a, signed_b.tx],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("Path A gate off must keep 9000: {errors:?}"),
+    };
+    let (treasury_fee, _) = fee_split(u128::from(fee), 9000);
+    assert_eq!(held_state.treasury, treasury_fee);
+    assert_eq!(held_state.endowment_params.fee_runway_shift, 0);
+    assert_eq!(held_state.fee_shift_window.proof_blocks, 0);
+}
+
+#[test]
 fn fee_only_legacy_block_credits_full_fee_to_treasury() {
     let initial = 50_000_000_000u64;
     let (mut st, spend, input_pad) = {

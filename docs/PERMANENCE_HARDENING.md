@@ -622,6 +622,10 @@ become self-verifying for free once B2 lands.
 
 ---
 
+## F18 impact gate (B-23)
+
+`scripts/ci-check` runs `validate-f18-impact-gate`. The gate fails if SPoRA verification is removed from `apply_block`, if Path A genesis gains a subsidy, a drip, or a bond floor, or if the F-A bundle (drip 1, prize 1763, subsidy 1000 bps, bond 25_769_800, fee split 9000) drifts. Fee-runway shift stays off in both genesis files. This note is itself a needle. Ring-floor needles live in the privacy twin of this section.
+
 ## Prioritization
 
 | Impact / effort | Items |

@@ -296,6 +296,8 @@ struct EndowmentSection {
     require_endowment_range_proof: Option<u8>,
     /// B-306 C₀ drip when r=0. Default `0` (Path A). Must not flip public_devnet_v1.
     deflation_funded_drip: Option<u8>,
+    /// B-20 fee-runway shift. Default `0`. Path A and F-A files leave it off.
+    fee_runway_shift: Option<u8>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -428,6 +430,7 @@ fn merge_endowment(base: EndowmentParams, file: Option<EndowmentSection>) -> End
         deflation_funded_drip: e
             .deflation_funded_drip
             .unwrap_or(base.deflation_funded_drip),
+        fee_runway_shift: e.fee_runway_shift.unwrap_or(base.fee_runway_shift),
     }
 }
 
@@ -1009,6 +1012,17 @@ mod tests {
             "B-306 drip stays off on Path A genesis"
         );
         assert_eq!(
+            cfg.endowment_params.fee_runway_shift, 0,
+            "B-20 fee shift stays off on Path A genesis"
+        );
+        assert!(
+            !mfn_consensus::spora_inclusion::fa_spora_lottery_armed(
+                &cfg.emission_params,
+                &cfg.endowment_params
+            ),
+            "B-44 lottery stays off on Path A"
+        );
+        assert_eq!(
             cfg.emission_params.storage_proof_reward, DEFAULT_EMISSION_PARAMS.storage_proof_reward,
             "B-306c: Path A keeps the 0.1 MFN proof prize"
         );
@@ -1069,7 +1083,15 @@ mod tests {
         assert_eq!(state.emission_params.storage_proof_reward, prize);
         assert_eq!(state.emission_params.subsidy_to_treasury_bps, 1000);
         assert_eq!(state.endowment_params.deflation_funded_drip, 1);
+        assert_eq!(state.endowment_params.fee_runway_shift, 0);
         assert_eq!(state.endowment_params.min_storage_operator_bond, bond);
+        assert!(
+            mfn_consensus::spora_inclusion::fa_spora_lottery_armed(
+                &state.emission_params,
+                &state.endowment_params
+            ),
+            "B-44 lottery is armed only for the F-A bundle"
+        );
         assert_eq!(state.storage_operators.len(), 2);
         let manifest: serde_json::Value = serde_json::from_str(include_str!(
             "../../mfn-node/testdata/public_devnet_fa.manifest.json"

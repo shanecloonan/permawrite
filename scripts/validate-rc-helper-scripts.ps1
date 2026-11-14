@@ -106,6 +106,9 @@ $entrypointScripts = @(
     (Join-Path $repoRoot "scripts\validate-consensus-f64-lint.ps1"),
     (Join-Path $repoRoot "scripts\validate-consensus-f64-lint.sh"),
     (Join-Path $repoRoot "scripts\validate-consensus-f64-lint.py"),
+    (Join-Path $repoRoot "scripts\validate-f18-impact-gate.ps1"),
+    (Join-Path $repoRoot "scripts\validate-f18-impact-gate.sh"),
+    (Join-Path $repoRoot "scripts\validate-f18-impact-gate.py"),
     (Join-Path $repoRoot "scripts\ci-check.ps1"),
     (Join-Path $repoRoot "scripts\ci-check.sh")
 )

@@ -27,6 +27,7 @@ fn fresh_state() -> ChainState {
         subsidy_bps_activation_value: 0,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         treasury: 0,
+        fee_shift_window: crate::emission::FeeShiftWindow::default(),
         utxo_tree: empty_utxo_tree(),
         bonding_params: DEFAULT_BONDING_PARAMS,
         bond_epoch_id: 0,
@@ -211,6 +212,11 @@ fn v12_decode_defaults_deflation_drip_off() {
     bytes.extend_from_slice(&tag);
     let cp = decode_chain_checkpoint(&bytes).expect("v12 decode");
     assert_eq!(cp.state.endowment_params.deflation_funded_drip, 0);
+    assert_eq!(cp.state.endowment_params.fee_runway_shift, 0);
+    assert_eq!(
+        cp.state.fee_shift_window,
+        crate::emission::FeeShiftWindow::default()
+    );
     assert_eq!(cp.state.subsidy_bps_activation_height, 0);
 }
 
@@ -230,6 +236,27 @@ fn b306_deflation_drip_param_roundtrip() {
     assert_eq!(restored.state.endowment_params.deflation_funded_drip, 1);
     assert_eq!(restored.state.endowment_params, cp.state.endowment_params);
     assert_eq!(DEFAULT_ENDOWMENT_PARAMS.deflation_funded_drip, 0);
+}
+
+#[test]
+fn b20_v13_decodes_fee_shift_off_and_v14_roundtrips_the_gate() {
+    let mut s = fresh_state();
+    s.endowment_params = EndowmentParams {
+        fee_runway_shift: 1,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    s.fee_shift_window.prev_proof_blocks = 4;
+    s.fee_shift_window.prev_backstop_blocks = 3;
+    let cp = ChainCheckpoint {
+        genesis_id: [0xB2; 32],
+        state: s,
+    };
+    let bytes = encode_chain_checkpoint(&cp);
+    let restored = decode_chain_checkpoint(&bytes).expect("v14");
+    assert_eq!(restored.state.endowment_params.fee_runway_shift, 1);
+    assert_eq!(restored.state.fee_shift_window.prev_proof_blocks, 4);
+    assert_eq!(restored.state.fee_shift_window.prev_backstop_blocks, 3);
+    assert_eq!(DEFAULT_ENDOWMENT_PARAMS.fee_runway_shift, 0);
 }
 
 fn rich_state() -> ChainState {
@@ -410,6 +437,7 @@ fn encode_is_independent_of_hashmap_iteration_order() {
         subsidy_bps_activation_value: s_a.subsidy_bps_activation_value,
         endowment_params: s_a.endowment_params,
         treasury: s_a.treasury,
+        fee_shift_window: s_a.fee_shift_window,
         utxo_tree: s_a.utxo_tree.clone(),
         bonding_params: s_a.bonding_params,
         bond_epoch_id: s_a.bond_epoch_id,

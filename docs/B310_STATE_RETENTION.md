@@ -26,7 +26,7 @@ This unit names the carve-out in code so PM8 cannot “helpfully” drop the wro
 
 [`RETENTION_POLICY_VERSION`](../mfn-consensus/src/archive_retention.rs) is **1**. `V1_PERMANENCE_KEEP` and `V1_PRIVACY_KEEP` are the frozen classes. Moving one of those fields off its class, or flipping a `*_may_prune` const to true, fails `retention_v1_cannot_relax_keep_classes_without_a_version_bump` until the version constant is bumped in the same change. A live chain still needs a new genesis or a header-version gate before a relaxed rule can apply. Path A and F-A do not prune.
 
-[`CHAIN_STATE_FIELD_COUNT`](../mfn-consensus/src/archive_retention.rs) = **24**, matching `ChainState` today. Adding a field without classifying it fails `b310_every_chain_state_field_is_classified` once the count is bumped with a new variant — the inventory is the complexity fail-closed.
+[`CHAIN_STATE_FIELD_COUNT`](../mfn-consensus/src/archive_retention.rs) = **25**, matching `ChainState` today (`fee_shift_window` is ConsensusKeep). Adding a field without classifying it fails `b310_every_chain_state_field_is_classified` once the count is bumped with a new variant — the inventory is the complexity fail-closed.
 
 ### Why not prune Path A this unit?
 
@@ -34,7 +34,7 @@ Deleting `chain.blocks` prefixes changes RPC `get_block`, JOIN replay, archive e
 
 ## Tests (pass in this unit)
 
-- All 24 `ChainState` fields classify; none are `HistoricalBody`.
+- All 25 `ChainState` fields classify; none are `HistoricalBody`.
 - Storage / operators / claims / endowment → `PermanenceKeep`; `storage_may_prune() == false`.
 - UTXO / key images / utxo tree → `PrivacyKeep`; maps may not prune.
 - Bodies: `h < H` with `H > 0` may prune; equal/above/`H == 0` must not.
