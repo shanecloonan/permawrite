@@ -26,6 +26,7 @@
 #![cfg_attr(not(test), warn(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod addrman;
+pub mod advertise_policy;
 pub mod block_sync;
 pub mod chunk_v1;
 pub mod chunk_v2;
