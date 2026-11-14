@@ -153,7 +153,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
-| **I** Scale | **I-2** parallel batch verify (this commit). **I-1** baseline. Off consensus. | *Idle* | **I-3** headers-first sync | `mfn-scale` batch tests |
+| **I** Scale | **I-3** headers-first sync (this commit). **I-2** batch verify. Off consensus. | *Idle* | **I-4** checkpointed fast sync | `mfn-scale` header sync tests |
 
 ---
 
@@ -537,6 +537,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane I - I-3 headers-first sync** (this commit): header windows link by height and previous id before any body is fetched. A bad `prev` leaves the tip at genesis and issues no body request. Not a consensus header. Next: **I-4** checkpointed fast sync.
 
 1. **2026-11-14 - lane I - I-2 batch verify** (this commit): `verify_batch` checks Merkle, CLSAG, Borromean, and Bulletproof proofs on several threads and keeps each accept bit in input order. A panicking worker rejects its chunk. Same verifiers as consensus. wasm32 stays sequential. Next: **I-3** headers-first sync.
 
