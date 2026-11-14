@@ -242,6 +242,32 @@ fn run_daemon_prove_loop(
             println!("mfno_cycle_start tip_height={tip_height}");
         }
 
+        if let Ok(peers) = std::env::var("MFN_REPAIR_PEERS") {
+            let peers: Vec<std::path::PathBuf> = peers
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(std::path::PathBuf::from)
+                .collect();
+            if !peers.is_empty() {
+                match crate::stripe_repair::repair_wallet_stripes(&config.wallet_path, &peers) {
+                    Ok(reports) => {
+                        for report in reports {
+                            println!(
+                                "mfno_repair commit={} restored={} missing={} recovered={} sealed={} answered={}",
+                                report.commitment_hash_hex,
+                                report.restored,
+                                report.still_missing,
+                                report.recovered,
+                                report.sealed,
+                                report.answered
+                            );
+                        }
+                    }
+                    Err(e) => eprintln!("mfno_repair error={e:?}"),
+                }
+            }
+        }
         let (summary, attempts) = run_prove_cycle(client, &config.wallet_path)?;
         if config.json_logs {
             println!(

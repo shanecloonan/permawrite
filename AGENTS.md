@@ -148,7 +148,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
-| **8** Storage (Seat E) | — | **E-11** header v9 shard uploads (claim base `4aedafe9`) | E-12 sealed proofs at header v10. No Path A change | apply + mempool |
+| **8** Storage (Seat E) | **E-11** header v9 shard uploads (parent branch) | **E-13** operator stripe repair, reseal, and retrieval answer (this commit) | Retrieval client over SOCKS. No Path A change. No VPS | operator repair test |
 
 ---
 
@@ -533,7 +533,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 8 / Seat E - E-11 shard uploads** (this commit): header version 9 requires a new commitment to be 12 equal shards. `wallet upload --sharded` builds the 4+8 stripe, anchors it, and writes `shard-00.bin` through `shard-11.bin`. Mempool and `apply_block` use that rule only at version 9. Version 8 is left for Seat B. Path A stays the size bucket. Next: **E-12** sealed proofs.
+1. **2026-11-14 - lane 8 / Seat E - E-13 stripe repair** (this commit): the prove loop, when `MFN_REPAIR_PEERS` is set, fills missing `shard-NN.bin` from peer wallets, rewrites the stripe from any 4 shards, seals each shard under `{wallet}.operator-id`, and answers a local `challenge.bin` into `answer-chunk.bin`. A three-operator test drops 10 of A's shards; B and C cover them; the file opens and the retrieval response clears the challenge. Does not edit Seat B retrieval or slash consensus. Path A unchanged. Next: retrieval client over SOCKS.
+
+1. **2026-11-14 - lane 8 / Seat E - E-11 shard uploads** (parent of this branch): header version 9 requires a new commitment to be 12 equal shards. `wallet upload --sharded` builds the 4+8 stripe, anchors it, and writes `shard-00.bin` through `shard-11.bin`. Mempool and `apply_block` use that rule only at version 9. Version 8 is left for Seat B. Path A stays the size bucket.
 
 1. **2026-11-14 - lane 4 / Seat C - B-12 Plonky3 aggregate** (this commit): one BabyBear STARK checks the fee bps split and two depth-4 openings (`x^7`, 4 rounds). Not a Winterfell-in-Winterfell verifier. Feature `plonky3` is off by default. Off consensus. Rebased onto **B-35** on main. Next: inner STARK verifier.
 

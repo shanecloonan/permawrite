@@ -20,6 +20,7 @@ path = "tests/chunk_http_smoke.rs"
 all = "warn"
 
 [dependencies]
+mfn-consensus = { path = "../mfn-consensus" }
 mfn-crypto = { path = "../mfn-crypto" }
 mfn-net = { path = "../mfn-net" }
 mfn-store = { path = "../mfn-store" }
