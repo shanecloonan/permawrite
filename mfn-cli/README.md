@@ -90,7 +90,7 @@ Authenticated testnet RPC: pass `--rpc-api-key KEY` or set `MFN_RPC_API_KEY=KEY`
 
 `mfn-cli status` prints the `get_status` snapshot. Operators should check `rpc.auth_enabled`, `rpc.listen_addr`, `rpc.public_bind`, `rpc.max_in_flight`, `rpc.current_in_flight`, `rpc.max_request_line_bytes`, and `rpc.io_timeout_ms` when validating public-devnet RPC exposure and capacity settings.
 
-Default wallet file: `wallet.json` (override with `--wallet PATH`). The file stores a 32-byte `seed_hex`, key-derivation tag, pending spends, scan cache, and optional light-client checkpoint. **Back it up** — it is the only recovery path for funds.
+Default wallet file: `wallet.json` (override with `--wallet PATH`). The file stores a 32-byte `seed_hex`, key-derivation tag, pending spends, scan cache, and optional light-client checkpoint. **Back it up** — it is the recovery path for funds. `wallet lock` seals that seed with Argon2id using `MFN_WALLET_PASSPHRASE` (see [`docs/WALLET_LOCK.md`](../docs/WALLET_LOCK.md)). The passphrase is not written into the file.
 
 `wallet address` prints `address=mf...` as the testnet-facing receive address. The `mf` address is only an encoding layer: it contains the existing compressed view/spend public keys plus a checksum. The command still prints `view_pub_hex` and `spend_pub_hex` for scripts, older raw-key flows, and the planned mainnet privacy-oriented default. See [`docs/WALLET_ADDRESSES.md`](../docs/WALLET_ADDRESSES.md) for the testnet-vs-mainnet address-format policy.
 

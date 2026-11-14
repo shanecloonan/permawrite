@@ -193,6 +193,44 @@ struct SendOutcome<'a> {
     owned_count_after_send: usize,
 }
 
+/// `wallet lock` — seal the seed with Argon2id.
+pub fn wallet_lock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if file.passphrase.is_none() {
+        let pass = crate::wallet_seal::passphrase_from_env()
+            .map_err(|e| WalletCmdError::Usage(e.to_string()))?;
+        file.passphrase = Some(pass);
+    }
+    let migrated = file.migrated_from_pbkdf2;
+    file.save(path)?;
+    println!("wallet_locked=true");
+    println!("wallet_kdf=argon2id");
+    println!("migrated_from_pbkdf2={migrated}");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is sealed with Argon2id. Keep MFN_WALLET_PASSPHRASE. Losing it loses the money. It is not in the file"
+    );
+    Ok(())
+}
+
+/// `wallet unlock` — write the seed in plaintext again.
+pub fn wallet_unlock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if !file.is_locked() {
+        return Err(WalletCmdError::Usage(
+            "wallet is not locked, so there is nothing to unlock".into(),
+        ));
+    }
+    file.unlock_in_memory();
+    file.save(path)?;
+    println!("wallet_locked=false");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is plaintext in the wallet file again. Anyone who can read the file can spend"
+    );
+    Ok(())
+}
+
 /// `wallet new` — generate seed and write wallet file.
 pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     if path.exists() && !force {
