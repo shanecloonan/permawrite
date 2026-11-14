@@ -67,6 +67,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
     }
     let global_wallet_path = parsed.wallet_path.clone();
     match parsed.cmd {
+        Cmd::Help { text } => {
+            println!("{text}");
+        }
         Cmd::Status => {
             let status = client.get_status()?;
             println!(
@@ -515,6 +518,19 @@ mod tests {
                 ..
             } => assert!(params.json),
             _ => panic!("expected wallet backup-info"),
+        }
+    }
+
+    #[test]
+    fn wallet_send_help_is_a_short_page() {
+        let p = parse_args(&["wallet".into(), "send".into(), "--help".into()]).unwrap();
+        match p.cmd {
+            Cmd::Help { text } => {
+                assert!(text.contains("100000000"));
+                assert!(text.contains("refused"));
+                assert!(!text.contains("checkpoint-log sign"));
+            }
+            _ => panic!("expected help"),
         }
     }
 
