@@ -26,6 +26,7 @@
 #![cfg_attr(not(test), warn(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod addrman;
+pub mod advertise_policy;
 pub mod block_sync;
 pub mod chunk_v1;
 pub mod chunk_v2;
@@ -110,8 +111,9 @@ pub use serve::{
 };
 pub use transport::{
     active_p2p_transport, init_active_p2p_transport, init_active_p2p_transport_from_env,
-    tcp_connect_with_timeout, P2pTransportConfig, P2pTransportKind, DEFAULT_TOR_SOCKS5,
-    MFND_P2P_ONION_ENV, MFND_P2P_ONION_ONLY_ENV, MFND_P2P_TRANSPORT_ENV, MFND_TOR_SOCKS5_ENV,
+    tcp_connect_with_timeout, P2pTransportConfig, P2pTransportKind, DEFAULT_I2P_SOCKS5,
+    DEFAULT_TOR_SOCKS5, MFND_I2P_SOCKS5_ENV, MFND_P2P_ONION_ENV, MFND_P2P_ONION_ONLY_ENV,
+    MFND_P2P_TRANSPORT_ENV, MFND_TOR_SOCKS5_ENV,
 };
 pub use validity_proof_v1::{
     ValidityProofV1 as NetValidityProofV1, ValidityProofV1DecodeError, VALIDITY_PROOF_V1_TAG,

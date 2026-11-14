@@ -443,13 +443,12 @@ fn gap_catch_up_peer_events(
     events
 }
 
-impl GossipHandler for InboundGossip {
-    fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
-        let label = self.inner.on_tx_v1(tx_wire);
+impl InboundGossip {
+    fn relay_admitted(&self, tx_wire: &[u8], label: String, stem: bool) -> String {
         if let Some(tx_id) = label.strip_prefix("fresh:") {
             log_gossip_tx(self.hid, &self.peer, "accepted", tx_id);
             if let Some(ps) = &self.fanout_peers {
-                ps.fanout_fresh_tx(tx_wire, Some(&self.peer));
+                ps.fanout_tx(tx_wire, Some(&self.peer), stem);
             }
         } else if let Some(tx_id) = label.strip_prefix("accepted:") {
             log_gossip_tx(self.hid, &self.peer, "accepted", tx_id);
@@ -457,6 +456,18 @@ impl GossipHandler for InboundGossip {
             log_gossip_tx(self.hid, &self.peer, reason, "none");
         }
         label
+    }
+}
+
+impl GossipHandler for InboundGossip {
+    fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
+        let label = self.inner.on_tx_v1(tx_wire);
+        self.relay_admitted(tx_wire, label, false)
+    }
+
+    fn on_tx_stem_v1(&self, tx_wire: &[u8]) -> String {
+        let label = self.inner.on_tx_v1(tx_wire);
+        self.relay_admitted(tx_wire, label, true)
     }
 
     fn on_block_v1(&self, block_wire: &[u8]) -> String {
