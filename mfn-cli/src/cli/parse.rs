@@ -141,9 +141,9 @@ pub(crate) enum OperatorSub {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum WalletSub {
     New,
-    /// Seal the seed with `MFN_WALLET_PASSPHRASE`.
+    /// Seal the seed with Argon2id.
     Lock,
-    /// Write the seed in plaintext again. Requires the same passphrase.
+    /// Write the seed in plaintext again.
     Unlock,
     Restore {
         seed_hex: String,
@@ -198,8 +198,8 @@ pub(super) fn usage() -> &'static str {
        mempool           list mempool tx ids (get_mempool)\n\
        call METHOD       arbitrary JSON-RPC call; prints pretty JSON result\n\
        wallet new        create wallet.json with a fresh 32-byte seed\n\
-       wallet lock       seal the seed with MFN_WALLET_PASSPHRASE (not a command-line flag)\n\
-       wallet unlock     write the seed in plaintext again (requires the passphrase)\n\
+       wallet lock       seal the seed with Argon2id (MFN_WALLET_PASSPHRASE)\n\
+       wallet unlock     write the seed in plaintext again\n\
        wallet restore SEED_HEX  restore wallet.json from a 32-byte seed\n\
                          options: --key-derivation mfn_wallet_v1|payout_stealth_v1\n\
        wallet address    print view/spend public keys from wallet file\n\
@@ -216,9 +216,7 @@ pub(super) fn usage() -> &'static str {
                          options: --json\n\
        wallet backup-info  print wallet/artifact backup inventory (no seed output)\n\
                          options: --json\n\
-       wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx (F7: need ≥2 owned UTXOs)\n\
-                         AMOUNT and --fee: bare whole numbers are atomic units;\n\
-                         1.5mfn is coins (1 MFN = 100000000 atomic). Extra decimals are refused.\n\
+wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx (F7: need ≥2 owned UTXOs)\n\
 wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
                          options: --fee N --ring-size N (default 16, wallet/consensus floor) --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
@@ -1576,16 +1574,16 @@ pub(super) fn parse_wallet_compare_trusted_summary_args(
     })
 }
 
+fn parse_money(raw: &str, what: &str) -> Result<u64, CliError> {
+    mfn_wallet::parse_amount(raw).map_err(|e| CliError::Usage(format!("{what}: {e}")))
+}
+
 fn split_host_list(raw: &str) -> Vec<String> {
     raw.split(&[',', ' ', '\t'][..])
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(str::to_string)
         .collect()
-}
-
-fn parse_money(raw: &str, what: &str) -> Result<u64, CliError> {
-    mfn_wallet::parse_amount(raw).map_err(|e| CliError::Usage(format!("{what}: {e}")))
 }
 
 pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
@@ -1678,7 +1676,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             positional[2],
         )
     };
-    let amount: u64 = parse_money(amount_raw, "AMOUNT")?;
+    let amount = parse_money(amount_raw, "AMOUNT")?;
     Ok(SendParams {
         to_view_hex,
         to_spend_hex,
@@ -1758,7 +1756,9 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--anchor-value requires a value".into()));
             };
-            anchor_value = parse_money(v, "--anchor-value")?;
+            anchor_value = v.parse().map_err(|_| {
+                CliError::Usage("--anchor-value must be a non-negative integer".into())
+            })?;
             i += 2;
             continue;
         }
