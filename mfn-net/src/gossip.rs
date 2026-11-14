@@ -173,6 +173,13 @@ pub fn recv_gossip_v1<R: Read>(
                 let _ = handler.on_tx_v1(&tx_wire);
                 stats.tx_frames = stats.tx_frames.saturating_add(1);
             }
+            crate::tx_pad::PADDED_TX_TAG => {
+                let body = crate::tx_pad::decode_padded_tx(&payload).map_err(|_| {
+                    GossipPayloadDecodeError::UnknownTag(crate::tx_pad::PADDED_TX_TAG)
+                })?;
+                let _ = handler.on_tx_v1(body);
+                stats.tx_frames = stats.tx_frames.saturating_add(1);
+            }
             0x07 => {
                 let block = BlockV1::decode_payload(&payload)?;
                 let _ = handler.on_block_v1(block.block_wire());
@@ -502,7 +509,15 @@ fn push_tx_labeled_gossip_to_peer(
         tcp_connect_peer_v1_handshake_with_tip_exchange(peer_addr, genesis_id, local_tip)?;
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
-    if stem_wire {
+    if crate::tx_pad::tx_padding_enabled() {
+        let wait = crate::tx_pad::relay_wait(std::time::Instant::now());
+        if !wait.is_zero() {
+            std::thread::sleep(wait);
+        }
+        let padded = crate::tx_pad::encode_padded_tx(tx_wire)
+            .map_err(|e| PushTxGossipError::Write(FrameWriteError::Io(std::io::Error::other(e))))?;
+        write_frame_io(&mut sock, &padded)?;
+    } else if stem_wire {
         send_tx_stem_v1(&mut sock, tx_wire)?;
     } else {
         send_tx_v1(&mut sock, tx_wire)?;
