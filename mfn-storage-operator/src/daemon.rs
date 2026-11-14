@@ -133,6 +133,15 @@ pub fn run_prove_cycle(
                     });
                 }
             }
+            Err(ProveError::Corrupt(e)) => {
+                summary.skipped = summary.skipped.saturating_add(1);
+                attempts.push(ProveAttempt {
+                    commitment_hash_hex: hash,
+                    status: ProveAttemptStatus::Skipped {
+                        reason: format!("corrupt payload, not submitting: {e}"),
+                    },
+                });
+            }
             Err(ProveError::Usage(e)) => {
                 summary.failed = summary.failed.saturating_add(1);
                 attempts.push(ProveAttempt {
