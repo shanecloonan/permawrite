@@ -52,8 +52,11 @@ pub fn decode_padded_tx(payload: &[u8]) -> Result<&[u8], String> {
         return Err("padded transaction is not a full bucket".into());
     }
     let len = u32::from_be_bytes(payload[1..5].try_into().unwrap_or([0; 4])) as usize;
+    let Some(end) = 5usize.checked_add(len) else {
+        return Err("padded length exceeds the bucket".into());
+    };
     let body = payload
-        .get(5..5 + len)
+        .get(5..end)
         .ok_or("padded length exceeds the bucket")?;
     Ok(body)
 }
