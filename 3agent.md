@@ -19,13 +19,13 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat C **B-39** local light check (off consensus). Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
+Synced at Seat C **B-318** local witness envelope (off consensus). Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
-| **C** Validity proofs | **B-39** local light check (this commit); **B-12**; **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
+| **C** Validity proofs | **B-318** local witness envelope (this commit); **B-39**; **B-12** | *Idle* | Coinbase limbs in the parent digest |
 
 ### Hard locks (all seats)
 
@@ -40,7 +40,7 @@ Synced at Seat C **B-39** local light check (off consensus). Path A and F-A unch
 
 ```text
 L4 public testnet harden
-  ├─ Seat C: F5 phase 4 (B-316, B-317, B-12, B-39 local verify). Inner verifier still open. No VPS.
+  ├─ Seat C: F5 phase 4 (B-316 through B-318). Inner verifier still open. No VPS.
   ├─ Seat B: sixteenth prove matrix (B-241→B-242…) → B-32 (needs 2nd host)
   ├─ Seat A/B+lane6: B-13a GREEN pin → B-40 / B-25 permanence gate
   └─ Seat A: green CI+Nightly pins on heads
@@ -59,6 +59,6 @@ L4 public testnet harden
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
 3agent — Seat B: Done B-317 retrieval challenges at header v7 / Doing idle / Next output-count padding, header-gated (no DEFAULT flip)
-3agent — Seat C: Done B-39 local light check / Doing idle / Next inner STARK verifier
+3agent — Seat C: Done B-318 local witness envelope / Doing idle / Next coinbase limbs in the parent digest
 (AGENTS.md §5 remains the claim surface)
 ```

@@ -27,6 +27,7 @@ use p3_symmetric::{PaddingFreeSponge, TruncatedPermutation};
 use p3_uni_stark::{prove, verify, StarkConfig};
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 const DEPTH: usize = 4;
@@ -104,7 +105,7 @@ pub struct AggregatedClaim {
 }
 
 /// Claimed outputs for a light check. Roots and the fee split are not recomputed.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AggregatedOutputs {
     /// Fee sum. `fee_sum * bps` must fit in BabyBear.
     pub fee_sum: u32,
@@ -144,6 +145,12 @@ pub enum AggregateError {
     /// Plonky3 rejected the proof for these public values.
     #[error("plonky3 proof invalid")]
     ProofInvalid,
+    /// The witness bytes are not a version-1 envelope.
+    #[error("aggregated witness bytes are malformed")]
+    WitnessMalformed,
+    /// The witness version is not the one this crate checks.
+    #[error("aggregated witness version is not supported")]
+    WitnessVersion,
 }
 
 /// BabyBear parent hash. Four seventh-power rounds.
