@@ -734,6 +734,7 @@ impl RpcClient {
             let cfg = P2pTransportConfig {
                 kind: P2pTransportKind::Tor,
                 tor_socks5: proxy.clone(),
+                overlay_only: false,
             };
             return cfg.connect_peer(&self.addr).map_err(RpcError::Io);
         }
