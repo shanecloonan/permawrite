@@ -705,6 +705,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-release"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "mfn-crypto",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "mfn-rpc"
 version = "0.1.0"
 dependencies = [

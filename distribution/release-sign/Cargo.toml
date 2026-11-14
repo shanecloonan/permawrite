@@ -1,0 +1,25 @@
+[package]
+name = "mfn-release"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+description = "Multi-maintainer signatures for Permawrite release manifests."
+
+[[bin]]
+name = "mfn-release"
+path = "src/main.rs"
+
+[dependencies]
+hex = { workspace = true }
+mfn-crypto = { path = "../../mfn-crypto" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
