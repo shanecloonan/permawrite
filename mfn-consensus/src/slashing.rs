@@ -522,6 +522,46 @@ mod tests {
     }
 
     #[test]
+    fn f5_1c_slash_drops_bond_registry_exit() {
+        use std::collections::BTreeMap;
+
+        use crate::block::PendingUnbond;
+        use crate::emission::SubsidyBpsSchedule;
+        use crate::validator_evolution::apply_equivocation_slashings;
+        use crate::{DEFAULT_EMISSION_PARAMS, HEADER_VERSION};
+
+        let (val, bls) = fresh_validator(0, 500);
+        let mut pending = BTreeMap::new();
+        pending.insert(
+            0,
+            PendingUnbond {
+                validator_index: 0,
+                unlock_height: 50,
+                stake_at_request: 500,
+                request_height: 1,
+            },
+        );
+        let ev = SlashEvidence::Equivocation(ev_for(0, &bls.sk, [1u8; 32], [2u8; 32]));
+        let mut validators = vec![val];
+        let out = apply_equivocation_slashings(
+            &mut validators,
+            &mut pending,
+            &[ev],
+            &DEFAULT_EMISSION_PARAMS,
+            SubsidyBpsSchedule::default(),
+            10,
+            HEADER_VERSION,
+        );
+        assert!(out.errors.is_empty(), "{:?}", out.errors);
+        assert_eq!(validators[0].stake, 0);
+        assert_eq!(out.forfeited_total, 500);
+        assert!(
+            pending.is_empty(),
+            "a slashed producer must leave the bond-registry exit set"
+        );
+    }
+
+    #[test]
     fn valid_evidence_verifies() {
         let (val, bls) = fresh_validator(0, 100);
         let ev = ev_for(0, &bls.sk, [1u8; 32], [2u8; 32]);

@@ -50,8 +50,10 @@ fn default_params() -> ConsensusParams {
 fn equivocation_empty_input_is_noop() {
     let (v0, _) = mk_validator(0, 1_000);
     let mut validators = vec![v0];
+    let mut pending = BTreeMap::new();
     let out = apply_equivocation_slashings(
         &mut validators,
+        &mut pending,
         &[],
         &DEFAULT_EMISSION_PARAMS,
         crate::emission::SubsidyBpsSchedule::default(),

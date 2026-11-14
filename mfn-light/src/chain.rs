@@ -621,6 +621,7 @@ impl LightChain {
         // Phase A: equivocation slashings.
         let eq = apply_equivocation_slashings(
             &mut staged_validators,
+            &mut staged_pending,
             &block.slashings,
             &self.emission_params,
             self.subsidy_schedule,
@@ -738,6 +739,7 @@ impl LightChain {
 
         let eq = apply_equivocation_slashings(
             &mut staged_validators,
+            &mut staged_pending,
             slashings,
             &self.emission_params,
             self.subsidy_schedule,

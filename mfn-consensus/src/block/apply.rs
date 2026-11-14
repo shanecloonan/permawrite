@@ -777,6 +777,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         };
         let eq = crate::validator_evolution::apply_equivocation_slashings(
             &mut next.validators,
+            &mut next.pending_unbonds,
             &block.slashings,
             &emission_base,
             subsidy_schedule,
