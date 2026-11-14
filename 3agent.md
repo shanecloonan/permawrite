@@ -19,18 +19,18 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at Seat C **B-316** validity leaves (off consensus). Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
+Synced at **B-318** output-count buckets on top of Seat C **B-12** (off consensus). Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-318** output-count buckets at header v8 (this commit); **B-317** retrieval | *Idle* | Next privacy gate stays header-gated. No DEFAULT flip |
-| **C** Validity proofs | **B-316** Winterfell emission + coinbase-split leaves (on main) | *Idle* | STARK-friendly Merkle leaf, then **B-12** on Plonky3 |
+| **B** Protocol/Privacy | **B-318** output-count buckets at header v8 (this merge); **B-317** retrieval | *Idle* | Wallet output pad so a header-v8 spend verifies. No DEFAULT flip |
+| **C** Validity proofs | **B-12** Plonky3 aggregate (on main); **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
 
 ### Hard locks (all seats)
 
 1. **B-15 lock:** do **not** run parallel `join-testnet-rehearsal*` on Hetzner; prefer not to restart `faucet-http` / thrash `mfnd-hub` while tip sealing.
-2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#32578440244` rust GREEN / scripts FAIL; Nightly `#31861932921` GREEN.
+2. **CI concurrency:** if GitHub CI is in_progress on main, prefer [skip ci] for docs/ops; never cancel a healthy run. Tip CI `#32578440244` rust GREEN / scripts FAIL; Nightly `#31861932921` GREEN. PRs run slim CI (fmt, clippy, Linux tests/scripts); full multi-OS matrix + wasm + audit run on main push and nightly — watch the main head after merging.
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
@@ -40,7 +40,7 @@ Synced at Seat C **B-316** validity leaves (off consensus). Path A and F-A uncha
 
 ```text
 L4 public testnet harden
-  ├─ Seat C: F5 phase 4 validity leaves (B-316 done) → Merkle leaf → B-12 Plonky3. No VPS.
+  ├─ Seat C: F5 phase 4 (B-316, B-317, B-12 aggregate done). Inner verifier still open. No VPS.
   ├─ Seat B: sixteenth prove matrix (B-241→B-242…) → B-32 (needs 2nd host)
   ├─ Seat A/B+lane6: B-13a GREEN pin → B-40 / B-25 permanence gate
   └─ Seat A: green CI+Nightly pins on heads
@@ -58,7 +58,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done B-318 output-count buckets at header v8 / Doing idle / Next privacy gate stays header-gated (no DEFAULT flip)
-3agent — Seat C: Done B-316 Winterfell emission + coinbase-split leaves / Doing idle / Next Merkle leaf, then B-12 on Plonky3
+3agent — Seat B: Done B-318 output-count buckets at header v8 / Doing idle / Next wallet output pad (no DEFAULT flip)
+3agent — Seat C: Done B-12 Plonky3 aggregate / Doing idle / Next inner STARK verifier
 (AGENTS.md §5 remains the claim surface)
 ```

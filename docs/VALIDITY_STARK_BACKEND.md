@@ -57,3 +57,24 @@ from `apply_block`:
    exact sums. That is the unique integer quotient for `bps <= 10000`.
 
 Both verifiers reject a tampered public output. Neither proof is gossiped.
+
+## Field-Merkle leaf (B-317)
+
+`mfn_consensus::validity_stark_merkle` proves a depth-4 opening under
+`field_merkle_compress`: eight MiMC-5 rounds (`x -> (x + c)^5`) on the same
+`f128`. Lists pad to 16 leaves with the pad element `2`. The public inputs are
+the leaf, the root, and the index. Siblings stay in the proof.
+
+This does not verify `mfn_crypto::merkle` or a SPoRA path. Those compress with
+SHA-512 `dhash`. The fifth-power rounds are there so the parent mix is not a
+single multiplication. Raising the depth is a constant change; it is not a
+consensus fork.
+
+## B-12 first Plonky3 aggregate
+
+`mfn_consensus::validity_stark_plonky3` (feature `plonky3`, not a default
+feature) is one BabyBear STARK of three statements: the fee basis-point split,
+and two depth-4 openings under a 4-round seventh-power hash. It is statement
+aggregation. It does not verify a Winterfell proof inside another proof. That
+inner verifier is the rest of B-12. Numbers that do not fit in BabyBear are
+rejected. Path A and F-A are unchanged.
