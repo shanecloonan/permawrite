@@ -577,6 +577,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-boot-check"
+version = "0.1.0"
+dependencies = [
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "mfn-checkpoint-log"
 version = "0.1.0"
 dependencies = [
