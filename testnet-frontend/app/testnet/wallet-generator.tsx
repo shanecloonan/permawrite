@@ -24,12 +24,17 @@ import {
   type WalletSyncState,
   loadMfnWasm,
 } from "@/lib/testnet/wasm-wallet";
+import {
+  chooseBrowserSpend,
+  firstHeaderHex,
+  headerVersionFromHex,
+  requireTwoOutputs,
+} from "@/lib/testnet/spend-privacy";
 import { formatMfn, parseSpendAmount } from "@/lib/testnet/spend-amount";
 import FileKeep from "./file-keep";
 import { CopyButton, truncateId, useCopyFeedback } from "./ui";
 
 const FEE = 10_000;
-const RING = 16;
 
 /** Keep ≥2 self-owned UTXOs after spend (F7 input floor). */
 function pushSelfChange(
@@ -320,12 +325,22 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
       ];
       // Split change into two self-outputs so the next send still meets F7.
       pushSelfChange(recipients, session, change);
+      requireTwoOutputs(recipients.length);
+
+      const headerRows = await rpc<unknown>("get_block_headers", {
+        from_height: tipH,
+        to_height: tipH,
+      });
+      const privacy = chooseBrowserSpend({
+        headerVersion: headerVersionFromHex(firstHeaderHex(headerRows)),
+        decoyCandidates: (utxoPage.utxos || []).length,
+      });
 
       const plan = {
         inputs: pick,
         recipients,
         fee: FEE,
-        ring_size: RING,
+        ring_size: privacy.ringSize,
         current_height: tipH,
         decoy_utxos: (utxoPage.utxos || []).map((u) => ({
           height: u.height,
@@ -449,7 +464,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
         <Stat
           label="Fee"
           value={FEE.toLocaleString()}
-          hint={`ring ${RING}`}
+          hint="largest legal ring"
         />
       </div>
 
