@@ -82,6 +82,8 @@ pub struct P2pTransportConfig {
     pub tor_socks5: String,
     /// SOCKS5 endpoint when `kind == I2p`.
     pub i2p_socks5: String,
+    /// When true, only `.onion` and `.i2p` destinations may be dialed.
+    pub overlay_only: bool,
 }
 
 impl Default for P2pTransportConfig {
@@ -90,6 +92,7 @@ impl Default for P2pTransportConfig {
             kind: P2pTransportKind::Tcp,
             tor_socks5: DEFAULT_TOR_SOCKS5.into(),
             i2p_socks5: DEFAULT_I2P_SOCKS5.into(),
+            overlay_only: false,
         }
     }
 }
@@ -130,11 +133,28 @@ impl P2pTransportConfig {
                 return Err(format!("{MFND_I2P_SOCKS5_ENV} must be valid UTF-8"));
             }
         };
+        let overlay_only = match std::env::var("MFND_P2P_OVERLAY_ONLY") {
+            Ok(raw) => matches!(
+                raw.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            ),
+            Err(std::env::VarError::NotPresent) => false,
+            Err(std::env::VarError::NotUnicode(_)) => {
+                return Err("MFND_P2P_OVERLAY_ONLY must be valid UTF-8".into());
+            }
+        };
         Ok(Self {
             kind,
             tor_socks5,
             i2p_socks5,
+            overlay_only,
         })
+    }
+
+    /// `.onion` and `.i2p` hosts are the only destinations overlay-only mode dials.
+    pub fn overlay_destination(host: &str) -> bool {
+        let host = host.to_ascii_lowercase();
+        host.ends_with(".onion") || host.ends_with(".i2p")
     }
 
     /// Optional operator-published onion P2P dial address from [`MFND_P2P_ONION_ENV`].
@@ -173,6 +193,12 @@ impl P2pTransportConfig {
     pub fn connect_peer(&self, peer: &str) -> std::io::Result<TcpStream> {
         let (host, port) =
             parse_peer_host_port(peer).map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
+        if self.overlay_only && !Self::overlay_destination(&host) {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("peer {peer:?}: overlay-only mode refuses clearnet dials"),
+            ));
+        }
         match self.kind {
             P2pTransportKind::Tcp => {
                 if is_onion_host(&host) {
@@ -307,6 +333,7 @@ mod tests {
             kind: P2pTransportKind::Tor,
             tor_socks5: "127.0.0.1:1".into(),
             i2p_socks5: DEFAULT_I2P_SOCKS5.into(),
+            overlay_only: false,
         };
         assert!(cfg.connect("127.0.0.1:1").is_err());
     }
@@ -369,6 +396,7 @@ mod tests {
             kind: P2pTransportKind::I2p,
             tor_socks5: DEFAULT_TOR_SOCKS5.into(),
             i2p_socks5: proxy_addr.to_string(),
+            overlay_only: false,
         };
         let dest = "ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p:8333";
         cfg.connect_peer(dest).unwrap();
@@ -377,6 +405,29 @@ mod tests {
         let err = cfg.connect_peer("203.0.113.8:8333").unwrap_err();
         assert_eq!(err.kind(), ErrorKind::InvalidInput);
         assert!(err.to_string().contains(".i2p"));
+    }
+
+    #[test]
+    fn overlay_only_never_connects_a_clearnet_socket() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let addr = listener.local_addr().unwrap();
+        let cfg = P2pTransportConfig {
+            kind: P2pTransportKind::Tcp,
+            tor_socks5: DEFAULT_TOR_SOCKS5.into(),
+            i2p_socks5: DEFAULT_I2P_SOCKS5.into(),
+            overlay_only: true,
+        };
+        let err = cfg.connect_peer(&addr.to_string()).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidInput);
+        assert!(err.to_string().contains("overlay-only"));
+        assert!(
+            listener.accept().is_err(),
+            "clearnet listener was contacted"
+        );
+        let onion = "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:8333";
+        let onion_err = cfg.connect_peer(onion).unwrap_err();
+        assert!(!onion_err.to_string().contains("overlay-only"));
     }
 
     #[test]
