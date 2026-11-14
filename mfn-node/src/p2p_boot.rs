@@ -269,14 +269,21 @@ pub fn remember_connected_peer(addr: &str) {
     }
 }
 
-/// Insert remembered peers at the front of the boot dial list.
+/// Insert remembered peers that are not already in `peers.json` at the front of the boot dial list.
 pub fn merge_local_anchors(explicit: &mut Vec<String>, data_dir: &Path) -> usize {
+    let saved = mfn_store::load_peers(data_dir)
+        .map(|(peers, _)| peers)
+        .unwrap_or_default();
     let loaded = load_local_anchors(&local_anchor_path(data_dir));
-    if loaded.is_empty() {
+    let fresh: Vec<String> = loaded
+        .into_iter()
+        .filter(|addr| !saved.contains(addr))
+        .collect();
+    if fresh.is_empty() {
         return 0;
     }
-    let mut merged = Vec::with_capacity(loaded.len() + explicit.len());
-    for addr in loaded {
+    let mut merged = Vec::with_capacity(fresh.len() + explicit.len());
+    for addr in fresh {
         push_unique_peer_addr(&mut merged, addr);
     }
     let placed = merged.len();
@@ -329,6 +336,14 @@ mod tests {
         assert_eq!(dials[0], "203.0.113.8:19101");
         assert_eq!(dials[1], "203.0.113.9:19101");
         assert_eq!(dials[2], "198.51.100.2:19101");
+        let mut saved = std::collections::BTreeSet::new();
+        saved.insert("203.0.113.8:19101".to_string());
+        mfn_store::save_peers(&dir, &saved, 8).unwrap();
+        let mut dials = vec!["198.51.100.2:19101".to_string()];
+        let placed = merge_local_anchors(&mut dials, &dir);
+        assert_eq!(placed, 1);
+        assert_eq!(dials[0], "203.0.113.9:19101");
+        assert!(!dials.iter().any(|addr| addr == "203.0.113.8:19101"));
         std::fs::remove_dir_all(&dir).ok();
     }
 
