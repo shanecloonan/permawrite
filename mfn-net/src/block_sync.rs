@@ -264,7 +264,9 @@ pub fn recv_blocks_v1<R: Read>(r: &mut R) -> Result<BlocksV1, BlockSyncRecvError
             | TX_STEM_V1_TAG
             | 0x07
             | 0x08
-            | 0x0b => continue,
+            | 0x0b
+            | crate::peer_exchange::GETADDR_V1_TAG
+            | crate::peer_exchange::ADDR_V1_TAG => continue,
             tag => {
                 return Err(BlockSyncRecvError::Decode(
                     BlockSyncDecodeError::UnknownTag(tag),
@@ -435,6 +437,7 @@ pub fn serve_post_handshake_v1(
                     eprintln!("mfnd_p2p_advertise_reject peer={peer} addr={addr} {reason}");
                     continue;
                 }
+                crate::addrman::learn_address(addr);
                 if let Some(ps) = fanout_peers {
                     ps.register_peer(addr);
                     match stream.try_clone() {
@@ -483,6 +486,18 @@ pub fn serve_post_handshake_v1(
             {
                 recv_gossip_v1_from_first(stream, &payload, tag, gossip)?;
                 // Keep the duplex session alive for later producer fan-out (**M7.5**).
+            }
+            crate::peer_exchange::GETADDR_V1_TAG | crate::peer_exchange::ADDR_V1_TAG => {
+                match crate::peer_exchange::handle_frame(&payload, stream) {
+                    Ok(learned) => {
+                        if let Some(ps) = fanout_peers {
+                            for addr in learned {
+                                ps.register_peer(&addr);
+                            }
+                        }
+                    }
+                    Err(e) => eprintln!("mfnd_p2p_addr_abort peer={peer} {e}"),
+                }
             }
             tag => return Err(PostHandshakeError::UnknownTag(tag)),
         }
