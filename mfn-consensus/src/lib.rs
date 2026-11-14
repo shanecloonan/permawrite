@@ -199,7 +199,11 @@ pub use header_verify::{
     verify_block_body, verify_header, BodyVerifyError, HeaderCheck, HeaderVerifyError,
 };
 #[cfg(feature = "bls")]
-pub use slashing::{canonicalize, verify_equivocation_evidence, verify_evidence, EvidenceCheck};
+pub use slashing::{
+    canonicalize, equivocation_vote_message, verify_equivocation_evidence,
+    verify_equivocation_evidence_for_header, verify_evidence, EvidenceCheck,
+    HEADER_VERSION_EQUIVOCATION_BIND,
+};
 pub use slashing::{
     decode_evidence, decode_slash_evidence, encode_evidence, encode_slash_evidence,
     slashing_leaf_hash, slashing_merkle_root, slashing_merkle_root_for_version,

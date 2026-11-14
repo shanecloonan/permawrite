@@ -127,7 +127,7 @@ pub fn apply_equivocation_slashings(
             });
             continue;
         }
-        match verify_equivocation_evidence(&ev, validators) {
+        match verify_equivocation_evidence_for_header(&ev, validators, _header_version) {
             EvidenceCheck::Valid => {
                 let idx = ev.voter_index as usize;
                 if idx < validators.len() {

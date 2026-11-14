@@ -7,7 +7,7 @@
 use crate::block::{HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH};
 use crate::bls::{bls_verify, decode_signature, encode_signature, BlsSignature};
 use mfn_crypto::codec::{Reader, Writer};
-use mfn_crypto::domain::SLASHING_LEAF;
+use mfn_crypto::domain::{CONSENSUS_VOTE, SLASHING_LEAF};
 use mfn_crypto::hash::dhash;
 use mfn_crypto::merkle::merkle_root_or_zero;
 
@@ -21,6 +21,28 @@ pub const SLASH_TAGGED_WIRE_MAGIC: u8 = 0xFE;
 pub const SLASH_KIND_EQUIVOCATION: u8 = 0;
 /// Kind tag: interactive fraud proof against a contested block producer.
 pub const SLASH_KIND_INVALID_BLOCK: u8 = 1;
+
+/// Header version at which an equivocation vote signs `(height, slot, hash)`.
+///
+/// Below this, a vote signs the header hash alone. Two honest votes from
+/// consecutive blocks then verify as equivocation, because height and slot
+/// sit in the evidence unsigned. Current genesis stays on header version 1,
+/// so the bound rule is inactive there. Header version 4 is B-35 input-count
+/// padding and does not use this rule. The signed message changes at this
+/// version, which is why the rule is gated.
+pub const HEADER_VERSION_EQUIVOCATION_BIND: u32 = 5;
+
+/// Domain-separated vote message `dhash(CONSENSUS_VOTE, height || slot || hash)`.
+///
+/// Both signatures in one piece of evidence are checked against the same
+/// `(height, slot)`. A signature made for any other height or slot fails.
+pub fn equivocation_vote_message(height: u32, slot: u32, header_hash: &[u8; 32]) -> [u8; 32] {
+    let mut w = Writer::new();
+    w.u32(height);
+    w.u32(slot);
+    w.push(header_hash);
+    dhash(CONSENSUS_VOTE, &[w.bytes()])
+}
 
 /// On-chain evidence of validator equivocation.
 #[derive(Clone, Debug)]
@@ -330,6 +352,11 @@ pub enum EvidenceCheck {
     /// `sig_b` did not verify against `header_hash_b` under the validator's
     /// BLS pubkey.
     SigBInvalid,
+    /// Header version binds `(height, slot, hash)`, and the two signatures
+    /// are not both valid for this evidence's single height and slot.
+    /// Honest votes at different heights or slots land here, as do raw
+    /// header-hash signatures once the bind version is active.
+    HeightSlotMismatch,
 }
 
 impl EvidenceCheck {
@@ -371,9 +398,28 @@ pub enum SlashRejectReason {
 }
 
 /// Verify equivocation evidence against the validator set.
+///
+/// Uses the current genesis header version ([`HEADER_VERSION`]), which
+/// still signs the bare header hash. Chains that opt into
+/// [`HEADER_VERSION_EQUIVOCATION_BIND`] go through
+/// [`verify_equivocation_evidence_for_header`].
 pub fn verify_equivocation_evidence(
     evidence: &EquivocationEvidence,
     validators: &[Validator],
+) -> EvidenceCheck {
+    verify_equivocation_evidence_for_header(evidence, validators, HEADER_VERSION)
+}
+
+/// Verify equivocation evidence under `header_version`.
+///
+/// At [`HEADER_VERSION_EQUIVOCATION_BIND`] and above, each signature must
+/// be over [`equivocation_vote_message`] for this evidence's height and
+/// slot. Two honest votes at different heights or slots cannot both
+/// verify. A true same-height, same-slot double-sign still does.
+pub fn verify_equivocation_evidence_for_header(
+    evidence: &EquivocationEvidence,
+    validators: &[Validator],
+    header_version: u32,
 ) -> EvidenceCheck {
     let idx = evidence.voter_index as usize;
     if idx >= validators.len() {
@@ -386,11 +432,30 @@ pub fn verify_equivocation_evidence(
     if v.stake == 0 {
         return EvidenceCheck::AlreadySlashed;
     }
-    if !bls_verify(&evidence.sig_a, &evidence.header_hash_a, &v.bls_pk) {
-        return EvidenceCheck::SigAInvalid;
+    let bound = header_version >= HEADER_VERSION_EQUIVOCATION_BIND;
+    let msg_a: [u8; 32] = if bound {
+        equivocation_vote_message(evidence.height, evidence.slot, &evidence.header_hash_a)
+    } else {
+        evidence.header_hash_a
+    };
+    let msg_b: [u8; 32] = if bound {
+        equivocation_vote_message(evidence.height, evidence.slot, &evidence.header_hash_b)
+    } else {
+        evidence.header_hash_b
+    };
+    if !bls_verify(&evidence.sig_a, &msg_a, &v.bls_pk) {
+        return if bound {
+            EvidenceCheck::HeightSlotMismatch
+        } else {
+            EvidenceCheck::SigAInvalid
+        };
     }
-    if !bls_verify(&evidence.sig_b, &evidence.header_hash_b, &v.bls_pk) {
-        return EvidenceCheck::SigBInvalid;
+    if !bls_verify(&evidence.sig_b, &msg_b, &v.bls_pk) {
+        return if bound {
+            EvidenceCheck::HeightSlotMismatch
+        } else {
+            EvidenceCheck::SigBInvalid
+        };
     }
     EvidenceCheck::Valid
 }
@@ -455,7 +520,7 @@ pub fn verify_slash_evidence(
 ) -> Result<(), SlashRejectReason> {
     match evidence {
         SlashEvidence::Equivocation(ev) => {
-            let check = verify_equivocation_evidence(ev, validators);
+            let check = verify_equivocation_evidence_for_header(ev, validators, header_version);
             if check.is_valid() {
                 Ok(())
             } else {
@@ -519,6 +584,15 @@ mod tests {
             header_hash_b: b,
             sig_b: bls_sign(&b, sk),
         }
+    }
+
+    fn bound_sig(
+        sk: &mfn_bls::BlsSecretKey,
+        height: u32,
+        slot: u32,
+        hash: [u8; 32],
+    ) -> mfn_bls::BlsSignature {
+        bls_sign(&equivocation_vote_message(height, slot, &hash), sk)
     }
 
     #[test]
@@ -647,6 +721,94 @@ mod tests {
             }
             SlashEvidence::InvalidBlock(_) => panic!("expected equivocation"),
         }
+    }
+
+    #[test]
+    fn honest_votes_at_different_heights_are_not_equivocation() {
+        let (val, bls) = fresh_validator(0, 100);
+        let hash_a = [1u8; 32];
+        let hash_b = [2u8; 32];
+        // Two honest bound votes: height 5 slot 7, then height 6 slot 8.
+        // Evidence can name only one (height, slot). The second signature
+        // was not made for that pair.
+        let cross = EquivocationEvidence {
+            height: 5,
+            slot: 7,
+            voter_index: 0,
+            header_hash_a: hash_a,
+            sig_a: bound_sig(&bls.sk, 5, 7, hash_a),
+            header_hash_b: hash_b,
+            sig_b: bound_sig(&bls.sk, 6, 8, hash_b),
+        };
+        assert_eq!(
+            verify_equivocation_evidence_for_header(
+                &cross,
+                std::slice::from_ref(&val),
+                HEADER_VERSION_EQUIVOCATION_BIND
+            ),
+            EvidenceCheck::HeightSlotMismatch
+        );
+        // Same height, different slot, is also not a double-sign.
+        let cross_slot = EquivocationEvidence {
+            height: 5,
+            slot: 7,
+            voter_index: 0,
+            header_hash_a: hash_a,
+            sig_a: bound_sig(&bls.sk, 5, 7, hash_a),
+            header_hash_b: hash_b,
+            sig_b: bound_sig(&bls.sk, 5, 9, hash_b),
+        };
+        assert_eq!(
+            verify_equivocation_evidence_for_header(
+                &cross_slot,
+                std::slice::from_ref(&val),
+                HEADER_VERSION_EQUIVOCATION_BIND
+            ),
+            EvidenceCheck::HeightSlotMismatch
+        );
+        // A true same-height, same-slot double-sign still slashes.
+        let same = EquivocationEvidence {
+            height: 5,
+            slot: 7,
+            voter_index: 0,
+            header_hash_a: hash_a,
+            sig_a: bound_sig(&bls.sk, 5, 7, hash_a),
+            header_hash_b: hash_b,
+            sig_b: bound_sig(&bls.sk, 5, 7, hash_b),
+        };
+        assert_eq!(
+            verify_equivocation_evidence_for_header(
+                &same,
+                std::slice::from_ref(&val),
+                HEADER_VERSION_EQUIVOCATION_BIND
+            ),
+            EvidenceCheck::Valid
+        );
+        // Raw header-hash signatures (the pre-bind vote) are not evidence
+        // once the bind version is active, and they still verify on the
+        // current genesis header version.
+        let legacy = ev_for(0, &bls.sk, hash_a, hash_b);
+        assert_eq!(
+            verify_equivocation_evidence_for_header(
+                &legacy,
+                std::slice::from_ref(&val),
+                HEADER_VERSION_EQUIVOCATION_BIND
+            ),
+            EvidenceCheck::HeightSlotMismatch
+        );
+        assert_eq!(
+            verify_equivocation_evidence(&legacy, std::slice::from_ref(&val)),
+            EvidenceCheck::Valid
+        );
+        // B-35's header version 4 is input-count padding, not this bind.
+        assert_eq!(
+            verify_equivocation_evidence_for_header(
+                &legacy,
+                std::slice::from_ref(&val),
+                crate::block::HEADER_VERSION_INPUT_PAD
+            ),
+            EvidenceCheck::Valid
+        );
     }
 
     #[test]
