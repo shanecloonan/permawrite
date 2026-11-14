@@ -518,6 +518,13 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 println!("{line}");
                 std::io::stdout().flush().ok();
             }
+            crate::p2p_boot::install_local_anchor_store(&parsed.data_dir);
+            let local_anchors =
+                crate::p2p_boot::merge_local_anchors(&mut p2p_dials, &parsed.data_dir);
+            if local_anchors > 0 {
+                println!("mfnd_p2p_local_anchors={local_anchors}");
+                std::io::stdout().flush().ok();
+            }
             let anchor_added = crate::p2p_boot::merge_checkpoint_anchor_peers(
                 &mut p2p_dials,
                 parsed.p2p_anchor_summary.as_deref(),
