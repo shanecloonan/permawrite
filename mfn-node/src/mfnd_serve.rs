@@ -498,9 +498,14 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
                 to,
             )
         });
+    let public_rpc = !rpc_listen_is_loopback(rpc_listen);
     let p2p_status = fanout_peers.map(|ps| {
         let ps = Arc::clone(ps);
-        let listen_addr = local_p2p_listen.map(|addr| addr.to_string());
+        let listen_addr = if crate::rpc_peer_exposure::p2p_listen_visible_on_rpc(public_rpc) {
+            local_p2p_listen.map(|addr| addr.to_string())
+        } else {
+            None
+        };
         Arc::new(move || {
             let diversity = ps.peer_diversity_snapshot();
             json!({
@@ -519,7 +524,10 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
     let p2p_anchor_peers = fanout_peers.map(|ps| {
         let ps = Arc::clone(ps);
         Arc::new(move || {
-            ps.snapshot_checkpoint_anchor_peers(mfn_net::DEFAULT_CHECKPOINT_ANCHOR_PEER_COUNT)
+            crate::rpc_peer_exposure::peers_visible_on_rpc(
+                ps.snapshot_checkpoint_anchor_peers(mfn_net::DEFAULT_CHECKPOINT_ANCHOR_PEER_COUNT),
+                public_rpc,
+            )
         }) as mfn_rpc::P2pAnchorPeersHook
     });
     let fraud_contests_hook = fraud_contests.map(|cell| {
@@ -738,6 +746,11 @@ pub(crate) fn run_serve(
     if p2p_enabled {
         let transport = crate::network::init_active_p2p_transport_from_env()
             .map_err(|e| format!("mfnd serve: {e}"))?;
+        let ban_path = store.root().join("peer_bans.txt");
+        match mfn_net::peer_ban::BanTable::load(&ban_path) {
+            Ok(table) => mfn_net::peer_ban::install(table),
+            Err(e) => eprintln!("mfnd_p2p_ban_load_abort {e}"),
+        }
         if std::env::var("MFND_P2P_PAD")
             .ok()
             .is_some_and(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "on"))

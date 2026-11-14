@@ -12,8 +12,8 @@ use mfn_storage_operator::upload_artifact_store::{
 };
 use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
-    ClaimingIdentity, TransferRecipient, Wallet, WalletError, WALLET_MIN_RING_SIZE,
-    WALLET_MIN_TX_INPUTS,
+    explain_wallet_error, ClaimingIdentity, TransferRecipient, Wallet, WalletError,
+    WALLET_MIN_RING_SIZE, WALLET_MIN_TX_INPUTS,
 };
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha512};
@@ -191,6 +191,44 @@ struct SendOutcome<'a> {
     outcome_kind: &'a str,
     balance_after_send: u64,
     owned_count_after_send: usize,
+}
+
+/// `wallet lock` — seal the seed with `MFN_WALLET_PASSPHRASE`.
+pub fn wallet_lock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if file.is_locked() {
+        return Err(WalletCmdError::Usage(
+            "wallet is already locked. The same passphrase still opens it".into(),
+        ));
+    }
+    let pass = crate::wallet_lock::passphrase_from_env()
+        .map_err(|e| WalletCmdError::Usage(e.to_string()))?;
+    file.lock_passphrase = Some(pass);
+    file.save(path)?;
+    println!("wallet_locked=true");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is sealed. Keep MFN_WALLET_PASSPHRASE somewhere safe. It is not in the wallet file. Losing it loses the money"
+    );
+    Ok(())
+}
+
+/// `wallet unlock` — write the seed in plaintext again.
+pub fn wallet_unlock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if !file.is_locked() {
+        return Err(WalletCmdError::Usage(
+            "wallet is not locked, so there is nothing to unlock".into(),
+        ));
+    }
+    file.unlock_in_memory();
+    file.save(path)?;
+    println!("wallet_locked=false");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is plaintext in the wallet file again. Anyone who can read the file can spend"
+    );
+    Ok(())
 }
 
 /// `wallet new` — generate seed and write wallet file.
@@ -455,20 +493,10 @@ fn f7_owned_below_floor_usage(got: usize, min: usize) -> WalletCmdError {
     ))
 }
 
-fn ring_size_below_floor_usage(min: usize) -> WalletCmdError {
-    WalletCmdError::Usage(format!(
-        "ring-size must be at least {min} (wallet/consensus floor)"
-    ))
-}
-
 /// Map wallet build errors; rewrite F7 input-count and ring-floor rejects to CLI wording
 /// (**B-197** / **B-217**).
 fn map_wallet_build_err(err: WalletError) -> WalletCmdError {
-    match err {
-        WalletError::TxInputCountBelowMinimum { got, min } => f7_owned_below_floor_usage(got, min),
-        WalletError::RingSizeBelowMinimum { min, .. } => ring_size_below_floor_usage(min),
-        other => WalletCmdError::Wallet(other),
-    }
+    WalletCmdError::Usage(explain_wallet_error(&err))
 }
 
 /// `wallet send` — scan, build CLSAG transfer, `submit_tx`, persist pending spends.
