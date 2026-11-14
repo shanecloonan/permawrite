@@ -12,8 +12,8 @@ use mfn_storage_operator::upload_artifact_store::{
 };
 use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
-    ClaimingIdentity, TransferRecipient, Wallet, WalletError, WALLET_MIN_RING_SIZE,
-    WALLET_MIN_TX_INPUTS,
+    explain_wallet_error, ClaimingIdentity, TransferRecipient, Wallet, WalletError,
+    WALLET_MIN_RING_SIZE, WALLET_MIN_TX_INPUTS,
 };
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha512};
@@ -193,6 +193,44 @@ struct SendOutcome<'a> {
     owned_count_after_send: usize,
 }
 
+/// `wallet lock` — seal the seed with `MFN_WALLET_PASSPHRASE`.
+pub fn wallet_lock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if file.is_locked() {
+        return Err(WalletCmdError::Usage(
+            "wallet is already locked. The same passphrase still opens it".into(),
+        ));
+    }
+    let pass = crate::wallet_lock::passphrase_from_env()
+        .map_err(|e| WalletCmdError::Usage(e.to_string()))?;
+    file.lock_passphrase = Some(pass);
+    file.save(path)?;
+    println!("wallet_locked=true");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is sealed. Keep MFN_WALLET_PASSPHRASE somewhere safe. It is not in the wallet file. Losing it loses the money"
+    );
+    Ok(())
+}
+
+/// `wallet unlock` — write the seed in plaintext again.
+pub fn wallet_unlock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if !file.is_locked() {
+        return Err(WalletCmdError::Usage(
+            "wallet is not locked, so there is nothing to unlock".into(),
+        ));
+    }
+    file.unlock_in_memory();
+    file.save(path)?;
+    println!("wallet_locked=false");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is plaintext in the wallet file again. Anyone who can read the file can spend"
+    );
+    Ok(())
+}
+
 /// `wallet new` — generate seed and write wallet file.
 pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     if path.exists() && !force {
@@ -333,6 +371,10 @@ pub fn wallet_status(
     println!("scan_height={scan_height}");
     println!("utxo_cache={cached}");
     println!("balance_cached={}", wallet.balance());
+    println!(
+        "balance_cached_mfn={}",
+        mfn_wallet::format_mfn(wallet.balance())
+    );
     println!("owned_count_cached={}", wallet.owned_count());
     println!("pending_spent_count={}", file.pending_spent_utxo_keys.len());
     println!("sync_needed={sync_needed}");
@@ -354,6 +396,7 @@ fn wallet_status_json(
         "scan_height": snapshot.scan_height,
         "utxo_cache": snapshot.utxo_cache,
         "balance_cached": snapshot.balance_cached,
+        "balance_cached_mfn": mfn_wallet::format_mfn(snapshot.balance_cached),
         "owned_count_cached": snapshot.owned_count_cached,
         "pending_spent_count": file.pending_spent_utxo_keys.len(),
         "blocks_behind": snapshot.blocks_behind,
@@ -450,20 +493,10 @@ fn f7_owned_below_floor_usage(got: usize, min: usize) -> WalletCmdError {
     ))
 }
 
-fn ring_size_below_floor_usage(min: usize) -> WalletCmdError {
-    WalletCmdError::Usage(format!(
-        "ring-size must be at least {min} (wallet/consensus floor)"
-    ))
-}
-
 /// Map wallet build errors; rewrite F7 input-count and ring-floor rejects to CLI wording
 /// (**B-197** / **B-217**).
 fn map_wallet_build_err(err: WalletError) -> WalletCmdError {
-    match err {
-        WalletError::TxInputCountBelowMinimum { got, min } => f7_owned_below_floor_usage(got, min),
-        WalletError::RingSizeBelowMinimum { min, .. } => ring_size_below_floor_usage(min),
-        other => WalletCmdError::Wallet(other),
-    }
+    WalletCmdError::Usage(explain_wallet_error(&err))
 }
 
 /// `wallet send` — scan, build CLSAG transfer, `submit_tx`, persist pending spends.
@@ -552,15 +585,44 @@ fn print_send_outcome(outcome: &SendOutcome<'_>) -> Result<(), WalletCmdError> {
     println!("blocks_scanned={}", outcome.stats.blocks_fetched);
     println!("utxo_cache={}", outcome.stats.used_utxo_cache);
     println!("amount={}", outcome.params.amount);
+    println!(
+        "amount_mfn={}",
+        mfn_wallet::format_mfn(outcome.params.amount)
+    );
     println!("fee={}", outcome.params.fee);
+    println!("fee_mfn={}", mfn_wallet::format_mfn(outcome.params.fee));
     println!("ring_size={}", outcome.params.ring_size);
     println!("tx_id={}", outcome.tx_id);
     println!("mempool_len={}", outcome.mempool_len);
     println!("outcome={}", outcome.outcome_kind);
     println!("balance_after_send={}", outcome.balance_after_send);
+    println!(
+        "balance_after_send_mfn={}",
+        mfn_wallet::format_mfn(outcome.balance_after_send)
+    );
     println!("owned_count_after_send={}", outcome.owned_count_after_send);
     println!("wallet_path={}", outcome.path.display());
+    eprintln!("{}", pending_tx_note(outcome.outcome_kind, outcome.tx_id));
     Ok(())
+}
+
+/// What to tell a person after `submit_tx`. Stdout stays `key=value`.
+pub(crate) fn pending_tx_note(kind: &str, tx_id: &str) -> String {
+    match kind {
+        "Fresh" | "Duplicate" => format!(
+            "Submitted {tx_id}. The payment is pending until a block includes it. The recipient cannot spend it yet."
+        ),
+        other => format!(
+            "The node did not accept {tx_id} ({other}). It was not added to the mempool."
+        ),
+    }
+}
+
+/// What to tell a person after an upload is submitted.
+pub(crate) fn pending_upload_note(tx_id: &str) -> String {
+    format!(
+        "Submitted {tx_id}. The upload is pending until a block includes it. Keep the upload-artifacts folder. The wallet seed does not contain the file."
+    )
 }
 
 fn send_outcome_json(outcome: &SendOutcome<'_>) -> serde_json::Value {
@@ -572,13 +634,17 @@ fn send_outcome_json(outcome: &SendOutcome<'_>) -> serde_json::Value {
         "recipient_view_hex": outcome.params.to_view_hex.as_str(),
         "recipient_spend_hex": outcome.params.to_spend_hex.as_str(),
         "amount": outcome.params.amount,
+        "amount_mfn": mfn_wallet::format_mfn(outcome.params.amount),
         "fee": outcome.params.fee,
+        "fee_mfn": mfn_wallet::format_mfn(outcome.params.fee),
         "ring_size": outcome.params.ring_size,
         "extra_len": outcome.params.extra.len(),
         "tx_id": outcome.tx_id,
         "mempool_len": outcome.mempool_len,
         "outcome": outcome.outcome_kind,
+        "pending_note": pending_tx_note(outcome.outcome_kind, outcome.tx_id),
         "balance_after_send": outcome.balance_after_send,
+        "balance_after_send_mfn": mfn_wallet::format_mfn(outcome.balance_after_send),
         "owned_count_after_send": outcome.owned_count_after_send,
     })
 }
@@ -771,7 +837,12 @@ fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdErro
     println!("bytes={}", outcome.file_bytes);
     println!("replication={}", outcome.params.replication);
     println!("anchor_value={}", outcome.params.anchor_value);
+    println!(
+        "anchor_value_mfn={}",
+        mfn_wallet::format_mfn(outcome.params.anchor_value)
+    );
     println!("fee={}", outcome.fee);
+    println!("fee_mfn={}", mfn_wallet::format_mfn(outcome.fee));
     println!("min_fee={}", outcome.min_fee);
     println!("burden={}", outcome.burden);
     println!("data_root={}", hex::encode(outcome.data_root));
@@ -792,6 +863,10 @@ fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdErro
     println!("outcome={}", outcome.outcome_kind);
     println!("balance_after_upload={}", outcome.balance_after_upload);
     println!(
+        "balance_after_upload_mfn={}",
+        mfn_wallet::format_mfn(outcome.balance_after_upload)
+    );
+    println!(
         "owned_count_after_upload={}",
         outcome.owned_count_after_upload
     );
@@ -799,6 +874,7 @@ fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdErro
     eprintln!(
         "note: payload + Merkle metadata saved under upload_artifact_dir for operator prove without --file"
     );
+    eprintln!("{}", pending_upload_note(outcome.tx_id));
     Ok(())
 }
 
@@ -823,7 +899,9 @@ fn upload_outcome_json(outcome: &UploadOutcome<'_>) -> serde_json::Value {
         "bytes": outcome.file_bytes,
         "replication": outcome.params.replication,
         "anchor_value": outcome.params.anchor_value,
+        "anchor_value_mfn": mfn_wallet::format_mfn(outcome.params.anchor_value),
         "fee": outcome.fee,
+        "fee_mfn": mfn_wallet::format_mfn(outcome.fee),
         "min_fee": outcome.min_fee,
         "burden": outcome.burden.to_string(),
         "data_root": hex::encode(outcome.data_root),
@@ -834,7 +912,9 @@ fn upload_outcome_json(outcome: &UploadOutcome<'_>) -> serde_json::Value {
         "tx_id": outcome.tx_id,
         "mempool_len": outcome.mempool_len,
         "outcome": outcome.outcome_kind,
+        "pending_note": pending_upload_note(outcome.tx_id),
         "balance_after_upload": outcome.balance_after_upload,
+        "balance_after_upload_mfn": mfn_wallet::format_mfn(outcome.balance_after_upload),
         "owned_count_after_upload": outcome.owned_count_after_upload,
         "upload_artifact_saved": artifact_saved,
         "upload_artifact_dir": artifact_dir,
@@ -998,6 +1078,7 @@ pub(crate) fn print_scan_summary(
         println!("scan_height={h}");
     }
     println!("balance={balance}");
+    println!("balance_mfn={}", mfn_wallet::format_mfn(balance));
     println!("owned_count={owned}");
 }
 
@@ -1042,6 +1123,7 @@ fn scan_summary_json(
         "scan_height": scan_height.unwrap_or(0),
         "scan_height_present": scan_height.is_some(),
         "balance": balance,
+        "balance_mfn": mfn_wallet::format_mfn(balance),
         "owned_count": owned,
         "pending_spent_count": file.pending_spent_utxo_keys.len(),
         "light_checkpoint_present": file.light_checkpoint_hex.is_some(),
@@ -1109,6 +1191,19 @@ mod tests {
             "mfn-wallet-cmd-{name}-{}-{nanos}.json",
             std::process::id()
         ))
+    }
+
+    #[test]
+    fn pending_notes_say_the_payment_is_not_final() {
+        let fresh = pending_tx_note("Fresh", "abc");
+        assert!(fresh.contains("pending"));
+        assert!(fresh.contains("cannot spend"));
+        assert!(fresh.contains("abc"));
+        let rejected = pending_tx_note("Rejected", "abc");
+        assert!(rejected.contains("not added"));
+        let upload = pending_upload_note("def");
+        assert!(upload.contains("upload-artifacts"));
+        assert!(upload.contains("seed does not contain"));
     }
 
     /// B-174: CLI default ring must stay locked to the wallet/consensus floor

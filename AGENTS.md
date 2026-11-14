@@ -48,9 +48,11 @@ A **lane** is a standing role; an **agent** is whoever is currently working that
 | **5** | Privacy surface | Wallet/CLI/WASM ring defaults, privacy doc accuracy, no-silent-downgrade UX | M7.10 replication, GHA rehearsal | Privacy-doc accuracy vs shipped behavior |
 | **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` | Emission/treasury identity sims for every economics-touching unit |
 | **7** | Testnet launch | Internet-facing go-live ([`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md)), VPS runbook, `seed_nodes` publication, faucet/observer/front-end ops, launch ceremony | Protocol tests (4/6), CI/Nightly fixes (1), evidence tooling (2) | Launch-blocker honesty (never fake TL completion; `launch-go-no-go` gate) |
+| **8** | Network anonymity | `mfn-net` transport, Dandelion relay, peer admission, RPC exposure | Consensus rules, `validity_stark_*`, wallet ring policy, VPS/faucet | No clearnet leak and no origin-linked stem |
 | **F** | Ease of use | User wallet, CLI, WASM, light-client receive, testnet-frontend, plain-language docs | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet | A person can use the network without reading a protocol spec |
+| **G** | Security hardening | Untrusted decode, fuzz, resource limits, adversarial tests. Minimal fixes only | Other seats' features, VPS/faucet, header-version flips | Hostile bytes return errors; the process stays up |
 
-Adding lanes 8+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
+Adding lanes 9+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
 
 ---
 
@@ -136,7 +138,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** **B-318** output-count buckets behind header v8 (this merge). Header v1 still accepts 3 outputs. Path A and F-A unchanged. Seat F **F-8** and Seat C **B-12** are on main. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** **B-318** output-count buckets behind header v8 (this merge). Header v1 still accepts 3 outputs. Path A and F-A unchanged. **G-1**, Seat F **F-8**, and Seat C **B-12** are on main. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -151,7 +153,9 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **5** Privacy | **B-318** output-count buckets; **B-317** one-time challenge keys; **B-19** decoy-RNG | *Idle* | Wallet output pad so a header-v8 spend verifies | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
+| **8** Anonymity | — | **D-1** Dandelion stem privacy (claim base `4aedafe9`): origin never fluffs; per-hop coin; stem wire stays stem | Onion-only advertise; inbound /16 cap | Seat D |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
+| **G** Security | **G-1** untrusted codec counts refuse before allocation (this commit). Claim base `11e1781b` | *Idle* | **G-2** checkpoint length caps | `g1_untrusted_codec` |
 
 ---
 
@@ -537,7 +541,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 4+5 - B-318 output-count buckets** (this merge): `verify_transaction` rejects output counts that are not a power of two when `header_version >= 8`. Header v1 still accepts 3 outputs. `b318_output_buckets_follow_header_version_and_reject_three` PASS. No DEFAULT flip. Wallet still pads only to 2 outputs; a v8 wallet must pad to the bucket before this gate is selected. Rebased onto main after **F-8** and **B-12**. *Observed (not staged):* none.
+1. **2026-11-14 - lane 4+5 - B-318 output-count buckets** (this merge): `verify_transaction` rejects output counts that are not a power of two when `header_version >= 8`. Header v1 still accepts 3 outputs. `b318_output_buckets_follow_header_version_and_reject_three` PASS. No DEFAULT flip. Wallet still pads only to 2 outputs; a v8 wallet must pad to the bucket before this gate is selected. Rebased onto main after **G-1**, **F-8**, and **B-12**. *Observed (not staged):* none.
+
+1. **2026-11-14 - lane G - G-1 untrusted codec counts** (on main): `Reader` refuses a length prefix that does not fit the unread bytes before `Vec::with_capacity`. `bytes` uses checked cursor math. Bulletproof and range `n` must fit in `u32`. Honest encodings are unchanged. Next: **G-2** checkpoint length caps.
 
 1. **2026-11-14 - lane F - F-8 file card** (on main): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Next: **F-9** `wallet ready`.
 

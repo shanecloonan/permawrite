@@ -583,7 +583,8 @@ pub fn encode_bulletproof(p: &BulletproofRange) -> Vec<u8> {
 /// Forwards any [`CryptoError`] from the codec layer.
 pub fn decode_bulletproof(v: EdwardsPoint, bytes: &[u8]) -> Result<BulletproofRange> {
     let mut r = Reader::new(bytes);
-    let n = r.varint()? as u32;
+    let n_raw = r.varint()?;
+    let n = u32::try_from(n_raw).map_err(|_| CryptoError::ValueOutOfRange)?;
     let a = r.point()?;
     let s = r.point()?;
     let t1 = r.point()?;
