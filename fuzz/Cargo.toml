@@ -1,0 +1,46 @@
+[package]
+name = "mfn-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "libFuzzer targets for untrusted Permawrite decoders. Not a workspace member. Nightly only."
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+mfn-consensus = { path = "../mfn-consensus" }
+mfn-crypto = { path = "../mfn-crypto" }
+
+# Own workspace so `cargo test --workspace` on stable does not build libFuzzer.
+[workspace]
+
+[[bin]]
+name = "tx_decode"
+path = "fuzz_targets/tx_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "block_decode"
+path = "fuzz_targets/block_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "header_decode"
+path = "fuzz_targets/header_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "codec_decode"
+path = "fuzz_targets/codec_decode.rs"
+test = false
+doc = false
+bench = false
