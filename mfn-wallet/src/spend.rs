@@ -236,7 +236,10 @@ where
     // indistinguishable on-chain, and value 0 leaves the balance equation
     // (`Σ inputs == Σ outputs + fee`) untouched. `recipients` is
     // non-empty (checked above), so indexing `[0]` is safe.
-    while output_specs.len() < crate::WALLET_MIN_TX_OUTPUTS {
+    // B-318 buckets are 2, 4, 8, …. Two outputs stay two. Three become four
+    // so a v8 chain can accept the spend and a v1 chain still verifies it.
+    let pad_to = mfn_consensus::block::padded_output_count(output_specs.len() as u32) as usize;
+    while output_specs.len() < pad_to {
         output_specs.push(OutputSpec::ToRecipient {
             recipient: plan.recipients[0].recipient,
             value: 0,
@@ -577,6 +580,58 @@ mod tests {
         assert_eq!(signed.tx.outputs.len(), 2, "two outputs must be preserved");
         let v = verify_transaction(&signed.tx, &RingPolicy::PRODUCTION);
         assert!(v.ok, "transfer must verify: {:?}", v.errors);
+    }
+
+    /// Three real outputs are not a power-of-two bucket. Pad one zero-value
+    /// output so the spend is 4, which header v1 still accepts and header v8
+    /// requires.
+    #[test]
+    fn three_recipients_pad_to_four_outputs() {
+        let input_a = owned(600_000);
+        let input_b = owned(500_000);
+        let refs = [&input_a, &input_b];
+        let decoys = pool(20);
+        let keys = wallet_from_seed(&[11u8; 32]);
+        let recipient = Recipient {
+            view_pub: keys.view_pub(),
+            spend_pub: keys.spend_pub(),
+        };
+        let fee = 1_000u64;
+        let recipients = [
+            TransferRecipient {
+                recipient,
+                value: 300_000,
+            },
+            TransferRecipient {
+                recipient,
+                value: 300_000,
+            },
+            TransferRecipient {
+                recipient,
+                value: 1_100_000 - 600_000 - fee,
+            },
+        ];
+        let mut r = mfn_crypto::seeded_rng(0x319);
+        let plan = TransferPlan {
+            inputs: &refs,
+            recipients: &recipients,
+            fee,
+            extra: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &decoys,
+            current_height: 1,
+            rng: &mut r,
+        };
+        let signed = build_transfer(plan).expect("build transfer");
+        assert_eq!(signed.tx.outputs.len(), 4);
+        let v = verify_transaction(&signed.tx, &RingPolicy::PRODUCTION);
+        assert!(v.ok, "padded 4-output transfer must verify: {:?}", v.errors);
+        let gated = RingPolicy {
+            output_count_buckets: true,
+            ..RingPolicy::PRODUCTION
+        };
+        let g = verify_transaction(&signed.tx, &gated);
+        assert!(g.ok, "header-v8 shape must accept the pad: {:?}", g.errors);
     }
 
     /// Canonical output ordering (F5:P9 / B3): the change output must not

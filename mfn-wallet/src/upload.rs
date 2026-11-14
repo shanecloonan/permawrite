@@ -545,12 +545,13 @@ where
 
     // Privacy floor: never emit a single-output upload. A lone (anchor)
     // output with no change reveals an exact-fee spend and fingerprints
-    // it against ordinary "anchor + change" uploads. Pad to
-    // `WALLET_MIN_TX_OUTPUTS` with zero-value outputs to the anchor
-    // recipient — who already appears on this tx, so no new counterparty
-    // is exposed. Pedersen-committed amounts make the padding
+    // it against ordinary "anchor + change" uploads. Pad to the
+    // power-of-two output bucket (2, 4, 8, …) with zero-value outputs to
+    // the anchor recipient — who already appears on this tx, so no new
+    // counterparty is exposed. Two outputs stay two. Pedersen-committed amounts make the padding
     // indistinguishable, and value 0 leaves the balance equation intact.
-    while output_specs.len() < crate::WALLET_MIN_TX_OUTPUTS {
+    let pad_to = mfn_consensus::block::padded_output_count(output_specs.len() as u32) as usize;
+    while output_specs.len() < pad_to {
         output_specs.push(OutputSpec::ToRecipient {
             recipient: plan.anchor.recipient,
             value: 0,

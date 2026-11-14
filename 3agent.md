@@ -22,12 +22,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at **B-318** output-count buckets on top of **G-1**, Seat F **F-8**, and Seat C **B-12**. Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
+Synced at **B-319** wallet output pad on top of **B-318**, **G-1**, Seat F **F-8**, and Seat C **B-12**. Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-318** output-count buckets at header v8 (this merge); **B-317** retrieval | *Idle* | Wallet output pad so a header-v8 spend verifies. No DEFAULT flip |
+| **B** Protocol/Privacy | **B-319** wallet output pad (this commit); **B-318** header v8 gate | *Idle* | Wallet input pad so a header-v4 spend verifies. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (on main); **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
 | **D** Network anonymity | — | **D-1** Dandelion stem privacy (claim base `4aedafe9`) | Onion advertise; inbound subnet cap |
 | **F** Ease of use | **F-8** browser file backup card (on main) | *Idle* | **F-9** `wallet ready` checklist |
@@ -64,7 +64,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done B-318 output-count buckets at header v8 / Doing idle / Next wallet output pad (no DEFAULT flip)
+3agent — Seat B: Done B-319 wallet output pad / Doing idle / Next wallet input pad (no DEFAULT flip)
 3agent — Seat C: Done B-12 Plonky3 aggregate / Doing idle / Next inner STARK verifier
 3agent — Seat D: Doing D-1 Dandelion stem privacy / Next onion advertise
 3agent — Seat F: Done F-8 file backup card / Doing idle / Next F-9 wallet ready
