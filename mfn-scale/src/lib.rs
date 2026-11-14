@@ -11,6 +11,7 @@
 
 pub mod baseline;
 pub mod batch;
+pub mod fast_sync;
 pub mod header_sync;
 pub mod workload;
 
@@ -19,6 +20,7 @@ pub use baseline::{
     BASELINE_HEADER_LINK_HEX, BASELINE_MERKLE_LEAVES, BASELINE_MERKLE_PROOFS, BASELINE_RANGE_BITS,
 };
 pub use batch::{chunk_ranges, proofs_from_workload, verify_batch, verify_one, BatchProof};
+pub use fast_sync::{FastSync, FastSyncError, StateCheckpoint};
 pub use header_sync::{
     synthetic_body, synthetic_body_matches, synthetic_chain, synthetic_header_id, HeaderFirstSync,
     HeaderSource, HeaderSyncConfig, MemorySource, SyncError, SyncHeader, SyncStats,
