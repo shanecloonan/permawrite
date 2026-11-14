@@ -15,7 +15,7 @@ Version 8 is unused here so Seat B can take it. The constant is [`HEADER_VERSION
 
 ## What runs
 
-`wallet upload FILE --sharded` builds the stripe, anchors it, and writes `shard-00.bin` … `shard-11.bin` next to `payload.bin`. The operator prove loop and chunk server already read the commitment's `chunk_size`, so they serve and prove individual shards.
+`wallet upload FILE --sharded` builds the stripe, anchors it, and writes `shard-00.bin` … `shard-11.bin` next to `payload.bin`. A chain whose `header_version` is 9 or higher stripes every upload, with or without the flag. Header version 1 does not. The operator prove loop and chunk server already read the commitment's `chunk_size`, so they serve and prove individual shards.
 
 Header version 1 mempool and `apply_block` still use the size-bucket check. Header version 9 uses the 12-shard check in both places.
 
