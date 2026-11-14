@@ -287,7 +287,8 @@ pub fn encode_range_proof(p: &RangeProof) -> Vec<u8> {
 /// length-mismatched arrays).
 pub fn decode_range_proof(bytes: &[u8]) -> Result<RangeProof> {
     let mut r = Reader::new(bytes);
-    let n = r.varint()? as u32;
+    let n_raw = r.varint()?;
+    let n = u32::try_from(n_raw).map_err(|_| CryptoError::ValueOutOfRange)?;
     if n == 0 || n > 64 {
         return Err(CryptoError::ValueOutOfRange);
     }
