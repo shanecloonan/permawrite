@@ -144,6 +144,17 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
             "input count {n} is not a canonical power-of-two bucket (pad to {padded})"
         ));
     }
+    // B-318: header version 8 requires the same power-of-two shape for
+    // outputs. Header v1 still accepts a 3-output spend.
+    if ring.output_count_buckets
+        && !crate::block::output_count_is_padded_bucket(tx.outputs.len() as u32)
+    {
+        let n = tx.outputs.len();
+        let padded = crate::block::padded_output_count(n as u32);
+        errors.push(format!(
+            "output count {n} is not a canonical power-of-two bucket (pad to {padded})"
+        ));
+    }
     // F5 P20 / B-301: non-empty extra must be a well-formed MFEX
     // envelope. Opaque memos are a public fingerprint.
     if let Err(e) = crate::extra_codec::parse_mfex_extra(&tx.extra) {

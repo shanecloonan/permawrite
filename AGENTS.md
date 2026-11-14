@@ -138,7 +138,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** **B-12** Plonky3 statement aggregate (this commit). Off consensus. Not an inner-proof verifier. Path A and F-A unchanged. Prior unit **B-317**. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** **B-318** output-count buckets behind header v8 (this merge). Header v1 still accepts 3 outputs. Path A and F-A unchanged. **G-1**, Seat F **F-8**, and Seat C **B-12** are on main. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -149,8 +149,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-12** Plonky3 aggregate of split + two openings (this commit); **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); retrieval **B-317** header v7; **B-37**; **B-316** | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding (Seat B). Inner STARK verifier still open (Seat C). No B-297 clone. No DEFAULT flip | Lane 1 CI |
-| **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
+| **4** Protocol | **B-318** output-count buckets at header v8 (this merge); **B-317** retrieval; **B-12** on main | *Idle* — slash matrix frozen. Seat C holds validity files | Wallet output pad (B-319). Inner STARK verifier stays with Seat C. No B-297 clone. No DEFAULT flip | Lane 1 CI |
+| **5** Privacy | **B-318** output-count buckets; **B-317** one-time challenge keys; **B-19** decoy-RNG | *Idle* | Wallet output pad so a header-v8 spend verifies | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **8** Anonymity | — | **D-1** Dandelion stem privacy (claim base `4aedafe9`): origin never fluffs; per-hop coin; stem wire stays stem | Onion-only advertise; inbound /16 cap | Seat D |
@@ -228,7 +228,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 | ID | Item | Suggested lane | Notes |
 | --- | --- | --- | --- |
-| B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | **First slice** (this commit): one Plonky3 proof of the bps split plus two BabyBear openings. Not a verifier of a Winterfell proof. Feature `plonky3` is not default. |
+| B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | **First slice** on main: one Plonky3 proof of the bps split plus two BabyBear openings. Not a verifier of a Winterfell proof. Feature `plonky3` is not default. |
 | B-13 | Parameter fork umbrella: `subsidy_to_treasury_bps = 1000` | 6 | Split into **B-13a** (sims) → **B-13b** (fork policy) → **B-13c** (enable + ops comms). **Not** TL Path B genesis. [`ROADMAP.md` Phase 1](docs/ROADMAP.md#phase-1--permanence-depth-on-the-live-chain-permanence-first) |
 | B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** 256+512 sims (this commit elevates 256); genesis stays 0; human B-33 still open
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | **Draft** same-chain+activation-height (B-265 honesty); human cells still open
@@ -278,6 +278,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-315 | Max-permanence upgrade design + non-consensus helpers | 6 | **Landed** (this commit) — solvency stress, state projection, replica/retrieval helpers. No Path A flip. First fork = **F-A** after B-25 / Path B |
 | B-316 | F5 4a Winterfell leaves: `emission_at_height` + coinbase bps split | 4 (Seat C) | **Landed** on main — [`VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md). Off consensus. No Path A / F-A change |
 | B-317 | Economic retrieval challenge (silence slashes the storage-operator bond) | 4+5 | **Landed** on main — header v7; Path A / F-A off. Design: [`RETRIEVAL_CHALLENGE.md`](docs/RETRIEVAL_CHALLENGE.md). Seat C's field-Merkle opening is a different unit in `validity_stark_merkle` |
+| B-318 | F7 output-count padding (power-of-two buckets) | 4+5 | **Landed** (this merge) — header v8; header v1 still accepts 3 outputs |
 | B-35 | F7 consensus input-count padding | 4+5 | **Landed** — power-of-two buckets at header v4; Path A / F-A off |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | **Landed** (this commit) — header v6; header v1 keeps public `tx.fee` |
@@ -540,11 +541,13 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane G - G-1 untrusted codec counts** (this commit): `Reader` refuses a length prefix that does not fit the unread bytes before `Vec::with_capacity`. `bytes` uses checked cursor math. Bulletproof and range `n` must fit in `u32`. Honest encodings are unchanged. `g1_untrusted_codec` feeds mutated frames to block, tx, header, CLSAG, and proof decoders. Claim base `11e1781b`. Next: **G-2** checkpoint length caps.
+1. **2026-11-14 - lane 4+5 - B-318 output-count buckets** (this merge): `verify_transaction` rejects output counts that are not a power of two when `header_version >= 8`. Header v1 still accepts 3 outputs. `b318_output_buckets_follow_header_version_and_reject_three` PASS. No DEFAULT flip. Wallet still pads only to 2 outputs; a v8 wallet must pad to the bucket before this gate is selected. Rebased onto main after **G-1**, **F-8**, and **B-12**. *Observed (not staged):* none.
 
-1. **2026-11-14 - lane F - F-8 file card** (this commit): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Claim base `4aedafe9`. Next: **F-9** `wallet ready`.
+1. **2026-11-14 - lane G - G-1 untrusted codec counts** (on main): `Reader` refuses a length prefix that does not fit the unread bytes before `Vec::with_capacity`. `bytes` uses checked cursor math. Bulletproof and range `n` must fit in `u32`. Honest encodings are unchanged. Next: **G-2** checkpoint length caps.
 
-1. **2026-11-14 - lane 4 / Seat C - B-12 Plonky3 aggregate** (this commit): one BabyBear STARK checks the fee bps split and two depth-4 openings (`x^7`, 4 rounds). Not a Winterfell-in-Winterfell verifier. Feature `plonky3` is off by default. Off consensus. Rebased onto **B-35** on main. Next: inner STARK verifier.
+1. **2026-11-14 - lane F - F-8 file card** (on main): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Next: **F-9** `wallet ready`.
+
+1. **2026-11-14 - lane 4 / Seat C - B-12 Plonky3 aggregate** (on main): one BabyBear STARK checks the fee bps split and two depth-4 openings (`x^7`, 4 rounds). Not a Winterfell-in-Winterfell verifier. Feature `plonky3` is off by default. Off consensus. Next: inner STARK verifier.
 
 1. **2026-11-14 - lane 4 / Seat C - B-317 field-Merkle opening**: `field_merkle_compress` is 8-round MiMC-5 on Winterfell `f128`, depth 4, pad element 2. Not `dhash` / SPoRA. Off consensus.
 

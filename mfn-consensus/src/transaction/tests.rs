@@ -408,6 +408,69 @@ fn b35_input_buckets_follow_header_version_and_reject_three() {
     assert!(ok.ok, "4-input bucket must pass: {:?}", ok.errors);
 }
 
+/// B-318: power-of-two output buckets, off on Path A header v1.
+#[test]
+fn b318_output_buckets_follow_header_version_and_reject_three() {
+    use crate::block::{
+        output_count_is_padded_bucket, padded_output_count, DEFAULT_CONSENSUS_PARAMS,
+        HEADER_VERSION, HEADER_VERSION_OUTPUT_PAD,
+    };
+
+    assert_eq!(padded_output_count(1), 2);
+    assert_eq!(padded_output_count(2), 2);
+    assert_eq!(padded_output_count(3), 4);
+    assert!(output_count_is_padded_bucket(4));
+    assert!(!output_count_is_padded_bucket(3));
+
+    let v1 = DEFAULT_CONSENSUS_PARAMS.ring_policy_for_header(HEADER_VERSION);
+    assert!(!v1.output_count_buckets);
+    assert_eq!(v1, RingPolicy::PRODUCTION);
+    let v8 = DEFAULT_CONSENSUS_PARAMS.ring_policy_for_header(HEADER_VERSION_OUTPUT_PAD);
+    assert!(v8.output_count_buckets);
+    assert!(v8.input_count_buckets, "v8 includes the earlier input gate");
+
+    let open = RingPolicy::TEST;
+    let gated_policy = RingPolicy {
+        output_count_buckets: true,
+        ..RingPolicy::TEST
+    };
+    let inputs = vec![make_input(700_000, 4), make_input(400_000, 4)];
+    let (_w_a, ra) = recipient();
+    let (_w_b, rb) = recipient();
+    let (_w_c, rc) = recipient();
+    let three = vec![
+        OutputSpec::ToRecipient {
+            recipient: ra,
+            value: 400_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: rb,
+            value: 400_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: rc,
+            value: 299_000,
+            storage: None,
+        },
+    ];
+    let signed = sign_transaction(inputs, three, 1_000, Vec::new()).expect("sign");
+    let path_a = verify_transaction(&signed.tx, &open);
+    assert!(
+        path_a.ok,
+        "buckets off must still accept 3 outputs: {:?}",
+        path_a.errors
+    );
+    let gated = verify_transaction(&signed.tx, &gated_policy);
+    assert!(!gated.ok, "header v8 must reject 3 outputs");
+    assert!(
+        gated.errors.iter().any(|e| e.contains("output count")),
+        "expected the output bucket diagnostic, got: {:?}",
+        gated.errors
+    );
+}
+
 /// A two-input tx passes both shape floors under a floor-active policy.
 #[test]
 fn two_input_tx_passes_input_floor() {
