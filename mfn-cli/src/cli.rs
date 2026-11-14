@@ -16,6 +16,7 @@ use crate::operator_cmd::{
     operator_push_chunks, OperatorCmdError,
 };
 use crate::rpc::RpcClient;
+use crate::setup::wallet_setup;
 use crate::uploads_cmd::{
     uploads_fetch_http, uploads_list, uploads_local, uploads_retrieve, uploads_status,
 };
@@ -318,6 +319,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             let path = resolve_wallet_path(wallet_path.as_deref());
             match sub {
                 WalletSub::New => wallet_new(&path, force)?,
+                WalletSub::Setup => {
+                    let _ = wallet_setup(&path)?;
+                }
                 WalletSub::Restore {
                     seed_hex,
                     key_derivation,

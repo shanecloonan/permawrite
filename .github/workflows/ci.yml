@@ -46,6 +46,10 @@ jobs:
           for script in scripts/*.sh scripts/public-devnet-v1/*.sh; do
             bash -n "$script"
           done
+          setup_plan="$(bash scripts/setup-wallet.sh --self-test)"
+          [[ "$setup_plan" == *"setup_mode=offline"* ]] || { echo "$setup_plan"; exit 1; }
+          [[ "$setup_plan" == *"wallet ready"* ]] || { echo "$setup_plan"; exit 1; }
+          [[ "$setup_plan" == *"seed_restores=money, not uploaded files"* ]] || { echo "$setup_plan"; exit 1; }
           bash scripts/public-devnet-v1/vps-bind-lib-smoke.sh
           http_plan="$(bash scripts/public-devnet-v1/recovery-walkthrough.sh --plan-only --rpc 127.0.0.1:18731 --wallet ./alice.json --commit ababab --peer 127.0.0.1:18780 --expected-sha256 cdcd --prove)"
           [[ "$http_plan" == *"restore_mode=http"* ]] || { echo "$http_plan"; exit 1; }
