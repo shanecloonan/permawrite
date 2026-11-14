@@ -93,6 +93,21 @@ pub enum CommitmentShapeError {
         /// Bucket implied by `got`.
         expected: u64,
     },
+    /// Header v9 requires exactly [`crate::stripe::STRIPE_SHARDS`] equal shards.
+    #[error(
+        "header v9 storage must be {shards} equal shards \
+         (num_chunks={got}, size_bytes={size_bytes}, chunk_size={chunk_size})"
+    )]
+    NotShardStripe {
+        /// Required shard count.
+        shards: u32,
+        /// Declared chunk count.
+        got: u32,
+        /// Declared payload size.
+        size_bytes: u64,
+        /// Declared chunk size.
+        chunk_size: u32,
+    },
 }
 
 /// Chunk count [`crate::spora::build_storage_commitment`] produces for a

@@ -45,6 +45,13 @@ pub const HEADER_VERSION_HIDDEN_FEES: u32 = 6;
 /// does not slash a storage-operator bond. Path A and F-A stay below it.
 pub const HEADER_VERSION_RETRIEVAL: u32 = 7;
 
+/// Header version for shard stripes (**E-11**).
+///
+/// At this version a new storage commitment is exactly 12 equal shards
+/// (4 data + 8 parity). Versions below it, including Path A and F-A, keep
+/// the power-of-two size bucket. Version 8 is reserved for Seat B.
+pub const HEADER_VERSION_SHARDS: u32 = mfn_storage::HEADER_VERSION_SHARDS;
+
 /// Ring sizes a Tier 2 chain accepts. Header versions below
 /// [`HEADER_VERSION_TIER2`] keep the chain's uniform size (16 in production).
 pub const TIER2_RING_SIZES: [u32; 2] = [32, 64];

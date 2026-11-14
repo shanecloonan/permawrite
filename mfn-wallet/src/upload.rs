@@ -382,9 +382,15 @@ where
     }
     validate_endowment_params(plan.endowment_params).map_err(WalletError::Endowment)?;
 
-    // Privacy bucket (F5-P15 / B13): pad to the next power-of-two size so
-    // the anchored `size_bytes` does not leak exact payload lengths.
-    let padded = mfn_storage::pad_to_storage_size_bucket(plan.data);
+    // Header v9 stripes are already 12 equal shards. Padding them up to a
+    // size bucket would add chunks and the v9 shape rule would reject the
+    // commitment. Header v1 uploads still pad.
+    let sharded = mfn_storage::is_exact_shard_stripe(plan.data, plan.chunk_size);
+    let padded = if sharded {
+        plan.data.to_vec()
+    } else {
+        mfn_storage::pad_to_storage_size_bucket(plan.data)
+    };
     let data = padded.as_slice();
 
     // (3) Compute burden (Σ required_endowment for this upload's
