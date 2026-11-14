@@ -38,6 +38,7 @@ mod p2p_peer_quarantine;
 mod p2p_reconnect_plan;
 mod p2p_repair_sweep;
 mod role_topology;
+mod rpc_peer_exposure;
 mod runner;
 
 pub use archive_export::{
