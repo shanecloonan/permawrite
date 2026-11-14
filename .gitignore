@@ -2,6 +2,7 @@
 /target
 /target-*
 **/target-*
+distribution/*/target/
 demo/web/pkg/
 **/demo/web/pkg/
 **/*.rs.bk

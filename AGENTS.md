@@ -49,6 +49,7 @@ A **lane** is a standing role; an **agent** is whoever is currently working that
 | **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` | Emission/treasury identity sims for every economics-touching unit |
 | **7** | Testnet launch | Internet-facing go-live ([`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md)), VPS runbook, `seed_nodes` publication, faucet/observer/front-end ops, launch ceremony | Protocol tests (4/6), CI/Nightly fixes (1), evidence tooling (2) | Launch-blocker honesty (never fake TL completion; `launch-go-no-go` gate) |
 | **F** | Ease of use | User wallet, CLI, WASM, light-client receive, testnet-frontend, plain-language docs | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet | A person can use the network without reading a protocol spec |
+| **H** | Unstoppable distribution | Packaging, reproducible builds, release verify, self-host, content gateway, offline signing | Consensus, header versions, Seat A–F / D / E / G / I files, VPS/faucet | A person can fetch, verify, and run the software without GitHub |
 
 Adding lanes 8+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
 
@@ -152,6 +153,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
+| **H** Distribution | **H-1** reproducible build profile + hash compare (this commit). Claim base `c60c73e7` | *Idle* | **H-2** multi-maintainer signed release manifests | `distribution/repro` tests |
 
 ---
 
@@ -224,6 +226,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 | ID | Item | Suggested lane | Notes |
 | --- | --- | --- | --- |
+| H-1 | Reproducible release builds: pin 1.83.0, remap paths, compare hashes | H | **Landed** (this commit) — `distribution/repro`; macOS checksum no longer calls missing `sha256sum` |
+| H-2 | Multi-maintainer signed release manifests + verify command | H | Open |
 | B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | **First slice** (this commit): one Plonky3 proof of the bps split plus two BabyBear openings. Not a verifier of a Winterfell proof. Feature `plonky3` is not default. |
 | B-13 | Parameter fork umbrella: `subsidy_to_treasury_bps = 1000` | 6 | Split into **B-13a** (sims) → **B-13b** (fork policy) → **B-13c** (enable + ops comms). **Not** TL Path B genesis. [`ROADMAP.md` Phase 1](docs/ROADMAP.md#phase-1--permanence-depth-on-the-live-chain-permanence-first) |
 | B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | **Landed** 256+512 sims (this commit elevates 256); genesis stays 0; human B-33 still open
@@ -535,6 +539,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane H - H-1 reproducible builds** (this commit): pin Rust 1.83.0, remap absolute paths out of release binaries, and fail if two build directories differ. Release checksums use `sha256sum` or `shasum` so macOS tagging does not die on a missing GNU tool. Off consensus. Claim base `c60c73e7`. Next: **H-2** signed manifests.
 
 1. **2026-11-14 - lane F - F-8 file card** (this commit): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Claim base `4aedafe9`. Next: **F-9** `wallet ready`.
 
