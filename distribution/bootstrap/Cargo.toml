@@ -1,0 +1,23 @@
+[workspace]
+
+[package]
+name = "mfn-bootstrap"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "Check a local Permawrite tree against a bootstrap document. Clearnet URLs are refused."
+
+[[bin]]
+name = "mfn-bootstrap"
+path = "src/main.rs"
+
+[dependencies]
+sha2 = "0.10"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
