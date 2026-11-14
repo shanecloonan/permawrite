@@ -115,6 +115,8 @@ pub struct UploadParams {
     pub json: bool,
     /// Anchor a 4+8 shard stripe. Header v9 chains require this shape.
     pub sharded: bool,
+    /// Skip client encryption. The default encrypts under the wallet seed.
+    pub plaintext: bool,
 }
 
 /// Parameters for `wallet claim`.
@@ -207,6 +209,7 @@ pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     OsRng.fill_bytes(&mut seed);
     let mut file = WalletFile::new(&seed, KeyDerivation::MfnWalletV1);
     file.save(path)?;
+    persist_upload_key(path, &seed)?;
     print_address_lines(&file)?;
     println!("wallet_path={}", path.display());
     println!("wallet_version={WALLET_FILE_VERSION}");
@@ -232,12 +235,26 @@ pub fn wallet_restore(
     let seed = parse_restore_seed_hex(seed_hex)?;
     let mut file = WalletFile::new(&seed, key_derivation);
     file.save(path)?;
+    persist_upload_key(path, &seed)?;
     print_address_lines(&file)?;
     println!("wallet_path={}", path.display());
     println!("wallet_version={WALLET_FILE_VERSION}");
     eprintln!(
         "warning: restored wallet from seed_hex; keep seeds out of repos, chats, shell history, and logs"
     );
+    Ok(())
+}
+
+fn persist_upload_key(wallet_path: &Path, seed: &[u8; 32]) -> Result<(), WalletCmdError> {
+    let key = mfn_storage::upload_key_from_seed(seed);
+    let path = wallet_path.with_file_name(mfn_storage::UPLOAD_KEY_FILE);
+    std::fs::write(&path, key)
+        .map_err(|e| WalletCmdError::Usage(format!("write upload key {}: {e}", path.display())))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
     Ok(())
 }
 
@@ -603,23 +620,13 @@ pub fn wallet_upload(
     }
     let plain = std::fs::read(&params.file_path)
         .map_err(|e| WalletCmdError::Usage(format!("read {}: {e}", params.file_path.display())))?;
-    let prepared = if params.sharded {
-        Some(
-            mfn_storage::prepare_shard_stripe(&plain)
-                .map_err(|e| WalletCmdError::Usage(format!("shard stripe: {e:?}")))?,
-        )
-    } else {
-        None
-    };
-    let data = prepared.as_ref().map(|p| p.bytes.clone()).unwrap_or(plain);
-    let chunk_size = prepared.as_ref().map(|p| p.chunk_size as usize);
-    if data.is_empty() {
+    if plain.is_empty() {
         return Err(WalletCmdError::Usage("upload file is empty".into()));
     }
-    if data.len() > MAX_UPLOAD_BYTES {
+    if plain.len() > MAX_UPLOAD_BYTES {
         return Err(WalletCmdError::Usage(format!(
             "upload file exceeds maximum size ({} bytes > {MAX_UPLOAD_BYTES})",
-            data.len()
+            plain.len()
         )));
     }
     if params.message.is_some() && !params.extra.is_empty() {
@@ -656,6 +663,25 @@ pub fn wallet_upload(
     let stats = sync_wallet_from_node(path, &mut wallet, &mut file, client)?;
     require_f7_owned_input_floor(&wallet)?;
     let chain_state = fetch_chain_state(client)?;
+    let seed = file.seed_bytes()?;
+    persist_upload_key(path, &seed)?;
+    let body = if params.plaintext {
+        plain
+    } else {
+        let mut nonce = [0u8; 16];
+        OsRng.fill_bytes(&mut nonce);
+        mfn_storage::encrypt_upload(&plain, &mfn_storage::upload_key_from_seed(&seed), &nonce)
+    };
+    let prepared = if params.sharded {
+        Some(
+            mfn_storage::prepare_shard_stripe(&body)
+                .map_err(|e| WalletCmdError::Usage(format!("shard stripe: {e:?}")))?,
+        )
+    } else {
+        None
+    };
+    let data = prepared.as_ref().map(|p| p.bytes.clone()).unwrap_or(body);
+    let chunk_size = prepared.as_ref().map(|p| p.chunk_size as usize);
 
     let priced_len = if params.sharded {
         data.len() as u64
@@ -675,7 +701,6 @@ pub fn wallet_upload(
         wallet.owned().map(|o| o.utxo_key()).collect();
     let mut rng = production_tx_rng;
     let art = if let Some(message) = &params.message {
-        let seed = file.seed_bytes()?;
         let identity = ClaimingIdentity::from_seed(&seed);
         wallet
             .build_storage_upload_with_authorship(
@@ -1193,6 +1218,11 @@ mod tests {
         let file = WalletFile::load(&path).expect("load restored wallet");
         assert_eq!(file.seed_hex, seed);
         assert_eq!(file.key_derivation, KeyDerivation::PayoutStealthV1);
+        let key_path = path.with_file_name(mfn_storage::UPLOAD_KEY_FILE);
+        let written = std::fs::read(&key_path).expect("upload key");
+        let mut seed_bytes = [0u8; 32];
+        seed_bytes.copy_from_slice(&hex::decode(&seed).expect("hex"));
+        assert_eq!(written, mfn_storage::upload_key_from_seed(&seed_bytes));
 
         let err = wallet_restore(&path, &"22".repeat(32), KeyDerivation::MfnWalletV1, false)
             .expect_err("overwrite should require force");
@@ -1335,6 +1365,7 @@ mod tests {
             message: Some(b"signed by me".to_vec()),
             json: true,
             sharded: false,
+            plaintext: true,
         };
         let stats = SyncStats {
             tip_height: 11,

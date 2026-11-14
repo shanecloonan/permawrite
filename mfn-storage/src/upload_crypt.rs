@@ -21,6 +21,18 @@ const MAC_LEN: usize = 32;
 /// Local filename for the upload key. Never served as a chunk.
 pub const UPLOAD_KEY_FILE: &str = "upload.key";
 
+const UPLOAD_KEY_DOMAIN: &[u8] = b"MFBN-1/upload-key-v1";
+
+/// Upload key for a wallet seed.
+///
+/// The 24-word phrase in Seat F's recovery restores this same 32-byte seed
+/// (`seed_from_mnemonic`). The key is not a second seed. Losing `upload.key`
+/// does not lose the file when the phrase or the seed is still available.
+#[must_use]
+pub fn upload_key_from_seed(seed: &[u8; 32]) -> [u8; 32] {
+    dhash(UPLOAD_KEY_DOMAIN, &[seed])
+}
+
 /// Why an upload blob could not be sealed or opened.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum UploadCryptError {
@@ -173,5 +185,19 @@ mod tests {
             decrypt_upload(&[0, 1, 2], &key(7)),
             Err(UploadCryptError::Truncated)
         );
+    }
+
+    #[test]
+    fn the_upload_key_is_the_wallet_seed_not_a_second_secret() {
+        let seed = [0x42u8; 32];
+        let key = upload_key_from_seed(&seed);
+        assert_eq!(upload_key_from_seed(&seed), key);
+        assert_ne!(upload_key_from_seed(&[0x43u8; 32]), key);
+        let blob = encrypt_upload(b"phrase restores this", &key, &nonce(1));
+        assert_eq!(
+            decrypt_upload(&blob, &key).expect("open"),
+            b"phrase restores this"
+        );
+        assert!(decrypt_upload(&blob, &upload_key_from_seed(&[9u8; 32])).is_err());
     }
 }

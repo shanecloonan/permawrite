@@ -94,5 +94,6 @@ pub use stripe::{
     STRIPE_SHARDS,
 };
 pub use upload_crypt::{
-    decrypt_upload, encrypt_upload, upload_blob_is_encrypted, UploadCryptError, UPLOAD_KEY_FILE,
+    decrypt_upload, encrypt_upload, upload_blob_is_encrypted, upload_key_from_seed,
+    UploadCryptError, UPLOAD_KEY_FILE,
 };
