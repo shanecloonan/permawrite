@@ -754,6 +754,7 @@ dependencies = [
  "ctrlc",
  "curve25519-dalek",
  "hex",
+ "mfn-consensus",
  "mfn-crypto",
  "mfn-net",
  "mfn-storage",
