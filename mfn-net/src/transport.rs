@@ -4,7 +4,7 @@
 //! `.onion` hidden-service peers use SOCKS5 domain connect (**B8.2**).
 
 use crate::peer_addr::{
-    is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
+    is_i2p_host, is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
 };
 use std::io::{Error, ErrorKind};
 use std::net::{TcpStream, ToSocketAddrs};
@@ -22,6 +22,10 @@ pub const MFND_TOR_SOCKS5_ENV: &str = "MFND_TOR_SOCKS5";
 pub const MFND_P2P_ONION_ENV: &str = "MFND_P2P_ONION";
 /// Default local Tor SOCKS5 listen address.
 pub const DEFAULT_TOR_SOCKS5: &str = "127.0.0.1:9050";
+/// Environment variable: I2P SOCKS proxy (default `127.0.0.1:4447`).
+pub const MFND_I2P_SOCKS5_ENV: &str = "MFND_I2P_SOCKS5";
+/// Default local I2P SOCKS port (Java I2P and i2pd).
+pub const DEFAULT_I2P_SOCKS5: &str = "127.0.0.1:4447";
 
 static ACTIVE_P2P_TRANSPORT: OnceLock<P2pTransportConfig> = OnceLock::new();
 
@@ -51,6 +55,8 @@ pub enum P2pTransportKind {
     Tcp,
     /// Onion-routed dials via SOCKS5 (**B8.1**).
     Tor,
+    /// I2P destinations via a local SOCKS proxy. Clearnet hosts are refused.
+    I2p,
 }
 
 impl P2pTransportKind {
@@ -59,8 +65,9 @@ impl P2pTransportKind {
         match raw.trim().to_ascii_lowercase().as_str() {
             "" | "tcp" | "cleartext" => Ok(Self::Tcp),
             "tor" | "onion" => Ok(Self::Tor),
+            "i2p" => Ok(Self::I2p),
             other => Err(format!(
-                "{MFND_P2P_TRANSPORT_ENV}={other:?} must be `tcp` or `tor`"
+                "{MFND_P2P_TRANSPORT_ENV}={other:?} must be `tcp`, `tor`, or `i2p`"
             )),
         }
     }
@@ -73,6 +80,8 @@ pub struct P2pTransportConfig {
     pub kind: P2pTransportKind,
     /// SOCKS5 endpoint when `kind == Tor`.
     pub tor_socks5: String,
+    /// SOCKS5 endpoint when `kind == I2p`.
+    pub i2p_socks5: String,
     /// When true, only `.onion` and `.i2p` destinations may be dialed.
     pub overlay_only: bool,
 }
@@ -82,6 +91,7 @@ impl Default for P2pTransportConfig {
         Self {
             kind: P2pTransportKind::Tcp,
             tor_socks5: DEFAULT_TOR_SOCKS5.into(),
+            i2p_socks5: DEFAULT_I2P_SOCKS5.into(),
             overlay_only: false,
         }
     }
@@ -110,6 +120,19 @@ impl P2pTransportConfig {
                 return Err(format!("{MFND_TOR_SOCKS5_ENV} must be valid UTF-8"));
             }
         };
+        let i2p_socks5 = match std::env::var(MFND_I2P_SOCKS5_ENV) {
+            Ok(raw) => {
+                let trimmed = raw.trim();
+                if trimmed.is_empty() {
+                    return Err(format!("{MFND_I2P_SOCKS5_ENV} must not be empty"));
+                }
+                trimmed.to_string()
+            }
+            Err(std::env::VarError::NotPresent) => DEFAULT_I2P_SOCKS5.into(),
+            Err(std::env::VarError::NotUnicode(_)) => {
+                return Err(format!("{MFND_I2P_SOCKS5_ENV} must be valid UTF-8"));
+            }
+        };
         let overlay_only = match std::env::var("MFND_P2P_OVERLAY_ONLY") {
             Ok(raw) => matches!(
                 raw.trim().to_ascii_lowercase().as_str(),
@@ -123,6 +146,7 @@ impl P2pTransportConfig {
         Ok(Self {
             kind,
             tor_socks5,
+            i2p_socks5,
             overlay_only,
         })
     }
@@ -161,6 +185,7 @@ impl P2pTransportConfig {
         match self.kind {
             P2pTransportKind::Tcp => "tcp",
             P2pTransportKind::Tor => "tor",
+            P2pTransportKind::I2p => "i2p",
         }
     }
 
@@ -188,6 +213,14 @@ impl P2pTransportConfig {
                 tcp_connect_with_timeout(&addrs[..], P2P_CONNECT_TIMEOUT)
             }
             P2pTransportKind::Tor => {
+                if is_i2p_host(&host) {
+                    return Err(Error::new(
+                        ErrorKind::InvalidInput,
+                        format!(
+                            "peer {peer:?}: .i2p destinations require {MFND_P2P_TRANSPORT_ENV}=i2p"
+                        ),
+                    ));
+                }
                 if is_onion_host(&host) || !is_literal_ip_host(&host) {
                     crate::socks5::socks5_connect_domain_with_timeout(
                         &self.tor_socks5,
@@ -203,6 +236,20 @@ impl P2pTransportConfig {
                     )
                 }
             }
+            P2pTransportKind::I2p => {
+                if !is_i2p_host(&host) {
+                    return Err(Error::new(
+                        ErrorKind::InvalidInput,
+                        format!("peer {peer:?}: I2P transport dials only .i2p destinations"),
+                    ));
+                }
+                crate::socks5::socks5_connect_domain_with_timeout(
+                    &self.i2p_socks5,
+                    &host,
+                    port,
+                    P2P_CONNECT_TIMEOUT,
+                )
+            }
         }
     }
 
@@ -215,6 +262,10 @@ impl P2pTransportConfig {
                 addrs,
                 P2P_CONNECT_TIMEOUT,
             ),
+            P2pTransportKind::I2p => Err(Error::new(
+                ErrorKind::InvalidInput,
+                "I2P transport has no clearnet address dial",
+            )),
         }
     }
 }
@@ -281,6 +332,7 @@ mod tests {
         let cfg = P2pTransportConfig {
             kind: P2pTransportKind::Tor,
             tor_socks5: "127.0.0.1:1".into(),
+            i2p_socks5: DEFAULT_I2P_SOCKS5.into(),
             overlay_only: false,
         };
         assert!(cfg.connect("127.0.0.1:1").is_err());
@@ -315,6 +367,47 @@ mod tests {
     }
 
     #[test]
+    fn i2p_transport_dials_only_through_socks_and_refuses_clearnet() {
+        use std::io::{Read, Write};
+        use std::sync::{Arc, Mutex};
+
+        let seen = Arc::new(Mutex::new(String::new()));
+        let proxy = TcpListener::bind("127.0.0.1:0").unwrap();
+        let proxy_addr = proxy.local_addr().unwrap();
+        let seen_thread = Arc::clone(&seen);
+        let proxy_thread = thread::spawn(move || {
+            let (mut client, _) = proxy.accept().unwrap();
+            let mut greet = [0u8; 3];
+            client.read_exact(&mut greet).unwrap();
+            client.write_all(&[5, 0]).unwrap();
+            let mut head = [0u8; 4];
+            client.read_exact(&mut head).unwrap();
+            assert_eq!(head[3], 3, "I2P dial must use a domain, not an IP");
+            let mut len = [0u8; 1];
+            client.read_exact(&mut len).unwrap();
+            let mut host = vec![0u8; len[0] as usize];
+            client.read_exact(&mut host).unwrap();
+            let mut port = [0u8; 2];
+            client.read_exact(&mut port).unwrap();
+            *seen_thread.lock().unwrap() = String::from_utf8(host).unwrap();
+            client.write_all(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 0]).unwrap();
+        });
+        let cfg = P2pTransportConfig {
+            kind: P2pTransportKind::I2p,
+            tor_socks5: DEFAULT_TOR_SOCKS5.into(),
+            i2p_socks5: proxy_addr.to_string(),
+            overlay_only: false,
+        };
+        let dest = "ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p:8333";
+        cfg.connect_peer(dest).unwrap();
+        proxy_thread.join().unwrap();
+        assert!(seen.lock().unwrap().ends_with(".b32.i2p"));
+        let err = cfg.connect_peer("203.0.113.8:8333").unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidInput);
+        assert!(err.to_string().contains(".i2p"));
+    }
+
+    #[test]
     fn overlay_only_never_connects_a_clearnet_socket() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
@@ -322,6 +415,7 @@ mod tests {
         let cfg = P2pTransportConfig {
             kind: P2pTransportKind::Tcp,
             tor_socks5: DEFAULT_TOR_SOCKS5.into(),
+            i2p_socks5: DEFAULT_I2P_SOCKS5.into(),
             overlay_only: true,
         };
         let err = cfg.connect_peer(&addr.to_string()).unwrap_err();
