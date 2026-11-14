@@ -565,6 +565,41 @@ mod tests {
     }
 
     #[test]
+    fn parse_wallet_send_coin_amount_and_keeps_bare_integers_atomic() {
+        let view = "11".repeat(32);
+        let spend = "22".repeat(32);
+        let p = parse_args(&[
+            "wallet".into(),
+            "send".into(),
+            view,
+            spend,
+            "1.5mfn".into(),
+            "--fee".into(),
+            "0.0001mfn".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Send(params),
+                ..
+            } => {
+                assert_eq!(params.amount, 150_000_000);
+                assert_eq!(params.fee, 10_000);
+            }
+            _ => panic!("expected wallet send"),
+        }
+        let err = parse_args(&[
+            "wallet".into(),
+            "send".into(),
+            "11".repeat(32),
+            "22".repeat(32),
+            "1.000000001mfn".into(),
+        ])
+        .expect_err("extra digit");
+        assert!(err.to_string().contains("decimal places"));
+    }
+
+    #[test]
     fn parse_wallet_send_accepts_prefixed_address() {
         let address = crate::wallet_cmd::encode_wallet_address_hex([0x11; 32], [0x22; 32]);
         let p = parse_args(&[

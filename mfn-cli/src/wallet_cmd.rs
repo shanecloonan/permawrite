@@ -333,6 +333,10 @@ pub fn wallet_status(
     println!("scan_height={scan_height}");
     println!("utxo_cache={cached}");
     println!("balance_cached={}", wallet.balance());
+    println!(
+        "balance_cached_mfn={}",
+        mfn_wallet::format_mfn(wallet.balance())
+    );
     println!("owned_count_cached={}", wallet.owned_count());
     println!("pending_spent_count={}", file.pending_spent_utxo_keys.len());
     println!("sync_needed={sync_needed}");
@@ -354,6 +358,7 @@ fn wallet_status_json(
         "scan_height": snapshot.scan_height,
         "utxo_cache": snapshot.utxo_cache,
         "balance_cached": snapshot.balance_cached,
+        "balance_cached_mfn": mfn_wallet::format_mfn(snapshot.balance_cached),
         "owned_count_cached": snapshot.owned_count_cached,
         "pending_spent_count": file.pending_spent_utxo_keys.len(),
         "blocks_behind": snapshot.blocks_behind,
@@ -552,12 +557,21 @@ fn print_send_outcome(outcome: &SendOutcome<'_>) -> Result<(), WalletCmdError> {
     println!("blocks_scanned={}", outcome.stats.blocks_fetched);
     println!("utxo_cache={}", outcome.stats.used_utxo_cache);
     println!("amount={}", outcome.params.amount);
+    println!(
+        "amount_mfn={}",
+        mfn_wallet::format_mfn(outcome.params.amount)
+    );
     println!("fee={}", outcome.params.fee);
+    println!("fee_mfn={}", mfn_wallet::format_mfn(outcome.params.fee));
     println!("ring_size={}", outcome.params.ring_size);
     println!("tx_id={}", outcome.tx_id);
     println!("mempool_len={}", outcome.mempool_len);
     println!("outcome={}", outcome.outcome_kind);
     println!("balance_after_send={}", outcome.balance_after_send);
+    println!(
+        "balance_after_send_mfn={}",
+        mfn_wallet::format_mfn(outcome.balance_after_send)
+    );
     println!("owned_count_after_send={}", outcome.owned_count_after_send);
     println!("wallet_path={}", outcome.path.display());
     eprintln!("{}", pending_tx_note(outcome.outcome_kind, outcome.tx_id));
@@ -592,7 +606,9 @@ fn send_outcome_json(outcome: &SendOutcome<'_>) -> serde_json::Value {
         "recipient_view_hex": outcome.params.to_view_hex.as_str(),
         "recipient_spend_hex": outcome.params.to_spend_hex.as_str(),
         "amount": outcome.params.amount,
+        "amount_mfn": mfn_wallet::format_mfn(outcome.params.amount),
         "fee": outcome.params.fee,
+        "fee_mfn": mfn_wallet::format_mfn(outcome.params.fee),
         "ring_size": outcome.params.ring_size,
         "extra_len": outcome.params.extra.len(),
         "tx_id": outcome.tx_id,
@@ -600,6 +616,7 @@ fn send_outcome_json(outcome: &SendOutcome<'_>) -> serde_json::Value {
         "outcome": outcome.outcome_kind,
         "pending_note": pending_tx_note(outcome.outcome_kind, outcome.tx_id),
         "balance_after_send": outcome.balance_after_send,
+        "balance_after_send_mfn": mfn_wallet::format_mfn(outcome.balance_after_send),
         "owned_count_after_send": outcome.owned_count_after_send,
     })
 }
@@ -792,7 +809,12 @@ fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdErro
     println!("bytes={}", outcome.file_bytes);
     println!("replication={}", outcome.params.replication);
     println!("anchor_value={}", outcome.params.anchor_value);
+    println!(
+        "anchor_value_mfn={}",
+        mfn_wallet::format_mfn(outcome.params.anchor_value)
+    );
     println!("fee={}", outcome.fee);
+    println!("fee_mfn={}", mfn_wallet::format_mfn(outcome.fee));
     println!("min_fee={}", outcome.min_fee);
     println!("burden={}", outcome.burden);
     println!("data_root={}", hex::encode(outcome.data_root));
@@ -812,6 +834,10 @@ fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdErro
     println!("mempool_len={}", outcome.mempool_len);
     println!("outcome={}", outcome.outcome_kind);
     println!("balance_after_upload={}", outcome.balance_after_upload);
+    println!(
+        "balance_after_upload_mfn={}",
+        mfn_wallet::format_mfn(outcome.balance_after_upload)
+    );
     println!(
         "owned_count_after_upload={}",
         outcome.owned_count_after_upload
@@ -845,7 +871,9 @@ fn upload_outcome_json(outcome: &UploadOutcome<'_>) -> serde_json::Value {
         "bytes": outcome.file_bytes,
         "replication": outcome.params.replication,
         "anchor_value": outcome.params.anchor_value,
+        "anchor_value_mfn": mfn_wallet::format_mfn(outcome.params.anchor_value),
         "fee": outcome.fee,
+        "fee_mfn": mfn_wallet::format_mfn(outcome.fee),
         "min_fee": outcome.min_fee,
         "burden": outcome.burden.to_string(),
         "data_root": hex::encode(outcome.data_root),
@@ -858,6 +886,7 @@ fn upload_outcome_json(outcome: &UploadOutcome<'_>) -> serde_json::Value {
         "outcome": outcome.outcome_kind,
         "pending_note": pending_upload_note(outcome.tx_id),
         "balance_after_upload": outcome.balance_after_upload,
+        "balance_after_upload_mfn": mfn_wallet::format_mfn(outcome.balance_after_upload),
         "owned_count_after_upload": outcome.owned_count_after_upload,
         "upload_artifact_saved": artifact_saved,
         "upload_artifact_dir": artifact_dir,
@@ -1021,6 +1050,7 @@ pub(crate) fn print_scan_summary(
         println!("scan_height={h}");
     }
     println!("balance={balance}");
+    println!("balance_mfn={}", mfn_wallet::format_mfn(balance));
     println!("owned_count={owned}");
 }
 
@@ -1065,6 +1095,7 @@ fn scan_summary_json(
         "scan_height": scan_height.unwrap_or(0),
         "scan_height_present": scan_height.is_some(),
         "balance": balance,
+        "balance_mfn": mfn_wallet::format_mfn(balance),
         "owned_count": owned,
         "pending_spent_count": file.pending_spent_utxo_keys.len(),
         "light_checkpoint_present": file.light_checkpoint_hex.is_some(),
