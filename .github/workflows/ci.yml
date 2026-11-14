@@ -5,17 +5,59 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Full matrix (Windows/macOS legs, wasm, cargo-audit) also runs nightly on main.
+  schedule:
+    - cron: "30 5 * * *"
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Scheduled runs use their own group so they never cancel a main push run.
+  group: ci-${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'schedule' && '-schedule' || '' }}
   cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
 
+# PR fast path: pull_request runs rustfmt, clippy, Linux scripts validation, and
+# test (ubuntu-latest). Windows/macOS test legs, Windows scripts, wasm32, and
+# cargo-audit run on push to main, the 05:30 UTC nightly schedule, and
+# workflow_dispatch. On a pull request, wasm runs only when mfn-wasm/ or
+# Cargo.lock changes, and cargo-audit only when a Cargo.toml or Cargo.lock
+# changes. The full matrix on the main head remains the merge gate — a green
+# PR is not a green head.
 jobs:
+  changes:
+    name: detect PR changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      deps: ${{ steps.diff.outputs.deps }}
+      wasm: ${{ steps.diff.outputs.wasm }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Diff pull request paths
+        id: diff
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          names="$(git diff --name-only "${BASE_SHA}...HEAD")"
+          deps=false
+          wasm=false
+          if printf '%s\n' "$names" | grep -Eq '(^|/)Cargo\.(toml|lock)$'; then
+            deps=true
+          fi
+          if printf '%s\n' "$names" | grep -Eq '^(mfn-wasm/|Cargo\.lock$)'; then
+            wasm=true
+          fi
+          echo "deps=${deps}" >> "$GITHUB_OUTPUT"
+          echo "wasm=${wasm}" >> "$GITHUB_OUTPUT"
+
   fmt:
     name: rustfmt
     runs-on: ubuntu-latest
@@ -33,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Validate workflow YAML encoding (UTF-8)
@@ -1360,7 +1402,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest","windows-latest"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -1406,6 +1448,8 @@ jobs:
 
   wasm:
     name: wasm32 build
+    needs: [changes]
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.wasm == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -1429,6 +1473,8 @@ jobs:
 
   audit:
     name: cargo-audit
+    needs: [changes]
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.deps == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
