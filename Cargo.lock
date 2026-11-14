@@ -662,6 +662,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-discovery"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "mfn-crypto",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "mfn-light"
 version = "0.1.0"
 dependencies = [
