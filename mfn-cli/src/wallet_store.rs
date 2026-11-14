@@ -12,6 +12,16 @@ use crate::rpc::LightCheckpointSummary;
 /// Current wallet file schema version.
 pub const WALLET_FILE_VERSION: u32 = 2;
 
+/// Refuse to parse a wallet file larger than this. A hostile file must not
+/// force the process to allocate an unbounded JSON tree.
+pub const MAX_WALLET_FILE_BYTES: usize = 32 * 1024 * 1024;
+
+/// Cap on `owned_outputs` inside one file.
+pub const MAX_WALLET_OWNED_OUTPUTS: usize = 1_000_000;
+
+/// Cap on `pending_spent_utxo_keys` inside one file.
+pub const MAX_WALLET_PENDING_SPENT: usize = 1_000_000;
+
 /// How the 32-byte `seed_hex` maps to [`WalletKeys`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -171,7 +181,19 @@ impl WalletFile {
     /// Load and validate a wallet file.
     pub fn load(path: &Path) -> Result<Self, WalletStoreError> {
         let bytes = fs::read(path)?;
-        let file: WalletFile = serde_json::from_slice(&bytes)?;
+        Self::from_bytes(&bytes)
+    }
+
+    /// Parse `bytes` as a wallet file. Larger than [`MAX_WALLET_FILE_BYTES`]
+    /// is rejected before JSON decode.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, WalletStoreError> {
+        if bytes.len() > MAX_WALLET_FILE_BYTES {
+            return Err(WalletStoreError::Invalid(format!(
+                "wallet file is {} bytes; maximum is {MAX_WALLET_FILE_BYTES}",
+                bytes.len()
+            )));
+        }
+        let file: WalletFile = serde_json::from_slice(bytes)?;
         file.validate()?;
         Ok(file)
     }
@@ -181,6 +203,18 @@ impl WalletFile {
             return Err(WalletStoreError::Invalid(format!(
                 "unsupported wallet version {} (expected 1 or {WALLET_FILE_VERSION})",
                 self.version
+            )));
+        }
+        if self.owned_outputs.len() > MAX_WALLET_OWNED_OUTPUTS {
+            return Err(WalletStoreError::Invalid(format!(
+                "owned_outputs has {} entries; maximum is {MAX_WALLET_OWNED_OUTPUTS}",
+                self.owned_outputs.len()
+            )));
+        }
+        if self.pending_spent_utxo_keys.len() > MAX_WALLET_PENDING_SPENT {
+            return Err(WalletStoreError::Invalid(format!(
+                "pending_spent_utxo_keys has {} entries; maximum is {MAX_WALLET_PENDING_SPENT}",
+                self.pending_spent_utxo_keys.len()
             )));
         }
         let _ = self.seed_bytes()?;
@@ -234,6 +268,37 @@ pub const DEFAULT_WALLET_PATH: &str = "wallet.json";
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_bytes_rejects_oversize_and_garbage() {
+        let err = WalletFile::from_bytes(&vec![b'{'; MAX_WALLET_FILE_BYTES + 1]).unwrap_err();
+        assert!(err.to_string().contains("maximum"));
+        assert!(WalletFile::from_bytes(b"").is_err());
+        assert!(WalletFile::from_bytes(b"{").is_err());
+        assert!(WalletFile::from_bytes(b"null").is_err());
+        assert!(WalletFile::from_bytes(br#"{"version":2,"seed_hex":"zz"}"#).is_err());
+        let mut state = 0x65_u64 | 1;
+        for _ in 0..24 {
+            state ^= state >> 12;
+            state ^= state << 25;
+            state ^= state >> 27;
+            state = state.wrapping_mul(0x2545_F491_4F6C_DD1D);
+            let n = (state as usize % 256) + 1;
+            let bytes: Vec<u8> = (0..n)
+                .map(|i| (state.wrapping_add(i as u64)) as u8)
+                .collect();
+            assert!(WalletFile::from_bytes(&bytes).is_err());
+        }
+    }
+
+    #[test]
+    fn from_bytes_rejects_too_many_pending_keys() {
+        let mut file = WalletFile::new(&[9u8; 32], KeyDerivation::MfnWalletV1);
+        file.pending_spent_utxo_keys
+            .resize(MAX_WALLET_PENDING_SPENT + 1, "00".repeat(32));
+        let err = file.validate().unwrap_err();
+        assert!(err.to_string().contains("pending_spent_utxo_keys"));
+    }
 
     #[test]
     fn round_trip_seed_hex() {
