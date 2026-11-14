@@ -12,8 +12,8 @@ use mfn_storage_operator::upload_artifact_store::{
 };
 use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
-    ClaimingIdentity, TransferRecipient, Wallet, WalletError, WALLET_MIN_RING_SIZE,
-    WALLET_MIN_TX_INPUTS,
+    explain_wallet_error, ClaimingIdentity, TransferRecipient, Wallet, WalletError,
+    WALLET_MIN_RING_SIZE, WALLET_MIN_TX_INPUTS,
 };
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha512};
@@ -455,20 +455,10 @@ fn f7_owned_below_floor_usage(got: usize, min: usize) -> WalletCmdError {
     ))
 }
 
-fn ring_size_below_floor_usage(min: usize) -> WalletCmdError {
-    WalletCmdError::Usage(format!(
-        "ring-size must be at least {min} (wallet/consensus floor)"
-    ))
-}
-
 /// Map wallet build errors; rewrite F7 input-count and ring-floor rejects to CLI wording
 /// (**B-197** / **B-217**).
 fn map_wallet_build_err(err: WalletError) -> WalletCmdError {
-    match err {
-        WalletError::TxInputCountBelowMinimum { got, min } => f7_owned_below_floor_usage(got, min),
-        WalletError::RingSizeBelowMinimum { min, .. } => ring_size_below_floor_usage(min),
-        other => WalletCmdError::Wallet(other),
-    }
+    WalletCmdError::Usage(explain_wallet_error(&err))
 }
 
 /// `wallet send` — scan, build CLSAG transfer, `submit_tx`, persist pending spends.
