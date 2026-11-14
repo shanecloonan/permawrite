@@ -87,8 +87,9 @@ pub use peer_addr::{
     is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
 };
 pub use peer_diversity::{
-    checkpoint_anchor_peer_candidates, ipv4_prefix16_key, min_distinct_ipv4_prefix16_from_env,
-    peer_diversity_redial_candidates, peer_diversity_redial_enabled_from_env,
+    checkpoint_anchor_peer_candidates, distinct_diversity_buckets, diversity_bucket_key,
+    ipv4_prefix16_key, min_distinct_ipv4_prefix16_from_env, peer_diversity_redial_candidates,
+    peer_diversity_redial_candidates_with_asn, peer_diversity_redial_enabled_from_env,
     peer_diversity_snapshot, peer_diversity_warning, PeerDiversitySnapshot,
     DEFAULT_CHECKPOINT_ANCHOR_PEER_COUNT, DEFAULT_DIVERSITY_REDIAL_PER_SWEEP,
     DEFAULT_MIN_DISTINCT_IPV4_PREFIX16, MFND_P2P_DIVERSITY_REDIAL_ENV,

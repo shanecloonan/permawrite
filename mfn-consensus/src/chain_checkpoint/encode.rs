@@ -118,7 +118,12 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
 
     // ---- Header ----
     w.push(&CHAIN_CHECKPOINT_MAGIC);
-    w.u32(CHAIN_CHECKPOINT_VERSION);
+    let write_version = if parts.state.header_version >= crate::HEADER_VERSION_RETRIEVAL {
+        super::CHAIN_CHECKPOINT_VERSION_MAX
+    } else {
+        CHAIN_CHECKPOINT_VERSION
+    };
+    w.u32(write_version);
 
     // ---- Identity ----
     w.push(&parts.genesis_id);
@@ -237,6 +242,12 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
     let utxo_tree_bytes = encode_utxo_tree_state(&parts.state.utxo_tree);
     w.varint(utxo_tree_bytes.len() as u64);
     w.push(&utxo_tree_bytes);
+
+    if write_version >= super::CHAIN_CHECKPOINT_VERSION_MAX {
+        let retrieval = crate::retrieval::encode_registry(&parts.state.retrieval);
+        w.varint(retrieval.len() as u64);
+        w.push(&retrieval);
+    }
 
     // ---- Trailing integrity tag ----
     let payload = w.into_bytes();

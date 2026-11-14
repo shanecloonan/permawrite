@@ -19,10 +19,11 @@
 
 /// First header version that must follow the lock rule.
 ///
-/// Version 4 is B-35 input-count padding. Version 5 is the equivocation
-/// height bind. This rule starts at 6 so neither of those gates turns
-/// the lock on. Not added to the genesis allow-list.
-pub const HEADER_VERSION_LOCK_RULE: u32 = 6;
+/// Versions 4–7 are B-35, Tier 2 rings, B-37 hidden fees, and B-317
+/// retrieval. Version 8 is the equivocation height bind. This rule
+/// starts at 9 so none of those gates turns the lock on. Not added
+/// to the genesis allow-list.
+pub const HEADER_VERSION_LOCK_RULE: u32 = 9;
 
 /// What this validator is locked onto at the current height.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -185,7 +186,11 @@ mod tests {
             &locked_hash,
             None
         ));
-        assert!(may_vote_locked(4, &lock, 3, &locked_hash, None));
-        assert!(may_vote_locked(5, &lock, 3, &locked_hash, None));
+        for version in 4u32..=8 {
+            assert!(
+                may_vote_locked(version, &lock, 3, &locked_hash, None),
+                "header version {version} is not the lock rule"
+            );
+        }
     }
 }

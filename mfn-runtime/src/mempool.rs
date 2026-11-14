@@ -483,7 +483,11 @@ impl Mempool {
         }
 
         // (2) Local min-fee policy.
-        if tx.fee < self.config.min_fee {
+        let hidden_fees = state
+            .params
+            .ring_policy_for_header(state.header_version)
+            .hidden_fees;
+        if !hidden_fees && tx.fee < self.config.min_fee {
             return Err(AdmitError::BelowMinFee {
                 min_fee: self.config.min_fee,
                 tx_fee: tx.fee,
@@ -1330,6 +1334,8 @@ mod tests {
             outputs: Vec::new(),
             fee: 0,
             extra: Vec::new(),
+            fee_commitment: None,
+            fee_range_proof: None,
         };
         let mut pool = Mempool::new(MempoolConfig::default());
         let err = pool.admit(bogus, chain.state()).unwrap_err();
@@ -2128,6 +2134,8 @@ mod tests {
             storage_proofs: Vec::new(),
             storage_operator_ops: Vec::new(),
             bond_ops: Vec::new(),
+            disclosed_fee: None,
+            retrieval_ops: Vec::new(),
         }
     }
 }
