@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** **B-318** local 4c witness envelope (this commit). Off consensus. Prior unit **B-39**. **B-18** is on main. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** **B-319** coinbase limbs as the parent digest (this commit). Off consensus. Prior unit **B-318**. **B-18** is on main. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -143,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-318** local 4c witness envelope (this commit); **B-39**; **B-12**; **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-12**; **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); retrieval **B-317** header v7; **B-37**; **B-316** | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding (Seat B). Inner STARK verifier still open (Seat C). No B-297 clone. No DEFAULT flip | Lane 1 CI |
+| **4** Protocol | **B-319** coinbase limbs as the parent digest (this commit); **B-318**; **B-39**; **B-12**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-39**; **B-12**; **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-12**; **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); **B-317**; **B-316**; **F5 1c+** on main; **B-35** header v4; **B-18** (`69957f57`); retrieval **B-317** header v7; **B-37**; **B-316** | *Idle* — slash matrix frozen. Seat C holds validity files | Output-count padding (Seat B). Inner STARK verifier still open (Seat C). No B-297 clone. No DEFAULT flip | Lane 1 CI |
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
@@ -270,7 +270,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-316 | F5 4a Winterfell leaves: `emission_at_height` + coinbase bps split | 4 (Seat C) | **Landed** — [`VALIDITY_STARK_BACKEND.md`](docs/VALIDITY_STARK_BACKEND.md). Off consensus. Recursion backend = Plonky3 when 4b.2 starts. No Path A / F-A change |
 | B-317 | F5 4a field-Merkle opening (MiMC-5, depth 4, not dhash) | 4 (Seat C) | **Landed** — `validity_stark_merkle`. Not SPoRA. No Path A / F-A change |
 | B-35 | F7 consensus input-count padding | 4+5 | **Landed** — power-of-two buckets at header v4; Path A / F-A off |
-| B-318 | F5 4c local witness envelope for the Plonky3 aggregate | 4 (Seat C) | **Landed** (this commit) — `MFVW` v1. Not gossip. No Path A / F-A change |
+| B-318 | F5 4c local witness envelope for the Plonky3 aggregate | 4 (Seat C) | **Landed** — `MFVW` v1. Not gossip. No Path A / F-A change |
+| B-319 | Pin a coinbase claim as the four parent-digest limbs | 4 (Seat C) | **Landed** (this commit) — not a Winterfell-proof hash. No Path A / F-A change |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | **Landed** (this commit) — header v6; header v1 keeps public `tx.fee` |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
@@ -532,7 +533,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-11-14 - lane 4 / Seat C - B-318 local 4c witness** (this commit): `encode_aggregated_witness` / `verify_aggregated_witness` wrap the Plonky3 proof and claimed outputs as `MFVW` version 1. `b318_witness_envelope_roundtrips_and_rejects_bad_bytes` PASS. Not a header field. Off consensus. Claim base `c18fa6c5`. Next: coinbase limbs in the parent digest. *Observed (not staged):* none.
+1. **2026-11-14 - lane 4 / Seat C - B-319 coinbase parent limbs** (this commit): `parent_limbs_from_coinbase` is height, emission, treasury fee, producer fee, each inside BabyBear. `b319_coinbase_limbs_bind_the_parent_digest` PASS (a different height is `ProofInvalid`; `u32::MAX` emission is out of range). Not a hash of a Winterfell proof. Off consensus. Claim base `0e5bfdf3`. Next: tx and SPoRA counts in the aggregate. *Observed (not staged):* none.
+
+1. **2026-11-14 - lane 4 / Seat C - B-318 local 4c witness**: `MFVW` v1 envelope. `b318_*` PASS. Off consensus.
 
 1. **2026-11-14 - lane 4 / Seat C - B-39 local light check**: `verify_aggregated_outputs` checks claimed outputs and four parent-digest limbs. It does not divide the fee or hash the path. Off consensus.
 
