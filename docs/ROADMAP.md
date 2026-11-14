@@ -667,6 +667,7 @@ Windowed SPoRA lottery vs first-to-publish latency race ([`PROBLEMS.md` §6](./P
 | **B-318** | Output-count power-of-two buckets | 4+5 | ✓ Gated at header v8; header v1 still accepts 3 outputs |
 | **B-319** | Wallet pads outputs to that bucket | 5 | ✓ 2 stays 2; 3 becomes 4. Valid on header v1 and required on v8 |
 | **B-320** | Wallet pads inputs to the B-35 bucket | 5 | ✓ Spare UTXO pads 3→4. Header v1 keeps 3 when no spare. Header v4 refuses |
+| **B-321** | Retrieval forfeit of a departed operator | 4 | ✓ Valid answer does not recreate a bond. The share stays in treasury |
 | **B-19** | F9: decoy-RNG entropy contract + conformance tests | 5 | ✓ **Shipped** — [`DECOY_RNG.md`](./DECOY_RNG.md); no consensus change |
 | **B4 decoy** | Gamma calibration / age-band refinements if ring stays at 16 longer | 5 | Partially shipped; re-evaluate after Tier 2 |
 | **B-21** | B7 Dandelion++ internet soak evidence (stem/fluff timing) | 1 | Unblocks Phase 7+ **P16** cover traffic |

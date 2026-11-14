@@ -350,11 +350,19 @@ impl RetrievalRegistry {
         let (refund, to_operator, to_treasury) = split_forfeit(open.deposit);
         self.escrow = self.escrow.saturating_sub(u128::from(open.deposit));
         credit(&mut self.credits, &open.one_time_refund, u128::from(refund));
+        // A missing bond means the operator left the set before the answer.
+        // Do not insert a new entry: that amount would never be written back
+        // onto an operator and would vanish from the supply. Credit it to
+        // treasury with the rest of the forfeit.
+        let mut treasury_share = u128::from(to_treasury);
         if to_operator > 0 {
-            let bond = bonds.entry(open.operator_index).or_insert(0);
-            *bond = bond.saturating_add(to_operator);
+            if let Some(bond) = bonds.get_mut(&open.operator_index) {
+                *bond = bond.saturating_add(to_operator);
+            } else {
+                treasury_share = treasury_share.saturating_add(u128::from(to_operator));
+            }
         }
-        *treasury = treasury.saturating_add(u128::from(to_treasury));
+        *treasury = treasury.saturating_add(treasury_share);
         let until = height.saturating_add(RETRIEVAL_ANSWER_COOLDOWN);
         self.cooldown_until.insert(
             ChunkId {
@@ -783,6 +791,41 @@ mod tests {
         assert!(!books.reg.blocks_unbond(0));
         assert!(books.bonds[&0] >= 10_000, "a valid answer does not slash");
         assert_eq!(books.total(), before);
+    }
+
+    #[test]
+    fn b321_forfeit_of_a_departed_operator_stays_in_treasury() {
+        let (root, chunk, proof) = file();
+        let mut books = Books::new(10_000);
+        let deposit = 4_000u64;
+        books
+            .post(10, challenge_for(root, deposit, b"b321-departed"))
+            .unwrap();
+        books.bonds.remove(&0);
+        let after_departure = books.total();
+        let id = challenge_id(10, &challenge_for(root, deposit, b"b321-departed"));
+        let treasury_before = books.treasury;
+        books
+            .respond(
+                12,
+                RetrievalResponse {
+                    challenge_id: id,
+                    chunk,
+                    proof,
+                },
+            )
+            .unwrap();
+        assert!(
+            books.bonds.is_empty(),
+            "a valid answer must not recreate a departed operator bond"
+        );
+        let forfeit = u128::from(deposit) * u128::from(RETRIEVAL_FALSE_FORFEIT_BPS) / 10_000;
+        assert_eq!(
+            books.treasury,
+            treasury_before + forfeit,
+            "operator share and treasury share both stay in treasury"
+        );
+        assert_eq!(books.total(), after_departure);
     }
 
     #[test]

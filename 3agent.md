@@ -22,12 +22,12 @@ Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed
 
 ## Live seats (NOW)
 
-Synced at **B-320** wallet input pad on top of **B-319**, **G-1**, Seat F **F-8**, and Seat C **B-12**. Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
+Synced at **B-321** departed-operator forfeit on top of **B-320**, **G-1**, Seat F **F-8**, and Seat C **B-12**. Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-320** wallet input pad (this commit); **B-319** output pad | *Idle* | Departed-operator forfeit stays in treasury. No DEFAULT flip |
+| **B** Protocol/Privacy | **B-321** departed-operator forfeit stays in treasury (this commit); **B-320** input pad | *Idle* | Next privacy gate stays header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (on main); **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
 | **D** Network anonymity | — | **D-1** Dandelion stem privacy (claim base `4aedafe9`) | Onion advertise; inbound subnet cap |
 | **F** Ease of use | **F-8** browser file backup card (on main) | *Idle* | **F-9** `wallet ready` checklist |
@@ -64,7 +64,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done B-320 wallet input pad / Doing idle / Next departed-operator forfeit (no DEFAULT flip)
+3agent — Seat B: Done B-321 departed-operator forfeit / Doing idle / Next privacy gate stays header-gated (no DEFAULT flip)
 3agent — Seat C: Done B-12 Plonky3 aggregate / Doing idle / Next inner STARK verifier
 3agent — Seat D: Doing D-1 Dandelion stem privacy / Next onion advertise
 3agent — Seat F: Done F-8 file backup card / Doing idle / Next F-9 wallet ready
