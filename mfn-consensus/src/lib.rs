@@ -168,9 +168,10 @@ pub use consensus::{
 };
 pub use constitution::{validate_constitution, ConstitutionError, CONSTITUTIONAL_MIN_RING_SIZE};
 pub use emission::{
-    annual_tail_emission, annualized_inflation_ppb, block_coinbase_specs, cumulative_emission,
-    effective_emission_params, emission_at_height, pre_tail_supply_cap, prepare_fee_shift_window,
-    producer_coinbase_amount, producer_portion_amount, recommended_backstop_mint_cap_for_window,
+    annual_tail_emission, annualized_inflation_ppb, backstop_mint_cap_applies,
+    block_coinbase_specs, cumulative_emission, effective_emission_params, emission_at_height,
+    pre_tail_supply_cap, prepare_fee_shift_window, producer_coinbase_amount,
+    producer_portion_amount, recommended_backstop_mint_cap_for_window,
     recommended_backstop_mint_cap_per_slot, recommended_backstop_mint_cap_per_year,
     recommended_fee_to_treasury_bps, recommended_tail_emission, record_fee_shift_block,
     settle_storage_reward, storage_payout_amount, storage_proof_coinbase_bonus,

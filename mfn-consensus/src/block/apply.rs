@@ -1282,6 +1282,15 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             ));
     }
     let settlement = crate::emission::settle_storage_reward(pending_treasury, storage_reward_total);
+    if crate::emission::backstop_mint_cap_applies(&emission_params) {
+        let cap = crate::emission::recommended_backstop_mint_cap_per_slot(&emission_params);
+        if settlement.minted_backstop > cap {
+            errors.push(BlockError::BackstopMintAboveCap {
+                minted: settlement.minted_backstop,
+                cap,
+            });
+        }
+    }
     next.treasury = settlement.treasury_after;
     // `settlement.minted_backstop` is the emission backstop. It is part of
     // operator coinbase outputs and is not subtracted from the treasury.

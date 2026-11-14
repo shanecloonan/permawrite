@@ -197,6 +197,18 @@ pub enum BlockError {
     /// `verify_coinbase` rejected the tx.
     #[error("coinbase invalid: {0:?}")]
     CoinbaseInvalid(Vec<String>),
+    /// Backstop mint for this block is above the PM41 per-slot cap.
+    ///
+    /// Armed only when one proof's `storage_proof_reward` already fits in
+    /// the cap. Path A's 0.1 MFN prize does not, so this error is not
+    /// raised on Path A.
+    #[error("backstop mint {minted} exceeds per-slot cap {cap}")]
+    BackstopMintAboveCap {
+        /// Fresh tokens the settlement would mint.
+        minted: u128,
+        /// [`recommended_backstop_mint_cap_per_slot`].
+        cap: u128,
+    },
     /// Overlay `activation_value` exceeds 10000 bps (B-268f).
     ///
     /// Checkpoint decode already refuses this (B-268e). `apply_block` is

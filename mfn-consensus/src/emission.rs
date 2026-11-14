@@ -623,6 +623,18 @@ pub fn recommended_backstop_mint_cap_per_slot(params: &EmissionParams) -> u128 {
     u128::from(params.tail_emission) * u128::from(RECOMMENDED_BACKSTOP_CAP_ANNUAL_BPS) / 10_000
 }
 
+/// `true` when one proof's prize fits inside the per-slot cap, so the cap
+/// can be enforced without rejecting Path A's 0.1 MFN prize.
+///
+/// Path A `storage_proof_reward` (`MFN_BASE / 10`) is larger than the cap,
+/// so this stays false and `apply_block` remains unbounded. The F-A prize
+/// (1763) fits, so the cap applies there without a genesis-file edit.
+#[must_use]
+pub fn backstop_mint_cap_applies(params: &EmissionParams) -> bool {
+    let cap = recommended_backstop_mint_cap_per_slot(params);
+    cap > 0 && u128::from(params.storage_proof_reward) <= cap
+}
+
 /// Window cap: per-slot cap × `window_slots` (saturating).
 #[must_use]
 pub fn recommended_backstop_mint_cap_for_window(
@@ -1172,6 +1184,10 @@ mod tests {
             window_slots: 1,
         };
         assert!(!one_proof.cap_binds(&p));
+        assert!(!backstop_mint_cap_applies(&p));
+        let mut sized_params = p;
+        sized_params.storage_proof_reward = sized;
+        assert!(backstop_mint_cap_applies(&sized_params));
     }
 
     #[test]

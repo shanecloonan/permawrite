@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** cold-proof cadence gate (this commit, checkpoint v15, default 0). Prior: B-23, B-20, B-44, B-24. Path A and F-A genesis files and `DEFAULT_*` unchanged. Prior head **F5 1c+** `9355955c`. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** PM41 backstop mint cap applies only when one proof's prize fits the per-slot cap (this commit). Path A's 0.1 MFN prize stays unbounded. Prior: cold-proof cadence gate, default 0. Prior head **F5 1c+** `9355955c`. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -145,7 +145,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
 | **4** Protocol | **F5 1c+** slash drops `pending_unbonds`; **B-35** header v4; **B-316** Winterfell leaves (Seat C) | *Idle* — slash matrix frozen. Seat C holds validity files | **B-17** ASN peer buckets (Seat B). Merkle leaf next (Seat C). No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-19** decoy-RNG contract (`c330b780`); **B-226** docs honesty; **B-217** (`55c078fe`) | *Idle* | **B-37** hidden fees, version-gated, after the Tier 2 gate | Doc-accuracy duty |
-| **6** Permanence | Cold-proof cadence gate (this commit): `cold_proof_cadence` default 0, checkpoint v15. Credit uses `recommended_credited_slots` and B5 overdue uses `cold_proof_overdue` only when the flag is 1. Prior: B-23 / B-20 / B-44 / B-24. | *Idle* | Replica seals and retrieval slash still unwired. No B-13c; no DEFAULT flip | Emission sims |
+| **6** Permanence | PM41 mint cap armed only when `storage_proof_reward` fits the per-slot cap (this commit). Path A prize stays unbounded. Prior: cold-proof cadence gate (default 0). | *Idle* | Replica seals and retrieval slash still unwired. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
 
 ---
@@ -262,7 +262,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-308 | Windowed SPoRA lottery ranking helper (not wired) | 6 | **Landed** `18cd1539` — `rank_spora_lottery`; Path A stays first-to-publish; wire = **B-44** after B-32 |
 | B-309 | Producer↔treasury runway fee-shift helper (not armed) | 6 | **Landed** `873e6b1e` — `recommended_fee_to_treasury_bps`; Path A stays 9000; arm = **B-20** |
 | B-310 | PM8 state-retention inventory (not pruning) | 6 | **Landed** `98e3adde` — `archive_retention`; Path A keeps full log; maps never prune |
-| B-311 | PM41 backstop mint cap (1% of annual tail; not wired) | 6 | **Landed** `6c0d4a84` — `recommended_backstop_mint_cap_*`; Path A unbounded; wire after **B-306b** |
+| B-311 | PM41 backstop mint cap (1% of annual tail; not wired) | 6 | **Cap gate landed** — applies only when the prize fits the per-slot cap. Path A 0.1 MFN prize stays unbounded |
 | B-312 | PM22 treasury runway metric (not RPC) | 6 | **Landed** `4720c245` — `treasury_runway_slots` / `RunwayAlert`; Path A prize vs ~2.9e6 is `Short` |
 | B-313 | Tail-emission size helper (`>> 9`; not a schedule flip) | 6 | **Landed** `9028debb` — `recommended_tail_emission`; Path A stays `>> 8`; enable = Path B / post-B-25 |
 | B-314 | PM19 per-commitment cold-proof cadence (not wired) | 6 | **Gate landed** — `cold_proof_cadence` default 0 (checkpoint v15). Flag 1 credits `recommended_credited_slots` and uses `cold_proof_overdue`. Path A and F-A files stay on the hot window. Bounty multiplier not applied |
@@ -529,6 +529,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane 6 - PM41 backstop mint cap gate** (this commit): `backstop_mint_cap_applies` is true only when one proof's prize is at or under `recommended_backstop_mint_cap_per_slot`. `apply_block` then refuses a block whose minted backstop exceeds that cap (`BackstopMintAboveCap`). Path A's 0.1 MFN prize is above the cap, so the live chain stays unbounded. `pm41_cap_refuses_mint_only_when_the_prize_fits_the_cap` PASS. No genesis file edit. No B-13c; no DEFAULT flip.
 
 1. **2026-11-14 - lane 6 - cold-proof cadence gate** (this commit): `cold_proof_cadence` default 0, checkpoint v15, plus `StorageEntry::anchor_slot` so file age is the anchor slot rather than the last proof. When the flag is 1, `accrue_proof_reward` credits `recommended_credited_slots` and B5 staleness uses `cold_proof_overdue`. Path A and F-A files stay at 0, so the hot window remains the live rule. `cold_cadence_credits_an_old_file_past_the_hot_window` and `cold_cadence_keeps_a_year_old_file_off_the_hot_window_alarm` PASS. Genesis id tests PASS. No B-13c; no DEFAULT flip. Bounty multiplier is not applied.
 

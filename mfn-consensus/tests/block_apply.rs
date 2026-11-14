@@ -768,6 +768,101 @@ fn duplicate_storage_proof_in_one_block_rejected() {
     }
 }
 
+#[test]
+fn pm41_cap_refuses_mint_only_when_the_prize_fits_the_cap() {
+    let payload: Vec<u8> = (0..1024u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 2, None).unwrap();
+    let endowment = EndowmentParams {
+        operator_salted_challenges: 1,
+        min_replication: 1,
+        real_yield_ppb: 0,
+        deflation_funded_drip: 0,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let mut emission = DEFAULT_EMISSION_PARAMS;
+    emission.tail_emission = 100_000;
+    emission.storage_proof_reward = 1_000;
+    assert!(backstop_mint_cap_applies(&emission));
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: emission,
+        endowment_params: endowment,
+        bonding_params: None,
+        header_version: 1,
+    };
+    let g = build_genesis(&cfg);
+    let state0 = apply_genesis(&g, &cfg).unwrap();
+    assert_eq!(state0.treasury, 0);
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], 5_000, 1_000);
+    let p0 = mfn_storage::build_test_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+    );
+    let (v1, s1) = mfn_storage::test_operator_payout_keys_alt();
+    let p1 = mfn_storage::build_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+        v1,
+        s1,
+    )
+    .unwrap();
+    match apply_two_proofs(&state0, vec![p0.clone(), p1]) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BackstopMintAboveCap { .. })),
+                "two proofs of a cap-sized prize must refuse the mint, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("mint above the slot cap must fail"),
+    }
+    match apply_two_proofs(&state0, vec![p0]) {
+        ApplyOutcome::Ok { .. } => {}
+        ApplyOutcome::Err { errors, .. } => panic!("one proof fits the cap: {errors:?}"),
+    }
+
+    let mut path_a = state0.clone();
+    path_a.emission_params = DEFAULT_EMISSION_PARAMS;
+    assert!(!backstop_mint_cap_applies(&path_a.emission_params));
+    let scratch_a = build_unsealed_header(&path_a, &[], &[], &[], &[], 5_000, 1_000);
+    let a0 = mfn_storage::build_test_storage_proof_operator_salted(
+        &built.commit,
+        &scratch_a.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+    );
+    let (v2, s2) = mfn_storage::test_operator_payout_keys_alt();
+    let a1 = mfn_storage::build_storage_proof_operator_salted(
+        &built.commit,
+        &scratch_a.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+        v2,
+        s2,
+    )
+    .unwrap();
+    match apply_two_proofs(&path_a, vec![a0, a1]) {
+        ApplyOutcome::Ok { .. } => {}
+        ApplyOutcome::Err { errors, .. } => {
+            panic!("Path A prize stays above the cap and must still apply: {errors:?}")
+        }
+    }
+}
+
 fn b3_test_endowment_params() -> EndowmentParams {
     EndowmentParams {
         operator_salted_challenges: 1,
