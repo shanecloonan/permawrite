@@ -13,19 +13,19 @@ Update this cockpit in the **same commit** as the unit it describes. If it drift
 | --- | --- | --- | --- |
 | **A** RC/CI | CI, Nightly, board integrity | Lanes 1–2 | **B-296**, protocol tests |
 | **B** Protocol/Privacy | Consensus / privacy / economics | Lanes 4–5–6 | **B-296**, Nightly cancel, VPS/faucet |
-| **C** Testnet/Onboarding | VPS / JOIN / faucet / launch | Lanes 3+7 | Protocol tests, CI cancel |
+| **C** Validity proofs | F5 phase 4 / B-12 / B-39 (research) | `validity_stark_*`, FRAUD_PROOFS phase 4 | VPS, faucet, Seat A economics, Seat B privacy/slash |
 
 Lane **6** (permanence sims) arms day-of L4; park under seat A or B when claimed — never silent.
 
 ## Live seats (NOW)
 
-Synced at Seat C **F-A** public-devnet genesis + `vps-rollout-fa.sh` (owner runs `--apply`). Path A file unchanged. Nightly `#31861932921` **GREEN**.
+Synced at Seat C **B-316** validity leaves (off consensus). Path A and F-A unchanged. Nightly `#31861932921` **GREEN**.
 
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-19** decoy-RNG contract (this commit); **B-35** (`e6aacfd1`); **B-18** (`69957f57`) | *Idle* | **F5 1c+** slash clears the bond registry. No B-13c; no DEFAULT flip |
-| **C** Testnet/Onboarding | **F-A** genesis + `vps-rollout-fa.sh` (this commit) | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health |
+| **B** Protocol/Privacy | **B-19** decoy-RNG contract (this merge); **B-35** header v4 | *Idle* | **F5 1c+** slash clears the bond registry. No B-13c; no DEFAULT flip |
+| **C** Validity proofs | **B-316** Winterfell emission + coinbase-split leaves (on main) | *Idle* | STARK-friendly Merkle leaf, then **B-12** on Plonky3 |
 
 ### Hard locks (all seats)
 
@@ -34,12 +34,13 @@ Synced at Seat C **F-A** public-devnet genesis + `vps-rollout-fa.sh` (owner runs
 3. **Foreign WIP:** never stage lane4 `apply_block_proptest.rs` / B-275 body, or another seat's uncommitted files. Seat C owns `onchain-tx-storm*` for **B-277**.
 4. **Privacy/permanence first:** no silent ring/SPoRA/endowment downgrades for speed.
 5. **Lane7 VPS apply:** restart `observer-rpc-proxy` + `testnet-frontend` only — never mfnd / faucet-http.
+6. **Seat C validity track (2026-11-14):** no join rehearsal, no faucet, no mfnd restart. Do not edit Seat A economics files or Seat B privacy/slash files. Validity leaves stay off `apply_block` (no fork, no Path A / F-A, no DEFAULT flip).
 
 ## Critical path (shared)
 
 ```text
 L4 public testnet harden
-  ├─ Seat C: B-15 JOIN SUMMARY + Path A lag close + B-229 VPS apply
+  ├─ Seat C: F5 phase 4 validity leaves (B-316 done) → Merkle leaf → B-12 Plonky3. No VPS.
   ├─ Seat B: sixteenth prove matrix (B-241→B-242…) → B-32 (needs 2nd host)
   ├─ Seat A/B+lane6: B-13a GREEN pin → B-40 / B-25 permanence gate
   └─ Seat A: green CI+Nightly pins on heads
@@ -58,6 +59,6 @@ L4 public testnet harden
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
 3agent — Seat B: Done B-19 decoy-RNG entropy contract / Doing idle / Next F5 1c+ slash clears the bond registry (no B-13c, no DEFAULT flip)
-3agent — Seat C: Done Path A tip-22565 lag OK=7 / Doing idle / Next 2nd host B-32
+3agent — Seat C: Done B-316 Winterfell emission + coinbase-split leaves / Doing idle / Next Merkle leaf, then B-12 on Plonky3
 (AGENTS.md §5 remains the claim surface)
 ```
