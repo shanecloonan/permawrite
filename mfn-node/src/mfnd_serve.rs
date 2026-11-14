@@ -738,6 +738,13 @@ pub(crate) fn run_serve(
     if p2p_enabled {
         let transport = crate::network::init_active_p2p_transport_from_env()
             .map_err(|e| format!("mfnd serve: {e}"))?;
+        if std::env::var("MFND_P2P_PAD")
+            .ok()
+            .is_some_and(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "on"))
+        {
+            mfn_net::tx_pad::enable_tx_padding();
+            println!("mfnd_p2p_pad=buckets:{}", mfn_net::tx_pad::TX_PAD_BUCKET);
+        }
         println!(
             "mfnd_p2p_transport={} tor_socks5={}",
             transport.harness_label(),
