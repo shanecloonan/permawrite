@@ -25,7 +25,7 @@ Synced at Seat C **B-322** empty-block witness (off consensus). Path A and F-A u
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
 | **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
-| **C** Validity proofs | **B-322** empty-block witness (this commit); **B-321**; **B-320** | *Idle* | Inner STARK verifier |
+| **C** Validity proofs | linked outer proof (this commit); **B-322** | *Idle* | Inner FRI verifier |
 
 ### Hard locks (all seats)
 
@@ -59,6 +59,6 @@ L4 public testnet harden
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
 3agent — Seat B: Done B-317 retrieval challenges at header v7 / Doing idle / Next output-count padding, header-gated (no DEFAULT flip)
-3agent — Seat C: Done B-322 empty-block witness / Doing idle / Next inner STARK verifier
+3agent — Seat C: Done linked outer proof / Doing idle / Next inner FRI verifier
 (AGENTS.md §5 remains the claim surface)
 ```

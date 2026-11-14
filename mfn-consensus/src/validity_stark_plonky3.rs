@@ -197,6 +197,20 @@ pub fn parent_limbs_from_coinbase(
     Ok([height, emission, treasury_fee, producer_fee])
 }
 
+/// Limbs that pin another statement's public outputs.
+///
+/// They are the fee sum, the treasury fee, the producer fee, and the tx count.
+/// An outer proof that uses them as `parent_digest` is bound to that inner
+/// statement. The outer AIR does not verify the inner FRI proof.
+pub fn parent_limbs_from_outputs(outputs: &AggregatedOutputs) -> Result<[u32; 4], AggregateError> {
+    parent_limbs_from_coinbase(
+        outputs.fee_sum,
+        outputs.treasury_fee,
+        outputs.producer_fee,
+        outputs.tx_count,
+    )
+}
+
 /// Prove the split and both openings. The claim's roots are the native roots.
 pub fn prove_aggregated(claim: &AggregatedClaim) -> Result<AggregatedProof, AggregateError> {
     let public = public_values(claim)?;
@@ -746,5 +760,37 @@ mod tests {
             prove_aggregated(&huge),
             Err(AggregateError::OutOfRange)
         ));
+    }
+
+    #[test]
+    fn b323_outer_proof_is_bound_to_inner_outputs() {
+        let inner = claim();
+        let inner_proof = prove_aggregated(&inner).unwrap();
+        let inner_out = outputs_of(&inner);
+        verify_aggregated_outputs(&inner_out, &inner_proof).unwrap();
+        let limbs = parent_limbs_from_outputs(&inner_out).unwrap();
+
+        let mut outer = claim();
+        outer.fee_sum = 0;
+        outer.fee_to_treasury_bps = 0;
+        outer.treasury_fee = 0;
+        outer.producer_fee = 0;
+        outer.tx_count = 0;
+        outer.spora_count = 0;
+        outer.leaves_a = vec![0];
+        outer.index_a = 0;
+        outer.leaves_b = vec![0];
+        outer.index_b = 0;
+        outer.parent_digest = limbs;
+        let outer_proof = prove_aggregated(&outer).unwrap();
+        let outer_out = outputs_of(&outer);
+        verify_aggregated_outputs(&outer_out, &outer_proof).unwrap();
+
+        let mut broken = outer_out;
+        broken.parent_digest[3] ^= 1;
+        assert_eq!(
+            verify_aggregated_outputs(&broken, &outer_proof),
+            Err(AggregateError::ProofInvalid)
+        );
     }
 }

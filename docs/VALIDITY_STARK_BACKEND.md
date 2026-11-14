@@ -97,3 +97,5 @@ The same statement now names `tx_count` and `spora_count`, each at most 1_024. B
 A witness bigger than one mebibyte is refused before it is parsed. `scripts/check-validity-witness-frame.py` checks the frame only. It does not run the STARK.
 
 `prove_empty_block_witness` is the file for a block that moved no fee and named no user transaction or storage proof. The two openings are a public zero leaf. The empty claim is the zero fee and the zero counts.
+
+`parent_limbs_from_outputs` pins an inner statement's fee sum, treasury fee, producer fee, and tx count into the outer proof's parent digest. The outer AIR does not verify the inner FRI proof. That inner verifier is still open.
