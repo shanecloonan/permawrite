@@ -100,6 +100,8 @@ fn request_id(req: &Value) -> Value {
     }
 }
 
+#[path = "dispatch/request_bounds.rs"]
+mod request_bounds;
 #[path = "dispatch/rpc_method_meta.rs"]
 mod rpc_method_meta;
 #[path = "dispatch/rpc_params.rs"]
@@ -602,6 +604,9 @@ pub fn parse_and_dispatch_serve_opts(
             rpc_codes::INVALID_REQUEST,
             "request must be a JSON object",
         );
+    }
+    if let Err(message) = request_bounds::enforce_request_bounds(&req) {
+        return rpc_error(&request_id(&req), rpc_codes::INVALID_REQUEST, message);
     }
     let id = request_id(&req);
     if let Some(v) = req.get("jsonrpc") {
@@ -3497,6 +3502,56 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("clear_mempool"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_rejects_deeply_nested_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_deep_params");
+        let mut nested = "0".to_string();
+        for _ in 0..40 {
+            nested = format!("[{nested}]");
+        }
+        let line = format!(r#"{{"jsonrpc":"2.0","method":"get_tip","id":1,"params":{nested}}}"#);
+        let v = parse_and_dispatch_serve(&store, &mut c, &mut p, &line);
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_REQUEST);
+        assert!(v["error"]["message"].as_str().unwrap().contains("nested"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_garbage_lines_do_not_panic() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_garbage");
+        let brackets = "[".repeat(80);
+        let samples = [
+            "",
+            "{",
+            "null",
+            "[]",
+            "\"hello\"",
+            "{]",
+            "{\"method\":1}",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"get_tip\",\"params\":{\"a\":[1,2,{\"b\":null}]}}",
+            brackets.as_str(),
+            "{\"jsonrpc\":\"2.0\",\"method\":\"nope\",\"params\":[\"zz\"],\"id\":null}",
+        ];
+        for line in samples {
+            let v = parse_and_dispatch_serve(&store, &mut c, &mut p, line);
+            assert!(v.get("error").is_some() || v.get("result").is_some());
+        }
+        let mut state = 0x64_u64 | 1;
+        for _ in 0..32 {
+            state ^= state >> 12;
+            state ^= state << 25;
+            state ^= state >> 27;
+            state = state.wrapping_mul(0x2545_F491_4F6C_DD1D);
+            let n = (state as usize % 180) + 1;
+            let line: String = (0..n)
+                .map(|i| char::from(((state.wrapping_add(i as u64)) % 95) as u8 + 32))
+                .collect();
+            let v = parse_and_dispatch_serve(&store, &mut c, &mut p, &line);
+            assert!(v.is_object());
+        }
         fs::remove_dir_all(&root).ok();
     }
 }
