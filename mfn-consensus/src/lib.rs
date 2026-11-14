@@ -99,6 +99,8 @@ pub mod validity_stark_plonky3;
 pub mod validity_stark_stub;
 #[cfg(all(feature = "bls", feature = "winterfell"))]
 pub mod validity_stark_winterfell;
+#[cfg(feature = "plonky3")]
+pub mod validity_witness;
 
 pub use archive_retention::{
     chain_state_field_retention, fork_dropped_storage_commitments, historical_block_body_may_prune,

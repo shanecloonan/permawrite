@@ -85,3 +85,7 @@ not divide the fee and it does not hash the path. `fee * bps` still has to sit
 under the field modulus, and the remainder has to be below 10_000, so the
 in-circuit equation has one integer solution. A different parent limb does not
 verify. Nothing here is written into a block header or gossiped.
+
+## B-318 local witness envelope
+
+`encode_aggregated_witness` writes `MFVW`, version 1, and a JSON object of the claimed outputs plus the Plonky3 proof. `verify_aggregated_witness` checks that envelope with `verify_aggregated_outputs`. A bad magic, a truncated body, or a version other than 1 is rejected before the STARK. This is the producer-side file for phase 4c. It is not gossiped.
