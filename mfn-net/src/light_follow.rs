@@ -184,6 +184,16 @@ fn decode_row(payload: &[u8]) -> Result<(LightFollowRow, usize), LightFollowDeco
         payload[off + 3],
     ]) as usize;
     off += 4;
+    // Each slashing is a u32 length plus its bytes. Refuse the count before
+    // reserving a Vec of that length.
+    let slash_budget = payload.len().saturating_sub(off);
+    if !crate::untrusted::declared_count_fits(n_slash, 4, slash_budget) {
+        return Err(LightFollowDecodeError::DeclaredCount {
+            field: "slashings",
+            declared: n_slash,
+            remaining: slash_budget,
+        });
+    }
     let mut slashings = Vec::with_capacity(n_slash);
     for _ in 0..n_slash {
         let (bytes, n) = read_len_prefixed(&payload[off..])?;
@@ -200,6 +210,14 @@ fn decode_row(payload: &[u8]) -> Result<(LightFollowRow, usize), LightFollowDeco
         payload[off + 3],
     ]) as usize;
     off += 4;
+    let bond_budget = payload.len().saturating_sub(off);
+    if !crate::untrusted::declared_count_fits(n_bond, 4, bond_budget) {
+        return Err(LightFollowDecodeError::DeclaredCount {
+            field: "bond_ops",
+            declared: n_bond,
+            remaining: bond_budget,
+        });
+    }
     let mut bond_ops = Vec::with_capacity(n_bond);
     for _ in 0..n_bond {
         let (bytes, n) = read_len_prefixed(&payload[off..])?;
@@ -230,11 +248,11 @@ fn read_len_prefixed(payload: &[u8]) -> Result<(Vec<u8>, usize), LightFollowDeco
     if payload.len() < 4 {
         return Err(LightFollowDecodeError::Truncated);
     }
-    let len = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]) as usize;
-    if payload.len() < 4 + len {
+    let len = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
+    let Some(end) = crate::untrusted::prefixed_end(payload, len) else {
         return Err(LightFollowDecodeError::Truncated);
-    }
-    Ok((payload[4..4 + len].to_vec(), 4 + len))
+    };
+    Ok((payload[4..end].to_vec(), end))
 }
 
 /// Serve [`GetLightFollowV1`] from the local block log (implemented in `mfn-node`).
@@ -340,6 +358,19 @@ pub enum LightFollowDecodeError {
         max: u32,
         /// Count advertised by the peer.
         got: usize,
+    },
+    /// A row's slashing or bond count does not fit in the unread bytes.
+    ///
+    /// Checked before `Vec::with_capacity`, so a `u32::MAX` count inside a
+    /// short frame cannot reserve tens of gigabytes.
+    #[error("light-follow {field} count {declared} does not fit in {remaining} unread bytes")]
+    DeclaredCount {
+        /// `slashings` or `bond_ops`.
+        field: &'static str,
+        /// Count the peer declared.
+        declared: usize,
+        /// Bytes still unread in the row.
+        remaining: usize,
     },
     /// Too many non-light-follow frames arrived before the response.
     #[error("too many interleaved frames before light-follow response")]
@@ -512,6 +543,67 @@ mod tests {
             }
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    #[test]
+    fn light_follow_row_rejects_u32_max_slashing_count() {
+        let mut payload = Vec::new();
+        payload.push(LIGHT_FOLLOW_V1_TAG);
+        payload.extend_from_slice(&[9u8; 32]);
+        payload.extend_from_slice(&1u32.to_be_bytes());
+        payload.extend_from_slice(&4u32.to_be_bytes());
+        payload.extend_from_slice(&[0u8; 32]);
+        payload.extend_from_slice(&0u32.to_be_bytes());
+        payload.extend_from_slice(&u32::MAX.to_be_bytes());
+        let err = LightFollowV1::decode_payload(&payload).expect_err("huge slashing count");
+        match err {
+            LightFollowDecodeError::DeclaredCount {
+                field,
+                declared,
+                remaining,
+            } => {
+                assert_eq!(field, "slashings");
+                assert_eq!(declared, u32::MAX as usize);
+                assert!(remaining < 64, "budget was {remaining}");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn light_follow_row_rejects_u32_max_bond_count() {
+        let mut payload = Vec::new();
+        payload.push(LIGHT_FOLLOW_V1_TAG);
+        payload.extend_from_slice(&[9u8; 32]);
+        payload.extend_from_slice(&1u32.to_be_bytes());
+        payload.extend_from_slice(&4u32.to_be_bytes());
+        payload.extend_from_slice(&[0u8; 32]);
+        payload.extend_from_slice(&0u32.to_be_bytes());
+        payload.extend_from_slice(&0u32.to_be_bytes());
+        payload.extend_from_slice(&u32::MAX.to_be_bytes());
+        let err = LightFollowV1::decode_payload(&payload).expect_err("huge bond count");
+        match err {
+            LightFollowDecodeError::DeclaredCount {
+                field, declared, ..
+            } => {
+                assert_eq!(field, "bond_ops");
+                assert_eq!(declared, u32::MAX as usize);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn light_follow_header_length_past_the_row_stays_truncated() {
+        let mut payload = Vec::new();
+        payload.push(LIGHT_FOLLOW_V1_TAG);
+        payload.extend_from_slice(&[9u8; 32]);
+        payload.extend_from_slice(&1u32.to_be_bytes());
+        payload.extend_from_slice(&1u32.to_be_bytes());
+        payload.extend_from_slice(&[0u8; 32]);
+        payload.extend_from_slice(&u32::MAX.to_be_bytes());
+        let err = LightFollowV1::decode_payload(&payload).expect_err("header length");
+        assert!(matches!(err, LightFollowDecodeError::Truncated));
     }
 
     #[test]

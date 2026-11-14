@@ -120,23 +120,9 @@ fn merkle_proof_wire_len(tail: &[u8]) -> Result<usize, ChunkV2DecodeError> {
 }
 
 fn read_varint(buf: &[u8], offset: &mut usize) -> Result<u64, ChunkV2DecodeError> {
-    let mut result: u64 = 0;
-    let mut shift: u32 = 0;
-    loop {
-        if *offset >= buf.len() {
-            return Err(ChunkV2DecodeError::InvalidProofWire);
-        }
-        if shift > 63 {
-            return Err(ChunkV2DecodeError::InvalidProofWire);
-        }
-        let byte = buf[*offset];
-        *offset += 1;
-        result |= u64::from(byte & 0x7f) << shift;
-        if byte & 0x80 == 0 {
-            return Ok(result);
-        }
-        shift += 7;
-    }
+    // Shared reader: a 10th LEB128 group that does not fit in u64 must be
+    // InvalidProofWire, not a shift overflow panic.
+    crate::untrusted::read_leb128_u64(buf, offset).map_err(|_| ChunkV2DecodeError::InvalidProofWire)
 }
 
 /// Failure decoding a [`ChunkV2`] payload.
@@ -203,5 +189,31 @@ mod tests {
         let proof_wire = vec![0u8, 0];
         let wire = ChunkV2::encode_payload(&hash, 0, &proof_wire, &[]);
         assert!(ChunkV2::decode_payload(&wire).is_err());
+    }
+
+    #[test]
+    fn chunk_v2_overflow_varint_is_invalid_proof_not_a_panic() {
+        let mut payload = vec![CHUNK_V2_TAG];
+        payload.extend_from_slice(&[0x11u8; 32]);
+        payload.extend_from_slice(&7u32.to_be_bytes());
+        // Nine continuation bytes and a payload of 2 at shift 63.
+        payload.extend_from_slice(&[0xff; 9]);
+        payload.push(0x02);
+        payload.push(0xab);
+        let err = ChunkV2::decode_payload(&payload).expect_err("overflow group");
+        assert_eq!(err, ChunkV2DecodeError::InvalidProofWire);
+    }
+
+    #[test]
+    fn chunk_v2_sibling_count_past_the_tail_is_invalid() {
+        let mut payload = vec![CHUNK_V2_TAG];
+        payload.extend_from_slice(&[0x22u8; 32]);
+        payload.extend_from_slice(&1u32.to_be_bytes());
+        // index = 0, sibling count = 1_000_000, four leftover bytes, one body byte.
+        payload.push(0x00);
+        payload.extend_from_slice(&[0xc0, 0x84, 0x3d]);
+        payload.extend_from_slice(&[1, 2, 3, 4, 5]);
+        let err = ChunkV2::decode_payload(&payload).expect_err("sibling count");
+        assert_eq!(err, ChunkV2DecodeError::InvalidProofWire);
     }
 }
