@@ -140,6 +140,19 @@ pub enum WalletError {
         min: usize,
     },
 
+    /// Header v4 requires a power-of-two input count, and this wallet does
+    /// not hold enough extra real UTXOs to reach that bucket. A fake input
+    /// is never invented. Header v1 still accepts the unpadded count.
+    #[error(
+        "tx input count {got} must be padded to {pad_to} real UTXOs on this header (power-of-two bucket)"
+    )]
+    TxInputCountNotBucket {
+        /// Inputs selected after real-UTXO padding.
+        got: usize,
+        /// [`mfn_consensus::block::padded_input_count`].
+        pad_to: usize,
+    },
+
     /// Caller asked for a ring size that the supplied decoy pool cannot
     /// satisfy even after the gamma sampler's fallback to uniform.
     ///

@@ -85,6 +85,12 @@ pub fn explain_wallet_error(err: &WalletError) -> String {
              owned UTXO count {got} below F7 privacy floor {min} \
              (need a second spendable output; public faucet sends two transfers)"
         ),
+        WalletError::TxInputCountNotBucket { got, pad_to } => format!(
+            "This chain needs {pad_to} real coins in the spend and the wallet could gather {got}. \
+             A placeholder coin is never invented. Wait until the wallet holds {pad_to} spendable \
+             coins, then try again. input count {got} must be padded to {pad_to} real UTXOs \
+             (this chain's header requires a power-of-two bucket)"
+        ),
         WalletError::DecoyPoolTooSmall {
             ring_size,
             pool_size,

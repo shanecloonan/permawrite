@@ -318,32 +318,48 @@ impl Wallet {
     }
 
     /// Coin selection for reference transfers/uploads: [`Self::select_inputs`]
-    /// plus the [`crate::WALLET_MIN_TX_INPUTS`] privacy floor.
+    /// plus the [`crate::WALLET_MIN_TX_INPUTS`] privacy floor, then a real
+    /// UTXO pad up to the B-35 power-of-two bucket when a spare output exists.
     ///
     /// Fails closed with [`WalletError::TxInputCountBelowMinimum`] when the
-    /// wallet cannot pad to two real inputs (**B-186**) — matching low-level
-    /// builders (**B-185**), WASM (**B-168**), and production F7 consensus.
-    fn select_inputs_for_tx(&self, target: u64) -> Result<(Vec<&OwnedOutput>, u64), WalletError> {
+    /// wallet cannot pad to two real inputs (**B-186**). On header v4 and
+    /// above, a count that is still not a bucket (three inputs and no
+    /// fourth UTXO) is [`WalletError::TxInputCountNotBucket`]. Header v1
+    /// keeps the three-input spend.
+    fn select_inputs_for_tx(
+        &self,
+        target: u64,
+        header_version: u32,
+    ) -> Result<(Vec<&OwnedOutput>, u64), WalletError> {
         let (mut chosen, mut sum) = self.select_inputs(target)?;
-        self.pad_inputs_to_floor(&mut chosen, &mut sum);
+        self.pad_inputs_to_bucket(&mut chosen, &mut sum);
         if chosen.len() < crate::WALLET_MIN_TX_INPUTS {
             return Err(WalletError::TxInputCountBelowMinimum {
                 got: chosen.len(),
                 min: crate::WALLET_MIN_TX_INPUTS,
             });
         }
+        if header_version >= mfn_consensus::block::HEADER_VERSION_INPUT_PAD
+            && !mfn_consensus::block::input_count_is_padded_bucket(chosen.len() as u32)
+        {
+            return Err(WalletError::TxInputCountNotBucket {
+                got: chosen.len(),
+                pad_to: mfn_consensus::block::padded_input_count(chosen.len() as u32) as usize,
+            });
+        }
         Ok((chosen, sum))
     }
 
-    /// Pad `chosen` up to [`crate::WALLET_MIN_TX_INPUTS`] with additional
-    /// real UTXOs from this wallet when available.
+    /// Pad `chosen` with additional real UTXOs until the count is a
+    /// power-of-two bucket (2, 4, 8, …), or until the wallet has no spare.
+    ///
+    /// One input becomes two when a second UTXO exists. Three become four
+    /// when a fourth exists. Two stays two. A missing spare leaves the
+    /// short count in place so header v1 can still spend it.
     ///
     /// Prefers a pad UTXO from the same age band as the newest input already
     /// chosen; ties break on smallest value (minimises unnecessary change).
-    fn pad_inputs_to_floor<'a>(&'a self, chosen: &mut Vec<&'a OwnedOutput>, sum: &mut u64) {
-        if chosen.len() >= crate::WALLET_MIN_TX_INPUTS {
-            return;
-        }
+    fn pad_inputs_to_bucket<'a>(&'a self, chosen: &mut Vec<&'a OwnedOutput>, sum: &mut u64) {
         let current = self.scan_height.unwrap_or(0);
         let ref_band = chosen
             .iter()
@@ -353,7 +369,11 @@ impl Wallet {
 
         let mut chosen_keys: HashSet<[u8; 32]> = chosen.iter().map(|o| o.utxo_key()).collect();
 
-        while chosen.len() < crate::WALLET_MIN_TX_INPUTS {
+        loop {
+            let goal = mfn_consensus::block::padded_input_count(chosen.len() as u32) as usize;
+            if chosen.len() >= goal {
+                break;
+            }
             let mut candidates: Vec<&OwnedOutput> = self
                 .owned
                 .values()
@@ -413,7 +433,8 @@ impl Wallet {
             .fold(0u64, u64::saturating_add)
             .saturating_add(fee);
 
-        let (chosen_refs, input_sum) = self.select_inputs_for_tx(target)?;
+        let (chosen_refs, input_sum) =
+            self.select_inputs_for_tx(target, chain_state.header_version)?;
         let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
 
         // Clone the OwnedOutputs so we don't hold a borrow into
@@ -716,7 +737,8 @@ impl Wallet {
             let _ = build_mfex_extra(authorship_claims)?;
         }
         let target = anchor_value.saturating_add(fee);
-        let (chosen_refs, input_sum) = self.select_inputs_for_tx(target)?;
+        let (chosen_refs, input_sum) =
+            self.select_inputs_for_tx(target, chain_state.header_version)?;
         let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
         let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
 
@@ -814,7 +836,8 @@ impl Wallet {
         R: FnMut() -> f64,
     {
         let target = anchor_value.saturating_add(fee);
-        let (chosen_refs, input_sum) = self.select_inputs_for_tx(target)?;
+        let (chosen_refs, input_sum) =
+            self.select_inputs_for_tx(target, chain_state.header_version)?;
         let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
         let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
 
@@ -1179,7 +1202,9 @@ mod tests {
         ));
         wallet.ingest_block(&mk_block(2, vec![build_coinbase(2, 10, &payout).unwrap()]));
 
-        let (chosen, sum) = wallet.select_inputs_for_tx(500).expect("select");
+        let (chosen, sum) = wallet
+            .select_inputs_for_tx(500, mfn_consensus::block::HEADER_VERSION)
+            .expect("select");
         assert_eq!(
             chosen.len(),
             2,
@@ -1200,12 +1225,78 @@ mod tests {
             vec![build_coinbase(1, 1_000, &payout).unwrap()],
         ));
 
-        match wallet.select_inputs_for_tx(500) {
+        match wallet.select_inputs_for_tx(500, mfn_consensus::block::HEADER_VERSION) {
             Err(WalletError::TxInputCountBelowMinimum { got, min }) => {
                 assert_eq!(got, 1);
                 assert_eq!(min, crate::WALLET_MIN_TX_INPUTS);
             }
             other => panic!("expected TxInputCountBelowMinimum, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn select_inputs_for_tx_pads_three_to_four_when_a_spare_exists() {
+        let mut wallet = Wallet::from_seed(&[12u8; 32]);
+        let payout = PayoutAddress {
+            view_pub: wallet.keys().view_pub(),
+            spend_pub: wallet.keys().spend_pub(),
+        };
+        for h in 1..=4 {
+            wallet.ingest_block(&mk_block(
+                h,
+                vec![build_coinbase(u64::from(h), 100, &payout).unwrap()],
+            ));
+        }
+        let (chosen, sum) = wallet
+            .select_inputs_for_tx(250, mfn_consensus::block::HEADER_VERSION)
+            .expect("select");
+        assert_eq!(
+            chosen.len(),
+            4,
+            "three covering inputs pad to the bucket of four"
+        );
+        assert_eq!(sum, 400);
+    }
+
+    #[test]
+    fn select_inputs_for_tx_keeps_three_on_header_v1_without_a_spare() {
+        let mut wallet = Wallet::from_seed(&[13u8; 32]);
+        let payout = PayoutAddress {
+            view_pub: wallet.keys().view_pub(),
+            spend_pub: wallet.keys().spend_pub(),
+        };
+        for h in 1..=3 {
+            wallet.ingest_block(&mk_block(
+                h,
+                vec![build_coinbase(u64::from(h), 100, &payout).unwrap()],
+            ));
+        }
+        let (chosen, sum) = wallet
+            .select_inputs_for_tx(250, mfn_consensus::block::HEADER_VERSION)
+            .expect("header v1 still spends three");
+        assert_eq!(chosen.len(), 3);
+        assert_eq!(sum, 300);
+    }
+
+    #[test]
+    fn select_inputs_for_tx_refuses_three_on_header_v4_without_a_spare() {
+        let mut wallet = Wallet::from_seed(&[14u8; 32]);
+        let payout = PayoutAddress {
+            view_pub: wallet.keys().view_pub(),
+            spend_pub: wallet.keys().spend_pub(),
+        };
+        for h in 1..=3 {
+            wallet.ingest_block(&mk_block(
+                h,
+                vec![build_coinbase(u64::from(h), 100, &payout).unwrap()],
+            ));
+        }
+        match wallet.select_inputs_for_tx(250, mfn_consensus::block::HEADER_VERSION_INPUT_PAD) {
+            Err(WalletError::TxInputCountNotBucket { got, pad_to }) => {
+                assert_eq!(got, 3);
+                assert_eq!(pad_to, 4);
+            }
+            other => panic!("expected TxInputCountNotBucket, got {other:?}"),
         }
     }
 
