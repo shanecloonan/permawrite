@@ -21,7 +21,7 @@ use mfn_store::{
     is_persistable_peer_addr, load_peers_with_report, save_peers, DEFAULT_MAX_OUTBOUND_PEERS,
 };
 
-use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction};
+use crate::dandelion::{DandelionConfig, DandelionRelay, HopKind, RelayAction};
 use crate::p2p_peer_quarantine::{
     should_drop_persistent_peer_on_failure, should_ignore_failure_for_quarantine, PeerQuarantine,
     PEER_FAILURES_BEFORE_QUARANTINE, PEER_QUARANTINE_DURATION,
@@ -947,7 +947,12 @@ impl P2pPeerSet {
         let (enabled, action) = match self.dandelion.lock() {
             Ok(mut relay) => {
                 let enabled = relay.is_enabled();
-                let action = relay.decide(id, &peers, std::time::Instant::now());
+                let hop = if except_peer.is_none() {
+                    HopKind::Origin
+                } else {
+                    HopKind::Relay
+                };
+                let action = relay.forward(id, &peers, std::time::Instant::now(), hop);
                 (enabled, action)
             }
             Err(_) => (false, RelayAction::Fluff),
