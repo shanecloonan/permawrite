@@ -44,6 +44,11 @@ pub fn is_onion_host(host: &str) -> bool {
     host.to_ascii_lowercase().ends_with(".onion")
 }
 
+/// True for an I2P destination name (`.i2p`, including `.b32.i2p`).
+pub fn is_i2p_host(host: &str) -> bool {
+    host.to_ascii_lowercase().ends_with(".i2p")
+}
+
 /// True when `host` is a literal IP address (not a DNS name).
 pub fn is_literal_ip_host(host: &str) -> bool {
     host.parse::<IpAddr>().is_ok()
