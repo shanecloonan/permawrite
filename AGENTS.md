@@ -138,6 +138,8 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
+**Seat F:** ease of use. Wallet, CLI, WASM, frontend. No consensus edits. No VPS.
+
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
@@ -147,6 +149,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
+| **F** Ease of use | **F-12** private spend defaults (largest legal ring, hidden fee at v6). Claim base `4aedafe9` | *Idle* | one-command setup | privacy tests |
 
 ---
 

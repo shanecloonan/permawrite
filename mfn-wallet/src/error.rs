@@ -154,6 +154,10 @@ pub enum WalletError {
         pool_size: usize,
     },
 
+    /// The wallet refused a weaker or illegal privacy shape.
+    #[error("{0}")]
+    PrivacyRefused(String),
+
     /// The encrypted-amount blob on a candidate output decoded under our
     /// view-key but did NOT open the Pedersen commitment. The output is
     /// not ours (XOR-pad collision artifact). Surfaced as a hard error
