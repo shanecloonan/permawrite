@@ -1,0 +1,20 @@
+[workspace]
+
+[package]
+name = "mfn-doctor"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "Read a self-host layout and say, in plain language, whether it leaks."
+
+[[bin]]
+name = "mfn-doctor"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
