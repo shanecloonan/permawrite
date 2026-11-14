@@ -38,7 +38,9 @@ mod p2p_light_follow_fetch;
 mod p2p_peer_quarantine;
 mod p2p_reconnect_plan;
 mod p2p_repair_sweep;
+mod relay_budget;
 mod role_topology;
+mod rpc_source_cap;
 mod runner;
 
 pub use archive_export::{
@@ -88,7 +90,7 @@ pub mod store {
 pub use mfn_store::{ChainPersistence, ChainStore, RedbChainStore, StoreError, StoreSave};
 pub use network::NetworkConfig;
 
-pub use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction};
+pub use crate::dandelion::{DandelionConfig, DandelionRelay, HopKind, RelayAction};
 pub use crate::p2p_fanout::P2pPeerSet;
 pub use crate::runner::{
     produce_config_from_env, ProduceConfig, ProductionEngine, ProductionEngineDeps,

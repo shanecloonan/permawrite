@@ -1060,6 +1060,7 @@ pub(crate) fn run_serve(
         ))
     });
     let rpc_in_flight = Arc::new(AtomicUsize::new(0));
+    let rpc_source_cap = Arc::new(Mutex::new(crate::rpc_source_cap::RpcSourceCap::default()));
     let dispatch_opts = serve_dispatch_opts(ServeDispatchState {
         store: &store,
         fanout_peers: fanout_peers.as_ref(),
@@ -1096,17 +1097,38 @@ pub(crate) fn run_serve(
     }
 
     loop {
-        let (mut stream, _) = match listener.accept() {
+        let (mut stream, peer) = match listener.accept() {
             Ok(x) => x,
             Err(e) => {
                 eprintln!("mfnd serve: accept: {e}");
                 continue;
             }
         };
+        let source_host = crate::rpc_source_cap::RpcSourceCap::counted_host(peer);
+        if let Some(host) = source_host.as_deref() {
+            let allowed = rpc_source_cap
+                .lock()
+                .map(|mut cap| cap.try_acquire(host))
+                .unwrap_or(false);
+            if !allowed {
+                eprintln!(
+                    "mfnd_rpc_source_cap peer={peer} cap={}",
+                    crate::rpc_source_cap::DEFAULT_RPC_PER_HOST
+                );
+                let _ = write_rpc_busy_response(&mut stream, rpc_max_in_flight);
+                continue;
+            }
+        }
         let Some(permit) = try_acquire_rpc_permit(&rpc_in_flight, rpc_max_in_flight) else {
+            drop(crate::rpc_source_cap::RpcSourceGuard::new(
+                Arc::clone(&rpc_source_cap),
+                source_host,
+            ));
             let _ = write_rpc_busy_response(&mut stream, rpc_max_in_flight);
             continue;
         };
+        let source_guard =
+            crate::rpc_source_cap::RpcSourceGuard::new(Arc::clone(&rpc_source_cap), source_host);
         let store_c = Arc::clone(&store);
         let chain_c = Arc::clone(&chain);
         let pool_c = Arc::clone(&pool);
@@ -1124,6 +1146,7 @@ pub(crate) fn run_serve(
         if let Err(e) = thread::Builder::new()
             .name("mfnd-rpc".to_string())
             .spawn(move || {
+                let _source = source_guard;
                 handle_accepted_rpc_stream(stream, rpc_state, permit);
             })
         {
