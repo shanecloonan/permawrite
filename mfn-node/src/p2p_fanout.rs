@@ -346,6 +346,7 @@ impl P2pPeerSet {
             self.remember_production_dial(&addr);
             return;
         }
+        mfn_net::peer_exchange::remember(&addr);
         self.note_peer_success(&addr);
         self.remember_production_dial(&addr);
         let changed = match (self.peers.lock(), self.durable_peers.lock()) {

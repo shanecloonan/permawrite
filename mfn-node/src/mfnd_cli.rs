@@ -506,6 +506,19 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     .filter(|s| !s.is_empty())
             });
             let mut p2p_dials = parsed.p2p_dials.clone();
+            let ask_peers = matches!(
+                std::env::var("MFND_P2P_GETADDR")
+                    .unwrap_or_default()
+                    .trim()
+                    .to_ascii_lowercase()
+                    .as_str(),
+                "1" | "true" | "yes" | "on"
+            );
+            mfn_net::peer_exchange::set_asking(ask_peers);
+            if ask_peers {
+                println!("mfnd_p2p_getaddr=1");
+                std::io::stdout().flush().ok();
+            }
             if crate::p2p_boot::env_skip_manifest_seeds() {
                 println!("mfnd_p2p_skip_manifest_seeds=1");
                 std::io::stdout().flush().ok();
