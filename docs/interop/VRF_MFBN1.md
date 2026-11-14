@@ -18,17 +18,24 @@ Tracked as PROBLEMS.md § 15 / F5 phase F15.
 ## Construction summary
 
 ```text
-sk  ← 32-byte seed (ed25519-style expansion)
-pk  = x·G
+sk  ← 32-byte seed
+
+expand(sk):                              # ed25519 secret expansion
+  h      = SHA-512(sk)                     # 64 bytes
+  lower  = h[0..32]; prefix = h[32..64]
+  lower[0]  &= 248
+  lower[31] &= 127; lower[31] |= 64
+  x      = lower as scalar mod ℓ          # from_bytes_mod_order
+  pk     = x·G
 
 Prove(sk, msg):
-  H     = hash_to_point(encode(pk) ‖ msg)   # NOT Elligator2
+  H     = hash_to_point(compress(pk) ‖ msg)   # NOT Elligator2
   Γ     = x·H
-  k     = nonce(prefix, H)                  # deterministic Fiat–Shamir
-  c     = chal(pk, H, Γ, k·G, k·H)        # dhash(MFBN-1/vrf-challenge, …)
+  k     = from_bytes_mod_order_wide(SHA-512(prefix ‖ compress(H)))
+  c     = chal(pk, H, Γ, k·G, k·H)            # 128-bit; see below
   s     = k + c·x  (mod ℓ)
-  π     = (Γ, c, s)                         # 80-byte wire form
-  β     = dhash(MFBN-1/vrf-output, encode(8·Γ))
+  π     = (Γ, c, s)                           # 80-byte wire form
+  β     = dhash(MFBN-1/vrf-output, compress(8·Γ))
 
 Verify(pk, msg, π):
   recompute H, U = s·G − c·pk, V = s·H − c·Γ
@@ -56,6 +63,14 @@ VRF input to `hash_to_point` is `pk_compressed ‖ msg` (see `vrf_prove` /
 `vrf_verify` in `vrf.rs`). This matches Monero-style hashing elsewhere in the
 stack and is deterministic across platforms.
 
+Challenge `c` is the low 16 bytes of `dhash`, not a full scalar hash.
+`dhash(domain, body)` frames each argument as an MFBN-1 blob (LEB128
+length, then bytes) and returns the first 32 bytes of SHA-512. The challenge
+body is five raw compressed points concatenated with **no** per-point length
+prefix: `compress(pk) ‖ compress(H) ‖ compress(Γ) ‖ compress(k·G) ‖ compress(k·H)`.
+`c` is `dhash` bytes `[0..16]` as a little-endian integer (the high 16 scalar
+bytes stay zero). Output `β` is `dhash(MFBN-1/vrf-output, compress(8·Γ))`.
+
 **Consequence:** For the same `(pk, msg)`, MFBN-1 and an Elligator2 ECVRF
 produce different `H`, hence different `Γ`, `c`, `s`, and `β`. Proofs are not
 byte-interchangeable.
@@ -79,24 +94,28 @@ consensus wire). VRF output `β` is always 32 bytes.
 ## Deterministic reference vector
 
 Inputs are fixed so independent implementations can cross-check MFBN-1 behavior.
-Values are asserted in `mfn-crypto` unit tests (`prove_verify_round_trip`,
-`output_is_deterministic`, `wire_round_trip`).
+`b18_mfbn1_reference_vector_is_pinned` in `mfn-crypto` asserts these bytes.
+An independent try-and-increment in that test must match `hash_to_point`, and
+the reference `H` must decode on counter **0**. Drift is consensus-breaking
+for leader election.
 
 | Field | Value |
 | --- | --- |
 | `sk_seed` | 32× `0x07` (`vrf_keygen_from_seed`) |
 | `msg` | ASCII `election seed slot 42` |
-| Property | Same `(seed, msg)` ⇒ identical `β`, `Γ`, `c`, `s` across runs |
+| `pk` | `ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c` |
+| `H` | `8788174d593715da0d4b3701a507e27c164c91a3396bc4a6a323a628b555ccb4` |
+| `β` | `e9cb7a6bc317935bd297c21f86c94094b890239c6b15645efbe92568dfe4b24d` |
+| `π` | `0c3d1c69aa9bd44183a5871daffb702e1b63f96a970c20ec2fedbb703bccd85330963f51fd98c39bdeed5e5fe3d35422276c5ea9475a9120d07e467156e408b0b19ad9db1677124cd76809d84c35cc07` |
+
+`π` layout: `Γ` (32) ‖ `c` (16 LE) ‖ `s` (32 LE). `Γ` is the first 32 bytes
+(`0c3d1c69…cd853`). `c` is `30963f51fd98c39bdeed5e5fe3d35422`.
 
 To reproduce in Rust:
 
 ```text
-cargo test -p mfn-crypto vrf::tests::output_is_deterministic -- --nocapture
+cargo test -p mfn-crypto vrf::tests::b18_mfbn1_reference_vector_is_pinned -- --exact
 ```
-
-For a hex pin of `β` and `π` on the reference vector, run the example below
-once and commit the output — drift in `hash_to_point` or challenge encoding is
-consensus-breaking.
 
 ---
 

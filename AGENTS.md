@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-13):** easy permanence guards (this commit). Path A and F-A genesis files and `DEFAULT_*` unchanged. Prior head **F-A** `4e96ef7f`. Nightly workflow is `disabled_inactivity` (dispatch 422); test matrix on `4e96ef7f` was GREEN. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** B-18 MFBN-1 VRF conformance pin (this commit). Path A and F-A genesis files and `DEFAULT_*` unchanged. Prior head easy permanence guards `dd97d418`. Nightly workflow is `disabled_inactivity` (dispatch 422); test matrix on `4e96ef7f` was GREEN. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-305** (`704280f7`); **B-304** (`848a40ff`) | *Idle* — slash matrix frozen | **B-35** still Phase 3 / B-25. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-18** MFBN-1 VRF golden pin (this commit); **B-305** (`704280f7`) | *Idle* — slash matrix frozen | **B-35** consensus input-count pad. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
@@ -224,7 +224,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | **Landed** (`9974828`) tip=5322 SUMMARY; **wave115** last_proven **22467** (`601cb854…`; this commit). Human SUMMARY still open |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
-| B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | Phase 2; [`PROBLEMS.md` §15](docs/PROBLEMS.md) |
+| B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | **Landed** (this commit) — golden `(pk, H, β, π)` pin; no Elligator2 fork |
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy; after L4 + B-25 unless waived |
 | B-20 | F6: producer↔treasury runway fee-shift policy | 6 | **B-309** helper landed; arm after B-13c + B-25; Path A stays 9000 |
 | B-21 | B7 Dandelion++ internet soak evidence | 1 | Unblocks P16; after L4 |
@@ -525,6 +525,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane 4 - B-18 MFBN-1 VRF conformance pin** (this commit): `b18_mfbn1_reference_vector_is_pinned` locks pk, H (try-and-increment counter 0), β, and the 80-byte π for seed `0x07`×32 and msg `election seed slot 42`. `docs/interop/VRF_MFBN1.md` states ed25519 expansion, nonce, and `dhash` challenge framing. No Elligator2 fork. Path A and F-A unchanged. No B-13c; no DEFAULT flip; slash matrix frozen. Claim base `dd97d418`. Local `cargo test -p mfn-crypto` + fmt/clippy on the crate. Next: **B-35**. *Observed (not staged):* none.
 
 1. **2026-11-13 - lane 6 - easy permanence guards** (this commit): endowment principal saturates at 0 with a runway alert; `settle_storage_reward` is what `apply_block` debits (treasury cannot go negative; mint is the only new storage value); `SupplyAudit` rejects fee-as-mint and wrap; retention policy v1 freezes PermanenceKeep/PrivacyKeep; history prune still requires a covering checkpoint; funded commitments stay. Not wired: replica floor (no seal on the wire), retrieval slash (no audit tx), proof-window constant (would change Path A genesis). No DEFAULT flip; Path A and F-A files unchanged.
 
