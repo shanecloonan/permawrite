@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use crate::chunk_http::{serve_chunks, ChunkServeConfig};
 use crate::prove::{prove_from_wallet_artifact, ProveError};
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
-use crate::upload_artifact_store::list_upload_artifacts;
+use crate::upload_artifact_store::{list_upload_artifacts, upload_artifact_dir};
 
 /// Daemon configuration.
 #[derive(Debug, Clone)]
@@ -90,11 +90,46 @@ pub struct ProveCycleSummary {
     pub failed: u32,
 }
 
+fn retain_local_assignment(wallet_path: &Path) {
+    let Ok(index) = std::env::var("MFN_OPERATOR_INDEX") else {
+        return;
+    };
+    let Ok(count) = std::env::var("MFN_OPERATOR_COUNT") else {
+        return;
+    };
+    let (Ok(index), Ok(count)) = (index.parse::<u32>(), count.parse::<u32>()) else {
+        return;
+    };
+    let Ok(entries) = list_upload_artifacts(wallet_path) else {
+        return;
+    };
+    for entry in entries {
+        let Ok(raw) = hex::decode(&entry.commitment_hash_hex) else {
+            continue;
+        };
+        if raw.len() != 32 {
+            continue;
+        }
+        let mut hash = [0u8; 32];
+        hash.copy_from_slice(&raw);
+        let kept = mfn_storage::retain_assigned_shards(
+            &upload_artifact_dir(wallet_path, &hash),
+            index,
+            count,
+        );
+        println!(
+            "mfno_assign commit={} operator={index}/{count} kept={kept}",
+            entry.commitment_hash_hex
+        );
+    }
+}
+
 /// Run one prove pass over every local upload artifact.
 pub fn run_prove_cycle(
     client: &mut RpcClient,
     wallet_path: &Path,
 ) -> Result<(ProveCycleSummary, Vec<ProveAttempt>), ProveError> {
+    retain_local_assignment(wallet_path);
     let entries = list_upload_artifacts(wallet_path)
         .map_err(|e| ProveError::Usage(format!("list artifacts: {e}")))?;
     let mut summary = ProveCycleSummary {

@@ -44,6 +44,7 @@ pub mod endowment;
 pub mod erasure;
 pub mod lottery;
 pub mod replica_health;
+pub mod shard_assign;
 pub mod spora;
 pub mod stripe;
 pub mod upload_crypt;
@@ -76,6 +77,7 @@ pub use replica_health::{
     RetrievalAudit, MIN_DIVERSE_FAILURE_DOMAINS, REPAIR_BOUNTY_CAP_BPS, REPAIR_BOUNTY_STEP_BPS,
     REPLICA_PAYOUT_CONCENTRATED_BPS, REPLICA_PAYOUT_FULL_BPS, REPLICA_PAYOUT_PARTIAL_BPS,
 };
+pub use shard_assign::{operator_holds_shard, retain_assigned_shards};
 pub use spora::{
     build_endowment_surplus_range_proof, build_storage_commitment, build_storage_proof,
     build_storage_proof_operator_salted, build_test_storage_proof,
