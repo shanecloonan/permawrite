@@ -459,6 +459,68 @@ fn storage_challenge_for_operator(
     }
 }
 
+/// `uploads get` — fetch shards, check the content id, and decrypt.
+///
+/// The node must report the same `data_root` for `commitment_hash_hex`.
+/// `socks` defaults to Tor at the CLI. `None` dials the peers directly.
+pub fn uploads_get(
+    client: &mut RpcClient,
+    content_root_hex: &str,
+    commitment_hash_hex: &str,
+    peers: &[String],
+    output_path: &Path,
+    key_path: Option<&Path>,
+    socks: Option<&str>,
+) -> Result<(), String> {
+    let ch = client
+        .get_storage_challenge(commitment_hash_hex)
+        .map_err(|e| e.to_string())?;
+    if !mfn_storage_operator::content_id_matches_node(content_root_hex, &ch.data_root) {
+        return Err(format!(
+            "content id {content_root_hex} does not match node data_root {}",
+            ch.data_root
+        ));
+    }
+    let root_bytes = hex::decode(content_root_hex.trim())
+        .map_err(|_| format!("content id `{content_root_hex}` is not hex"))?;
+    if root_bytes.len() != 32 {
+        return Err("content id must be 32 bytes".into());
+    }
+    let mut content_root = [0u8; 32];
+    content_root.copy_from_slice(&root_bytes);
+    let key = match key_path {
+        Some(path) => {
+            let bytes = std::fs::read(path)
+                .map_err(|e| format!("read upload key {}: {e}", path.display()))?;
+            if bytes.len() != 32 {
+                return Err("upload key must be 32 bytes".into());
+            }
+            let mut key = [0u8; 32];
+            key.copy_from_slice(&bytes);
+            Some(key)
+        }
+        None => None,
+    };
+    let plain = mfn_storage_operator::retrieve_content(
+        &content_root,
+        commitment_hash_hex,
+        peers,
+        socks,
+        key.as_ref(),
+    )
+    .map_err(|e| e.to_string())?;
+    if let Some(parent) = output_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("create {}: {e}", parent.display()))?;
+        }
+    }
+    std::fs::write(output_path, &plain)
+        .map_err(|e| format!("write {}: {e}", output_path.display()))?;
+    println!("retrieve=ok bytes={}", plain.len());
+    Ok(())
+}
+
 /// `uploads retrieve` — export payload bytes from a wallet-local upload artifact (**M3.27**).
 pub fn uploads_retrieve(
     wallet_path: &Path,

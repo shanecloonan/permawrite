@@ -20,6 +20,7 @@
 //!   verdict helpers (not wired).
 //! - [`erasure`] — Reed–Solomon stripes.
 //! - [`stripe`] — header v9 shard uploads (4+8). Path A stays the size bucket.
+//! - [`upload_crypt`] — client encryption before a file is striped. Off consensus.
 //!
 //! ## Layering
 //!
@@ -45,6 +46,7 @@ pub mod lottery;
 pub mod replica_health;
 pub mod spora;
 pub mod stripe;
+pub mod upload_crypt;
 
 pub use cold_proof::{
     cold_proof_overdue, missed_proof_windows, recommended_cold_reward_multiplier_bps,
@@ -90,4 +92,7 @@ pub use stripe::{
     is_exact_shard_stripe, open_shard_stripe, prepare_shard_stripe, split_committed_stripe,
     validate_storage_commitment_for_header, PreparedStripe, StripeError, HEADER_VERSION_SHARDS,
     STRIPE_SHARDS,
+};
+pub use upload_crypt::{
+    decrypt_upload, encrypt_upload, upload_blob_is_encrypted, UploadCryptError, UPLOAD_KEY_FILE,
 };
