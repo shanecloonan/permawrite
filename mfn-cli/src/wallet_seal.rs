@@ -18,7 +18,7 @@ pub const ARGON2_LANES: u32 = 1;
 
 const SALT_LEN: usize = 16;
 const CHACHA_NONCE_LEN: usize = 12;
-#[cfg(test)]
+/// Iterations used by version 3 PBKDF2 seals.
 const PBKDF2_ITERS: u32 = 100_000;
 
 /// How a sealed seed was derived.
