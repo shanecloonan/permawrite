@@ -1,8 +1,9 @@
 //! B-318. Local phase-4c witness envelope. Not a header field and not gossip.
 //!
 //! The bytes are `MFVW`, version 1, then a JSON object of the claimed outputs
-//! and the Plonky3 proof. Checking the bytes runs [`verify_aggregated_outputs`]
-//! and does not divide the fee or hash the path.
+//! and the Plonky3 proof. A blob bigger than one mebibyte is refused before
+//! parsing. Checking the bytes runs [`verify_aggregated_outputs`] and does
+//! not divide the fee or hash the path.
 
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +13,8 @@ use crate::validity_stark_plonky3::{
 
 const MAGIC: &[u8] = b"MFVW";
 const VERSION: u8 = 1;
+/// One mebibyte. A larger blob is refused before JSON parsing.
+pub const MAX_WITNESS_BYTES: usize = 1 << 20;
 
 #[derive(Serialize)]
 struct Envelope<'a> {
@@ -32,7 +35,11 @@ pub fn encode_aggregated_witness(
 ) -> Result<Vec<u8>, AggregateError> {
     let body = serde_json::to_vec(&Envelope { outputs, proof })
         .map_err(|_| AggregateError::WitnessMalformed)?;
-    let mut bytes = Vec::with_capacity(MAGIC.len() + 1 + body.len());
+    let total = MAGIC.len() + 1 + body.len();
+    if total > MAX_WITNESS_BYTES {
+        return Err(AggregateError::WitnessTooLarge);
+    }
+    let mut bytes = Vec::with_capacity(total);
     bytes.extend_from_slice(MAGIC);
     bytes.push(VERSION);
     bytes.extend_from_slice(&body);
@@ -41,6 +48,9 @@ pub fn encode_aggregated_witness(
 
 /// Check a witness envelope. Returns the outputs the proof carries.
 pub fn verify_aggregated_witness(bytes: &[u8]) -> Result<AggregatedOutputs, AggregateError> {
+    if bytes.len() > MAX_WITNESS_BYTES {
+        return Err(AggregateError::WitnessTooLarge);
+    }
     if bytes.len() < MAGIC.len() + 1 || &bytes[..MAGIC.len()] != MAGIC {
         return Err(AggregateError::WitnessMalformed);
     }
@@ -116,6 +126,27 @@ mod tests {
         truncated.truncate(8);
         assert_eq!(
             verify_aggregated_witness(&truncated),
+            Err(AggregateError::WitnessMalformed)
+        );
+    }
+
+    #[test]
+    fn b321_witness_over_one_mebibyte_is_refused() {
+        let mut huge = vec![0u8; MAX_WITNESS_BYTES + 1];
+        huge[..4].copy_from_slice(b"MFVW");
+        huge[4] = 1;
+        assert_eq!(
+            verify_aggregated_witness(&huge),
+            Err(AggregateError::WitnessTooLarge)
+        );
+        let at_cap = vec![0u8; MAX_WITNESS_BYTES];
+        at_cap_is_malformed_not_too_large(&at_cap);
+    }
+
+    fn at_cap_is_malformed_not_too_large(bytes: &[u8]) {
+        assert_eq!(bytes.len(), MAX_WITNESS_BYTES);
+        assert_eq!(
+            verify_aggregated_witness(bytes),
             Err(AggregateError::WitnessMalformed)
         );
     }

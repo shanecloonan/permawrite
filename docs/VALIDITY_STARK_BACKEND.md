@@ -93,3 +93,5 @@ verify. Nothing here is written into a block header or gossiped.
 `parent_limbs_from_coinbase` packs height, emission, treasury fee, and producer fee into the four parent-digest limbs. A light client that passes a different height does not verify. Values that do not fit in BabyBear are rejected. The limbs are not a hash of a Winterfell proof.
 
 The same statement now names `tx_count` and `spora_count`, each at most 1_024. Both values are public inputs and trace columns. A different count does not verify.
+
+A witness bigger than one mebibyte is refused before it is parsed. `scripts/check-validity-witness-frame.py` checks the frame only. It does not run the STARK.
