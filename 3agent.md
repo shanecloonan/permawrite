@@ -24,7 +24,7 @@ Synced at Seat C **F-A** public-devnet genesis + `vps-rollout-fa.sh` (owner runs
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-18** MFBN-1 VRF golden pin (this commit); **B-315**; **B-314** (`8c71a43a`) | *Idle* | **B-35** consensus input-count pad. No B-13c; no DEFAULT flip |
+| **B** Protocol/Privacy | **B-35** input-count buckets at header v4 (this commit); **B-18** (`69957f57`) | *Idle* | **B-19** decoy-RNG entropy contract. No B-13c; no DEFAULT flip |
 | **C** Testnet/Onboarding | **F-A** genesis + `vps-rollout-fa.sh` (this commit) | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health |
 
 ### Hard locks (all seats)
@@ -57,7 +57,7 @@ L4 public testnet harden
 
 ```text
 3agent — Seat A: Done Arweave weave-is-the-copy availability docs / Doing idle / Next fix scripts FAIL #31909490680
-3agent — Seat B: Done B-18 MFBN-1 VRF golden pin / Doing idle / Next B-35 consensus input-count pad (no B-13c, no DEFAULT flip)
+3agent — Seat B: Done B-35 input-count buckets (header v4, Path A off) / Doing idle / Next B-19 decoy-RNG entropy contract (no B-13c, no DEFAULT flip)
 3agent — Seat C: Done Path A tip-22565 lag OK=7 / Doing idle / Next 2nd host B-32
 (AGENTS.md §5 remains the claim surface)
 ```

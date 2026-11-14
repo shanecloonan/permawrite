@@ -145,6 +145,12 @@ pub struct RingPolicy {
     /// When non-zero, every regular tx must have at least this many
     /// inputs (**F7** / B15 anti-fingerprinting floor).
     pub min_input_count: u32,
+    /// When set, input count must be a power-of-two bucket (**B-35**).
+    ///
+    /// Engaged only for header versions at or above
+    /// [`HEADER_VERSION_INPUT_PAD`](super::HEADER_VERSION_INPUT_PAD).
+    /// Path A and F-A leave this `false`.
+    pub input_count_buckets: bool,
 }
 
 impl RingPolicy {
@@ -155,6 +161,7 @@ impl RingPolicy {
         uniform_ring_size: 16,
         min_output_count: MIN_TX_OUTPUTS_UNIFORM_TIER,
         min_input_count: MIN_TX_INPUTS_UNIFORM_TIER,
+        input_count_buckets: false,
     };
 
     /// Test harness: allow small rings; uniform + shape floors not enforced.
@@ -163,7 +170,33 @@ impl RingPolicy {
         uniform_ring_size: 0,
         min_output_count: 0,
         min_input_count: 0,
+        input_count_buckets: false,
     };
+
+    /// Copy this policy and engage B-35 buckets when `header_version` is
+    /// at or above [`HEADER_VERSION_INPUT_PAD`](super::HEADER_VERSION_INPUT_PAD).
+    #[must_use]
+    pub fn with_header_version(self, header_version: u32) -> Self {
+        Self {
+            input_count_buckets: header_version >= super::header::HEADER_VERSION_INPUT_PAD,
+            ..self
+        }
+    }
+}
+
+/// Next power-of-two input count at or above the uniform-tier floor.
+///
+/// Wallets on a B-35 chain pad a real spend of `n` inputs up to this
+/// count. `2` and `4` stay `2` and `4`; `3` becomes `4`.
+#[must_use]
+pub fn padded_input_count(n: u32) -> u32 {
+    n.max(MIN_TX_INPUTS_UNIFORM_TIER).next_power_of_two()
+}
+
+/// `true` when `n` is a B-35 bucket: power of two and at least the floor.
+#[must_use]
+pub fn input_count_is_padded_bucket(n: u32) -> bool {
+    n >= MIN_TX_INPUTS_UNIFORM_TIER && n.is_power_of_two()
 }
 
 /// Consensus parameters baked into the chain at genesis. Changing any of
@@ -220,7 +253,15 @@ impl ConsensusParams {
             } else {
                 0
             },
+            input_count_buckets: false,
         }
+    }
+
+    /// [`Self::ring_policy`] plus the B-35 bucket rule when the chain's
+    /// genesis header version has opted in.
+    #[inline]
+    pub fn ring_policy_for_header(&self, header_version: u32) -> RingPolicy {
+        self.ring_policy().with_header_version(header_version)
     }
 }
 

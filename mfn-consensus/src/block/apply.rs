@@ -303,7 +303,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
 
         // Regular tx path.
-        let v = verify_transaction(tx, &next.params.ring_policy());
+        let v = verify_transaction(tx, &next.params.ring_policy_for_header(next.header_version));
         if !v.ok {
             errors.push(BlockError::TxInvalid {
                 index: ti,

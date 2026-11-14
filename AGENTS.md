@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** B-18 MFBN-1 VRF conformance pin (this commit). Path A and F-A genesis files and `DEFAULT_*` unchanged. Prior head easy permanence guards `dd97d418`. Nightly workflow is `disabled_inactivity` (dispatch 422); test matrix on `4e96ef7f` was GREEN. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-14):** B-35 input-count buckets behind header v4 (this commit). Path A and F-A genesis files and `DEFAULT_*` unchanged. Prior head **B-18** `69957f57`. No B-13c; no DEFAULT flip.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | pin CI `#31860183965` + Nightly `#31861932921` **GREEN** (`6e2e21a6`); **B-136** (`85f48ce`); **B-34** | *Idle* | Fix scripts FAIL `#31909490680`; Participant JOIN half after B-15 SUMMARY (lane 3) | CI/Nightly run IDs |
 | **2** RC ops | Arweave vs PW **weave-is-the-copy** availability (`7464ad8d`); `go` CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL `#31909490680`; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-42** 3rd JOIN last_proven=**22560** (`6a1468fc`); 2nd **22492**; iris **22487** | *Idle* | Human SUMMARY; concurrent JOIN x2 still open | L4 checklist |
-| **4** Protocol | **B-18** MFBN-1 VRF golden pin (this commit); **B-305** (`704280f7`) | *Idle* — slash matrix frozen | **B-35** consensus input-count pad. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
+| **4** Protocol | **B-35** input-count buckets at header v4 (this commit); **B-18** (`69957f57`) | *Idle* — slash matrix frozen | **B-19** decoy-RNG entropy contract. After 2 hosts: live **B-32**. No B-297 clone | Lane 1 CI |
 | **5** Privacy | **B-226** docs honesty; **B-217** (`55c078fe`; tip **CI `#31063344773` GREEN**); **B-218**; **B-216**; **B-214**; **B-197** | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
@@ -264,7 +264,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-313 | Tail-emission size helper (`>> 9`; not a schedule flip) | 6 | **Landed** `9028debb` — `recommended_tail_emission`; Path A stays `>> 8`; enable = Path B / post-B-25 |
 | B-314 | PM19 per-commitment cold-proof cadence (not wired) | 6 | **Landed** — `cold_proof_overdue` / bounty bps; Path A B5 stays global any-stale; wire after **PM1**. Design: [`MAX_PERMANENCE_UPGRADE.md`](./MAX_PERMANENCE_UPGRADE.md) |
 | B-315 | Max-permanence upgrade design + non-consensus helpers | 6 | **Landed** (this commit) — solvency stress, state projection, replica/retrieval helpers. No Path A flip. First fork = **F-A** after B-25 / Path B |
-| B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
+| B-35 | F7 consensus input-count padding | 4+5 | **Landed** (this commit) — power-of-two buckets at header v4; Path A / F-A off |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
@@ -525,6 +525,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-14 - lane 4 - B-35 input-count buckets** (this commit): `verify_transaction` rejects input counts that are not a power of two (2, 4, 8, …) when `header_version >= HEADER_VERSION_INPUT_PAD` (4). `apply_block` and mempool pass `ring_policy_for_header`. Header v1 (Path A) and F-A still accept a 3-input spend. `b35_input_buckets_follow_header_version_and_reject_three` PASS. No B-13c; no DEFAULT flip; slash matrix frozen. Wallet floor stays 2. Next: **B-19**. *Observed (not staged):* none.
 
 1. **2026-11-14 - lane 4 - B-18 MFBN-1 VRF conformance pin** (this commit): `b18_mfbn1_reference_vector_is_pinned` locks pk, H (try-and-increment counter 0), β, and the 80-byte π for seed `0x07`×32 and msg `election seed slot 42`. `docs/interop/VRF_MFBN1.md` states ed25519 expansion, nonce, and `dhash` challenge framing. No Elligator2 fork. Path A and F-A unchanged. No B-13c; no DEFAULT flip; slash matrix frozen. Claim base `dd97d418`. Local `cargo test -p mfn-crypto` + fmt/clippy on the crate. Next: **B-35**. *Observed (not staged):* none.
 

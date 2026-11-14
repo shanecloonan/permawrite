@@ -531,6 +531,9 @@ disabled; bound authorship uses the upload path.
 whenever the uniform-ring tier is active, mirroring the output floor.
 Wallets with only one spendable UTXO cannot broadcast until they hold a
 second (fund with faucet dual-send or receive a second payment).
+**B-35** adds a stricter bucket (input count must be 2, 4, 8, …) only
+when the chain header version is `HEADER_VERSION_INPUT_PAD` (4). Path A
+and F-A do not use that version.
 
 **Tests.** `select_inputs_for_tx_pads_to_two_when_second_utxo_exists`,
 `select_inputs_for_tx_single_utxo_fails_closed`,

@@ -206,6 +206,91 @@ fn single_input_tx_rejected_when_input_floor_active() {
     );
 }
 
+/// B-35: power-of-two input buckets, off on Path A header v1.
+#[test]
+fn b35_input_buckets_follow_header_version_and_reject_three() {
+    use crate::block::{
+        input_count_is_padded_bucket, padded_input_count, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION,
+        HEADER_VERSION_INPUT_PAD,
+    };
+
+    assert_eq!(padded_input_count(1), 2);
+    assert_eq!(padded_input_count(2), 2);
+    assert_eq!(padded_input_count(3), 4);
+    assert!(input_count_is_padded_bucket(4));
+    assert!(!input_count_is_padded_bucket(3));
+
+    let v1 = DEFAULT_CONSENSUS_PARAMS.ring_policy_for_header(HEADER_VERSION);
+    assert!(!v1.input_count_buckets);
+    assert_eq!(v1, RingPolicy::PRODUCTION);
+    let v4 = DEFAULT_CONSENSUS_PARAMS.ring_policy_for_header(HEADER_VERSION_INPUT_PAD);
+    assert!(v4.input_count_buckets);
+    // Signed fixtures use test-sized rings. The bucket flag is what changes.
+    let open = RingPolicy::TEST;
+    let gated_policy = RingPolicy::TEST.with_header_version(HEADER_VERSION_INPUT_PAD);
+    assert!(gated_policy.input_count_buckets);
+
+    let inputs = vec![
+        make_input(400_000, 4),
+        make_input(400_000, 4),
+        make_input(200_000, 4),
+    ];
+    let (_w_a, ra) = recipient();
+    let (_w_b, rb) = recipient();
+    let outputs = vec![
+        OutputSpec::ToRecipient {
+            recipient: ra,
+            value: 600_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: rb,
+            value: 399_000,
+            storage: None,
+        },
+    ];
+    let signed = sign_transaction(inputs, outputs, 1_000, Vec::new()).expect("sign");
+
+    let path_a = verify_transaction(&signed.tx, &open);
+    assert!(
+        path_a.ok,
+        "buckets off must still accept a 3-input spend: {:?}",
+        path_a.errors
+    );
+
+    let gated = verify_transaction(&signed.tx, &gated_policy);
+    assert!(!gated.ok, "header v4 must reject a 3-input spend");
+    assert!(
+        gated.errors.iter().any(|e| e.contains("power-of-two")),
+        "expected the bucket diagnostic, got: {:?}",
+        gated.errors
+    );
+
+    let four = vec![
+        make_input(250_000, 4),
+        make_input(250_000, 4),
+        make_input(250_000, 4),
+        make_input(250_000, 4),
+    ];
+    let (_w_c, rc) = recipient();
+    let (_w_d, rd) = recipient();
+    let four_outs = vec![
+        OutputSpec::ToRecipient {
+            recipient: rc,
+            value: 600_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: rd,
+            value: 399_000,
+            storage: None,
+        },
+    ];
+    let padded = sign_transaction(four, four_outs, 1_000, Vec::new()).expect("sign");
+    let ok = verify_transaction(&padded.tx, &gated_policy);
+    assert!(ok.ok, "4-input bucket must pass: {:?}", ok.errors);
+}
+
 /// A two-input tx passes both shape floors under a floor-active policy.
 #[test]
 fn two_input_tx_passes_input_floor() {
