@@ -130,9 +130,26 @@ pub fn load_upload_artifact(
     }
     let payload_path = dir.join(PAYLOAD_FILE);
     let meta_path = dir.join(META_FILE);
-    let payload = std::fs::read(&payload_path).map_err(|e| {
-        UploadArtifactStoreError::Invalid(format!("read {}: {e}", payload_path.display()))
-    })?;
+    let payload = match std::fs::read(&payload_path) {
+        Ok(bytes) => bytes,
+        Err(e) => match payload_from_shards(&dir) {
+            Some(rebuilt) => {
+                std::fs::write(&payload_path, &rebuilt).map_err(|err| {
+                    UploadArtifactStoreError::Invalid(format!(
+                        "rewrite {}: {err}",
+                        payload_path.display()
+                    ))
+                })?;
+                rebuilt
+            }
+            None => {
+                return Err(UploadArtifactStoreError::Invalid(format!(
+                    "read {}: {e}",
+                    payload_path.display()
+                )))
+            }
+        },
+    };
     let meta_bytes = std::fs::read(&meta_path).map_err(|e| {
         UploadArtifactStoreError::Invalid(format!("read {}: {e}", meta_path.display()))
     })?;
@@ -241,6 +258,17 @@ pub fn has_upload_artifact(wallet_path: &Path, commitment_hash_hex: &str) -> boo
         .is_some_and(|h| upload_artifact_dir(wallet_path, &h).is_dir())
 }
 
+fn payload_from_shards(dir: &Path) -> Option<Vec<u8>> {
+    let mut slots = Vec::with_capacity(12);
+    for i in 0..mfn_storage::STRIPE_SHARDS {
+        let path = dir.join(format!("shard-{i:02}.bin"));
+        slots.push(std::fs::read(path).ok());
+    }
+    let plain = mfn_storage::open_shard_stripe(&slots).ok()?;
+    let prepared = mfn_storage::prepare_shard_stripe(&plain).ok()?;
+    Some(prepared.bytes)
+}
+
 fn write_atomic_bytes(path: &Path, bytes: &[u8]) -> Result<(), UploadArtifactStoreError> {
     let mut file = File::create(path)?;
     file.write_all(bytes)?;
@@ -314,6 +342,37 @@ mod tests {
         assert_eq!(loaded.built.commit, built.commit);
         assert_eq!(loaded.built.tree.root(), built.tree.root());
         assert_eq!(loaded.tx_id.as_deref(), Some("tx1"));
+        std::fs::remove_dir_all(upload_artifacts_root(&wallet)).ok();
+        std::fs::remove_file(&wallet).ok();
+    }
+
+    #[test]
+    fn load_rebuilds_payload_from_shards_when_payload_bin_is_gone() {
+        let wallet = temp_wallet("shards");
+        let plain = b"prove still works after payload.bin is deleted".to_vec();
+        let prepared = mfn_storage::prepare_shard_stripe(&plain).expect("stripe");
+        let built = build_storage_commitment(
+            &prepared.bytes,
+            1_000,
+            Some(prepared.chunk_size as usize),
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .expect("commit");
+        let hash = storage_commitment_hash(&built.commit);
+        let meta =
+            save_upload_artifact(&wallet, &built, &prepared.bytes, Path::new("doc.bin"), None)
+                .expect("save");
+        for (i, shard) in prepared.shards.iter().enumerate() {
+            if i >= 8 {
+                continue;
+            }
+            std::fs::write(meta.dir.join(format!("shard-{i:02}.bin")), shard).expect("shard");
+        }
+        std::fs::remove_file(meta.dir.join(PAYLOAD_FILE)).expect("drop payload");
+        let loaded = load_upload_artifact(&wallet, &hex::encode(hash)).expect("rebuild");
+        assert_eq!(loaded.payload, prepared.bytes);
+        assert_eq!(loaded.built.commit.data_root, built.commit.data_root);
         std::fs::remove_dir_all(upload_artifacts_root(&wallet)).ok();
         std::fs::remove_file(&wallet).ok();
     }
