@@ -21,7 +21,7 @@ use mfn_store::{
     is_persistable_peer_addr, load_peers_with_report, save_peers, DEFAULT_MAX_OUTBOUND_PEERS,
 };
 
-use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction, RelayRole};
+use crate::dandelion::{DandelionConfig, DandelionRelay, HopKind, RelayAction};
 use crate::p2p_peer_quarantine::{
     should_drop_persistent_peer_on_failure, should_ignore_failure_for_quarantine, PeerQuarantine,
     PEER_FAILURES_BEFORE_QUARANTINE, PEER_QUARANTINE_DURATION,
@@ -973,7 +973,7 @@ impl P2pPeerSet {
     }
 
     /// Push `tx_wire` to registered peers (**B7**: stem single-peer or fluff fan-out).
-    fn broadcast_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>, role: RelayRole) {
+    fn broadcast_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>, hop: HopKind) {
         let peers = self.snapshot_peers_except(except_peer);
         let tx = match decode_transaction(tx_wire) {
             Ok(t) => t,
@@ -990,11 +990,7 @@ impl P2pPeerSet {
             Ok(mut relay) => {
                 let enabled = relay.is_enabled();
                 let delay = relay.stem_send_delay(&id, now);
-                let action = if enabled {
-                    relay.decide(id, tx_wire, &peers, except_peer, now, role)
-                } else {
-                    RelayAction::Fluff
-                };
+                let action = relay.forward(id, tx_wire, &peers, now, hop);
                 (enabled, action, delay)
             }
             Err(_) => (false, RelayAction::Fluff, Duration::ZERO),
@@ -1188,23 +1184,23 @@ impl FanoutPeerSet for P2pPeerSet {
     }
 
     fn fanout_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>) {
-        let role = if except_peer.is_none() {
-            RelayRole::Origin
+        let hop = if except_peer.is_none() {
+            HopKind::Origin
         } else {
-            RelayRole::StemRelay
+            HopKind::Relay
         };
-        self.broadcast_fresh_tx(tx_wire, except_peer, role);
+        self.broadcast_fresh_tx(tx_wire, except_peer, hop);
     }
 
     fn fanout_tx(&self, tx_wire: &[u8], except_peer: Option<&str>, stem: bool) {
-        let role = if stem {
-            RelayRole::StemRelay
+        let hop = if stem {
+            HopKind::Relay
         } else if except_peer.is_none() {
-            RelayRole::Origin
+            HopKind::Origin
         } else {
-            RelayRole::FluffRelay
+            HopKind::Fluff
         };
-        self.broadcast_fresh_tx(tx_wire, except_peer, role);
+        self.broadcast_fresh_tx(tx_wire, except_peer, hop);
     }
 
     fn fanout_fraud_proof(&self, consensus_wire: &[u8], except_peer: Option<&str>) {
