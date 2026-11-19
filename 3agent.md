@@ -27,7 +27,7 @@ Synced at Seat C **B-12** Plonky3 aggregate (off consensus; not an inner verifie
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | *Idle* | Output-count padding, header-gated. No DEFAULT flip |
+| **B** Protocol/Privacy | retrieval **B-317** at header v7; **B-37** hidden fees | **B-330** equivocation evidence binds height + slot (header v8; claim base `a5e83d68`; agent 2/3) | Output-count padding, header-gated. No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (this commit); **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
 | **D** Network anonymity | **D-1** Dandelion stem privacy (`ea86174d`, PR #40) | *Idle* | Onion advertise (PR #42 open) |
 | **F** Ease of use | **F-8** browser file backup card | *Idle* | **F-9** `wallet ready` checklist |
