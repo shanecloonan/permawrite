@@ -103,6 +103,26 @@ pub(crate) fn sync_wallet_light_default(
     sync_wallet_light_from_node(wallet, file, client, &LightScanParams::default())
 }
 
+/// What a light scan actually checked. The balance is not a server number.
+pub(crate) fn light_scan_trust_note(quorum_batches: usize, checked_pin: bool) -> String {
+    let peers = if quorum_batches > 1 {
+        format!(
+            " Cross-checked header evolution against {quorum_batches} batches from more than one source."
+        )
+    } else {
+        " One node supplied the headers. Add --quorum-rpc with a second node when you have one."
+            .to_string()
+    };
+    let pin = if checked_pin {
+        " A checkpoint you saved earlier was compared."
+    } else {
+        ""
+    };
+    format!(
+        "Checked block headers on this computer. The balance is from outputs this wallet decrypted, not a number the server reported.{peers}{pin}"
+    )
+}
+
 /// `wallet light-scan` — header + evolution verified sync through chain tip.
 pub fn wallet_light_scan(
     path: &Path,
@@ -130,6 +150,11 @@ pub fn wallet_light_scan(
         wallet.owned_count(),
     );
     println!("sync_mode=light");
+    println!("verified_locally=headers");
+    eprintln!(
+        "{}",
+        light_scan_trust_note(stats.quorum_batches, stats.weak_subjectivity_checked)
+    );
     println!("light_follow_quorum_batches={}", stats.quorum_batches);
     if stats.weak_subjectivity_checked {
         println!("weak_subjectivity=checked");
@@ -625,6 +650,21 @@ fn decode_hex32(s: &str, label: &str) -> Result<[u8; 32], WalletCmdError> {
 
 fn parse_block_id_hex(s: &str) -> Result<[u8; 32], WalletCmdError> {
     decode_hex32(s, "block_id")
+}
+
+#[cfg(test)]
+mod trust_note_tests {
+    use super::light_scan_trust_note;
+
+    #[test]
+    fn note_says_the_server_does_not_name_the_balance() {
+        let one = light_scan_trust_note(1, false);
+        assert!(one.contains("not a number the server reported"));
+        assert!(one.contains("--quorum-rpc"));
+        let many = light_scan_trust_note(3, true);
+        assert!(many.contains("more than one source"));
+        assert!(many.contains("checkpoint you saved"));
+    }
 }
 
 #[cfg(test)]
