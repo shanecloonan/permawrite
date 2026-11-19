@@ -119,16 +119,22 @@ impl DecoyPoolBuilder {
 
     /// Build a decoy pool from an explicit UTXO list (e.g. RPC / checkpoint
     /// export) instead of a live [`ChainState`].
+    ///
+    /// Rows that repeat a one-time address keep only their first
+    /// occurrence (**B-323**). A [`ChainState`] UTXO map cannot hold the
+    /// same key twice, but a browser or light client hands this builder a
+    /// list, and a repeated row would let the sampler put one output into
+    /// two ring slots, which consensus now refuses.
     pub fn build_from_sources(
         &self,
         sources: &[UtxoDecoySource],
     ) -> Vec<DecoyCandidate<RingMember>> {
+        let mut seen: HashSet<[u8; 32]> = HashSet::with_capacity(sources.len());
         let mut pool: Vec<DecoyCandidate<RingMember>> = sources
             .iter()
             .filter(|s| {
-                !self
-                    .excludes
-                    .contains(&s.one_time_addr.compress().to_bytes())
+                let key = s.one_time_addr.compress().to_bytes();
+                !self.excludes.contains(&key) && seen.insert(key)
             })
             .map(|s| DecoyCandidate {
                 height: u64::from(s.height),
@@ -189,6 +195,40 @@ mod tests {
         let pool = build_decoy_pool_from_sources(&[s0, s1], [key0]);
         assert_eq!(pool.len(), 1);
         assert_eq!(pool[0].height, 2);
+    }
+
+    #[test]
+    fn b323_build_from_sources_keeps_one_row_per_one_time_addr() {
+        let shared = generator_g() * random_scalar();
+        let commit = generator_h() * random_scalar();
+        let dup_a = UtxoDecoySource {
+            height: 3,
+            one_time_addr: shared,
+            commit,
+        };
+        let dup_b = UtxoDecoySource {
+            height: 9,
+            one_time_addr: shared,
+            commit,
+        };
+        let other = UtxoDecoySource {
+            height: 1,
+            one_time_addr: generator_g() * random_scalar(),
+            commit: generator_h() * random_scalar(),
+        };
+        let pool = build_decoy_pool_from_sources(&[dup_a, other, dup_b], []);
+        assert_eq!(
+            pool.len(),
+            2,
+            "a repeated row must not become a second candidate"
+        );
+        let shared_rows = pool
+            .iter()
+            .filter(|c| c.data.0 == shared)
+            .collect::<Vec<_>>();
+        assert_eq!(shared_rows.len(), 1);
+        assert_eq!(shared_rows[0].height, 3, "first occurrence wins");
+        assert_eq!(pool[0].height, 1, "pool stays sorted by height");
     }
 
     #[test]

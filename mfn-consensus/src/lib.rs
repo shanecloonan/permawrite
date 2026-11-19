@@ -115,7 +115,7 @@ pub use block::{
     apply_genesis, block_header_bytes, block_id, build_genesis, decode_block, decode_block_body,
     decode_block_header, encode_block, encode_block_body, genesis_header_version,
     header_signing_bytes, header_signing_fields, header_signing_hash,
-    header_signing_hash_from_bytes, storage_merkle_root, tier2_ring_size_allowed, tx_merkle_root,
+    header_signing_hash_from_bytes, repeated_ring_member, storage_merkle_root, tier2_ring_size_allowed, tx_merkle_root,
     Block, BlockBody, BlockDecodeError, BlockError, BlockHeader, ChainState, ConsensusParams,
     DisclosedFee, GenesisConfig, GenesisOutput, GenesisStorageOperator, HeaderDecodeError,
     HeaderSigningFields, PendingUnbond, RingPolicy, StorageOperatorEntry, UtxoEntry,
