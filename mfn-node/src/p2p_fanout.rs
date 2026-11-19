@@ -426,6 +426,7 @@ impl P2pPeerSet {
 
     /// Clear transient score state after any successful peer exchange.
     pub fn note_peer_success(&self, peer_addr: &str) {
+        crate::p2p_boot::remember_connected_peer(peer_addr);
         mfn_net::addrman::mark_dial_good(peer_addr);
         if let Ok(mut q) = self.quarantine.lock() {
             q.note_success(peer_addr);
