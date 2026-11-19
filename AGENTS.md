@@ -48,10 +48,11 @@ A **lane** is a standing role; an **agent** is whoever is currently working that
 | **5** | Privacy surface | Wallet/CLI/WASM ring defaults, privacy doc accuracy, no-silent-downgrade UX | M7.10 replication, GHA rehearsal | Privacy-doc accuracy vs shipped behavior |
 | **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` | Emission/treasury identity sims for every economics-touching unit |
 | **7** | Testnet launch | Internet-facing go-live ([`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md)), VPS runbook, `seed_nodes` publication, faucet/observer/front-end ops, launch ceremony | Protocol tests (4/6), CI/Nightly fixes (1), evidence tooling (2) | Launch-blocker honesty (never fake TL completion; `launch-go-no-go` gate) |
+| **8** | Network anonymity | `mfn-net` transport, Dandelion relay, peer admission, RPC exposure | Consensus rules, `validity_stark_*`, wallet ring policy, VPS/faucet | No clearnet leak and no origin-linked stem |
 | **F** | Ease of use | User wallet, CLI, WASM, light-client receive, testnet-frontend, plain-language docs | Consensus, header versions, ring-floor pins, validity proofs, VPS/faucet | A person can use the network without reading a protocol spec |
 | **G** | Security hardening | Untrusted decode, fuzz, resource limits, adversarial tests. Minimal fixes only | Other seats' features, VPS/faucet, header-version flips | Hostile bytes return errors; the process stays up |
 
-Adding lanes 8+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
+Adding lanes 9+: add a row **here** (nowhere else). Split a lane before it exceeds ~2 active units.
 
 ---
 
@@ -137,7 +138,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** **B-12** Plonky3 statement aggregate (this commit). Off consensus. Not an inner-proof verifier. Path A and F-A unchanged. Prior unit **B-317**. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-19):** main fix-forward — `explain_wallet_error` covers `WalletError::PrivacyRefused` (semantic conflict between merged PRs #36 and #70; see §8). Prior gate: **B-12** Plonky3 statement aggregate. Off consensus. Not an inner-proof verifier. Path A and F-A unchanged. Prior unit **B-317**. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -152,8 +153,9 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
+| **8** Anonymity | **D-1** Dandelion stem privacy (`ea86174d`, PR #40): origin never fluffs; per-hop coin; stem wire stays stem | *Idle* | Onion-only advertise (PR #42 open); inbound /16 cap already on main (`peer_admission`) | Seat D |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
-| **G** Security | **G-8** partition, reorg, and equivocation harness (this commit). Claim base `02ba4bc6` | *Idle* | **G-9** fuzz targets | `g8_partition` |
+| **G** Security | **G-1** untrusted codec counts refuse before allocation (`6eb8473f`, PR #99). Claim base `11e1781b` | **G-11** Dandelion stem buffer bounds (claim base `8c406291`): cap pending stem entries + bytes; full set force-fluffs the oldest relay stem, never the new origin tx. **G-2…G-10** are claimed in open PRs #105/#108/#115/#117/#123/#129/#133/#139/#142 — do not re-claim | **G-12** next unclaimed resource bound (addrman / store decode) | `dandelion` unit tests |
 
 ---
 
@@ -539,7 +541,12 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
 1. **2026-11-14 - lane G - G-8 partition harness** (this commit): two nodes can extend through a partition, the taller chain wins on reconnect, a spend that existed only on the abandoned fork is spendable again, and two seals from one producer at one height stay visible as equivocation. Claim base `02ba4bc6`. Next: **G-9** fuzz targets.
-1. **2026-11-14 - lane G - G-1 untrusted codec counts** (on main): `Reader` refuses a length prefix that does not fit the unread bytes before `Vec::with_capacity`. `bytes` uses checked cursor math. Bulletproof and range `n` must fit in `u32`. Honest encodings are unchanged. `g1_untrusted_codec` feeds mutated frames to block, tx, header, CLSAG, and proof decoders. Claim base `11e1781b`. Next: **G-2** checkpoint length caps.
+
+1. **2026-11-19 - lane 1 - main fix-forward: `explain_wallet_error` covers `PrivacyRefused`** (this commit): PRs #36, #42, #67, #70, #82, #83, #86, #138 merged back to back; each was green against its own base. #36 (`79ba2510`) added an exhaustive `match` in `mfn-wallet/src/explain.rs`; #70 (`4311e791`) added `WalletError::PrivacyRefused`. Neither PR saw the other, so `mfn-wallet` stopped compiling on main (`E0004`) and clippy, wasm32, and all three test legs failed on the same error; the intermediate merge-commit runs were `cancel-in-progress`, not real failures. Fix: one `PrivacyRefused(detail)` arm with plain-language wording (no ring shrink, no fee publish). Local: fmt + clippy `-D warnings` green on the whole workspace. No revert; all eight PRs keep their behavior.
+
+1. **2026-11-19 - lane G - claim G-11 Dandelion stem buffer bounds** (this commit, `[skip ci]`): `DandelionRelay.pending` holds a copy of every stem body until the 30s embargo with no entry or byte cap, so a flooding peer grows node memory without bound and mempool eviction does not shrink it. Body: cap entries + bytes; a full set force-fluffs the oldest relay stem (origin entries are never evicted). Claim base `8c406291`. SYNC corrections: **D-1** merged as PR #40 (`ea86174d`); **G-1** merged as PR #99 (`6eb8473f`); **G-2…G-10** sit in open PRs #105–#142 (Seat G `3d5d`) and are not free. Three concurrent agents this session — read §5 Doing before claiming.
+
+1. **2026-11-14 - lane G - G-1 untrusted codec counts** (this commit): `Reader` refuses a length prefix that does not fit the unread bytes before `Vec::with_capacity`. `bytes` uses checked cursor math. Bulletproof and range `n` must fit in `u32`. Honest encodings are unchanged. `g1_untrusted_codec` feeds mutated frames to block, tx, header, CLSAG, and proof decoders. Claim base `11e1781b`. Next: **G-2** checkpoint length caps.
 
 1. **2026-11-14 - lane F - F-8 file card** (this commit): the testnet page makes a local backup card (name, size, SHA-256) and can check a file against it. The card says the seed does not contain the bytes and a match is not a network proof. Claim base `4aedafe9`. Next: **F-9** `wallet ready`.
 
