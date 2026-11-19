@@ -175,6 +175,33 @@ pub enum BlockError {
         /// Hex prefix of the one-time address.
         one_time_addr: String,
     },
+    /// A ring member was created in this same block (**B-324**).
+    ///
+    /// Outputs enter the UTXO set as the block is walked, so a producer
+    /// could list its own coinbase or an earlier tx's output as a ring
+    /// member. No honest wallet can do that — the mempool checks rings
+    /// against the confirmed set — so such a slot is a known-fake decoy
+    /// and the spend is tied to this block's producer. Members must be
+    /// confirmed below the block that spends them.
+    #[error(
+        "tx[{tx}].inputs[{input}].ring[{ring_index}]: member {one_time_addr} was created at \
+         height {created_height}, the same block that spends it (height {block_height}); \
+         ring members must be confirmed in an earlier block"
+    )]
+    RingMemberUnconfirmed {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Position of the offending input within the tx.
+        input: usize,
+        /// Position of the offending member within the ring.
+        ring_index: usize,
+        /// Hex prefix of the one-time address.
+        one_time_addr: String,
+        /// Height that credited the member.
+        created_height: u32,
+        /// Height of the block carrying the spend.
+        block_height: u32,
+    },
     /// The UTXO accumulator is full (depth-32 tree exhausted).
     #[error("utxo accumulator full: {0}")]
     AccumulatorFull(String),
