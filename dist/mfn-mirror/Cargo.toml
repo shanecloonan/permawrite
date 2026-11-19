@@ -1,0 +1,30 @@
+[package]
+name = "mfn-mirror"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Content-addressed mirrors for Permawrite releases: IPFS CID, BitTorrent magnet, and the chain data_root."
+
+[lib]
+name = "mfn_mirror"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mfn-mirror"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[dependencies]
+hex = { workspace = true }
+mfn-storage = { path = "../../mfn-storage" }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
