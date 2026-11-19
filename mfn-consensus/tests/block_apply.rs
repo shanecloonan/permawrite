@@ -2682,6 +2682,7 @@ fn block_header_codec_rejects_truncation() {
             HeaderDecodeError::Truncated { .. }
             | HeaderDecodeError::VarintOverflow { .. }
             | HeaderDecodeError::ProducerProofTooLarge { .. }
+            | HeaderDecodeError::ProducerProofExceedsBudget { .. }
             | HeaderDecodeError::VersionOutOfRange { .. } => (),
             HeaderDecodeError::TrailingBytes { .. } => {
                 panic!("prefix of len {cut} cannot have trailing bytes")
