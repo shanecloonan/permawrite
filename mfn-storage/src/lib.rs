@@ -18,6 +18,7 @@
 //!   bounty helper (not wired; Path A B5 stays global any-stale).
 //! - [`replica_health`] — **B-315** unique-seal / repair-bounty / retrieval
 //!   verdict helpers (not wired).
+//! - [`repair`] — which chunks to fetch when replicas are short.
 //!
 //! ## Layering
 //!
@@ -39,6 +40,7 @@ pub mod cold_proof;
 pub mod commitment;
 pub mod endowment;
 pub mod lottery;
+pub mod repair;
 pub mod replica_health;
 pub mod spora;
 
@@ -63,6 +65,7 @@ pub use endowment::{
     RECOMMENDED_OPERATOR_SLASH_BPS,
 };
 pub use lottery::{rank_spora_lottery, spora_lottery_window_seed};
+pub use repair::{plan_repair, ChunkHolder, ChunkRepair, RepairError, RepairPlan};
 pub use replica_health::{
     assess_replica_window, distinct_replica_floor_met, repair_bounty_multiplier_bps,
     replica_payout_weight_bps, replica_seal_root, retrieval_opens_repair_bounty,
