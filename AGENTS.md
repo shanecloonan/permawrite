@@ -153,9 +153,9 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **5** Privacy | retrieval **B-317** one-time challenge keys; **B-19** decoy-RNG; **B-37** hidden fees | *Idle* | Output-count padding after retrieval B-317 | Doc-accuracy duty |
 | **6** Permanence | Easy guards (this commit): endowment runway saturates at 0; treasury debit + supply audit; retention policy v1. **B-315**; **B-314** (`8c71a43a`) | *Idle* | **F-A** already on a new genesis (`4e96ef7f`); owner runs `vps-rollout-fa.sh --apply`. **B-20** after B-13c + B-25; **B-44** after B-32. No B-13c; no DEFAULT flip | Emission sims |
 | **7** Testnet launch | **F-A** genesis + `vps-rollout-fa.sh` (this commit); Path A **22565** (`160a9b07`); **B-42** last_proven **22560** | *Idle* — owner runs `--apply` | 2nd host B-32 after F-A health | `launch-go-no-go` + observer |
-| **8** Anonymity | — | **D-1** Dandelion stem privacy (claim base `4aedafe9`): origin never fluffs; per-hop coin; stem wire stays stem | Onion-only advertise; inbound /16 cap | Seat D |
+| **8** Anonymity | **D-1** Dandelion stem privacy (`ea86174d`, PR #40): origin never fluffs; per-hop coin; stem wire stays stem | *Idle* | Onion-only advertise (PR #42 open); inbound /16 cap already on main (`peer_admission`) | Seat D |
 | **F** Ease of use | **F-8** browser backup card for a file (seed is not the file). Claim base `4aedafe9` | *Idle* | **F-9** `wallet ready` checklist | file-card tests |
-| **G** Security | **G-1** untrusted codec counts refuse before allocation (this commit). Claim base `11e1781b` | *Idle* | **G-2** checkpoint length caps | `g1_untrusted_codec` |
+| **G** Security | **G-1** untrusted codec counts refuse before allocation (`6eb8473f`, PR #99). Claim base `11e1781b` | **G-11** Dandelion stem buffer bounds (claim base `8c406291`): cap pending stem entries + bytes; full set force-fluffs the oldest relay stem, never the new origin tx. **G-2…G-10** are claimed in open PRs #105/#108/#115/#117/#123/#129/#133/#139/#142 — do not re-claim | **G-12** next unclaimed resource bound (addrman / store decode) | `dandelion` unit tests |
 
 ---
 
@@ -539,6 +539,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-19 - lane G - claim G-11 Dandelion stem buffer bounds** (this commit, `[skip ci]`): `DandelionRelay.pending` holds a copy of every stem body until the 30s embargo with no entry or byte cap, so a flooding peer grows node memory without bound and mempool eviction does not shrink it. Body: cap entries + bytes; a full set force-fluffs the oldest relay stem (origin entries are never evicted). Claim base `8c406291`. SYNC corrections: **D-1** merged as PR #40 (`ea86174d`); **G-1** merged as PR #99 (`6eb8473f`); **G-2…G-10** sit in open PRs #105–#142 (Seat G `3d5d`) and are not free. Three concurrent agents this session — read §5 Doing before claiming.
 
 1. **2026-11-14 - lane G - G-1 untrusted codec counts** (this commit): `Reader` refuses a length prefix that does not fit the unread bytes before `Vec::with_capacity`. `bytes` uses checked cursor math. Bulletproof and range `n` must fit in `u32`. Honest encodings are unchanged. `g1_untrusted_codec` feeds mutated frames to block, tx, header, CLSAG, and proof decoders. Claim base `11e1781b`. Next: **G-2** checkpoint length caps.
 
