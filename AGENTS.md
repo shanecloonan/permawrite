@@ -138,7 +138,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-11-14):** **B-12** Plonky3 statement aggregate (this commit). Off consensus. Not an inner-proof verifier. Path A and F-A unchanged. Prior unit **B-317**. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
+**CI gate (2026-11-19):** main fix-forward — `explain_wallet_error` covers `WalletError::PrivacyRefused` (semantic conflict between merged PRs #36 and #70; see §8). Prior gate: **B-12** Plonky3 statement aggregate. Off consensus. Not an inner-proof verifier. Path A and F-A unchanged. Prior unit **B-317**. **B-35** is on main at header v4. No B-13c; no DEFAULT flip.
 
 **Seat C (2026-11-14):** reassigned from testnet ops to validity-proof research (FRAUD_PROOFS phase 4, F5 P18, B-12, 4c, B-39, F-F). Live VPS work is out of scope. Seat A keeps economics. Seat B keeps privacy/security (B-35, B-19, B-17, B-37). **B-18** is already on main. Seat C does not edit those files.
 
@@ -539,6 +539,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-11-19 - lane 1 - main fix-forward: `explain_wallet_error` covers `PrivacyRefused`** (this commit): PRs #36, #42, #67, #70, #82, #83, #86, #138 merged back to back; each was green against its own base. #36 (`79ba2510`) added an exhaustive `match` in `mfn-wallet/src/explain.rs`; #70 (`4311e791`) added `WalletError::PrivacyRefused`. Neither PR saw the other, so `mfn-wallet` stopped compiling on main (`E0004`) and clippy, wasm32, and all three test legs failed on the same error; the intermediate merge-commit runs were `cancel-in-progress`, not real failures. Fix: one `PrivacyRefused(detail)` arm with plain-language wording (no ring shrink, no fee publish). Local: fmt + clippy `-D warnings` green on the whole workspace. No revert; all eight PRs keep their behavior.
 
 1. **2026-11-19 - lane G - claim G-11 Dandelion stem buffer bounds** (this commit, `[skip ci]`): `DandelionRelay.pending` holds a copy of every stem body until the 30s embargo with no entry or byte cap, so a flooding peer grows node memory without bound and mempool eviction does not shrink it. Body: cap entries + bytes; a full set force-fluffs the oldest relay stem (origin entries are never evicted). Claim base `8c406291`. SYNC corrections: **D-1** merged as PR #40 (`ea86174d`); **G-1** merged as PR #99 (`6eb8473f`); **G-2…G-10** sit in open PRs #105–#142 (Seat G `3d5d`) and are not free. Three concurrent agents this session — read §5 Doing before claiming.
 
