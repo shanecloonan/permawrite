@@ -22,6 +22,11 @@ use super::CliError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Cmd {
+    /// Printed by `--help`. Exit success. The text is the page.
+    Help {
+        /// Help page body.
+        text: String,
+    },
     Status,
     Tip,
     Methods,
@@ -136,10 +141,21 @@ pub(crate) enum OperatorSub {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum WalletSub {
     New,
+    /// Seal the seed with `MFN_WALLET_PASSPHRASE`.
+    Lock,
+    /// Write the seed in plaintext again. Requires the same passphrase.
+    Unlock,
     Restore {
         seed_hex: String,
         key_derivation: KeyDerivation,
     },
+    /// 24-word recovery phrase. Always restores a user wallet (`mfn_wallet_v1`).
+    RestoreMnemonic {
+        /// Words in order. One argv may contain the whole phrase.
+        words: Vec<String>,
+    },
+    /// Print the 24-word phrase for an existing user wallet.
+    ShowMnemonic,
     Address,
     Scan(WalletScanParams),
     LightScan(LightScanParams),
@@ -160,6 +176,7 @@ pub(crate) struct Parsed {
     pub(crate) rpc_addr: String,
     pub(crate) rpc_api_key: Option<String>,
     pub(crate) rpc_tor: bool,
+    pub(crate) no_tor: bool,
     pub(crate) tor_socks5: String,
     pub(crate) wallet_path: Option<String>,
     pub(crate) cmd: Cmd,
@@ -187,9 +204,13 @@ pub(super) fn usage() -> &'static str {
        block-header H    block header at height H (get_block_header)\n\
        mempool           list mempool tx ids (get_mempool)\n\
        call METHOD       arbitrary JSON-RPC call; prints pretty JSON result\n\
-       wallet new        create wallet.json with a fresh 32-byte seed\n\
+       wallet new        create wallet.json and print a 24-word recovery phrase\n\
+       wallet lock       seal the seed with MFN_WALLET_PASSPHRASE (not a command-line flag)\n\
+       wallet unlock     write the seed in plaintext again (requires the passphrase)\n\
        wallet restore SEED_HEX  restore wallet.json from a 32-byte seed\n\
                          options: --key-derivation mfn_wallet_v1|payout_stealth_v1\n\
+       wallet restore --mnemonic WORD...  restore from the 24 words (user wallets)\n\
+       wallet mnemonic   print the 24-word phrase for an existing user wallet\n\
        wallet address    print view/spend public keys from wallet file\n\
        wallet scan       scan full blocks from node tip (get_block)\n\
                          options: --json\n\
@@ -204,7 +225,9 @@ pub(super) fn usage() -> &'static str {
                          options: --json\n\
        wallet backup-info  print wallet/artifact backup inventory (no seed output)\n\
                          options: --json\n\
-wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx (F7: need ≥2 owned UTXOs)\n\
+       wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx (F7: need ≥2 owned UTXOs)\n\
+                         AMOUNT and --fee: bare whole numbers are atomic units;\n\
+                         1.5mfn is coins (1 MFN = 100000000 atomic). Extra decimals are refused.\n\
 wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
                          options: --fee N --ring-size N (default 16, wallet/consensus floor) --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
@@ -301,6 +324,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
     let mut wallet_path: Option<String> = None;
     let mut params_json: Option<String> = None;
     let mut force = false;
+    let mut no_tor = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -315,6 +339,11 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         }
         if a == "--tor" {
             rpc_tor = true;
+            i += 1;
+            continue;
+        }
+        if a == "--no-tor" {
+            no_tor = true;
             i += 1;
             continue;
         }
@@ -369,6 +398,15 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             i += 1;
             continue;
         }
+        if a == "--mnemonic" {
+            positional.push(a);
+            i += 1;
+            while i < args.len() && !args[i].starts_with('-') {
+                positional.push(args[i].as_str());
+                i += 1;
+            }
+            continue;
+        }
         if a == "--pin-trusted-summary"
             || a == "--reset-trusted-summary"
             || a == "--pin"
@@ -377,6 +415,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             || a == "--verify-checkpoint"
             || a == "--against-checkpoint"
             || a == "--json"
+            || a == "--public-fee"
         {
             positional.push(a);
             i += 1;
@@ -425,6 +464,11 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             i += 2;
             continue;
         }
+        if a == "--help" || a == "-h" {
+            positional.push(a);
+            i += 1;
+            continue;
+        }
         if a.starts_with('-') {
             return Err(CliError::Usage(format!(
                 "unknown option `{a}`\n{}",
@@ -434,93 +478,112 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         positional.push(a);
         i += 1;
     }
-    if positional.is_empty() {
-        return Err(CliError::Usage(format!("missing COMMAND\n{}", usage())));
+    if rpc_tor && no_tor {
+        return Err(CliError::Usage("pass only one of --tor or --no-tor".into()));
     }
-    let cmd = match positional[0] {
-        "status" => {
-            if positional.len() != 1 {
+    if positional.is_empty() {
+        return Err(CliError::Usage(crate::help::help_for(&[])));
+    }
+    let cmd = if positional.iter().any(|token| is_help_token(token)) {
+        let topic: Vec<&str> = positional
+            .iter()
+            .copied()
+            .filter(|token| !is_help_token(token))
+            .collect();
+        Cmd::Help {
+            text: crate::help::help_for(&topic),
+        }
+    } else {
+        match positional[0] {
+            "status" => {
+                if positional.len() != 1 {
+                    return Err(CliError::Usage(format!(
+                        "status takes no arguments\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Status
+            }
+            "tip" => {
+                if positional.len() != 1 {
+                    return Err(CliError::Usage(format!(
+                        "tip takes no arguments\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Tip
+            }
+            "methods" => {
+                if positional.len() != 1 {
+                    return Err(CliError::Usage(format!(
+                        "methods takes no arguments\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Methods
+            }
+            "block-header" => {
+                if positional.len() != 2 {
+                    return Err(CliError::Usage(format!(
+                        "block-header requires HEIGHT\n{}",
+                        usage()
+                    )));
+                }
+                let height: u32 = positional[1]
+                    .parse()
+                    .map_err(|_| CliError::Usage("HEIGHT must be a positive integer".into()))?;
+                if height == 0 {
+                    return Err(CliError::Usage("HEIGHT must be at least 1".into()));
+                }
+                Cmd::BlockHeader { height }
+            }
+            "mempool" => {
+                if positional.len() != 1 {
+                    return Err(CliError::Usage(format!(
+                        "mempool takes no arguments\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Mempool
+            }
+            "call" => {
+                if positional.len() != 2 {
+                    return Err(CliError::Usage(format!(
+                        "call requires METHOD\n{}",
+                        usage()
+                    )));
+                }
+                Cmd::Raw {
+                    method: positional[1].to_string(),
+                    params_json,
+                }
+            }
+            "wallet" => parse_wallet_cmd(&positional[1..], wallet_path.clone(), force)?,
+            "claims" => parse_claims_cmd(&positional[1..])?,
+            "uploads" => parse_uploads_cmd(&positional[1..])?,
+            "operator" => parse_operator_cmd(&positional[1..])?,
+            "checkpoint-log" => parse_checkpoint_log_cmd(&positional[1..])?,
+            other => {
                 return Err(CliError::Usage(format!(
-                    "status takes no arguments\n{}",
+                    "unknown command `{other}`\n{}",
                     usage()
                 )));
             }
-            Cmd::Status
-        }
-        "tip" => {
-            if positional.len() != 1 {
-                return Err(CliError::Usage(format!(
-                    "tip takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            Cmd::Tip
-        }
-        "methods" => {
-            if positional.len() != 1 {
-                return Err(CliError::Usage(format!(
-                    "methods takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            Cmd::Methods
-        }
-        "block-header" => {
-            if positional.len() != 2 {
-                return Err(CliError::Usage(format!(
-                    "block-header requires HEIGHT\n{}",
-                    usage()
-                )));
-            }
-            let height: u32 = positional[1]
-                .parse()
-                .map_err(|_| CliError::Usage("HEIGHT must be a positive integer".into()))?;
-            if height == 0 {
-                return Err(CliError::Usage("HEIGHT must be at least 1".into()));
-            }
-            Cmd::BlockHeader { height }
-        }
-        "mempool" => {
-            if positional.len() != 1 {
-                return Err(CliError::Usage(format!(
-                    "mempool takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            Cmd::Mempool
-        }
-        "call" => {
-            if positional.len() != 2 {
-                return Err(CliError::Usage(format!(
-                    "call requires METHOD\n{}",
-                    usage()
-                )));
-            }
-            Cmd::Raw {
-                method: positional[1].to_string(),
-                params_json,
-            }
-        }
-        "wallet" => parse_wallet_cmd(&positional[1..], wallet_path.clone(), force)?,
-        "claims" => parse_claims_cmd(&positional[1..])?,
-        "uploads" => parse_uploads_cmd(&positional[1..])?,
-        "operator" => parse_operator_cmd(&positional[1..])?,
-        "checkpoint-log" => parse_checkpoint_log_cmd(&positional[1..])?,
-        other => {
-            return Err(CliError::Usage(format!(
-                "unknown command `{other}`\n{}",
-                usage()
-            )));
         }
     };
     Ok(Parsed {
         rpc_addr,
         rpc_api_key,
         rpc_tor,
+        no_tor,
         tor_socks5,
         wallet_path,
         cmd,
     })
+}
+
+fn is_help_token(token: &str) -> bool {
+    token == "--help" || token == "-h" || token == "help"
 }
 
 fn parse_env_bool(raw: &str) -> Result<bool, String> {
@@ -1099,10 +1162,7 @@ pub(super) fn parse_wallet_cmd(
     force: bool,
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
-        return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|restore|address|scan|light-scan|balance|status|backup-info|send|upload|claim|export-trusted-summary|import-trusted-summary|show-trusted-summary|compare-trusted-summary)\n{}",
-            usage()
-        )));
+        return Err(CliError::Usage(crate::help::help_for(&["wallet"])));
     };
     let sub = match *sub_name {
         "light-scan" => WalletSub::LightScan(parse_wallet_light_scan_args(&rest[1..])?),
@@ -1123,7 +1183,7 @@ pub(super) fn parse_wallet_cmd(
         "balance" => WalletSub::Balance(parse_wallet_scan_args(&rest[1..], "balance")?),
         "status" => WalletSub::Status(parse_wallet_status_args(&rest[1..])?),
         "backup-info" => WalletSub::BackupInfo(parse_wallet_backup_info_args(&rest[1..])?),
-        "new" | "address" => {
+        "new" | "address" | "mnemonic" | "lock" | "unlock" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
                     "wallet {sub_name} takes no extra arguments\n{}",
@@ -1133,6 +1193,9 @@ pub(super) fn parse_wallet_cmd(
             match *sub_name {
                 "new" => WalletSub::New,
                 "address" => WalletSub::Address,
+                "mnemonic" => WalletSub::ShowMnemonic,
+                "lock" => WalletSub::Lock,
+                "unlock" => WalletSub::Unlock,
                 _ => unreachable!(),
             }
         }
@@ -1156,10 +1219,23 @@ pub(super) fn parse_wallet_cmd(
 pub(super) fn parse_wallet_restore_args(rest: &[&str]) -> Result<WalletSub, CliError> {
     let mut seed_hex: Option<String> = None;
     let mut key_derivation = KeyDerivation::MfnWalletV1;
+    let mut mnemonic_mode = false;
+    let mut words = Vec::new();
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
+        if a == "--mnemonic" {
+            mnemonic_mode = true;
+            i += 1;
+            continue;
+        }
         if a == "--key-derivation" {
+            if mnemonic_mode {
+                return Err(CliError::Usage(
+                    "wallet restore --mnemonic always restores a user wallet. Operator payout keys stay as SEED_HEX with --key-derivation payout_stealth_v1\n"
+                        .into(),
+                ));
+            }
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage(
                     "wallet restore --key-derivation requires mfn_wallet_v1 or payout_stealth_v1\n"
@@ -1176,18 +1252,35 @@ pub(super) fn parse_wallet_restore_args(rest: &[&str]) -> Result<WalletSub, CliE
                 usage()
             )));
         }
-        if seed_hex.is_some() {
-            return Err(CliError::Usage(format!(
-                "wallet restore accepts exactly one SEED_HEX\n{}",
-                usage()
-            )));
+        if mnemonic_mode {
+            words.push((*a).to_string());
+        } else {
+            if seed_hex.is_some() {
+                return Err(CliError::Usage(format!(
+                    "wallet restore accepts exactly one SEED_HEX\n{}",
+                    usage()
+                )));
+            }
+            seed_hex = Some(a.to_string());
         }
-        seed_hex = Some(a.to_string());
         i += 1;
+    }
+    if mnemonic_mode {
+        if seed_hex.is_some() {
+            return Err(CliError::Usage(
+                "wallet restore accepts a recovery phrase or SEED_HEX, not both\n".into(),
+            ));
+        }
+        if words.is_empty() {
+            return Err(CliError::Usage(
+                "wallet restore --mnemonic requires the 24 words from `wallet new`\n".into(),
+            ));
+        }
+        return Ok(WalletSub::RestoreMnemonic { words });
     }
     let Some(seed_hex) = seed_hex else {
         return Err(CliError::Usage(format!(
-            "wallet restore requires SEED_HEX\n{}",
+            "wallet restore requires SEED_HEX or --mnemonic WORD...\n{}",
             usage()
         )));
     };
@@ -1541,9 +1634,14 @@ fn split_host_list(raw: &str) -> Vec<String> {
         .collect()
 }
 
+fn parse_money(raw: &str, what: &str) -> Result<u64, CliError> {
+    mfn_wallet::parse_amount(raw).map_err(|e| CliError::Usage(format!("{what}: {e}")))
+}
+
 pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
     let mut fee = DEFAULT_TRANSFER_FEE;
-    let mut ring_size = DEFAULT_RING_SIZE;
+    let mut ring_size: Option<usize> = None;
+    let mut public_fee = false;
     let mut extra: Vec<u8> = Vec::new();
     let mut json = false;
     let mut positional: Vec<&str> = Vec::new();
@@ -1559,33 +1657,31 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = v
-                .parse()
-                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            fee = parse_money(v, "--fee")?;
             i += 2;
+            continue;
+        }
+        if a == "--public-fee" {
+            public_fee = true;
+            i += 1;
             continue;
         }
         if a == "--ring-size" {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--ring-size requires a value".into()));
             };
-            ring_size = v.parse().map_err(|_| {
+            let parsed = v.parse().map_err(|_| {
                 CliError::Usage(
                     "--ring-size must be an integer >= 16 (wallet/consensus floor)".into(),
                 )
             })?;
-            if ring_size < mfn_wallet::WALLET_MIN_RING_SIZE {
+            if parsed < mfn_wallet::WALLET_MIN_RING_SIZE {
                 return Err(CliError::Usage(format!(
                     "--ring-size must be at least {} (wallet/consensus floor)",
                     mfn_wallet::WALLET_MIN_RING_SIZE
                 )));
             }
-            if let Err(msg) = mfn_consensus::tier2_ring_size_allowed(
-                mfn_consensus::HEADER_VERSION,
-                ring_size as u32,
-            ) {
-                return Err(CliError::Usage(msg.into()));
-            }
+            ring_size = Some(parsed);
             i += 2;
             continue;
         }
@@ -1633,15 +1729,14 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             positional[2],
         )
     };
-    let amount: u64 = amount_raw
-        .parse()
-        .map_err(|_| CliError::Usage("AMOUNT must be a non-negative integer".into()))?;
+    let amount: u64 = parse_money(amount_raw, "AMOUNT")?;
     Ok(SendParams {
         to_view_hex,
         to_spend_hex,
         amount,
         fee,
         ring_size,
+        public_fee,
         extra,
         json,
     })
@@ -1697,10 +1792,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = Some(
-                v.parse()
-                    .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?,
-            );
+            fee = Some(parse_money(v, "--fee")?);
             i += 2;
             continue;
         }
@@ -1718,9 +1810,7 @@ pub(super) fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, Cl
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--anchor-value requires a value".into()));
             };
-            anchor_value = v.parse().map_err(|_| {
-                CliError::Usage("--anchor-value must be a non-negative integer".into())
-            })?;
+            anchor_value = parse_money(v, "--anchor-value")?;
             i += 2;
             continue;
         }
@@ -1825,9 +1915,7 @@ pub(super) fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliE
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
             };
-            fee = v
-                .parse()
-                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            fee = parse_money(v, "--fee")?;
             i += 2;
             continue;
         }
