@@ -88,6 +88,10 @@ jobs:
           for script in scripts/*.sh scripts/public-devnet-v1/*.sh; do
             bash -n "$script"
           done
+          pack="$(bash scripts/release-pack.sh --self-test)"
+          [[ "$pack" == *"release_pack=checksum-and-signature"* ]] || { echo "$pack"; exit 1; }
+          [[ "$pack" == *"source_date_epoch=1700000000"* ]] || { echo "$pack"; exit 1; }
+          [[ "$pack" == *"recipe=cargo build --locked --release -p mfn-cli"* ]] || { echo "$pack"; exit 1; }
           bash scripts/public-devnet-v1/vps-bind-lib-smoke.sh
           http_plan="$(bash scripts/public-devnet-v1/recovery-walkthrough.sh --plan-only --rpc 127.0.0.1:18731 --wallet ./alice.json --commit ababab --peer 127.0.0.1:18780 --expected-sha256 cdcd --prove)"
           [[ "$http_plan" == *"restore_mode=http"* ]] || { echo "$http_plan"; exit 1; }
