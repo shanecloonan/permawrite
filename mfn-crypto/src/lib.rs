@@ -168,6 +168,19 @@ pub enum CryptoError {
     /// A varint encoding exceeded its size limit.
     #[error("varint too long")]
     VarintTooLong,
+    /// A length prefix asked for more elements than the remaining bytes can hold.
+    ///
+    /// Checked before any allocation. A peer can otherwise send a few bytes
+    /// whose varint asks for terabytes and abort the process.
+    #[error("count {count} needs {needed} bytes but only {remaining} remain")]
+    CountExceedsBuffer {
+        /// Declared element count (the raw varint).
+        count: u64,
+        /// Bytes those elements would occupy, or `usize::MAX` if the product overflows.
+        needed: usize,
+        /// Bytes still unread in the buffer.
+        remaining: usize,
+    },
     /// A decoder reached the end of its expected input but found
     /// additional bytes in the buffer. Returned by strict, self-
     /// delimiting decoders (e.g. fixed-shape struct decoders) where a
