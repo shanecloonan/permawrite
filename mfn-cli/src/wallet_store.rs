@@ -8,9 +8,13 @@ use mfn_wallet::{wallet_from_seed, StoredOwnedOutput, Wallet, WalletKeys};
 use serde::{Deserialize, Serialize};
 
 use crate::rpc::LightCheckpointSummary;
+use crate::wallet_lock::{self, HeldPassphrase};
 
-/// Current wallet file schema version.
+/// Current wallet file schema version for an unlocked file.
 pub const WALLET_FILE_VERSION: u32 = 2;
+
+/// Schema version written when the seed is passphrase-sealed.
+pub const WALLET_FILE_VERSION_LOCKED: u32 = 3;
 
 /// How the 32-byte `seed_hex` maps to [`WalletKeys`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -30,7 +34,14 @@ pub struct WalletFile {
     /// Schema version (must be [`WALLET_FILE_VERSION`]).
     pub version: u32,
     /// 64 hex chars (32 bytes) — the wallet backup secret.
+    /// Empty on disk when [`Self::seed_lock_hex`] is set.
     pub seed_hex: String,
+    /// Sealed seed (`salt || nonce || tag || ciphertext`). Absent on older files.
+    #[serde(default)]
+    pub seed_lock_hex: Option<String>,
+    /// Passphrase kept in memory so a later save stays sealed. Never serialized.
+    #[serde(skip)]
+    pub(crate) lock_passphrase: Option<HeldPassphrase>,
     /// Key derivation tag (default `mfn_wallet_v1`).
     #[serde(default)]
     pub key_derivation: KeyDerivation,
@@ -72,6 +83,8 @@ impl WalletFile {
         Self {
             version: WALLET_FILE_VERSION,
             seed_hex: hex::encode(seed),
+            seed_lock_hex: None,
+            lock_passphrase: None,
             key_derivation,
             scan_height: None,
             pending_spent_utxo_keys: Vec::new(),
@@ -150,9 +163,47 @@ impl WalletFile {
         )))
     }
 
-    /// Write JSON to `path` (pretty-printed, mode 0600 on Unix).
-    pub fn save(&mut self, path: &Path) -> Result<(), WalletStoreError> {
+    /// Whether the seed is sealed and must be opened with a passphrase.
+    pub fn is_locked(&self) -> bool {
+        self.seed_lock_hex.is_some()
+    }
+
+    /// Seal the in-memory seed. Later [`Self::save`] calls keep it sealed.
+    pub fn lock_with_passphrase(&mut self, passphrase: &str) -> Result<(), WalletStoreError> {
+        let _ = self.seed_bytes()?;
+        self.lock_passphrase = Some(HeldPassphrase::new(passphrase)?);
+        Ok(())
+    }
+
+    /// Drop the seal. The next save writes the seed in plaintext.
+    pub fn unlock_in_memory(&mut self) {
+        self.lock_passphrase = None;
+        self.seed_lock_hex = None;
         self.version = WALLET_FILE_VERSION;
+    }
+
+    /// Write JSON to `path` (pretty-printed, mode 0600 on Unix).
+    ///
+    /// A locked wallet is sealed again on the way to disk. The seed stays
+    /// in memory for the rest of this process.
+    pub fn save(&mut self, path: &Path) -> Result<(), WalletStoreError> {
+        let memory_seed = self.seed_hex.clone();
+        if let Some(pass) = self.lock_passphrase.clone() {
+            let seed = self.seed_bytes()?;
+            let blob = wallet_lock::seal_seed(&seed, &pass);
+            self.seed_hex.clear();
+            self.seed_lock_hex = Some(hex::encode(blob));
+            self.version = WALLET_FILE_VERSION_LOCKED;
+        } else {
+            self.seed_lock_hex = None;
+            self.version = WALLET_FILE_VERSION;
+        }
+        let write_result = self.write_json(path);
+        self.seed_hex = memory_seed;
+        write_result
+    }
+
+    fn write_json(&self, path: &Path) -> Result<(), WalletStoreError> {
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
                 fs::create_dir_all(parent)?;
@@ -169,19 +220,72 @@ impl WalletFile {
     }
 
     /// Load and validate a wallet file.
+    ///
+    /// A locked file is opened with `MFN_WALLET_PASSPHRASE`. The passphrase
+    /// is not read from the file.
     pub fn load(path: &Path) -> Result<Self, WalletStoreError> {
         let bytes = fs::read(path)?;
-        let file: WalletFile = serde_json::from_slice(&bytes)?;
+        let mut file: WalletFile = serde_json::from_slice(&bytes)?;
+        if file.seed_lock_hex.is_some() {
+            let pass = wallet_lock::passphrase_from_env().map_err(|_| {
+                WalletStoreError::Invalid(
+                    "this wallet is locked. Set MFN_WALLET_PASSPHRASE in the environment. \
+                     The passphrase is not in the wallet file"
+                        .into(),
+                )
+            })?;
+            file.open_with(&pass)?;
+        }
         file.validate()?;
         Ok(file)
     }
 
+    /// Open a locked file with an explicit passphrase. Tests use this so they
+    /// do not touch the process environment.
+    pub fn load_with_passphrase(path: &Path, passphrase: &str) -> Result<Self, WalletStoreError> {
+        let bytes = fs::read(path)?;
+        let mut file: WalletFile = serde_json::from_slice(&bytes)?;
+        if file.seed_lock_hex.is_none() {
+            return Err(WalletStoreError::Invalid(
+                "wallet file is not locked".into(),
+            ));
+        }
+        let pass = HeldPassphrase::new(passphrase)?;
+        file.open_with(&pass)?;
+        file.validate()?;
+        Ok(file)
+    }
+
+    fn open_with(&mut self, pass: &HeldPassphrase) -> Result<(), WalletStoreError> {
+        let hex_blob = self
+            .seed_lock_hex
+            .clone()
+            .ok_or_else(|| WalletStoreError::Invalid("wallet file is not locked".into()))?;
+        let blob = hex::decode(hex_blob.trim())
+            .map_err(|_| WalletStoreError::Invalid("locked wallet secret is not hex".into()))?;
+        let seed = wallet_lock::open_seed(&blob, pass)?;
+        self.seed_hex = hex::encode(seed);
+        self.lock_passphrase = Some(pass.clone());
+        Ok(())
+    }
+
     fn validate(&self) -> Result<(), WalletStoreError> {
-        if self.version != 1 && self.version != WALLET_FILE_VERSION {
+        if self.version != 1
+            && self.version != WALLET_FILE_VERSION
+            && self.version != WALLET_FILE_VERSION_LOCKED
+        {
             return Err(WalletStoreError::Invalid(format!(
-                "unsupported wallet version {} (expected 1 or {WALLET_FILE_VERSION})",
+                "unsupported wallet version {} (expected 1, {WALLET_FILE_VERSION}, or {WALLET_FILE_VERSION_LOCKED})",
                 self.version
             )));
+        }
+        if self.seed_lock_hex.is_some()
+            && self.lock_passphrase.is_none()
+            && self.seed_hex.is_empty()
+        {
+            return Err(WalletStoreError::Invalid(
+                "this wallet is locked. Set MFN_WALLET_PASSPHRASE in the environment".into(),
+            ));
         }
         let _ = self.seed_bytes()?;
         Ok(())
@@ -284,6 +388,38 @@ mod tests {
         file.hydrate_wallet(&mut wallet).expect("hydrate");
         assert_eq!(wallet.scan_height(), Some(4));
         assert_eq!(wallet.balance(), 0);
+    }
+
+    #[test]
+    fn lock_hides_the_seed_on_disk_and_restores_it_with_the_passphrase() {
+        let path = std::env::temp_dir().join(format!(
+            "mfn-wallet-lock-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let seed = [0x5au8; 32];
+        let mut file = WalletFile::new(&seed, KeyDerivation::MfnWalletV1);
+        file.lock_with_passphrase("correct horse").expect("lock");
+        file.save(&path).expect("save");
+        let on_disk = std::fs::read_to_string(&path).expect("read");
+        assert!(
+            !on_disk.contains(&hex::encode(seed)),
+            "seed must not sit in the file"
+        );
+        assert!(on_disk.contains("seed_lock_hex"));
+        assert!(!format!("{file:?}").contains("correct horse"));
+        let err = WalletFile::load(&path).expect_err("no passphrase");
+        assert!(err.to_string().contains("locked"));
+        let opened = WalletFile::load_with_passphrase(&path, "correct horse").expect("open");
+        assert_eq!(opened.seed_bytes().expect("seed"), seed);
+        let mut opened = opened;
+        opened.save(&path).expect("resave");
+        let again = std::fs::read_to_string(&path).expect("read");
+        assert!(!again.contains(&hex::encode(seed)));
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]
