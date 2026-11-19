@@ -3,7 +3,7 @@
 use mfn_storage::{
     build_storage_commitment, required_endowment, storage_commitment_hash, DEFAULT_ENDOWMENT_PARAMS,
 };
-use mfn_wallet::{wallet_from_seed, ClaimingIdentity};
+use mfn_wallet::{mnemonic_from_seed, seed_from_mnemonic, wallet_from_seed, ClaimingIdentity};
 use serde::Serialize;
 
 /// Errors from seed parsing or storage construction.
@@ -35,6 +35,17 @@ pub fn parse_seed_hex(seed_hex: &str) -> Result<[u8; 32], WasmCoreError> {
     Ok(seed)
 }
 
+/// 24-word recovery phrase for a seed.
+pub fn phrase_from_seed(seed: &[u8; 32]) -> String {
+    mnemonic_from_seed(seed)
+}
+
+/// Seed hex from a 24-word phrase. A bad phrase is an error.
+pub fn seed_hex_from_phrase(phrase: &str) -> Result<String, WasmCoreError> {
+    let seed = seed_from_mnemonic(phrase).map_err(|e| WasmCoreError::InvalidHex(e.to_string()))?;
+    Ok(hex::encode(seed))
+}
+
 /// Stealth address public keys for a deterministic wallet seed (JSON object).
 pub fn wallet_address_json_from_seed(seed: &[u8; 32]) -> String {
     #[derive(Serialize)]
@@ -48,6 +59,24 @@ pub fn wallet_address_json_from_seed(seed: &[u8; 32]) -> String {
         spend_pub: hex::encode(keys.spend_pub().compress().to_bytes()),
     };
     serde_json::to_string(&json).expect("address json")
+}
+
+#[cfg(test)]
+mod phrase_tests {
+    use super::*;
+
+    #[test]
+    fn zero_phrase_round_trips_to_the_same_address() {
+        let seed = [0u8; 32];
+        let phrase = phrase_from_seed(&seed);
+        let hex_seed = seed_hex_from_phrase(&phrase).expect("phrase");
+        assert_eq!(hex_seed, hex::encode(seed));
+        assert_eq!(
+            wallet_address_json_from_seed(&seed),
+            wallet_address_json_from_seed(&parse_seed_hex(&hex_seed).unwrap())
+        );
+        assert!(seed_hex_from_phrase("abandon abandon").is_err());
+    }
 }
 
 /// MFCL `claim_pubkey` for the same seed used by `mfn-cli wallet claim`.

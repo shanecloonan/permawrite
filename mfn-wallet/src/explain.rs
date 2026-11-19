@@ -93,6 +93,11 @@ pub fn explain_wallet_error(err: &WalletError) -> String {
              {pool_size}). The wallet will not quietly use a smaller ring. Wait for more \
              outputs on the chain, then try again."
         ),
+        WalletError::PrivacyRefused(detail) => format!(
+            "The wallet refused a weaker privacy shape and did not sign anything. It will \
+             not pick a smaller ring or publish a fee on your behalf; adjust the request \
+             or wait for more outputs. Detail: {detail}"
+        ),
         WalletError::PedersenOpenMismatch => {
             "A scanned output decrypted but did not match its amount commitment, so it was \
              not treated as yours."
