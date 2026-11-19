@@ -24,10 +24,17 @@ import {
   type WalletSyncState,
   loadMfnWasm,
 } from "@/lib/testnet/wasm-wallet";
+import {
+  chooseBrowserSpend,
+  firstHeaderHex,
+  headerVersionFromHex,
+  requireTwoOutputs,
+} from "@/lib/testnet/spend-privacy";
+import { formatMfn, parseSpendAmount } from "@/lib/testnet/spend-amount";
+import FileKeep from "./file-keep";
 import { CopyButton, truncateId, useCopyFeedback } from "./ui";
 
 const FEE = 10_000;
-const RING = 16;
 
 /** Keep ≥2 self-owned UTXOs after spend (F7 input floor). */
 function pushSelfChange(
@@ -89,6 +96,16 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
   }, []);
 
   const balance = useMemo(() => totalBalance(sync), [sync]);
+  const spendPreview = useMemo(() => {
+    try {
+      return { label: parseSpendAmount(sendAmount).label, error: null as string | null };
+    } catch (err) {
+      return {
+        label: null as string | null,
+        error: err instanceof Error ? err.message : "Enter an amount.",
+      };
+    }
+  }, [sendAmount]);
 
   const adopt = useCallback((w: GeneratedWallet) => {
     const sess: SessionWallet = {
@@ -249,10 +266,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
     setError(null);
     setStatus(null);
     try {
-      const amount = Number(sendAmount);
-      if (!Number.isFinite(amount) || amount < 1) {
-        throw new Error("amount must be a positive number");
-      }
+      const amount = parseSpendAmount(sendAmount).atomic;
       const dest = decodeWalletAddress(sendTo.trim());
       await loadMfnWasm();
       const tip = await rpc<{ tip_height?: number }>("get_tip", {});
@@ -311,12 +325,22 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
       ];
       // Split change into two self-outputs so the next send still meets F7.
       pushSelfChange(recipients, session, change);
+      requireTwoOutputs(recipients.length);
+
+      const headerRows = await rpc<unknown>("get_block_headers", {
+        from_height: tipH,
+        to_height: tipH,
+      });
+      const privacy = chooseBrowserSpend({
+        headerVersion: headerVersionFromHex(firstHeaderHex(headerRows)),
+        decoyCandidates: (utxoPage.utxos || []).length,
+      });
 
       const plan = {
         inputs: pick,
         recipients,
         fee: FEE,
-        ring_size: RING,
+        ring_size: privacy.ringSize,
         current_height: tipH,
         decoy_utxos: (utxoPage.utxos || []).map((u) => ({
           height: u.height,
@@ -353,7 +377,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
       });
       setHistory(loadHistory(session.seedHex));
       setStatus(
-        `Sent ${amount.toLocaleString()} · tx ${truncateId(built.tx_id)} · refresh after the next block for change.`,
+        `Sent ${formatMfn(amount)} (${amount.toLocaleString()} atomic). It is pending until a block includes it. tx ${truncateId(built.tx_id)}`,
       );
       setSendAmount("100000");
     } catch (e) {
@@ -440,7 +464,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
         <Stat
           label="Fee"
           value={FEE.toLocaleString()}
-          hint={`ring ${RING}`}
+          hint="largest legal ring"
         />
       </div>
 
@@ -529,7 +553,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
           <input
             value={sendAmount}
             onChange={(e) => setSendAmount(e.target.value)}
-            placeholder="Amount (atomic)"
+            placeholder="1mfn or atomic units"
             className="w-40 rounded-lg border border-[var(--pw-line)] bg-[var(--pw-code)] px-3 py-2 font-mono text-[11px] text-[var(--pw-code-ink)] outline-none focus:border-[var(--pw-accent)]/50"
           />
           <button
@@ -541,7 +565,16 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
             {busy === "send" ? "Sending…" : "Send"}
           </button>
         </div>
+        <p
+          className={`text-xs leading-relaxed ${
+            spendPreview.error ? "text-red-300/90" : "text-[var(--pw-muted)]"
+          }`}
+        >
+          {spendPreview.error ?? spendPreview.label}
+        </p>
       </div>
+
+      <FileKeep />
 
       {(status || error) && (
         <p

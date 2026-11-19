@@ -506,9 +506,40 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     .filter(|s| !s.is_empty())
             });
             let mut p2p_dials = parsed.p2p_dials.clone();
+            let ask_peers = matches!(
+                std::env::var("MFND_P2P_GETADDR")
+                    .unwrap_or_default()
+                    .trim()
+                    .to_ascii_lowercase()
+                    .as_str(),
+                "1" | "true" | "yes" | "on"
+            );
+            mfn_net::peer_exchange::set_asking(ask_peers);
+            if ask_peers {
+                println!("mfnd_p2p_getaddr=1");
+                std::io::stdout().flush().ok();
+            }
             if crate::p2p_boot::env_skip_manifest_seeds() {
                 println!("mfnd_p2p_skip_manifest_seeds=1");
                 std::io::stdout().flush().ok();
+            }
+            let dns_port = crate::p2p_discovery::dns_seed_port_from_env();
+            let dns = crate::p2p_discovery::dns_seed_addrs(
+                &crate::p2p_discovery::dns_seed_names_from_env(),
+                dns_port,
+                &|name| crate::p2p_discovery::system_dns_lookup(name, dns_port),
+            );
+            let discovered = crate::p2p_discovery::discover_peers(
+                &dns,
+                &crate::p2p_discovery::hardcoded_onion_seeds_from_env(),
+                &crate::p2p_discovery::exchanged_seeds_from_env(),
+            );
+            if !discovered.is_empty() {
+                println!("mfnd_p2p_discovered={}", discovered.len());
+                std::io::stdout().flush().ok();
+            }
+            for addr in discovered {
+                crate::p2p_boot::push_unique_peer_addr(&mut p2p_dials, addr);
             }
             let boot_report = crate::p2p_boot::merge_boot_peer_dials(
                 &mut p2p_dials,
@@ -516,6 +547,13 @@ fn run(args: Vec<String>) -> Result<(), String> {
             )?;
             if let Some(line) = boot_dials_capped_log_line(&boot_report) {
                 println!("{line}");
+                std::io::stdout().flush().ok();
+            }
+            crate::p2p_boot::install_local_anchor_store(&parsed.data_dir);
+            let local_anchors =
+                crate::p2p_boot::merge_local_anchors(&mut p2p_dials, &parsed.data_dir);
+            if local_anchors > 0 {
+                println!("mfnd_p2p_local_anchors={local_anchors}");
                 std::io::stdout().flush().ok();
             }
             let anchor_added = crate::p2p_boot::merge_checkpoint_anchor_peers(
