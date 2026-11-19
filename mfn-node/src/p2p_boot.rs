@@ -1,6 +1,7 @@
 //! Boot-time P2P peer list: CLI dials + optional genesis manifest seeds (**M2.4.4**).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use serde::Deserialize;
 
@@ -204,6 +205,95 @@ pub fn anchor_peers_from_trusted_summary(path: &Path) -> Result<Vec<String>, Str
     )
 }
 
+/// Outbound peers remembered across restarts.
+pub const MAX_LOCAL_ANCHORS: usize = 8;
+
+/// `data_dir/p2p_anchors.txt`.
+#[must_use]
+pub fn local_anchor_path(data_dir: &Path) -> PathBuf {
+    data_dir.join("p2p_anchors.txt")
+}
+
+/// Read remembered outbound peers, newest first, at most [`MAX_LOCAL_ANCHORS`].
+#[must_use]
+pub fn load_local_anchors(path: &Path) -> Vec<String> {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for line in text.lines() {
+        if let Ok(Some(addr)) = normalize_peer_addr(line) {
+            push_unique_peer_addr(&mut out, addr);
+        }
+        if out.len() == MAX_LOCAL_ANCHORS {
+            break;
+        }
+    }
+    out
+}
+
+/// Write `addrs` (newest first).
+pub fn save_local_anchors(path: &Path, addrs: &[String]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let mut body = String::new();
+    for addr in addrs.iter().take(MAX_LOCAL_ANCHORS) {
+        body.push_str(addr);
+        body.push('\n');
+    }
+    std::fs::write(path, body).map_err(|e| e.to_string())
+}
+
+static LOCAL_ANCHOR_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Remember successful outbound peers under `data_dir`.
+pub fn install_local_anchor_store(data_dir: &Path) {
+    let _ = LOCAL_ANCHOR_PATH.set(local_anchor_path(data_dir));
+}
+
+/// Put `addr` at the front of the anchor file. No-op until [`install_local_anchor_store`].
+pub fn remember_connected_peer(addr: &str) {
+    let Some(path) = LOCAL_ANCHOR_PATH.get() else {
+        return;
+    };
+    let Ok(Some(addr)) = normalize_peer_addr(addr) else {
+        return;
+    };
+    let mut anchors = load_local_anchors(path);
+    anchors.retain(|existing| existing != &addr);
+    anchors.insert(0, addr);
+    anchors.truncate(MAX_LOCAL_ANCHORS);
+    if let Err(e) = save_local_anchors(path, &anchors) {
+        eprintln!("mfnd_p2p_anchor_save_abort {e}");
+    }
+}
+
+/// Insert remembered peers that are not already in `peers.json` at the front of the boot dial list.
+pub fn merge_local_anchors(explicit: &mut Vec<String>, data_dir: &Path) -> usize {
+    let saved = mfn_store::load_peers(data_dir)
+        .map(|(peers, _)| peers)
+        .unwrap_or_default();
+    let loaded = load_local_anchors(&local_anchor_path(data_dir));
+    let fresh: Vec<String> = loaded
+        .into_iter()
+        .filter(|addr| !saved.contains(addr))
+        .collect();
+    if fresh.is_empty() {
+        return 0;
+    }
+    let mut merged = Vec::with_capacity(fresh.len() + explicit.len());
+    for addr in fresh {
+        push_unique_peer_addr(&mut merged, addr);
+    }
+    let placed = merged.len();
+    for addr in std::mem::take(explicit) {
+        push_unique_peer_addr(&mut merged, addr);
+    }
+    *explicit = merged;
+    placed
+}
+
 /// Merge `anchor_peers` from a trusted-summary file into boot dial addresses.
 pub fn merge_checkpoint_anchor_peers(
     explicit: &mut Vec<String>,
@@ -223,6 +313,39 @@ pub fn merge_checkpoint_anchor_peers(
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn local_anchors_are_dialed_first_after_restart() {
+        let dir = std::env::temp_dir().join(format!("pw-anchors-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = local_anchor_path(&dir);
+        save_local_anchors(
+            &path,
+            &[
+                "203.0.113.8:19101".to_string(),
+                "203.0.113.9:19101".to_string(),
+            ],
+        )
+        .unwrap();
+        let restarted = load_local_anchors(&path);
+        assert_eq!(restarted[0], "203.0.113.8:19101");
+        let mut dials = vec!["198.51.100.2:19101".to_string()];
+        let placed = merge_local_anchors(&mut dials, &dir);
+        assert_eq!(placed, 2);
+        assert_eq!(dials[0], "203.0.113.8:19101");
+        assert_eq!(dials[1], "203.0.113.9:19101");
+        assert_eq!(dials[2], "198.51.100.2:19101");
+        let mut saved = std::collections::BTreeSet::new();
+        saved.insert("203.0.113.8:19101".to_string());
+        mfn_store::save_peers(&dir, &saved, 8).unwrap();
+        let mut dials = vec!["198.51.100.2:19101".to_string()];
+        let placed = merge_local_anchors(&mut dials, &dir);
+        assert_eq!(placed, 1);
+        assert_eq!(dials[0], "203.0.113.9:19101");
+        assert!(!dials.iter().any(|addr| addr == "203.0.113.8:19101"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
 
     #[test]
     fn push_unique_peer_addr_dedupes() {
