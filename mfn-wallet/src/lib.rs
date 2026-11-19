@@ -66,6 +66,8 @@ pub mod explain;
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod owned;
 #[cfg(any(feature = "full", feature = "wasm-full"))]
+pub mod privacy;
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod scan;
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod spend;
@@ -133,6 +135,8 @@ pub use error::WalletError;
 pub use explain::explain_wallet_error;
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use owned::{key_image_for_owned, owned_balance, verify_pedersen_open, OwnedOutput, OwnedRef};
+#[cfg(any(feature = "full", feature = "wasm-full"))]
+pub use privacy::{choose_spend_privacy, SpendPrivacy};
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use scan::{scan_block, scan_transaction, BlockScan, ScannedOutput, TxScan};
 #[cfg(any(feature = "full", feature = "wasm-full"))]
