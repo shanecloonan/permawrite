@@ -21,7 +21,7 @@ use crate::uploads_cmd::{
 };
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_backup_info, wallet_balance, wallet_claim,
-    wallet_lock, wallet_new, wallet_restore, wallet_scan, wallet_send, wallet_status,
+    wallet_lock, wallet_new, wallet_ready, wallet_restore, wallet_scan, wallet_send, wallet_status,
     wallet_unlock, wallet_upload, WalletCmdError,
 };
 
@@ -340,6 +340,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                     key_derivation,
                 } => wallet_restore(&path, &seed_hex, key_derivation, force)?,
                 WalletSub::Address => wallet_address(&path)?,
+                WalletSub::Ready => wallet_ready(&path)?,
                 WalletSub::Scan(params) => wallet_scan(&path, &mut client, params)?,
                 WalletSub::LightScan(ref params) => wallet_light_scan(&path, &mut client, params)?,
                 WalletSub::Balance(params) => wallet_balance(&path, &mut client, params)?,
