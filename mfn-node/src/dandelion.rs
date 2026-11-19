@@ -22,6 +22,8 @@ pub struct DandelionConfig {
     pub epoch_secs: u64,
     /// Max time a tx may stay in stem before forced fluff.
     pub stem_timeout: Duration,
+    /// Upper bound on the delay before a stem send. Zero disables jitter.
+    pub stem_jitter: Duration,
 }
 
 impl Default for DandelionConfig {
@@ -31,6 +33,7 @@ impl Default for DandelionConfig {
             fluff_probability_bps: 900,
             epoch_secs: 600,
             stem_timeout: Duration::from_secs(30),
+            stem_jitter: Duration::ZERO,
         }
     }
 }
@@ -41,6 +44,7 @@ impl DandelionConfig {
     pub fn enabled() -> Self {
         Self {
             enabled: true,
+            stem_jitter: Duration::from_millis(250),
             ..Self::default()
         }
     }
@@ -53,6 +57,8 @@ pub enum HopKind {
     Origin,
     /// Received from one peer. May extend the stem or fail safe into fluff.
     Relay,
+    /// Received already diffused. It stays diffused.
+    Fluff,
 }
 
 /// How a fresh tx should leave this node.
@@ -65,10 +71,13 @@ pub enum RelayAction {
     },
     /// Parallel fan-out to all peers (fluff / legacy).
     Fluff,
+    /// No reachable stem peer yet. The body is remembered for the embargo.
+    Hold,
 }
 
 struct PendingStem {
     first_seen: Instant,
+    tx_wire: Vec<u8>,
 }
 
 /// In-memory stem-phase tracker for one `mfnd` process.
@@ -111,9 +120,10 @@ impl DandelionRelay {
             self.pending.remove(&tx_id);
             return RelayAction::Fluff;
         }
-        self.pending
-            .entry(tx_id)
-            .or_insert(PendingStem { first_seen: now });
+        self.pending.entry(tx_id).or_insert(PendingStem {
+            first_seen: now,
+            tx_wire: Vec::new(),
+        });
         let epoch = self.current_epoch(now);
         let idx = stem_peer_index(&self.node_salt, epoch, &tx_id, peers.len());
         RelayAction::Stem {
@@ -127,12 +137,20 @@ impl DandelionRelay {
     pub fn forward(
         &mut self,
         tx_id: [u8; 32],
+        tx_wire: &[u8],
         peers: &[String],
         now: Instant,
         hop: HopKind,
     ) -> RelayAction {
-        if !self.config.enabled || peers.is_empty() {
+        if hop == HopKind::Fluff || !self.config.enabled {
             return RelayAction::Fluff;
+        }
+        if peers.is_empty() {
+            self.pending.entry(tx_id).or_insert(PendingStem {
+                first_seen: now,
+                tx_wire: tx_wire.to_vec(),
+            });
+            return RelayAction::Hold;
         }
         if hop == HopKind::Relay {
             if let Some(entry) = self.pending.get(&tx_id) {
@@ -144,14 +162,53 @@ impl DandelionRelay {
                 return RelayAction::Fluff;
             }
         }
-        self.pending
-            .entry(tx_id)
-            .or_insert(PendingStem { first_seen: now });
+        self.pending.entry(tx_id).or_insert(PendingStem {
+            first_seen: now,
+            tx_wire: tx_wire.to_vec(),
+        });
         let epoch = self.current_epoch(now);
         let idx = epoch_successor(&self.node_salt, epoch, peers.len());
         RelayAction::Stem {
             peer: peers[idx].clone(),
         }
+    }
+
+    /// Bodies whose stem embargo has elapsed. The peer exclusion is unknown here.
+    pub fn take_expired(&mut self, now: Instant) -> Vec<(Vec<u8>, Option<String>)> {
+        if !self.config.enabled {
+            return Vec::new();
+        }
+        let timeout = self.config.stem_timeout;
+        let expired: Vec<[u8; 32]> = self
+            .pending
+            .iter()
+            .filter(|(_, entry)| now.saturating_duration_since(entry.first_seen) >= timeout)
+            .map(|(id, _)| *id)
+            .collect();
+        let mut out = Vec::with_capacity(expired.len());
+        for id in expired {
+            if let Some(entry) = self.pending.remove(&id) {
+                if !entry.tx_wire.is_empty() {
+                    out.push((entry.tx_wire, None));
+                }
+            }
+        }
+        out
+    }
+
+    /// Delay before a stem send. Stable for one `(node, tx)` inside an epoch.
+    #[must_use]
+    pub fn stem_send_delay(&self, tx_id: &[u8; 32], now: Instant) -> Duration {
+        if !self.config.enabled || self.config.stem_jitter.is_zero() {
+            return Duration::ZERO;
+        }
+        let roll = u64::from(fluff_roll_bps_for_node(
+            &self.node_salt,
+            tx_id,
+            self.current_epoch(now),
+        ));
+        let cap = self.config.stem_jitter.as_millis() as u64;
+        Duration::from_millis(roll * cap / 10_000)
     }
 
     fn hop_fluffs(&self, tx_id: &[u8; 32], now: Instant) -> bool {
@@ -240,7 +297,7 @@ mod tests {
         let mut relay = DandelionRelay::new(cfg, [2u8; 32]);
         match relay.decide([1u8; 32], &peers(3), Instant::now()) {
             RelayAction::Stem { peer } => assert!(peer.starts_with("127.0.0.1:")),
-            RelayAction::Fluff => panic!("expected stem"),
+            RelayAction::Fluff | RelayAction::Hold => panic!("expected stem"),
         }
     }
 
@@ -297,12 +354,13 @@ mod tests {
         let now = Instant::now();
         let peers = vec!["bob".to_string(), "carol".to_string()];
         let tx = [9u8; 32];
-        let RelayAction::Stem { peer: first } = alice.forward(tx, &peers, now, HopKind::Origin)
+        let RelayAction::Stem { peer: first } =
+            alice.forward(tx, b"tx", &peers, now, HopKind::Origin)
         else {
             panic!("origin stems");
         };
         let RelayAction::Stem { peer: second_tx } =
-            alice.forward([8u8; 32], &peers, now, HopKind::Origin)
+            alice.forward([8u8; 32], b"tx", &peers, now, HopKind::Origin)
         else {
             panic!("same epoch stems");
         };
@@ -310,13 +368,20 @@ mod tests {
         let idle = if first == "bob" { "carol" } else { "bob" };
         let relay = if first == "bob" { &mut bob } else { &mut carol };
         let next_peers = vec!["alice".to_string(), idle.to_string()];
-        let RelayAction::Stem { peer: next } = relay.forward(tx, &next_peers, now, HopKind::Relay)
+        let RelayAction::Stem { peer: next } =
+            relay.forward(tx, b"tx", &next_peers, now, HopKind::Relay)
         else {
             panic!("relay keeps the stem when fluff probability is zero");
         };
         assert!(next == "alice" || next == idle);
         assert_eq!(
-            alice.forward(tx, &peers, now + Duration::from_secs(30), HopKind::Relay),
+            alice.forward(
+                tx,
+                b"tx",
+                &peers,
+                now + Duration::from_secs(30),
+                HopKind::Relay
+            ),
             RelayAction::Fluff,
             "the embargo fluffs instead of dropping the transaction"
         );
