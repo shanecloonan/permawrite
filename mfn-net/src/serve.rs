@@ -1,7 +1,7 @@
 //! `mfnd serve` P2P accept/dial threads and stdout harness lines (`mfnd_p2p_*`).
 
 use std::cmp::Ordering;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::{Arc, Mutex};
@@ -9,6 +9,7 @@ use std::thread;
 use std::time::Instant;
 
 use crate::gossip::send_p2p_advertise_v1;
+use crate::peer_admission::{InboundAdmission, InboundAdmissionGuard};
 use crate::{
     exchange_chain_tip_v1_as_listener, exchange_goodbye_v1_as_listener, hello_v1_handshake,
     pull_blocks_to_tip, recv_ping_send_pong, serve_post_handshake_v1,
@@ -442,13 +443,12 @@ fn gap_catch_up_peer_events(
     events
 }
 
-impl GossipHandler for InboundGossip {
-    fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
-        let label = self.inner.on_tx_v1(tx_wire);
+impl InboundGossip {
+    fn relay_admitted(&self, tx_wire: &[u8], label: String, stem: bool) -> String {
         if let Some(tx_id) = label.strip_prefix("fresh:") {
             log_gossip_tx(self.hid, &self.peer, "accepted", tx_id);
             if let Some(ps) = &self.fanout_peers {
-                ps.fanout_fresh_tx(tx_wire, Some(&self.peer));
+                ps.fanout_tx(tx_wire, Some(&self.peer), stem);
             }
         } else if let Some(tx_id) = label.strip_prefix("accepted:") {
             log_gossip_tx(self.hid, &self.peer, "accepted", tx_id);
@@ -456,6 +456,18 @@ impl GossipHandler for InboundGossip {
             log_gossip_tx(self.hid, &self.peer, reason, "none");
         }
         label
+    }
+}
+
+impl GossipHandler for InboundGossip {
+    fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
+        let label = self.inner.on_tx_v1(tx_wire);
+        self.relay_admitted(tx_wire, label, false)
+    }
+
+    fn on_tx_stem_v1(&self, tx_wire: &[u8]) -> String {
+        let label = self.inner.on_tx_v1(tx_wire);
+        self.relay_admitted(tx_wire, label, true)
     }
 
     fn on_block_v1(&self, block_wire: &[u8]) -> String {
@@ -810,6 +822,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
     } = cfg;
     let local_p2p_listen = listener.local_addr().ok();
     let inbound_in_flight = Arc::new(AtomicUsize::new(0));
+    let inbound_admission = Arc::new(Mutex::new(InboundAdmission::default()));
     thread::Builder::new()
         .name("mfnd-p2p".into())
         .spawn(move || loop {
@@ -820,7 +833,28 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                     continue;
                 }
             };
+            let permit = match inbound_admission.lock() {
+                Ok(mut admission) => match admission.try_acquire(&peer.to_string()) {
+                    Ok(permit) => permit,
+                    Err(reason) => {
+                        eprintln!("mfnd_p2p_inbound_subnet_cap peer={peer} {reason}");
+                        let _ = sock.shutdown(std::net::Shutdown::Both);
+                        drop(sock);
+                        continue;
+                    }
+                },
+                Err(_) => {
+                    eprintln!("mfnd_p2p_inbound_admission_poisoned peer={peer}");
+                    let _ = sock.shutdown(std::net::Shutdown::Both);
+                    drop(sock);
+                    continue;
+                }
+            };
             if !try_acquire_inbound_handler_slot(&inbound_in_flight) {
+                drop(InboundAdmissionGuard::new(
+                    Arc::clone(&inbound_admission),
+                    permit,
+                ));
                 eprintln!(
                     "mfnd_p2p_inbound_cap_reached peer={peer} cap={P2P_MAX_INBOUND_HANDLERS}"
                 );
@@ -830,6 +864,8 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
             }
             let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
             let slot_counter = Arc::clone(&inbound_in_flight);
+            let admit_guard =
+                InboundAdmissionGuard::new(Arc::clone(&inbound_admission), permit);
             let tip_cell = Arc::clone(&tip_cell);
             let hid_counter = Arc::clone(&hid_counter);
             let gossip = gossip.clone();
@@ -843,6 +879,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                 .name(format!("mfnd-p2p-in-{hid}"))
                 .spawn(move || {
                     let _slot = InboundHandlerSlot(&slot_counter);
+                    let _admit = admit_guard;
                     let mut sock = sock;
                     let t0 = Instant::now();
                     let _ = sock.set_read_timeout(Some(P2P_INBOUND_HELLO_IO_TIMEOUT));
@@ -854,6 +891,39 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                                 let _ = s.shutdown(std::net::Shutdown::Both);
                             }
                         }
+                    }
+                    if !crate::peer_ban::inbound_allowed(&peer.to_string()) {
+                        eprintln!("mfnd_p2p_banned peer={peer}");
+                        return;
+                    }
+                    if crate::noise_xx::encryption_configured() {
+                        let mut magic = [0u8; 4];
+                        if sock.read_exact(&mut magic).is_err()
+                            || &magic != crate::noise_xx::SESSION_MARKER
+                        {
+                            eprintln!(
+                                "mfnd_p2p_encrypt_abort hid={hid} peer={peer} reason=marker"
+                            );
+                            return;
+                        }
+                        let local = local_chain_tip(&tip_cell, block_sync.as_ref());
+                        if let Some(h) = &gossip {
+                            match crate::noise_xx::accept_encrypted_session(
+                                &mut sock,
+                                &genesis_id,
+                                &local,
+                                h.as_ref(),
+                            ) {
+                                Ok(remote) => {
+                                    eprintln!("mfnd_p2p_encrypt=session hid={hid} peer={peer}");
+                                    log_peer_tip(hid, &peer.to_string(), &remote);
+                                }
+                                Err(e) => {
+                                    eprintln!("mfnd_p2p_encrypt_abort hid={hid} peer={peer} {e}");
+                                }
+                            }
+                        }
+                        return;
                     }
                     let _shutdown = ShutdownOnDrop(sock.try_clone().ok());
                     if let Err(e) = hello_v1_handshake(&mut sock, &genesis_id) {
@@ -1019,8 +1089,27 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                     if let Some(listen) = local_p2p_listen {
                         let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
                         let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
-                        if let Err(e) = send_p2p_advertise_v1(&mut sock, &listen.to_string()) {
-                            eprintln!("mfnd_p2p_advertise_abort hid={hid} peer={addr} {e}");
+                        let onion = match crate::transport::P2pTransportConfig::p2p_onion_from_env()
+                        {
+                            Ok(value) => value,
+                            Err(e) => {
+                                eprintln!("mfnd_p2p_advertise_abort hid={hid} peer={addr} {e}");
+                                None
+                            }
+                        };
+                        match crate::transport::active_p2p_transport()
+                            .advertise_addr(&listen.to_string(), onion.as_deref())
+                        {
+                            Some(adv) => {
+                                if let Err(e) = send_p2p_advertise_v1(&mut sock, &adv) {
+                                    eprintln!("mfnd_p2p_advertise_abort hid={hid} peer={addr} {e}");
+                                }
+                            }
+                            None => {
+                                eprintln!(
+                                    "mfnd_p2p_advertise_skip hid={hid} peer={addr} reason=clearnet_hidden"
+                                );
+                            }
                         }
                     }
                     // Pull missing blocks before blocking on inbound gossip; otherwise a

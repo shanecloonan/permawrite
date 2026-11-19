@@ -1169,6 +1169,77 @@ mod tests {
     }
 
     #[test]
+    fn supply_settlement_and_runway_corpus() {
+        let mut x = 0x5355_5050_4c59_0001u128;
+        let mut next = || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+
+        for _ in 0..2_048 {
+            let before = next();
+            let subsidy = next() % (1u128 << 40);
+            let backstop = next() % (1u128 << 32);
+            let honest = before
+                .checked_add(subsidy)
+                .and_then(|s| s.checked_add(backstop));
+            let after = honest.unwrap_or(before.saturating_add(subsidy).saturating_add(backstop));
+            let audit = SupplyAudit {
+                supply_before: before,
+                subsidy_minted: subsidy,
+                backstop_minted: backstop,
+                supply_after: after,
+            };
+            assert_eq!(audit.holds(), honest == Some(after));
+            if let Some(sum) = honest {
+                if sum < u128::MAX {
+                    let fee_as_mint = SupplyAudit {
+                        supply_after: sum + 1,
+                        ..audit
+                    };
+                    assert!(!fee_as_mint.holds(), "a fee must not count as new supply");
+                }
+            }
+
+            let treasury = next();
+            let reward = next() % (1u128 << 48);
+            let settled = settle_storage_reward(treasury, reward);
+            assert_eq!(
+                settled.treasury_after + settled.paid_from_treasury,
+                treasury
+            );
+            assert_eq!(settled.paid_from_treasury + settled.minted_backstop, reward);
+            assert!(settled.treasury_after <= treasury);
+            assert!(settled.minted_backstop <= reward);
+
+            let floor = next() % 1_000_000;
+            let payout = next() % 10_000;
+            let obs = RunwayObservation {
+                treasury_base_units: next() % 5_000_000,
+                trailing_payout_per_slot: payout,
+                treasury_floor_base_units: floor,
+                warn_slots: 7_200,
+            };
+            if obs.treasury_base_units <= floor {
+                assert_eq!(obs.alert(), RunwayAlert::BelowFloor);
+            } else if payout == 0 {
+                assert_eq!(obs.alert(), RunwayAlert::NoDrain);
+            }
+        }
+
+        let healthy = RunwayObservation {
+            treasury_base_units: 10_000_000_000,
+            trailing_payout_per_slot: 1,
+            treasury_floor_base_units: 1,
+            warn_slots: 7_200,
+        };
+        assert_eq!(healthy.alert(), RunwayAlert::Healthy);
+        assert!(healthy.runway_slots().unwrap() >= 7_200);
+    }
+
+    #[test]
     fn b312_warn_window_matches_default_proof_window() {
         assert_eq!(RECOMMENDED_RUNWAY_WARN_SLOTS, 7_200);
         assert_eq!(
