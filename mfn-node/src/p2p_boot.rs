@@ -1,6 +1,7 @@
 //! Boot-time P2P peer list: CLI dials + optional genesis manifest seeds (**M2.4.4**).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use serde::Deserialize;
 
@@ -129,18 +130,45 @@ pub fn env_skip_manifest_seeds() -> bool {
     )
 }
 
+/// Environment variable: comma-separated extra boot peers, independent of the manifest.
+pub const MFND_P2P_EXTRA_SEEDS_ENV: &str = "MFND_P2P_EXTRA_SEEDS";
+
+/// Parse a comma-separated extra-seed list (`MFND_P2P_EXTRA_SEEDS`).
+pub fn extra_seeds_from_value(raw: &str) -> Result<Vec<String>, String> {
+    let parts = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(str::to_string)
+        .collect();
+    normalize_peer_addrs(parts, MFND_P2P_EXTRA_SEEDS_ENV)
+}
+
+/// Read [`MFND_P2P_EXTRA_SEEDS_ENV`]. Unset means no extra seeds.
+pub fn extra_seeds_from_env() -> Result<Vec<String>, String> {
+    match std::env::var(MFND_P2P_EXTRA_SEEDS_ENV) {
+        Ok(raw) => extra_seeds_from_value(&raw),
+        Err(std::env::VarError::NotPresent) => Ok(Vec::new()),
+        Err(std::env::VarError::NotUnicode(_)) => {
+            Err(format!("{MFND_P2P_EXTRA_SEEDS_ENV} must be valid UTF-8"))
+        }
+    }
+}
+
 /// Merge manifest seeds (when present) into explicit `--p2p-dial` addresses.
 pub fn merge_boot_peer_dials(
     explicit: &mut Vec<String>,
     genesis_spec: Option<&Path>,
 ) -> Result<BootPeerDialMergeReport, String> {
-    merge_boot_peer_dials_inner(explicit, genesis_spec, env_skip_manifest_seeds())
+    let extra = extra_seeds_from_env()?;
+    merge_boot_peer_dials_inner(explicit, genesis_spec, env_skip_manifest_seeds(), &extra)
 }
 
 fn merge_boot_peer_dials_inner(
     explicit: &mut Vec<String>,
     genesis_spec: Option<&Path>,
     skip_manifest_seeds: bool,
+    extra_seeds: &[String],
 ) -> Result<BootPeerDialMergeReport, String> {
     *explicit = normalize_peer_addrs(std::mem::take(explicit), "explicit --p2p-dial")?;
     if let Some(g) = genesis_spec {
@@ -149,6 +177,9 @@ fn merge_boot_peer_dials_inner(
                 push_unique_peer_addr(explicit, addr);
             }
         }
+    }
+    for addr in extra_seeds {
+        push_unique_peer_addr(explicit, addr.clone());
     }
     let configured = explicit.len();
     if explicit.len() > MAX_BOOT_PEER_DIALS {
@@ -174,6 +205,95 @@ pub fn anchor_peers_from_trusted_summary(path: &Path) -> Result<Vec<String>, Str
     )
 }
 
+/// Outbound peers remembered across restarts.
+pub const MAX_LOCAL_ANCHORS: usize = 8;
+
+/// `data_dir/p2p_anchors.txt`.
+#[must_use]
+pub fn local_anchor_path(data_dir: &Path) -> PathBuf {
+    data_dir.join("p2p_anchors.txt")
+}
+
+/// Read remembered outbound peers, newest first, at most [`MAX_LOCAL_ANCHORS`].
+#[must_use]
+pub fn load_local_anchors(path: &Path) -> Vec<String> {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for line in text.lines() {
+        if let Ok(Some(addr)) = normalize_peer_addr(line) {
+            push_unique_peer_addr(&mut out, addr);
+        }
+        if out.len() == MAX_LOCAL_ANCHORS {
+            break;
+        }
+    }
+    out
+}
+
+/// Write `addrs` (newest first).
+pub fn save_local_anchors(path: &Path, addrs: &[String]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let mut body = String::new();
+    for addr in addrs.iter().take(MAX_LOCAL_ANCHORS) {
+        body.push_str(addr);
+        body.push('\n');
+    }
+    std::fs::write(path, body).map_err(|e| e.to_string())
+}
+
+static LOCAL_ANCHOR_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Remember successful outbound peers under `data_dir`.
+pub fn install_local_anchor_store(data_dir: &Path) {
+    let _ = LOCAL_ANCHOR_PATH.set(local_anchor_path(data_dir));
+}
+
+/// Put `addr` at the front of the anchor file. No-op until [`install_local_anchor_store`].
+pub fn remember_connected_peer(addr: &str) {
+    let Some(path) = LOCAL_ANCHOR_PATH.get() else {
+        return;
+    };
+    let Ok(Some(addr)) = normalize_peer_addr(addr) else {
+        return;
+    };
+    let mut anchors = load_local_anchors(path);
+    anchors.retain(|existing| existing != &addr);
+    anchors.insert(0, addr);
+    anchors.truncate(MAX_LOCAL_ANCHORS);
+    if let Err(e) = save_local_anchors(path, &anchors) {
+        eprintln!("mfnd_p2p_anchor_save_abort {e}");
+    }
+}
+
+/// Insert remembered peers that are not already in `peers.json` at the front of the boot dial list.
+pub fn merge_local_anchors(explicit: &mut Vec<String>, data_dir: &Path) -> usize {
+    let saved = mfn_store::load_peers(data_dir)
+        .map(|(peers, _)| peers)
+        .unwrap_or_default();
+    let loaded = load_local_anchors(&local_anchor_path(data_dir));
+    let fresh: Vec<String> = loaded
+        .into_iter()
+        .filter(|addr| !saved.contains(addr))
+        .collect();
+    if fresh.is_empty() {
+        return 0;
+    }
+    let mut merged = Vec::with_capacity(fresh.len() + explicit.len());
+    for addr in fresh {
+        push_unique_peer_addr(&mut merged, addr);
+    }
+    let placed = merged.len();
+    for addr in std::mem::take(explicit) {
+        push_unique_peer_addr(&mut merged, addr);
+    }
+    *explicit = merged;
+    placed
+}
+
 /// Merge `anchor_peers` from a trusted-summary file into boot dial addresses.
 pub fn merge_checkpoint_anchor_peers(
     explicit: &mut Vec<String>,
@@ -193,6 +313,39 @@ pub fn merge_checkpoint_anchor_peers(
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn local_anchors_are_dialed_first_after_restart() {
+        let dir = std::env::temp_dir().join(format!("pw-anchors-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = local_anchor_path(&dir);
+        save_local_anchors(
+            &path,
+            &[
+                "203.0.113.8:19101".to_string(),
+                "203.0.113.9:19101".to_string(),
+            ],
+        )
+        .unwrap();
+        let restarted = load_local_anchors(&path);
+        assert_eq!(restarted[0], "203.0.113.8:19101");
+        let mut dials = vec!["198.51.100.2:19101".to_string()];
+        let placed = merge_local_anchors(&mut dials, &dir);
+        assert_eq!(placed, 2);
+        assert_eq!(dials[0], "203.0.113.8:19101");
+        assert_eq!(dials[1], "203.0.113.9:19101");
+        assert_eq!(dials[2], "198.51.100.2:19101");
+        let mut saved = std::collections::BTreeSet::new();
+        saved.insert("203.0.113.8:19101".to_string());
+        mfn_store::save_peers(&dir, &saved, 8).unwrap();
+        let mut dials = vec!["198.51.100.2:19101".to_string()];
+        let placed = merge_local_anchors(&mut dials, &dir);
+        assert_eq!(placed, 1);
+        assert_eq!(dials[0], "203.0.113.9:19101");
+        assert!(!dials.iter().any(|addr| addr == "203.0.113.8:19101"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
 
     #[test]
     fn push_unique_peer_addr_dedupes() {
@@ -253,7 +406,7 @@ mod tests {
         )
         .expect("write manifest");
         let mut explicit = vec!["203.0.113.10:4001".into()];
-        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false).expect("merge");
+        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false, &[]).expect("merge");
         assert_eq!(explicit, vec!["203.0.113.10:4001", "203.0.113.11:4001",]);
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -278,7 +431,7 @@ mod tests {
         )
         .expect("write manifest");
         let mut explicit = vec!["127.0.0.1:19001".into()];
-        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), true).expect("merge");
+        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), true, &[]).expect("merge");
         assert_eq!(explicit, vec!["127.0.0.1:19001"]);
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -304,7 +457,7 @@ mod tests {
         )
         .expect("write manifest");
         let mut explicit = vec![" 203.0.113.10:4001 ".into()];
-        let err = merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false)
+        let err = merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false, &[])
             .expect_err("bad seed");
         assert!(err.contains("bad host"), "err={err}");
         std::fs::remove_dir_all(&dir).ok();
@@ -333,7 +486,7 @@ mod tests {
 
         let mut explicit = Vec::new();
         let report =
-            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false).expect("merge");
+            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false, &[]).expect("merge");
         assert_eq!(explicit.len(), MAX_BOOT_PEER_DIALS);
         assert_eq!(report.configured, MAX_BOOT_PEER_DIALS + 10);
         assert_eq!(report.retained, MAX_BOOT_PEER_DIALS);
@@ -370,7 +523,7 @@ mod tests {
 
         let mut explicit = vec!["198.51.100.10:4001".into(), "198.51.100.11:4001".into()];
         let report =
-            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false).expect("merge");
+            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false, &[]).expect("merge");
         assert_eq!(explicit.len(), MAX_BOOT_PEER_DIALS);
         assert_eq!(report.configured, MAX_BOOT_PEER_DIALS + 2);
         assert_eq!(report.dropped, 2);
@@ -401,5 +554,24 @@ mod tests {
         assert_eq!(added, 1);
         assert_eq!(explicit, vec!["203.0.113.20:4001", "203.0.113.21:4001",]);
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn extra_seeds_append_when_manifest_seeds_are_skipped() {
+        let extra =
+            extra_seeds_from_value("seed-a.example:19001, seed-a.example:19001, seed-b.onion:8333")
+                .expect("extra");
+        let mut explicit = vec!["127.0.0.1:19001".into()];
+        merge_boot_peer_dials_inner(&mut explicit, None, true, &extra).expect("merge");
+        assert_eq!(
+            explicit,
+            vec![
+                "127.0.0.1:19001".to_string(),
+                "seed-a.example:19001".to_string(),
+                "seed-b.onion:8333".to_string(),
+            ]
+        );
+        assert!(extra_seeds_from_value("not a peer").is_err());
+        assert!(extra_seeds_from_value("").unwrap().is_empty());
     }
 }
