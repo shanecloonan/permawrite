@@ -128,7 +128,34 @@ fn parse_http_response(raw: &[u8]) -> Result<(u16, Vec<u8>), ChunkFetchError> {
         .ok_or_else(|| ChunkFetchError::Usage("HTTP response missing status code".into()))?
         .parse()
         .map_err(|e| ChunkFetchError::Usage(format!("status code: {e}")))?;
-    Ok((code, raw[header_end + 4..].to_vec()))
+    let body = &raw[header_end + 4..];
+    let body = match content_length(header)? {
+        Some(len) if body.len() < len => {
+            return Err(ChunkFetchError::Usage(format!(
+                "HTTP body is {} bytes, Content-Length is {len}",
+                body.len()
+            )))
+        }
+        Some(len) => body[..len].to_vec(),
+        None => body.to_vec(),
+    };
+    Ok((code, body))
+}
+
+fn content_length(header: &str) -> Result<Option<usize>, ChunkFetchError> {
+    for line in header.lines().skip(1) {
+        let Some((name, value)) = line.split_once(':') else {
+            continue;
+        };
+        if !name.trim().eq_ignore_ascii_case("content-length") {
+            continue;
+        }
+        let n: usize = value.trim().parse().map_err(|_| {
+            ChunkFetchError::Usage(format!("Content-Length is not a length: {value}"))
+        })?;
+        return Ok(Some(n));
+    }
+    Ok(None)
 }
 
 #[cfg(test)]
@@ -194,5 +221,16 @@ mod tests {
         stop.store(true, Ordering::SeqCst);
         server.join().expect("join");
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn content_length_drops_a_trailer_and_rejects_a_short_body() {
+        let raw = b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nGOODTRAILER";
+        let (code, body) = parse_http_response(raw).expect("parse");
+        assert_eq!(code, 200);
+        assert_eq!(body, b"GOOD");
+
+        let short = b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nAB";
+        assert!(parse_http_response(short).is_err());
     }
 }
