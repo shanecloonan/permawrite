@@ -543,6 +543,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-11-14 - lane G - G-5 wallet file bounds** (this commit): `WalletFile::from_bytes` rejects files over 32 MiB before JSON decode, and rejects more than 1_000_000 owned outputs or pending spent keys. Garbage bytes return an error. Claim base `02ba4bc6`. Next: **G-6** supply and key-image properties.
+
 1. **2026-11-14 - lane G - G-10 nightly fuzz** (this commit): `.github/workflows/fuzz.yml` runs `untrusted_decode` for 90 seconds at 06:30 UTC and on workflow_dispatch. It does not run on pull requests. If the fuzz crate is not on the commit, the job exits clean. Claim base `02ba4bc6`. Next: fix forward any crash the job finds.
 
 1. **2026-11-14 - lane G - G-9 libFuzzer target** (this commit): `fuzz/untrusted_decode` feeds truncated bytes to the block, transaction, and header codecs, P2P payload decoders, JSON-RPC text, and `WalletFile::load`. The crate is outside the workspace so PR CI does not build libFuzzer. Claim base `02ba4bc6`. Next: **G-10** nightly fuzz job.
