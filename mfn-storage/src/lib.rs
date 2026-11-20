@@ -19,6 +19,7 @@
 //! - [`replica_health`] — **B-315** unique-seal / repair-bounty / retrieval
 //!   verdict helpers (not wired).
 //! - [`erasure`] — Reed–Solomon stripes (operator side, not consensus).
+//! - [`replica_encode`] — operator-salted sequential replica encoding (not wired).
 //!
 //! ## Layering
 //!
@@ -41,6 +42,7 @@ pub mod commitment;
 pub mod endowment;
 pub mod erasure;
 pub mod lottery;
+pub mod replica_encode;
 pub mod replica_health;
 pub mod spora;
 
@@ -69,6 +71,10 @@ pub use erasure::{
     ErasureLayout, ErasureStripe, RECOMMENDED_DATA_SHARDS, RECOMMENDED_PARITY_SHARDS,
 };
 pub use lottery::{rank_spora_lottery, spora_lottery_window_seed};
+pub use replica_encode::{
+    open_replica_seal, seal_replica, sealed_replica_id, seals_are_distinct_copies, ReplicaSeal,
+    SealError, RECOMMENDED_SEAL_ROUNDS,
+};
 pub use replica_health::{
     assess_replica_window, distinct_replica_floor_met, repair_bounty_multiplier_bps,
     replica_payout_weight_bps, replica_seal_root, retrieval_opens_repair_bounty,
