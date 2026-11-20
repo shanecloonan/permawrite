@@ -33,6 +33,7 @@ mfn-cli call get_block_header --params '{"height":1}'
 
 # Wallet (writes wallet.json in cwd by default)
 mfn-cli wallet new
+mfn-cli --wallet ./restored.json wallet restore --mnemonic <24 WORDS>
 mfn-cli --wallet ./restored.json wallet restore <SEED_HEX>
 mfn-cli --wallet ./validator-faucet.json wallet restore <BLS_SEED_HEX> \
   --key-derivation payout_stealth_v1
@@ -91,11 +92,11 @@ Authenticated testnet RPC: pass `--rpc-api-key KEY` or set `MFN_RPC_API_KEY=KEY`
 
 `mfn-cli status` prints the `get_status` snapshot. Operators should check `rpc.auth_enabled`, `rpc.listen_addr`, `rpc.public_bind`, `rpc.max_in_flight`, `rpc.current_in_flight`, `rpc.max_request_line_bytes`, and `rpc.io_timeout_ms` when validating public-devnet RPC exposure and capacity settings.
 
-Default wallet file: `wallet.json` (override with `--wallet PATH`). The file stores a 32-byte `seed_hex`, key-derivation tag, pending spends, scan cache, and optional light-client checkpoint. **Back it up** — it is the only recovery path for funds.
+Default wallet file: `wallet.json` (override with `--wallet PATH`). The file stores a 32-byte `seed_hex`, key-derivation tag, pending spends, scan cache, and optional light-client checkpoint. `wallet new` also prints a 24-word recovery phrase. Write those words on paper, in order. `wallet restore --mnemonic` turns them back into the same user wallet. `wallet mnemonic` prints the phrase again for a wallet you already have. Operator payout wallets stay on `SEED_HEX` and refuse a phrase. **Back the words up** — they are the recovery path for funds. Anyone who sees them can spend.
 
 `wallet address` prints `address=mf...` as the testnet-facing receive address. The `mf` address is only an encoding layer: it contains the existing compressed view/spend public keys plus a checksum. The command still prints `view_pub_hex` and `spend_pub_hex` for scripts, older raw-key flows, and the planned mainnet privacy-oriented default. See [`docs/WALLET_ADDRESSES.md`](../docs/WALLET_ADDRESSES.md) for the testnet-vs-mainnet address-format policy.
 
-`wallet restore SEED_HEX [--key-derivation mfn_wallet_v1|payout_stealth_v1]` writes a wallet file from a 32-byte seed. Use the default `mfn_wallet_v1` for normal user wallets. Use `payout_stealth_v1` only for validator payout/faucet test wallets whose rewards are derived from validator BLS seed material. Pass global `--force` to overwrite an existing wallet file.
+`wallet restore --mnemonic WORD ...` writes a user wallet (`mfn_wallet_v1`) from the 24 words. A mistyped or reordered word is refused; the tool does not open a different wallet. `wallet restore SEED_HEX [--key-derivation mfn_wallet_v1|payout_stealth_v1]` is the hex path. Use `payout_stealth_v1` only for validator payout/faucet test wallets whose rewards are derived from validator BLS seed material. Pass global `--force` to overwrite an existing wallet file.
 
 Wallet backup is two-layered:
 

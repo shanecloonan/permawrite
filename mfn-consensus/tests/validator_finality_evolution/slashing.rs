@@ -429,7 +429,7 @@ fn invalid_block_slash_zeros_producer_on_coinbase_fraud() {
         ..
     } = match &evidence {
         SlashEvidence::InvalidBlock(inner) => inner.clone(),
-        SlashEvidence::Equivocation(_) => panic!("expected invalid-block"),
+        other => panic!("expected invalid-block, got {other:?}"),
     };
     assert_eq!(
         verify_invalid_block_evidence(

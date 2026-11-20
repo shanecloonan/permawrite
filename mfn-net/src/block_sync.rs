@@ -10,7 +10,7 @@ use crate::chunk_v1::CHUNK_V1_TAG;
 use crate::chunk_v2::CHUNK_V2_TAG;
 use crate::frame::{
     is_tx_gossip_tag, read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError,
-    TxStemV1, TxV1, MAX_FRAME_PAYLOAD_LEN, TX_STEM_V1_TAG,
+    MAX_FRAME_PAYLOAD_LEN, TX_STEM_V1_TAG,
 };
 use crate::fraud_proof_v1::{FraudProofV1, FRAUD_PROOF_V1_TAG};
 use crate::gossip::{
@@ -118,10 +118,13 @@ impl BlocksV1 {
                 got: count,
             });
         }
-        let mut off = 5;
+        let mut off: usize = 5;
         let mut block_wires = Vec::with_capacity(count);
         for _ in 0..count {
-            if off + 4 > payload.len() {
+            let Some(len_end) = off.checked_add(4) else {
+                return Err(BlockSyncDecodeError::Truncated);
+            };
+            if len_end > payload.len() {
                 return Err(BlockSyncDecodeError::Truncated);
             }
             let len = u32::from_be_bytes([
@@ -130,12 +133,15 @@ impl BlocksV1 {
                 payload[off + 2],
                 payload[off + 3],
             ]) as usize;
-            off += 4;
-            if off + len > payload.len() {
+            off = len_end;
+            let Some(body_end) = off.checked_add(len) else {
+                return Err(BlockSyncDecodeError::Truncated);
+            };
+            if body_end > payload.len() {
                 return Err(BlockSyncDecodeError::Truncated);
             }
-            block_wires.push(payload[off..off + len].to_vec());
-            off += len;
+            block_wires.push(payload[off..body_end].to_vec());
+            off = body_end;
         }
         if off != payload.len() {
             return Err(BlockSyncDecodeError::TrailingBytes {
@@ -514,12 +520,7 @@ fn recv_gossip_v1_from_first<R: Read>(
     let mut handle_first = |payload: &[u8]| -> Result<(), GossipRecvError> {
         match payload[0] {
             tag if is_tx_gossip_tag(tag) => {
-                let tx_wire = if tag == TX_STEM_V1_TAG {
-                    TxStemV1::decode_payload(payload)?.tx_wire().to_vec()
-                } else {
-                    TxV1::decode_payload(payload)?.tx_wire().to_vec()
-                };
-                let _ = handler.on_tx_v1(&tx_wire);
+                crate::gossip::deliver_tx_frame(handler, tag, payload)?;
                 stats.tx_frames = stats.tx_frames.saturating_add(1);
             }
             0x07 => {

@@ -1,0 +1,26 @@
+[package]
+name = "permawrite-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+description = "libFuzzer targets for untrusted Permawrite decoders. Not part of the workspace test suite."
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+mfn-cli = { path = "../mfn-cli" }
+mfn-consensus = { path = "../mfn-consensus" }
+mfn-net = { path = "../mfn-net" }
+serde_json = "1"
+
+[[bin]]
+name = "untrusted_decode"
+path = "fuzz_targets/untrusted_decode.rs"
+test = false
+doc = false
+bench = false
+
+# Detach from the root workspace so `cargo test` and PR CI do not build libFuzzer.
+[workspace]
