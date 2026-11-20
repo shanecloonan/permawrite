@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use mfn_consensus::{
-    block_id, decode_block_header, decode_bond_op, decode_evidence, decode_transaction,
+    block_id, decode_block_header, decode_bond_op, decode_slash_evidence, decode_transaction,
     verify_header, Block, BondOp, SlashEvidence,
 };
 use mfn_light::{LightChain, LightChainError};
@@ -338,7 +338,7 @@ pub(crate) fn sync_wallet_light_from_node(
             };
             wallet.ingest_block(&block);
 
-            let slashings = decode_slashings(follow)?;
+            let slashings = decode_slashings(follow, header.version)?;
             let bond_ops = decode_bond_ops(follow)?;
             light
                 .apply_trusted_evolution(&header, &slashings, &bond_ops)
@@ -602,17 +602,23 @@ fn bootstrap_light_chain(
     Ok(chain)
 }
 
+/// Decode a follow row's slash evidence for the chain at `header_version`.
+///
+/// The server emits `encode_slash_evidence(ev, header.version)`, so rows on
+/// a header v3+ chain carry tagged blobs (equivocation, invalid-block, and
+/// from v8 bound equivocation — **B-330**). Decoding with the legacy
+/// equivocation codec would refuse every one of them and the light wallet
+/// could not follow the chain (**B-331**).
 fn decode_slashings(
     row: &crate::rpc::LightFollowRow,
+    header_version: u32,
 ) -> Result<Vec<SlashEvidence>, WalletCmdError> {
     let mut out = Vec::with_capacity(row.slashings.len());
     for (i, s) in row.slashings.iter().enumerate() {
         let bytes = decode_hex(&s.evidence_hex, "evidence_hex")?;
-        out.push(SlashEvidence::Equivocation(
-            decode_evidence(&bytes).map_err(|e| {
-                WalletCmdError::Usage(format!("slashings[{i}] at height {}: {e}", row.height))
-            })?,
-        ));
+        out.push(decode_slash_evidence(&bytes, header_version).map_err(|e| {
+            WalletCmdError::Usage(format!("slashings[{i}] at height {}: {e}", row.height))
+        })?);
     }
     Ok(out)
 }
@@ -650,6 +656,122 @@ fn decode_hex32(s: &str, label: &str) -> Result<[u8; 32], WalletCmdError> {
 
 fn parse_block_id_hex(s: &str) -> Result<[u8; 32], WalletCmdError> {
     decode_hex32(s, "block_id")
+}
+
+#[cfg(test)]
+mod b331_follow_decode_tests {
+    use super::decode_slashings;
+    use crate::rpc::{LightFollowRow, LightFollowSlashing};
+    use mfn_bls::{bls_keygen_from_seed, bls_sign};
+    use mfn_consensus::slashing::{BoundEquivocationEvidence, EquivocationEvidence};
+    use mfn_consensus::{
+        encode_slash_evidence, header_signing_bytes, header_signing_hash_from_bytes, BlockHeader,
+        SlashEvidence, HEADER_VERSION, HEADER_VERSION_EQUIVOCATION_BIND,
+        HEADER_VERSION_FRAUD_SLASH,
+    };
+
+    fn row(slashings: Vec<String>) -> LightFollowRow {
+        LightFollowRow {
+            height: 4,
+            block_id: "00".repeat(32),
+            header_hex: String::new(),
+            slashings: slashings
+                .into_iter()
+                .map(|evidence_hex| LightFollowSlashing { evidence_hex })
+                .collect(),
+            bond_ops: Vec::new(),
+        }
+    }
+
+    fn preimage(salt: u8) -> Vec<u8> {
+        header_signing_bytes(&BlockHeader {
+            version: HEADER_VERSION_EQUIVOCATION_BIND,
+            prev_hash: [1u8; 32],
+            height: 4,
+            slot: 4,
+            timestamp: 400,
+            tx_root: [salt; 32],
+            storage_root: [0u8; 32],
+            bond_root: [0u8; 32],
+            slashing_root: [0u8; 32],
+            storage_proof_root: [0u8; 32],
+            validator_root: [0u8; 32],
+            claims_root: [0u8; 32],
+            producer_proof: Vec::new(),
+            utxo_root: [0u8; 32],
+        })
+    }
+
+    fn legacy_hex(version: u32) -> String {
+        let bls = bls_keygen_from_seed(&[9u8; 32]);
+        let (a, b) = ([5u8; 32], [6u8; 32]);
+        let ev = SlashEvidence::Equivocation(EquivocationEvidence {
+            height: 4,
+            slot: 4,
+            voter_index: 0,
+            header_hash_a: a,
+            sig_a: bls_sign(&a, &bls.sk),
+            header_hash_b: b,
+            sig_b: bls_sign(&b, &bls.sk),
+        });
+        hex::encode(encode_slash_evidence(&ev, version))
+    }
+
+    fn bound_hex() -> String {
+        let bls = bls_keygen_from_seed(&[9u8; 32]);
+        let (a, b) = (preimage(1), preimage(2));
+        let ev = SlashEvidence::BoundEquivocation(BoundEquivocationEvidence {
+            height: 4,
+            slot: 4,
+            voter_index: 0,
+            sig_a: bls_sign(&header_signing_hash_from_bytes(&a), &bls.sk),
+            sig_b: bls_sign(&header_signing_hash_from_bytes(&b), &bls.sk),
+            signing_a: a,
+            signing_b: b,
+        });
+        hex::encode(encode_slash_evidence(&ev, HEADER_VERSION_EQUIVOCATION_BIND))
+    }
+
+    #[test]
+    fn legacy_row_decodes_on_v1() {
+        let out = decode_slashings(&row(vec![legacy_hex(HEADER_VERSION)]), HEADER_VERSION)
+            .expect("v1 row");
+        assert!(matches!(out[0], SlashEvidence::Equivocation(_)));
+    }
+
+    #[test]
+    fn tagged_row_decodes_on_v3() {
+        let out = decode_slashings(
+            &row(vec![legacy_hex(HEADER_VERSION_FRAUD_SLASH)]),
+            HEADER_VERSION_FRAUD_SLASH,
+        )
+        .expect("tagged v3 row");
+        assert!(matches!(out[0], SlashEvidence::Equivocation(_)));
+    }
+
+    #[test]
+    fn bound_row_decodes_on_v8_and_is_refused_below() {
+        let out = decode_slashings(&row(vec![bound_hex()]), HEADER_VERSION_EQUIVOCATION_BIND)
+            .expect("bound v8 row");
+        assert!(matches!(out[0], SlashEvidence::BoundEquivocation(_)));
+        let err = decode_slashings(&row(vec![bound_hex()]), HEADER_VERSION_FRAUD_SLASH)
+            .expect_err("v3 chain refuses bound evidence");
+        let msg = format!("{err}");
+        assert!(msg.contains("slashings[0] at height 4"), "{msg}");
+    }
+
+    #[test]
+    fn malformed_row_names_index_and_height() {
+        let err = decode_slashings(
+            &row(vec![legacy_hex(HEADER_VERSION), "deadbeef".into()]),
+            HEADER_VERSION,
+        )
+        .expect_err("truncated blob");
+        assert!(
+            format!("{err}").contains("slashings[1] at height 4"),
+            "{err}"
+        );
+    }
 }
 
 #[cfg(test)]

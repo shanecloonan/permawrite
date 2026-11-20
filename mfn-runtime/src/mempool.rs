@@ -39,7 +39,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use mfn_consensus::{verify_transaction, Block, ChainState, TransactionWire};
+use mfn_consensus::{encode_transaction, verify_transaction, Block, ChainState, TransactionWire};
 use mfn_storage::{required_endowment, storage_commitment_hash};
 
 /* ----------------------------------------------------------------------- *
@@ -56,6 +56,13 @@ pub struct MempoolConfig {
     /// Per-tx minimum fee in atomic units. `0` disables the gate.
     /// This is a *local policy* knob; consensus enforces no minimum.
     pub min_fee: u64,
+    /// Reject a transaction whose canonical encoding is larger than this
+    /// before running signature verification. Local policy.
+    pub max_tx_bytes: usize,
+    /// Reject a transaction whose largest input ring exceeds this before
+    /// running CLSAG verification. Local policy; consensus may still
+    /// accept a larger ring inside a block.
+    pub max_ring: usize,
 }
 
 impl MempoolConfig {
@@ -67,6 +74,8 @@ impl MempoolConfig {
         Self {
             max_entries: 4096,
             min_fee: 0,
+            max_tx_bytes: 256 * 1024,
+            max_ring: 128,
         }
     }
 }
@@ -105,6 +114,26 @@ pub struct MempoolEntry {
 /// Errors returned by [`Mempool::admit`].
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
 pub enum AdmitError {
+    /// Canonical encoding exceeds [`MempoolConfig::max_tx_bytes`].
+    #[error("tx is {bytes} bytes; local maximum is {max_bytes}")]
+    TxTooLarge {
+        /// Encoded size.
+        bytes: usize,
+        /// Configured maximum.
+        max_bytes: usize,
+    },
+
+    /// An input ring exceeds [`MempoolConfig::max_ring`].
+    #[error("input {input} ring has {ring} members; local maximum is {max_ring}")]
+    RingTooLarge {
+        /// Which input.
+        input: usize,
+        /// Ring length.
+        ring: usize,
+        /// Configured maximum.
+        max_ring: usize,
+    },
+
     /// `verify_transaction` rejected the tx.
     #[error("tx invalid (id={tx_id_hex}): {errors:?}")]
     TxInvalid {
@@ -477,9 +506,27 @@ impl Mempool {
         tx: TransactionWire,
         state: &ChainState,
     ) -> Result<AdmitOutcome, AdmitError> {
-        // (1) Coinbase / degenerate txs.
+        // (1) Coinbase / degenerate txs, then local size caps so a huge
+        // ring cannot reach CLSAG verification.
         if tx.inputs.is_empty() {
             return Err(AdmitError::NoInputs);
+        }
+        for (input, inp) in tx.inputs.iter().enumerate() {
+            let ring = inp.ring.p.len().max(inp.ring.c.len());
+            if ring > self.config.max_ring {
+                return Err(AdmitError::RingTooLarge {
+                    input,
+                    ring,
+                    max_ring: self.config.max_ring,
+                });
+            }
+        }
+        let bytes = encode_transaction(&tx).len();
+        if bytes > self.config.max_tx_bytes {
+            return Err(AdmitError::TxTooLarge {
+                bytes,
+                max_bytes: self.config.max_tx_bytes,
+            });
         }
 
         // (2) Local min-fee policy.
@@ -1733,12 +1780,44 @@ mod tests {
     }
 
     #[test]
+    fn admit_rejects_a_ring_over_the_local_cap_before_verify() {
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 100);
+        let mut pool = Mempool::new(MempoolConfig {
+            max_ring: 4,
+            ..MempoolConfig::default()
+        });
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        assert!(matches!(
+            err,
+            AdmitError::RingTooLarge {
+                ring: 16,
+                max_ring: 4,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn admit_rejects_an_encoding_over_the_local_byte_cap() {
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 100);
+        let mut pool = Mempool::new(MempoolConfig {
+            max_tx_bytes: 32,
+            ..MempoolConfig::default()
+        });
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        assert!(matches!(err, AdmitError::TxTooLarge { max_bytes: 32, .. }));
+    }
+
+    #[test]
     fn admit_rejects_below_min_fee() {
         let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let tx = signed_tx(inp, pad, 100);
         let mut pool = Mempool::new(MempoolConfig {
             max_entries: 100,
             min_fee: 500,
+            ..MempoolConfig::default()
         });
         let err = pool.admit(tx, chain.state()).unwrap_err();
         assert!(matches!(
@@ -1960,6 +2039,7 @@ mod tests {
         let mut pool = Mempool::new(MempoolConfig {
             max_entries: 1,
             min_fee: 0,
+            ..MempoolConfig::default()
         });
         pool.admit(tx_low.clone(), chain2.state())
             .expect("admit low");

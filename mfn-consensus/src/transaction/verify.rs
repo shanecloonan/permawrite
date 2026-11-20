@@ -241,6 +241,17 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
         if ring_len != inp.ring.c.len() {
             errors.push(format!("input {i}: ring P/C length mismatch"));
         }
+        // B-323: every ring slot must name a different output. The
+        // chain-level UTXO check passes a repeated member slot by slot
+        // and CLSAG verifies over whatever list it was signed with, so a
+        // 16-ring with one output repeated would otherwise count as 16
+        // while hiding the spend among 1. Honest wallets draw decoys
+        // without replacement, so only a hostile shape is refused.
+        if let Some((slot, prev_slot)) = crate::block::repeated_ring_member(&inp.ring.p) {
+            errors.push(format!(
+                "input {i}: ring slot {slot} repeats slot {prev_slot}; ring members must be distinct"
+            ));
+        }
         if (ring_len as u32) < ring.min_ring_size {
             errors.push(format!(
                 "input {i}: ring size {ring_len} < min {}",
