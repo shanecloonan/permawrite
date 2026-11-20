@@ -18,6 +18,7 @@ members = [
     "mfn-wasm",
     "dist/mfn-repro",
     "dist/mfn-release",
+    "dist/mfn-node-setup",
 ]
 
 [workspace.package]

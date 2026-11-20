@@ -1,0 +1,27 @@
+[package]
+name = "mfn-node-setup"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Generate a Tor-only Permawrite node: systemd unit, torrc, and a container file that publishes no ports."
+
+[lib]
+name = "mfn_node_setup"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mfn-node-setup"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[dependencies]
+thiserror = { workspace = true }
