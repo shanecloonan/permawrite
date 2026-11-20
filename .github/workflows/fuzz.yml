@@ -1,0 +1,45 @@
+name: Fuzz
+
+# libFuzzer for untrusted decoders. Not part of pull-request CI.
+# The full multi-OS matrix stays on push to main and the 06:00 UTC Nightly.
+on:
+  schedule:
+    # 06:30 UTC, after the Nightly workflow's 06:00 slot.
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: fuzz-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  libfuzzer:
+    name: untrusted decode (90s)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect the fuzz crate
+        id: fuzz
+        run: |
+          if [[ -f fuzz/Cargo.toml ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "fuzz/Cargo.toml is not on this commit; nothing to run"
+          fi
+
+      - uses: dtolnay/rust-toolchain@nightly
+        if: steps.fuzz.outputs.present == 'true'
+
+      - name: Install the C++ standard library libFuzzer compiles against
+        if: steps.fuzz.outputs.present == 'true'
+        run: sudo apt-get update && sudo apt-get install -y g++
+
+      - name: Install cargo-fuzz
+        if: steps.fuzz.outputs.present == 'true'
+        run: cargo install cargo-fuzz --locked
+
+      - name: Fuzz untrusted decoders for 90 seconds
+        if: steps.fuzz.outputs.present == 'true'
+        run: cargo fuzz run untrusted_decode -- -max_total_time=90
