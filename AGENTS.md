@@ -543,6 +543,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-11-14 - lane G - G-9 libFuzzer target** (this commit): `fuzz/untrusted_decode` feeds truncated bytes to the block, transaction, and header codecs, P2P payload decoders, JSON-RPC text, and `WalletFile::load`. The crate is outside the workspace so PR CI does not build libFuzzer. Claim base `02ba4bc6`. Next: **G-10** nightly fuzz job.
+
 1. **2026-11-14 - lane G - G-4 RPC request bounds** (this commit): `parse_and_dispatch_serve` rejects a JSON tree deeper than 32 or wider than 4096 values before method dispatch. Garbage lines return a JSON-RPC error. Claim base `02ba4bc6`. Next: **G-5** wallet file load.
 
 1. **2026-11-14 - lane G - G-3 P2P decode fuzz** (this commit): block-sync, padded-tx, and light-follow length arithmetic uses checked adds, and slash/bond counts cannot allocate past the unread bytes. `g3_p2p_decode` exercises every public payload decoder. Claim base `fa47fd59`. Next: **G-4** RPC request fuzz.
