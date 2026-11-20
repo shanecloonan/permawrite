@@ -18,6 +18,7 @@
 //!   bounty helper (not wired; Path A B5 stays global any-stale).
 //! - [`replica_health`] — **B-315** unique-seal / repair-bounty / retrieval
 //!   verdict helpers (not wired).
+//! - [`erasure`] — Reed–Solomon stripes (operator side, not consensus).
 //! - [`replica_encode`] — operator-salted sequential replica encoding (not wired).
 //!
 //! ## Layering
@@ -39,6 +40,7 @@
 pub mod cold_proof;
 pub mod commitment;
 pub mod endowment;
+pub mod erasure;
 pub mod lottery;
 pub mod replica_encode;
 pub mod replica_health;
@@ -63,6 +65,10 @@ pub use endowment::{
     validate_endowment_params, AccrueArgs, AccrueResult, EndowmentError, EndowmentParams,
     EndowmentRunwayAlert, BACKSTOP_REFERENCE_SIZE_BYTES, DEFAULT_ENDOWMENT_PARAMS, PPB,
     RECOMMENDED_OPERATOR_SLASH_BPS,
+};
+pub use erasure::{
+    encode_stripe, reconstruct_payload, shard_binding, stripe_survives, ErasureError,
+    ErasureLayout, ErasureStripe, RECOMMENDED_DATA_SHARDS, RECOMMENDED_PARITY_SHARDS,
 };
 pub use lottery::{rank_spora_lottery, spora_lottery_window_seed};
 pub use replica_encode::{

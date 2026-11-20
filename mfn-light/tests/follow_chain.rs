@@ -1144,3 +1144,243 @@ fn light_chain_trusted_evolution_matches_apply_block_on_rotation_chain() {
     let replayed = mfn_light::light_checkpoint_after_blocks(genesis, &blocks, 5).expect("replay");
     assert_eq!(replayed, via_block.encode_checkpoint());
 }
+
+/* ---- B-331: trusted evolution binds the slashing root ----------------- */
+
+/// Produce a block on `chain` carrying `slashings` (v0 produces and votes).
+fn produce_block_with_slashings(
+    chain: &Chain,
+    secrets: &ValidatorSecrets,
+    params: ConsensusParams,
+    height: u32,
+    slashings: Vec<mfn_consensus::SlashEvidence>,
+) -> mfn_consensus::Block {
+    let producer = chain.validators()[0].clone();
+    let payout = producer.payout.unwrap();
+    let cb_payout = PayoutAddress {
+        view_pub: payout.view_pub,
+        spend_pub: payout.spend_pub,
+    };
+    let emission = emission_at_height(u64::from(height), &DEFAULT_EMISSION_PARAMS);
+    let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
+    let inputs = BlockInputs {
+        height,
+        slot: height,
+        timestamp: u64::from(height) * 100,
+        txs: vec![cb],
+        bond_ops: Vec::new(),
+        slashings,
+        storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
+    };
+    produce_solo_block(chain, &producer, secrets, params, inputs).expect("produce_solo_block")
+}
+
+/// Two-validator genesis at `header_version`; v1 holds a small stake so
+/// v0 alone keeps quorum and v1 can be slashed without stalling the chain.
+fn two_validator_genesis(
+    header_version: u32,
+) -> (
+    GenesisConfig,
+    ValidatorSecrets,
+    ValidatorSecrets,
+    ConsensusParams,
+) {
+    let (v0, s0) = mk_validator(0, 1_000_000);
+    let (v1, s1) = mk_validator(1, 100);
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 10.0,
+        quorum_stake_bps: 6666,
+        liveness_max_consecutive_missed: 64,
+        liveness_slash_bps: 0,
+        ..TEST_CONSENSUS_PARAMS
+    };
+    (
+        GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            initial_storage_operators: Vec::new(),
+            validators: vec![v0, v1],
+            params,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+            header_version,
+        },
+        s0,
+        s1,
+        params,
+    )
+}
+
+/// Bound equivocation evidence (B-330) against v1 at `height`/`slot`: two
+/// honest-looking header preimages on top of the full chain's tip that
+/// differ only in timestamp, both signed by v1.
+fn bound_double_sign(
+    full: &Chain,
+    s1: &ValidatorSecrets,
+    height: u32,
+    slot: u32,
+) -> mfn_consensus::SlashEvidence {
+    use mfn_bls::bls_sign;
+    use mfn_consensus::slashing::BoundEquivocationEvidence;
+    use mfn_consensus::{
+        build_unsealed_header, header_signing_bytes, header_signing_hash_from_bytes,
+    };
+
+    let st = full.state();
+    let mut a = build_unsealed_header(st, &[], &[], &[], &[], height, u64::from(height) * 100);
+    a.slot = slot;
+    let mut b = a.clone();
+    b.timestamp += 1;
+    let (sa, sb) = (header_signing_bytes(&a), header_signing_bytes(&b));
+    mfn_consensus::SlashEvidence::BoundEquivocation(BoundEquivocationEvidence {
+        height,
+        slot,
+        voter_index: 1,
+        sig_a: bls_sign(&header_signing_hash_from_bytes(&sa), &s1.bls.sk),
+        sig_b: bls_sign(&header_signing_hash_from_bytes(&sb), &s1.bls.sk),
+        signing_a: sa,
+        signing_b: sb,
+    })
+}
+
+/// On a header v8 chain the full node slashes v1 from bound evidence; the
+/// browser path follows the same block through `apply_trusted_evolution`
+/// and lands on the same validator set. A follow server that omits the
+/// slash is refused with `SlashingRootMismatch` and the light chain does
+/// not move.
+#[test]
+fn b331_trusted_evolution_follows_bound_slash_and_refuses_omitted_slash() {
+    use mfn_consensus::HEADER_VERSION_EQUIVOCATION_BIND;
+
+    let (cfg, s0, s1, params) = two_validator_genesis(HEADER_VERSION_EQUIVOCATION_BIND);
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis (full)");
+    let mut honest = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+    let mut lied_to = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    let evidence = bound_double_sign(&full, &s1, 1, 1);
+    let block = produce_block_with_slashings(&full, &s0, params, 1, vec![evidence]);
+    assert_eq!(block.header.version, HEADER_VERSION_EQUIVOCATION_BIND);
+    full.apply(&block).expect("full apply slashes v1");
+    assert_eq!(full.validators()[1].stake, 0, "full node zeroed v1");
+
+    honest
+        .apply_trusted_evolution(&block.header, &block.slashings, &block.bond_ops)
+        .expect("honest follow applies the bound slash");
+    assert_eq!(honest.trusted_validators()[1].stake, 0);
+    assert_eq!(
+        validator_set_root(honest.trusted_validators()),
+        validator_set_root(full.validators()),
+        "light and full agree on the post-slash set"
+    );
+
+    let tip_before = *lied_to.tip_id();
+    let err = lied_to
+        .apply_trusted_evolution(&block.header, &[], &block.bond_ops)
+        .expect_err("omitted slash must be refused");
+    assert!(
+        matches!(
+            err,
+            LightChainError::BodyMismatch {
+                height: 1,
+                source: BodyVerifyError::SlashingRootMismatch { .. }
+            }
+        ),
+        "{err:?}"
+    );
+    assert_eq!(
+        *lied_to.tip_id(),
+        tip_before,
+        "refused row leaves the tip alone"
+    );
+    assert_eq!(lied_to.tip_height(), 0);
+    assert_eq!(
+        lied_to.trusted_validators()[1].stake,
+        100,
+        "v1 still staked"
+    );
+
+    // The same client accepts the honest row afterwards.
+    lied_to
+        .apply_trusted_evolution(&block.header, &block.slashings, &block.bond_ops)
+        .expect("honest row after a refused one");
+    assert_eq!(lied_to.tip_id(), honest.tip_id());
+}
+
+/// A follow server cannot *invent* a slash either: evidence the header did
+/// not commit to is refused before it is verified or applied.
+#[test]
+fn b331_trusted_evolution_refuses_invented_slash() {
+    use mfn_consensus::HEADER_VERSION_EQUIVOCATION_BIND;
+
+    let (cfg, s0, s1, params) = two_validator_genesis(HEADER_VERSION_EQUIVOCATION_BIND);
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis (full)");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    let evidence = bound_double_sign(&full, &s1, 1, 1);
+    let block = produce_block_with_slashings(&full, &s0, params, 1, Vec::new());
+    full.apply(&block).expect("full apply");
+    assert_eq!(full.validators()[1].stake, 100);
+
+    let err = light
+        .apply_trusted_evolution(&block.header, &[evidence], &block.bond_ops)
+        .expect_err("invented slash must be refused");
+    assert!(
+        matches!(
+            err,
+            LightChainError::BodyMismatch {
+                source: BodyVerifyError::SlashingRootMismatch { .. },
+                ..
+            }
+        ),
+        "{err:?}"
+    );
+    assert_eq!(light.trusted_validators()[1].stake, 100);
+    assert_eq!(light.tip_height(), 0);
+}
+
+/// Header v1 (Path A) rows: the root binding is version-independent, so an
+/// omitted legacy slash is refused there too, and the honest row applies.
+#[test]
+fn b331_trusted_evolution_binds_legacy_v1_slash_root() {
+    use mfn_bls::bls_sign;
+    use mfn_consensus::{EquivocationEvidence, SlashEvidence};
+
+    let (cfg, s0, s1, params) = two_validator_genesis(1);
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis (full)");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    let (ha, hb) = ([0x33u8; 32], [0x44u8; 32]);
+    let evidence = SlashEvidence::Equivocation(EquivocationEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: 1,
+        header_hash_a: ha,
+        sig_a: bls_sign(&ha, &s1.bls.sk),
+        header_hash_b: hb,
+        sig_b: bls_sign(&hb, &s1.bls.sk),
+    });
+    let block = produce_block_with_slashings(&full, &s0, params, 1, vec![evidence]);
+    full.apply(&block).expect("full apply");
+    assert_eq!(full.validators()[1].stake, 0);
+
+    let err = light
+        .apply_trusted_evolution(&block.header, &[], &block.bond_ops)
+        .expect_err("omitted v1 slash refused");
+    assert!(matches!(
+        err,
+        LightChainError::BodyMismatch {
+            source: BodyVerifyError::SlashingRootMismatch { .. },
+            ..
+        }
+    ));
+    light
+        .apply_trusted_evolution(&block.header, &block.slashings, &block.bond_ops)
+        .expect("honest v1 row");
+    assert_eq!(
+        validator_set_root(light.trusted_validators()),
+        validator_set_root(full.validators())
+    );
+}

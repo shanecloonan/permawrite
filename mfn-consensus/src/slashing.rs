@@ -3,8 +3,18 @@
 //! Equivocation (two conflicting BLS signatures at the same slot) and,
 //! from header v3 onward, invalid-block fraud proofs that zero producer
 //! stake when a block body is provably wrong.
+//!
+//! From [`HEADER_VERSION_EQUIVOCATION_BIND`] (**B-330**) equivocation
+//! evidence is the *bound* form: it carries both header signing preimages,
+//! so the verifier can see that the two signatures were for one height and
+//! one slot. Below that version the legacy form carries only the two signed
+//! hashes and cannot tell two honest votes at different heights from a
+//! double-sign.
 
-use crate::block::{HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH};
+use crate::block::{
+    header_signing_fields, header_signing_hash_from_bytes, HEADER_VERSION,
+    HEADER_VERSION_EQUIVOCATION_BIND, HEADER_VERSION_FRAUD_SLASH,
+};
 use crate::bls::{bls_verify, decode_signature, encode_signature, BlsSignature};
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::SLASHING_LEAF;
@@ -21,6 +31,16 @@ pub const SLASH_TAGGED_WIRE_MAGIC: u8 = 0xFE;
 pub const SLASH_KIND_EQUIVOCATION: u8 = 0;
 /// Kind tag: interactive fraud proof against a contested block producer.
 pub const SLASH_KIND_INVALID_BLOCK: u8 = 1;
+/// Kind tag: BLS equivocation with both header signing preimages (header
+/// v8+, **B-330**).
+pub const SLASH_KIND_BOUND_EQUIVOCATION: u8 = 2;
+
+/// Largest header signing preimage a bound equivocation blob may carry.
+///
+/// A [`crate::block::header_signing_bytes`] preimage is 305 or 337 bytes
+/// today. The cap keeps a hostile blob from making the decoder allocate
+/// for a length it will reject anyway.
+pub const MAX_EQUIVOCATION_PREIMAGE_BYTES: usize = 1024;
 
 /// On-chain evidence of validator equivocation.
 #[derive(Clone, Debug)]
@@ -41,6 +61,45 @@ pub struct EquivocationEvidence {
     pub sig_b: BlsSignature,
 }
 
+/// On-chain evidence of validator equivocation that binds height and slot
+/// (header v8+, **B-330**).
+///
+/// Each preimage is the [`crate::block::header_signing_bytes`] of one header
+/// the validator voted for. The verifier recomputes both signed hashes from
+/// the preimages, so a signature here can only count against a header whose
+/// height and slot the verifier can read.
+#[derive(Clone, Debug)]
+pub struct BoundEquivocationEvidence {
+    /// Block height both votes were for.
+    pub height: u32,
+    /// Slot both votes were for.
+    pub slot: u32,
+    /// Index of the offending validator in the canonical set.
+    pub voter_index: u32,
+    /// Header signing preimage of the first header the validator signed.
+    pub signing_a: Vec<u8>,
+    /// Signature over `header_signing_hash_from_bytes(signing_a)`.
+    pub sig_a: BlsSignature,
+    /// Header signing preimage of the second header (must hash differently).
+    pub signing_b: Vec<u8>,
+    /// Signature over `header_signing_hash_from_bytes(signing_b)`.
+    pub sig_b: BlsSignature,
+}
+
+impl BoundEquivocationEvidence {
+    /// The committee-vote message the first signature is checked against.
+    #[must_use]
+    pub fn header_hash_a(&self) -> [u8; 32] {
+        header_signing_hash_from_bytes(&self.signing_a)
+    }
+
+    /// The committee-vote message the second signature is checked against.
+    #[must_use]
+    pub fn header_hash_b(&self) -> [u8; 32] {
+        header_signing_hash_from_bytes(&self.signing_b)
+    }
+}
+
 /// On-chain evidence that a block producer included an invalid body.
 #[derive(Clone, Debug)]
 pub struct InvalidBlockEvidence {
@@ -58,10 +117,14 @@ pub struct InvalidBlockEvidence {
 #[derive(Clone, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum SlashEvidence {
-    /// Two conflicting BLS-signed headers at the same slot.
+    /// Two conflicting BLS-signed headers at the same slot (legacy form;
+    /// accepted below [`HEADER_VERSION_EQUIVOCATION_BIND`]).
     Equivocation(EquivocationEvidence),
     /// Valid interactive fraud proof against a producer (header v3+).
     InvalidBlock(InvalidBlockEvidence),
+    /// Two conflicting BLS-signed headers whose preimages prove one height
+    /// and slot (header v8+).
+    BoundEquivocation(BoundEquivocationEvidence),
 }
 
 impl SlashEvidence {
@@ -71,6 +134,7 @@ impl SlashEvidence {
         match self {
             Self::Equivocation(e) => e.voter_index,
             Self::InvalidBlock(e) => e.producer_index,
+            Self::BoundEquivocation(e) => e.voter_index,
         }
     }
 }
@@ -92,6 +156,19 @@ pub fn encode_evidence(e: &EquivocationEvidence) -> Vec<u8> {
     w.into_bytes()
 }
 
+/// Encode [`BoundEquivocationEvidence`] to its canonical bytes (no kind tag).
+pub fn encode_bound_evidence(e: &BoundEquivocationEvidence) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.u32(e.height);
+    w.u32(e.slot);
+    w.u32(e.voter_index);
+    w.blob(&e.signing_a);
+    w.push(&encode_signature(&e.sig_a));
+    w.blob(&e.signing_b);
+    w.push(&encode_signature(&e.sig_b));
+    w.into_bytes()
+}
+
 fn encode_invalid_block_evidence(e: &InvalidBlockEvidence) -> Vec<u8> {
     let mut w = Writer::new();
     w.u32(e.height);
@@ -107,7 +184,7 @@ pub fn encode_slash_evidence(e: &SlashEvidence, header_version: u32) -> Vec<u8> 
     if header_version < HEADER_VERSION_FRAUD_SLASH {
         match e {
             SlashEvidence::Equivocation(ev) => encode_evidence(ev),
-            SlashEvidence::InvalidBlock(_) => {
+            SlashEvidence::InvalidBlock(_) | SlashEvidence::BoundEquivocation(_) => {
                 // Unreachable on honest producers; emit empty blob guard.
                 Vec::new()
             }
@@ -123,6 +200,10 @@ pub fn encode_slash_evidence(e: &SlashEvidence, header_version: u32) -> Vec<u8> 
             SlashEvidence::InvalidBlock(ev) => {
                 w.u8(SLASH_KIND_INVALID_BLOCK);
                 w.push(&encode_invalid_block_evidence(ev));
+            }
+            SlashEvidence::BoundEquivocation(ev) => {
+                w.u8(SLASH_KIND_BOUND_EQUIVOCATION);
+                w.push(&encode_bound_evidence(ev));
             }
         }
         w.into_bytes()
@@ -146,6 +227,19 @@ pub enum SlashDecodeError {
         "invalid-block slash evidence requires header version >= {HEADER_VERSION_FRAUD_SLASH}"
     )]
     InvalidBlockOnLegacyVersion,
+    /// Bound equivocation evidence on a chain below
+    /// [`HEADER_VERSION_EQUIVOCATION_BIND`].
+    #[error(
+        "bound equivocation evidence requires header version >= {HEADER_VERSION_EQUIVOCATION_BIND}"
+    )]
+    BoundEquivocationOnLegacyVersion,
+    /// A header signing preimage declared more than
+    /// [`MAX_EQUIVOCATION_PREIMAGE_BYTES`] bytes.
+    #[error("equivocation preimage of {got} bytes exceeds {MAX_EQUIVOCATION_PREIMAGE_BYTES}")]
+    PreimageTooLong {
+        /// Declared preimage length.
+        got: usize,
+    },
 }
 
 /// Decode bytes produced by [`encode_evidence`] (equivocation only).
@@ -176,6 +270,47 @@ pub fn decode_evidence(bytes: &[u8]) -> Result<EquivocationEvidence, SlashDecode
         header_hash_a,
         sig_a,
         header_hash_b,
+        sig_b,
+    })
+}
+
+/// `Reader::blob` already refuses a length past the unread bytes (G-1), so
+/// the only allocation here is bounded by the blob the caller handed in;
+/// the cap then rejects anything longer than a header preimage can be.
+fn read_preimage<'a>(r: &mut Reader<'a>) -> Result<&'a [u8], SlashDecodeError> {
+    let preimage = r.blob()?;
+    if preimage.len() > MAX_EQUIVOCATION_PREIMAGE_BYTES {
+        return Err(SlashDecodeError::PreimageTooLong {
+            got: preimage.len(),
+        });
+    }
+    Ok(preimage)
+}
+
+/// Decode bytes produced by [`encode_bound_evidence`].
+pub fn decode_bound_evidence(bytes: &[u8]) -> Result<BoundEquivocationEvidence, SlashDecodeError> {
+    let mut r = Reader::new(bytes);
+    let height = r.u32()?;
+    let slot = r.u32()?;
+    let voter_index = r.u32()?;
+    let signing_a = read_preimage(&mut r)?.to_vec();
+    let sig_a = decode_signature(r.bytes(96)?)?;
+    let signing_b = read_preimage(&mut r)?.to_vec();
+    let sig_b = decode_signature(r.bytes(96)?)?;
+    if !r.end() {
+        return Err(SlashDecodeError::Codec(
+            mfn_crypto::CryptoError::TrailingBytes {
+                remaining: r.remaining(),
+            },
+        ));
+    }
+    Ok(BoundEquivocationEvidence {
+        height,
+        slot,
+        voter_index,
+        signing_a,
+        sig_a,
+        signing_b,
         sig_b,
     })
 }
@@ -221,6 +356,12 @@ pub fn decode_slash_evidence(
             SLASH_KIND_INVALID_BLOCK => {
                 decode_invalid_block_evidence(body).map(SlashEvidence::InvalidBlock)
             }
+            SLASH_KIND_BOUND_EQUIVOCATION => {
+                if header_version < HEADER_VERSION_EQUIVOCATION_BIND {
+                    return Err(SlashDecodeError::BoundEquivocationOnLegacyVersion);
+                }
+                decode_bound_evidence(body).map(SlashEvidence::BoundEquivocation)
+            }
             other => Err(SlashDecodeError::UnknownSlashKind(other)),
         };
     }
@@ -248,6 +389,23 @@ pub fn canonicalize_equivocation(e: &EquivocationEvidence) -> EquivocationEviden
     }
 }
 
+/// Lexicographic-order (by signed hash) canonical form for bound evidence.
+pub fn canonicalize_bound_equivocation(e: &BoundEquivocationEvidence) -> BoundEquivocationEvidence {
+    if e.header_hash_a() < e.header_hash_b() {
+        e.clone()
+    } else {
+        BoundEquivocationEvidence {
+            height: e.height,
+            slot: e.slot,
+            voter_index: e.voter_index,
+            signing_a: e.signing_b.clone(),
+            sig_a: e.sig_b,
+            signing_b: e.signing_a.clone(),
+            sig_b: e.sig_a,
+        }
+    }
+}
+
 /// Canonicalize slash evidence for Merkle leaf hashing.
 #[must_use]
 pub fn canonicalize(e: &SlashEvidence) -> SlashEvidence {
@@ -256,6 +414,9 @@ pub fn canonicalize(e: &SlashEvidence) -> SlashEvidence {
             SlashEvidence::Equivocation(canonicalize_equivocation(ev))
         }
         SlashEvidence::InvalidBlock(ev) => SlashEvidence::InvalidBlock(ev.clone()),
+        SlashEvidence::BoundEquivocation(ev) => {
+            SlashEvidence::BoundEquivocation(canonicalize_bound_equivocation(ev))
+        }
     }
 }
 
@@ -267,7 +428,7 @@ fn slash_leaf_bytes(e: &SlashEvidence, header_version: u32) -> Vec<u8> {
     if header_version < HEADER_VERSION_FRAUD_SLASH {
         match e {
             SlashEvidence::Equivocation(ev) => encode_evidence(&canonicalize_equivocation(ev)),
-            SlashEvidence::InvalidBlock(_) => Vec::new(),
+            SlashEvidence::InvalidBlock(_) | SlashEvidence::BoundEquivocation(_) => Vec::new(),
         }
     } else {
         encode_slash_evidence(e, header_version)
@@ -330,6 +491,18 @@ pub enum EvidenceCheck {
     /// `sig_b` did not verify against `header_hash_b` under the validator's
     /// BLS pubkey.
     SigBInvalid,
+    /// Legacy (unbound) equivocation evidence on a chain at or above
+    /// [`HEADER_VERSION_EQUIVOCATION_BIND`]. Height and slot are unproven.
+    UnboundOnBindingVersion,
+    /// Bound equivocation evidence on a chain below
+    /// [`HEADER_VERSION_EQUIVOCATION_BIND`].
+    BoundOnLegacyVersion,
+    /// A header signing preimage was not a well-formed
+    /// [`crate::block::header_signing_bytes`] encoding.
+    PreimageMalformed,
+    /// The two preimages do not both name the evidence's height and slot,
+    /// so the votes may be honest votes at different heights.
+    HeightSlotMismatch,
 }
 
 impl EvidenceCheck {
@@ -400,6 +573,78 @@ pub fn verify_evidence(evidence: &EquivocationEvidence, validators: &[Validator]
     verify_equivocation_evidence(evidence, validators)
 }
 
+/// Verify bound equivocation evidence against the validator set (**B-330**).
+///
+/// Both preimages must parse as header signing bytes, both must carry the
+/// evidence's `height` and `slot`, their hashes must differ, and each
+/// signature must verify over its recomputed hash. Height and slot are
+/// checked before the signatures so the error names the attribution gap,
+/// not a signature, when a prover submits two honest votes.
+pub fn verify_bound_equivocation_evidence(
+    evidence: &BoundEquivocationEvidence,
+    validators: &[Validator],
+) -> EvidenceCheck {
+    let idx = evidence.voter_index as usize;
+    if idx >= validators.len() {
+        return EvidenceCheck::IndexOutOfRange;
+    }
+    let (Some(fields_a), Some(fields_b)) = (
+        header_signing_fields(&evidence.signing_a),
+        header_signing_fields(&evidence.signing_b),
+    ) else {
+        return EvidenceCheck::PreimageMalformed;
+    };
+    if fields_a.height != evidence.height
+        || fields_b.height != evidence.height
+        || fields_a.slot != evidence.slot
+        || fields_b.slot != evidence.slot
+    {
+        return EvidenceCheck::HeightSlotMismatch;
+    }
+    let hash_a = evidence.header_hash_a();
+    let hash_b = evidence.header_hash_b();
+    if hash_a == hash_b {
+        return EvidenceCheck::HeadersIdentical;
+    }
+    let v = &validators[idx];
+    if v.stake == 0 {
+        return EvidenceCheck::AlreadySlashed;
+    }
+    if !bls_verify(&evidence.sig_a, &hash_a, &v.bls_pk) {
+        return EvidenceCheck::SigAInvalid;
+    }
+    if !bls_verify(&evidence.sig_b, &hash_b, &v.bls_pk) {
+        return EvidenceCheck::SigBInvalid;
+    }
+    EvidenceCheck::Valid
+}
+
+/// Verify either equivocation form for a chain at `header_version`.
+///
+/// At or above [`HEADER_VERSION_EQUIVOCATION_BIND`] only the bound form is
+/// slashable; below it only the legacy form decodes, and a bound blob is
+/// refused here as well in case one arrives through another path.
+pub fn verify_equivocation_for_version(
+    evidence: &SlashEvidence,
+    validators: &[Validator],
+    header_version: u32,
+) -> Option<EvidenceCheck> {
+    let binding = header_version >= HEADER_VERSION_EQUIVOCATION_BIND;
+    match evidence {
+        SlashEvidence::Equivocation(ev) => Some(if binding {
+            EvidenceCheck::UnboundOnBindingVersion
+        } else {
+            verify_equivocation_evidence(ev, validators)
+        }),
+        SlashEvidence::BoundEquivocation(ev) => Some(if binding {
+            verify_bound_equivocation_evidence(ev, validators)
+        } else {
+            EvidenceCheck::BoundOnLegacyVersion
+        }),
+        SlashEvidence::InvalidBlock(_) => None,
+    }
+}
+
 /// Verify invalid-block slash evidence.
 #[cfg(feature = "bls")]
 pub fn verify_invalid_block_evidence(
@@ -454,8 +699,9 @@ pub fn verify_slash_evidence(
     header_version: u32,
 ) -> Result<(), SlashRejectReason> {
     match evidence {
-        SlashEvidence::Equivocation(ev) => {
-            let check = verify_equivocation_evidence(ev, validators);
+        SlashEvidence::Equivocation(_) | SlashEvidence::BoundEquivocation(_) => {
+            let check = verify_equivocation_for_version(evidence, validators, header_version)
+                .unwrap_or(EvidenceCheck::PreimageMalformed);
             if check.is_valid() {
                 Ok(())
             } else {
@@ -483,6 +729,7 @@ pub fn verify_slash_evidence(
 #[cfg(all(test, feature = "bls"))]
 mod tests {
     use super::*;
+    use crate::block::HEADER_VERSION_RETRIEVAL;
     use crate::consensus::Validator;
     use curve25519_dalek::scalar::Scalar;
     use mfn_bls::bls_keygen_from_seed;
@@ -645,7 +892,7 @@ mod tests {
                     EvidenceCheck::Valid
                 );
             }
-            SlashEvidence::InvalidBlock(_) => panic!("expected equivocation"),
+            other => panic!("expected equivocation, got {other:?}"),
         }
     }
 
@@ -765,6 +1012,255 @@ mod tests {
         );
     }
 
+    /* ---- B-330: bound equivocation evidence ------------------------------ */
+
+    /// A header signing preimage at `version` for `height` / `slot`;
+    /// `salt` makes two headers at one height hash differently.
+    fn signing_preimage(version: u32, height: u32, slot: u32, salt: u8) -> Vec<u8> {
+        use crate::block::{header_signing_bytes, BlockHeader};
+        let h = BlockHeader {
+            version,
+            prev_hash: [7u8; 32],
+            height,
+            slot,
+            timestamp: u64::from(height) * 100,
+            tx_root: [salt; 32],
+            storage_root: [0u8; 32],
+            bond_root: [0u8; 32],
+            slashing_root: [0u8; 32],
+            storage_proof_root: [0u8; 32],
+            validator_root: [0u8; 32],
+            claims_root: [0u8; 32],
+            producer_proof: Vec::new(),
+            utxo_root: [0u8; 32],
+        };
+        header_signing_bytes(&h)
+    }
+
+    fn bound_ev_for(
+        idx: u32,
+        sk: &mfn_bls::BlsSecretKey,
+        height: u32,
+        slot: u32,
+        signing_a: Vec<u8>,
+        signing_b: Vec<u8>,
+    ) -> BoundEquivocationEvidence {
+        let sig_a = bls_sign(&header_signing_hash_from_bytes(&signing_a), sk);
+        let sig_b = bls_sign(&header_signing_hash_from_bytes(&signing_b), sk);
+        BoundEquivocationEvidence {
+            height,
+            slot,
+            voter_index: idx,
+            signing_a,
+            sig_a,
+            signing_b,
+            sig_b,
+        }
+    }
+
+    #[test]
+    fn b330_same_height_slot_double_sign_is_valid() {
+        let (val, bls) = fresh_validator(0, 100);
+        let a = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 1);
+        let b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 2);
+        let ev = bound_ev_for(0, &bls.sk, 5, 7, a, b);
+        assert_eq!(
+            verify_bound_equivocation_evidence(&ev, &[val]),
+            EvidenceCheck::Valid
+        );
+    }
+
+    #[test]
+    fn b330_honest_votes_at_different_heights_are_not_equivocation() {
+        let (val, bls) = fresh_validator(0, 100);
+        let a = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 1);
+        let b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 6, 8, 1);
+        // Prover names height 5 / slot 7 and attaches a genuine vote from
+        // the next height. Both signatures are real; the pair is not a
+        // double-sign.
+        let ev = bound_ev_for(0, &bls.sk, 5, 7, a, b);
+        assert_eq!(
+            verify_bound_equivocation_evidence(&ev, std::slice::from_ref(&val)),
+            EvidenceCheck::HeightSlotMismatch
+        );
+        // The same two votes still pass the legacy verifier, which is the
+        // gap this unit closes behind the header gate.
+        let legacy = EquivocationEvidence {
+            height: 5,
+            slot: 7,
+            voter_index: 0,
+            header_hash_a: ev.header_hash_a(),
+            sig_a: ev.sig_a,
+            header_hash_b: ev.header_hash_b(),
+            sig_b: ev.sig_b,
+        };
+        assert_eq!(
+            verify_equivocation_evidence(&legacy, &[val]),
+            EvidenceCheck::Valid
+        );
+    }
+
+    #[test]
+    fn b330_same_height_different_slot_is_not_equivocation() {
+        let (val, bls) = fresh_validator(0, 100);
+        let a = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 1);
+        let b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 8, 1);
+        let ev = bound_ev_for(0, &bls.sk, 5, 7, a, b);
+        assert_eq!(
+            verify_bound_equivocation_evidence(&ev, &[val]),
+            EvidenceCheck::HeightSlotMismatch
+        );
+    }
+
+    #[test]
+    fn b330_evidence_fields_must_match_preimages() {
+        let (val, bls) = fresh_validator(0, 100);
+        let a = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 1);
+        let b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 2);
+        let ev = bound_ev_for(0, &bls.sk, 9, 7, a, b);
+        assert_eq!(
+            verify_bound_equivocation_evidence(&ev, &[val]),
+            EvidenceCheck::HeightSlotMismatch
+        );
+    }
+
+    #[test]
+    fn b330_malformed_preimage_is_rejected_before_signatures() {
+        let (val, bls) = fresh_validator(0, 100);
+        let a = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 1);
+        let mut b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 2);
+        b.push(0);
+        let ev = bound_ev_for(0, &bls.sk, 5, 7, a, b);
+        assert_eq!(
+            verify_bound_equivocation_evidence(&ev, &[val]),
+            EvidenceCheck::PreimageMalformed
+        );
+        // A bare 32-byte hash is not a preimage either.
+        let ev2 = bound_ev_for(0, &bls.sk, 5, 7, vec![1u8; 32], vec![2u8; 32]);
+        assert_eq!(
+            verify_bound_equivocation_evidence(&ev2, &[fresh_validator(0, 100).0]),
+            EvidenceCheck::PreimageMalformed
+        );
+    }
+
+    #[test]
+    fn b330_identical_preimages_and_wrong_signer_still_rejected() {
+        let (val, bls) = fresh_validator(0, 100);
+        let (_v1, bls_1) = fresh_validator(1, 100);
+        let a = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 1);
+        let same = bound_ev_for(0, &bls.sk, 5, 7, a.clone(), a.clone());
+        assert_eq!(
+            verify_bound_equivocation_evidence(&same, std::slice::from_ref(&val)),
+            EvidenceCheck::HeadersIdentical
+        );
+        let b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 2);
+        let forged = bound_ev_for(0, &bls_1.sk, 5, 7, a, b);
+        assert_eq!(
+            verify_bound_equivocation_evidence(&forged, &[val]),
+            EvidenceCheck::SigAInvalid
+        );
+    }
+
+    #[test]
+    fn b330_version_gate_selects_the_form() {
+        let (val, bls) = fresh_validator(0, 100);
+        let legacy = SlashEvidence::Equivocation(ev_for(0, &bls.sk, [1u8; 32], [2u8; 32]));
+        let a = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 1);
+        let b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 2);
+        let bound = SlashEvidence::BoundEquivocation(bound_ev_for(0, &bls.sk, 5, 7, a, b));
+        let vals = [val];
+        assert_eq!(
+            verify_equivocation_for_version(&legacy, &vals, HEADER_VERSION),
+            Some(EvidenceCheck::Valid)
+        );
+        assert_eq!(
+            verify_equivocation_for_version(&legacy, &vals, HEADER_VERSION_EQUIVOCATION_BIND),
+            Some(EvidenceCheck::UnboundOnBindingVersion)
+        );
+        assert_eq!(
+            verify_equivocation_for_version(&bound, &vals, HEADER_VERSION_EQUIVOCATION_BIND),
+            Some(EvidenceCheck::Valid)
+        );
+        assert_eq!(
+            verify_equivocation_for_version(&bound, &vals, HEADER_VERSION_RETRIEVAL),
+            Some(EvidenceCheck::BoundOnLegacyVersion)
+        );
+    }
+
+    #[test]
+    fn b330_bound_wire_round_trip_v8_and_refused_below() {
+        let (val, bls) = fresh_validator(0, 100);
+        let a = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 1);
+        let b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 2);
+        let ev = SlashEvidence::BoundEquivocation(bound_ev_for(0, &bls.sk, 5, 7, a, b));
+        let bytes = encode_slash_evidence(&ev, HEADER_VERSION_EQUIVOCATION_BIND);
+        assert_eq!(bytes[0], SLASH_TAGGED_WIRE_MAGIC);
+        assert_eq!(bytes[1], SLASH_KIND_BOUND_EQUIVOCATION);
+        let back = decode_slash_evidence(&bytes, HEADER_VERSION_EQUIVOCATION_BIND).expect("decode");
+        match &back {
+            SlashEvidence::BoundEquivocation(inner) => {
+                assert_eq!(inner.height, 5);
+                assert_eq!(inner.slot, 7);
+                assert_eq!(
+                    verify_bound_equivocation_evidence(inner, &[val]),
+                    EvidenceCheck::Valid
+                );
+            }
+            other => panic!("expected bound equivocation, got {other:?}"),
+        }
+        assert_eq!(
+            slashing_leaf_hash_for_version(&ev, HEADER_VERSION_EQUIVOCATION_BIND),
+            slashing_leaf_hash_for_version(&back, HEADER_VERSION_EQUIVOCATION_BIND),
+        );
+        assert!(matches!(
+            decode_slash_evidence(&bytes, HEADER_VERSION_RETRIEVAL),
+            Err(SlashDecodeError::BoundEquivocationOnLegacyVersion)
+        ));
+    }
+
+    #[test]
+    fn b330_bound_leaf_is_reorder_stable() {
+        let (_val, bls) = fresh_validator(0, 100);
+        let a = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 1);
+        let b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 2);
+        let fwd = bound_ev_for(0, &bls.sk, 5, 7, a.clone(), b.clone());
+        let rev = bound_ev_for(0, &bls.sk, 5, 7, b, a);
+        assert_eq!(
+            slashing_leaf_hash_for_version(
+                &SlashEvidence::BoundEquivocation(fwd),
+                HEADER_VERSION_EQUIVOCATION_BIND
+            ),
+            slashing_leaf_hash_for_version(
+                &SlashEvidence::BoundEquivocation(rev),
+                HEADER_VERSION_EQUIVOCATION_BIND
+            ),
+        );
+    }
+
+    #[test]
+    fn b330_oversized_preimage_is_refused_at_decode() {
+        let (_val, bls) = fresh_validator(0, 100);
+        let a = vec![0u8; MAX_EQUIVOCATION_PREIMAGE_BYTES + 1];
+        let b = signing_preimage(HEADER_VERSION_EQUIVOCATION_BIND, 5, 7, 2);
+        let ev = SlashEvidence::BoundEquivocation(bound_ev_for(0, &bls.sk, 5, 7, a, b));
+        let bytes = encode_slash_evidence(&ev, HEADER_VERSION_EQUIVOCATION_BIND);
+        assert!(matches!(
+            decode_slash_evidence(&bytes, HEADER_VERSION_EQUIVOCATION_BIND),
+            Err(SlashDecodeError::PreimageTooLong { got }) if got == MAX_EQUIVOCATION_PREIMAGE_BYTES + 1
+        ));
+    }
+
+    #[test]
+    fn b330_legacy_v1_wire_and_golden_vector_unchanged() {
+        // The v1 equivocation blob has no tag and no preimages; this unit
+        // adds nothing to it (Path A root commitments are stable).
+        let (_val, bls) = fresh_validator(0, 100);
+        let ev = ev_for(0, &bls.sk, [4u8; 32], [5u8; 32]);
+        let bytes = encode_slash_evidence(&SlashEvidence::Equivocation(ev.clone()), HEADER_VERSION);
+        assert_eq!(bytes, encode_evidence(&ev));
+        assert_eq!(bytes.len(), 4 + 4 + 4 + 32 + 96 + 32 + 96);
+    }
+
     #[test]
     fn invalid_block_slash_evidence_roundtrip_and_verify_v3() {
         use crate::block::block_id;
@@ -834,7 +1330,7 @@ mod tests {
                 assert_eq!(inner.height, 1);
                 assert_eq!(inner.block_id, contested_id);
             }
-            SlashEvidence::Equivocation(_) => panic!("expected invalid-block"),
+            other => panic!("expected invalid-block, got {other:?}"),
         }
         assert_eq!(
             verify_invalid_block_evidence(

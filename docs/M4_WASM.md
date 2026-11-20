@@ -181,6 +181,8 @@ Demo sync stores `permawrite-light-checkpoint:<seed>` in `localStorage` and adva
 
 Integration test `light_chain_trusted_evolution_matches_apply_block_on_rotation_chain` proves the browser path (`apply_header` + `apply_trusted_evolution`) matches full `apply_block` across register/unbond rotation.
 
+**What the follow server can and cannot do to this path (B-331).** `apply_trusted_evolution` binds the delivered `slashings` to the authenticated header's `slashing_root` before applying them (`LightChainError::BodyMismatch` / `SlashingRootMismatch`, chain unchanged), so a server cannot omit or invent a slash. `bond_ops` are **not** yet bound: `bond_root` also commits to the block's storage-operator section, which the follow row does not carry, so binding it needs that section on the wire first (open §6 request, lane 2/8). Until then a follow server can still hide a bond op from a browser wallet. Slash rows decode with `decode_slash_evidence(bytes, header.version)` in both `mfn-wasm` and `mfn-cli`, so tagged (v3+) and bound (v8, B-330) evidence follows; tests `b331_*` in `mfn-light/tests/follow_chain.rs`, `mfn-wasm/src/light_chain_core.rs`, `mfn-cli/src/light_wallet.rs`.
+
 ## Light-follow batch (M4.13)
 
 | RPC / P2P | Role |
