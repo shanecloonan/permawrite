@@ -543,6 +543,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-11-14 - lane 8 / Seat E - E-1 erasure stripes** (this commit): systematic GF(2^8) Reed–Solomon. Recommended 4+8 is 3× bytes and survives 8 losses; replication 3 at the same overhead survives 2. Bindings reject a flipped or relabeled shard. Off consensus. Path A and F-A unchanged. Next: **E-2** per-replica seal.
+
 1. **2026-11-14 - lane 8 / Seat E - E-9 corrupt artifact** (this commit): `prove_from_wallet_artifact` checks the local payload against `data_root` before any RPC. A flipped byte is `ProveError::Corrupt` and the prove loop skips it instead of submitting. Next: **E-10** honor Content-Length on chunk fetch.
 
 1. **2026-11-19 - lane G - claim G-12 mempool cheap-reject before verification** (this commit, `[skip ci]`): `Mempool::admit` runs `verify_transaction` (CLSAG + Bulletproofs) under the chain and pool locks before it checks for a duplicate, a known-invalid id, or a key image already spent on chain, so every re-gossip of an admitted, mined, or invalid tx costs a full verification. Body: cheap rejects first, plus a bounded recent-invalid id set. Claim base `2d4aaacf`. **G-11** merged `2d4aaacf` (PR #153). SYNC note for lane 2: §8 holds 174 entries (cap 20); rotation into the ledger is overdue and should land in a quiet window as its own commit.
