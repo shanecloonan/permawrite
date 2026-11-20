@@ -543,6 +543,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-11-14 - lane I - I-1 verify baseline** (this commit): `mfn-scale` pins a verification pass (1024-leaf Merkle, 32 inclusion proofs, CLSAG ring 16, 16-bit Borromean range proof, 16-bit Bulletproof) and a 4096-step header-link digest. Criterion benches time each piece. No consensus change, no header version, Path A and F-A unchanged. Claim base `c60c73e7`. Next: **I-2** parallel batch verify.
+
 1. **2026-11-14 - lane G - G-10 nightly fuzz** (this commit): `.github/workflows/fuzz.yml` runs `untrusted_decode` for 90 seconds at 06:30 UTC and on workflow_dispatch. It does not run on pull requests. If the fuzz crate is not on the commit, the job exits clean. Claim base `02ba4bc6`. Next: fix forward any crash the job finds.
 
 1. **2026-11-14 - lane G - G-9 libFuzzer target** (this commit): `fuzz/untrusted_decode` feeds truncated bytes to the block, transaction, and header codecs, P2P payload decoders, JSON-RPC text, and `WalletFile::load`. The crate is outside the workspace so PR CI does not build libFuzzer. Claim base `02ba4bc6`. Next: **G-10** nightly fuzz job.
