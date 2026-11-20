@@ -1,6 +1,8 @@
 //! Light-chain follower state for browser wallets (**M4.11**).
 
-use mfn_consensus::{decode_block_header, decode_bond_op, decode_evidence, BondOp, SlashEvidence};
+use mfn_consensus::{
+    decode_block_header, decode_bond_op, decode_slash_evidence, BondOp, SlashEvidence,
+};
 use mfn_light::{LightChain, LightChainError};
 use serde::{Deserialize, Serialize};
 
@@ -43,18 +45,23 @@ fn decode_hex_list(items: &[String], label: &str) -> Result<Vec<Vec<u8>>, WasmCo
     Ok(out)
 }
 
+/// Decode the follow row's evolution section for the chain at
+/// `header_version`. Slash blobs are version-tagged from header v3 and
+/// carry bound equivocation evidence from v8 (**B-330**); the legacy
+/// equivocation codec alone would refuse them (**B-331**).
 fn parse_evolution(
     evolution_json: &str,
+    header_version: u32,
 ) -> Result<(Vec<SlashEvidence>, Vec<BondOp>), WasmCoreError> {
     let body: EvolutionJson = serde_json::from_str(evolution_json)
         .map_err(|e| WasmCoreError::InvalidHex(e.to_string()))?;
     let slash_bytes = decode_hex_list(&body.slashings, "slashings")?;
     let mut slashings = Vec::with_capacity(slash_bytes.len());
-    for bytes in slash_bytes {
-        slashings.push(SlashEvidence::Equivocation(
-            decode_evidence(&bytes)
-                .map_err(|e| WasmCoreError::InvalidHex(format!("slashings: {e}")))?,
-        ));
+    for (i, bytes) in slash_bytes.iter().enumerate() {
+        slashings.push(
+            decode_slash_evidence(bytes, header_version)
+                .map_err(|e| WasmCoreError::InvalidHex(format!("slashings[{i}]: {e}")))?,
+        );
     }
     let bond_bytes = decode_hex_list(&body.bond_ops, "bond_ops")?;
     let mut bond_ops = Vec::with_capacity(bond_bytes.len());
@@ -231,7 +238,7 @@ pub fn light_chain_apply_evolution_json(
     let mut chain = light_chain_from_checkpoint_hex(checkpoint_hex)?;
     let header = decode_block_header(&decode_hex_payload(header_hex)?)
         .map_err(|e| WasmCoreError::InvalidHex(e.to_string()))?;
-    let (slashings, bond_ops) = parse_evolution(evolution_json)?;
+    let (slashings, bond_ops) = parse_evolution(evolution_json, header.version)?;
     match chain.apply_trusted_evolution(&header, &slashings, &bond_ops) {
         Ok(_tip) => chain_step_ok(&chain),
         Err(e) => {
@@ -241,5 +248,106 @@ pub fn light_chain_apply_evolution_json(
             };
             serde_json::to_string(&body).map_err(|e| WasmCoreError::InvalidHex(e.to_string()))
         }
+    }
+}
+
+#[cfg(all(test, feature = "wasm-full"))]
+mod b331_tests {
+    use super::*;
+    use mfn_bls::{bls_keygen_from_seed, bls_sign};
+    use mfn_consensus::slashing::{BoundEquivocationEvidence, EquivocationEvidence};
+    use mfn_consensus::{
+        encode_slash_evidence, header_signing_bytes, header_signing_hash_from_bytes, BlockHeader,
+        HEADER_VERSION, HEADER_VERSION_EQUIVOCATION_BIND, HEADER_VERSION_FRAUD_SLASH,
+    };
+
+    fn preimage(version: u32, salt: u8) -> Vec<u8> {
+        header_signing_bytes(&BlockHeader {
+            version,
+            prev_hash: [1u8; 32],
+            height: 4,
+            slot: 4,
+            timestamp: 400,
+            tx_root: [salt; 32],
+            storage_root: [0u8; 32],
+            bond_root: [0u8; 32],
+            slashing_root: [0u8; 32],
+            storage_proof_root: [0u8; 32],
+            validator_root: [0u8; 32],
+            claims_root: [0u8; 32],
+            producer_proof: Vec::new(),
+            utxo_root: [0u8; 32],
+        })
+    }
+
+    fn legacy_blob(version: u32) -> String {
+        let bls = bls_keygen_from_seed(&[9u8; 32]);
+        let (a, b) = ([5u8; 32], [6u8; 32]);
+        let ev = SlashEvidence::Equivocation(EquivocationEvidence {
+            height: 4,
+            slot: 4,
+            voter_index: 0,
+            header_hash_a: a,
+            sig_a: bls_sign(&a, &bls.sk),
+            header_hash_b: b,
+            sig_b: bls_sign(&b, &bls.sk),
+        });
+        hex::encode(encode_slash_evidence(&ev, version))
+    }
+
+    fn bound_blob() -> String {
+        let bls = bls_keygen_from_seed(&[9u8; 32]);
+        let (a, b) = (
+            preimage(HEADER_VERSION_EQUIVOCATION_BIND, 1),
+            preimage(HEADER_VERSION_EQUIVOCATION_BIND, 2),
+        );
+        let ev = SlashEvidence::BoundEquivocation(BoundEquivocationEvidence {
+            height: 4,
+            slot: 4,
+            voter_index: 0,
+            sig_a: bls_sign(&header_signing_hash_from_bytes(&a), &bls.sk),
+            sig_b: bls_sign(&header_signing_hash_from_bytes(&b), &bls.sk),
+            signing_a: a,
+            signing_b: b,
+        });
+        hex::encode(encode_slash_evidence(&ev, HEADER_VERSION_EQUIVOCATION_BIND))
+    }
+
+    fn evolution_json(slashings: &[String]) -> String {
+        serde_json::json!({ "slashings": slashings, "bond_ops": [] }).to_string()
+    }
+
+    #[test]
+    fn legacy_row_still_parses_on_header_v1() {
+        let json = evolution_json(&[legacy_blob(HEADER_VERSION)]);
+        let (slashings, bond_ops) = parse_evolution(&json, HEADER_VERSION).expect("v1 row");
+        assert_eq!(slashings.len(), 1);
+        assert!(matches!(slashings[0], SlashEvidence::Equivocation(_)));
+        assert!(bond_ops.is_empty());
+    }
+
+    #[test]
+    fn tagged_row_parses_on_header_v3() {
+        let json = evolution_json(&[legacy_blob(HEADER_VERSION_FRAUD_SLASH)]);
+        let (slashings, _) =
+            parse_evolution(&json, HEADER_VERSION_FRAUD_SLASH).expect("tagged v3 row");
+        assert!(matches!(slashings[0], SlashEvidence::Equivocation(_)));
+    }
+
+    #[test]
+    fn bound_row_parses_on_header_v8_and_is_refused_below() {
+        let json = evolution_json(&[bound_blob()]);
+        let (slashings, _) =
+            parse_evolution(&json, HEADER_VERSION_EQUIVOCATION_BIND).expect("bound v8 row");
+        assert!(matches!(slashings[0], SlashEvidence::BoundEquivocation(_)));
+        let err = parse_evolution(&json, HEADER_VERSION_FRAUD_SLASH).expect_err("v3 refuses bound");
+        assert!(format!("{err}").contains("slashings[0]"), "{err}");
+    }
+
+    #[test]
+    fn malformed_row_names_its_index() {
+        let json = evolution_json(&[legacy_blob(HEADER_VERSION), "deadbeef".into()]);
+        let err = parse_evolution(&json, HEADER_VERSION).expect_err("truncated blob");
+        assert!(format!("{err}").contains("slashings[1]"), "{err}");
     }
 }

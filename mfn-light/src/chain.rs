@@ -60,10 +60,10 @@ use std::collections::BTreeMap;
 use mfn_consensus::{
     apply_bond_ops_evolution, apply_equivocation_slashings, apply_liveness_evolution,
     apply_unbond_settlements, block_id, build_genesis, finality_bitmap_from_header,
-    verify_block_body, verify_header, Block, BlockHeader, BodyVerifyError, BondEpochCounters,
-    BondOp, BondOpError, BondingParams, ConsensusParams, EmissionParams, GenesisConfig,
-    HeaderCheck, HeaderVerifyError, PendingUnbond, SlashEvidence, SubsidyBpsSchedule, Validator,
-    ValidatorStats, DEFAULT_BONDING_PARAMS, DEFAULT_EMISSION_PARAMS,
+    slashing_merkle_root_for_version, verify_block_body, verify_header, Block, BlockHeader,
+    BodyVerifyError, BondEpochCounters, BondOp, BondOpError, BondingParams, ConsensusParams,
+    EmissionParams, GenesisConfig, HeaderCheck, HeaderVerifyError, PendingUnbond, SlashEvidence,
+    SubsidyBpsSchedule, Validator, ValidatorStats, DEFAULT_BONDING_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -702,14 +702,21 @@ impl LightChain {
     /// Apply validator-set evolution for a header whose BLS finality was
     /// already verified by the caller (browser light-wallet path, M4.11).
     ///
-    /// Checks height / `prev_hash` linkage, runs the same four evolution
-    /// phases as [`LightChain::apply_block`], and advances the tip. Does
-    /// **not** re-run [`verify_block_body`] — the caller must have scanned
-    /// transactions separately (e.g. via `get_block_txs` + WASM scan).
+    /// Checks height / `prev_hash` linkage, binds `slashings` to the
+    /// authenticated `header.slashing_root` (**B-331**), runs the same four
+    /// evolution phases as [`LightChain::apply_block`], and advances the
+    /// tip. Does **not** re-run the full [`verify_block_body`] — the caller
+    /// must have scanned transactions separately (e.g. via `get_block_txs`
+    /// and a WASM scan) — and does not bind `bond_root`, which also commits
+    /// to the storage-operator section this entry point does not receive.
     ///
     /// # Errors
     ///
-    /// Same linkage / evolution errors as [`LightChain::apply_block`].
+    /// Same linkage / evolution errors as [`LightChain::apply_block`], plus
+    /// [`LightChainError::BodyMismatch`] with
+    /// [`BodyVerifyError::SlashingRootMismatch`] when the delivered
+    /// slashings are not the ones the header committed to. On that error
+    /// the chain is unchanged.
     pub fn apply_trusted_evolution(
         &mut self,
         header: &BlockHeader,
@@ -729,6 +736,24 @@ impl LightChain {
                 height: header.height,
                 expected: self.tip_id,
                 got: header.prev_hash,
+            });
+        }
+
+        // B-331: the caller authenticated the header, not the body it was
+        // handed. Bind the delivered slashings to the header's
+        // `slashing_root` before applying them, so a follow server that
+        // omits (or invents) a slash cannot move the trusted validator set
+        // away from the full node's. `bond_root` also covers the
+        // storage-operator section, which this entry point does not
+        // receive, so it stays with `apply_block` / `verify_block_body`.
+        let slashing_root = slashing_merkle_root_for_version(slashings, header.version);
+        if slashing_root != header.slashing_root {
+            return Err(LightChainError::BodyMismatch {
+                height: header.height,
+                source: BodyVerifyError::SlashingRootMismatch {
+                    expected: header.slashing_root,
+                    got: slashing_root,
+                },
             });
         }
 
