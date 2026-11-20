@@ -45,6 +45,19 @@ pub const HEADER_VERSION_HIDDEN_FEES: u32 = 6;
 /// does not slash a storage-operator bond. Path A and F-A stay below it.
 pub const HEADER_VERSION_RETRIEVAL: u32 = 7;
 
+/// Header version whose equivocation evidence binds height and slot
+/// (**B-330**).
+///
+/// Below this version [`crate::slashing::EquivocationEvidence`] carries two
+/// signed hashes and the verifier never learns what height or slot each
+/// hash was for, so two ordinary votes from one honest validator at
+/// different heights look like equivocation. At this version slash evidence
+/// must be [`crate::slashing::BoundEquivocationEvidence`]: it carries both
+/// header signing preimages, and the verifier accepts it only when both
+/// preimages name the evidence's single height and slot. Path A and F-A
+/// stay below this gate.
+pub const HEADER_VERSION_EQUIVOCATION_BIND: u32 = 8;
+
 /// Ring sizes a Tier 2 chain accepts. Header versions below
 /// [`HEADER_VERSION_TIER2`] keep the chain's uniform size (16 in production).
 pub const TIER2_RING_SIZES: [u32; 2] = [32, 64];
@@ -173,7 +186,62 @@ pub fn header_signing_bytes(h: &BlockHeader) -> Vec<u8> {
 /// producer + committee BLS-sign — must be deterministic and exclude the
 /// signature it's signing.
 pub fn header_signing_hash(h: &BlockHeader) -> [u8; 32] {
-    dhash(BLOCK_HEADER, &[&header_signing_bytes(h)])
+    header_signing_hash_from_bytes(&header_signing_bytes(h))
+}
+
+/// The committee-vote message for an already-serialized
+/// [`header_signing_bytes`] preimage. Equal to [`header_signing_hash`] of
+/// the header those bytes came from.
+#[must_use]
+pub fn header_signing_hash_from_bytes(signing_bytes: &[u8]) -> [u8; 32] {
+    dhash(BLOCK_HEADER, &[signing_bytes])
+}
+
+/// The fields of a [`header_signing_bytes`] preimage that slash evidence
+/// binds to (**B-330**).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct HeaderSigningFields {
+    /// Header version the preimage was serialized under.
+    pub version: u32,
+    /// Block height the vote was for.
+    pub height: u32,
+    /// Slot the vote was for.
+    pub slot: u32,
+}
+
+/// Length of a [`header_signing_bytes`] preimage after its version varint.
+fn header_signing_body_len(version: u32) -> usize {
+    // prev_hash + height + slot + timestamp + seven 32-byte roots.
+    let base = 32 + 4 + 4 + 8 + 7 * 32;
+    if version >= HEADER_VERSION_UTXO_QUORUM {
+        base + 32
+    } else {
+        base
+    }
+}
+
+/// Parse the version, height, and slot out of a [`header_signing_bytes`]
+/// preimage.
+///
+/// Returns `None` unless `bytes` is exactly one well-formed preimage for
+/// the version it names, so a caller that also checks
+/// `header_signing_hash_from_bytes(bytes)` against a signed hash knows the
+/// signer saw these fields.
+#[must_use]
+pub fn header_signing_fields(bytes: &[u8]) -> Option<HeaderSigningFields> {
+    let mut r = Reader::new(bytes);
+    let version = u32::try_from(r.varint().ok()?).ok()?;
+    if r.remaining() != header_signing_body_len(version) {
+        return None;
+    }
+    let _prev_hash = r.bytes(32).ok()?;
+    let height = r.u32().ok()?;
+    let slot = r.u32().ok()?;
+    Some(HeaderSigningFields {
+        version,
+        height,
+        slot,
+    })
 }
 
 /// Full header bytes including the `producer_proof` blob, length-prefixed.
@@ -242,6 +310,18 @@ pub enum HeaderDecodeError {
         got: u64,
     },
 
+    /// `producer_proof` is larger than [`MAX_PRODUCER_PROOF_BYTES`].
+    ///
+    /// A finality proof is a short signature blob. A declared length past
+    /// this budget is rejected before the bytes are copied.
+    #[error("producer_proof length {got} exceeds budget of {max} bytes")]
+    ProducerProofExceedsBudget {
+        /// Declared length.
+        got: u64,
+        /// Budget that was exceeded.
+        max: usize,
+    },
+
     /// Bytes remained in the buffer after a full header had been
     /// parsed. Headers have no trailing fields — a non-empty tail
     /// implies caller-side framing confusion or corruption.
@@ -251,6 +331,12 @@ pub enum HeaderDecodeError {
         remaining: usize,
     },
 }
+
+/// Largest `producer_proof` blob a header will copy.
+///
+/// Solo and committee finality proofs are a few hundred bytes. 64 KiB
+/// leaves room for a wide bitmap without accepting a multi-megabyte length.
+pub const MAX_PRODUCER_PROOF_BYTES: usize = 64 * 1024;
 
 /// Helper: read exactly N bytes, mapping codec errors into typed
 /// [`HeaderDecodeError`] with the offending field name.
@@ -323,6 +409,18 @@ pub fn decode_block_header(bytes: &[u8]) -> Result<BlockHeader, HeaderDecodeErro
     })?;
     let pp_len: usize = usize::try_from(pp_len_raw)
         .map_err(|_| HeaderDecodeError::ProducerProofTooLarge { got: pp_len_raw })?;
+    if pp_len > MAX_PRODUCER_PROOF_BYTES {
+        return Err(HeaderDecodeError::ProducerProofExceedsBudget {
+            got: pp_len_raw,
+            max: MAX_PRODUCER_PROOF_BYTES,
+        });
+    }
+    if pp_len > r.remaining() {
+        return Err(HeaderDecodeError::Truncated {
+            field: "producer_proof",
+            needed: pp_len - r.remaining(),
+        });
+    }
     let producer_proof = r
         .bytes(pp_len)
         .map_err(|_| HeaderDecodeError::Truncated {
@@ -355,4 +453,43 @@ pub fn decode_block_header(bytes: &[u8]) -> Result<BlockHeader, HeaderDecodeErro
         producer_proof,
         utxo_root,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn prefix_through_roots() -> Vec<u8> {
+        let mut bytes = vec![1u8];
+        // prev_hash, height, slot, timestamp, seven 32-byte roots.
+        bytes.extend(std::iter::repeat(0u8).take(32 + 4 + 4 + 8 + 7 * 32));
+        bytes
+    }
+
+    #[test]
+    fn producer_proof_over_the_budget_is_rejected() {
+        let mut bytes = prefix_through_roots();
+        // 1_000_000 as an unsigned LEB128, above the 64 KiB budget.
+        bytes.extend_from_slice(&[0xc0, 0x84, 0x3d]);
+        match decode_block_header(&bytes) {
+            Err(HeaderDecodeError::ProducerProofExceedsBudget { got, max }) => {
+                assert_eq!(got, 1_000_000);
+                assert_eq!(max, MAX_PRODUCER_PROOF_BYTES);
+            }
+            other => panic!("expected budget error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn short_producer_proof_is_truncation_not_a_budget_error() {
+        let mut bytes = prefix_through_roots();
+        bytes.push(8); // declare 8 proof bytes and then stop
+        match decode_block_header(&bytes) {
+            Err(HeaderDecodeError::Truncated {
+                field: "producer_proof",
+                needed: 8,
+            }) => {}
+            other => panic!("expected truncation, got {other:?}"),
+        }
+    }
 }

@@ -583,7 +583,7 @@ pub fn encode_bulletproof(p: &BulletproofRange) -> Vec<u8> {
 /// Forwards any [`CryptoError`] from the codec layer.
 pub fn decode_bulletproof(v: EdwardsPoint, bytes: &[u8]) -> Result<BulletproofRange> {
     let mut r = Reader::new(bytes);
-    let n = r.varint()? as u32;
+    let n = u32::try_from(r.varint()?).map_err(|_| CryptoError::ValueOutOfRange)?;
     let a = r.point()?;
     let s = r.point()?;
     let t1 = r.point()?;
@@ -595,6 +595,12 @@ pub fn decode_bulletproof(v: EdwardsPoint, bytes: &[u8]) -> Result<BulletproofRa
     let r_vec = r.points()?;
     let a_final = r.scalar()?;
     let b_final = r.scalar()?;
+    // Honest range proofs use n in {1, 2, 4, ..., 64} and log2(n) IPA
+    // rounds. A longer vector is not a proof this verifier can accept,
+    // and walking it is a CPU sink. Reject it before returning the value.
+    if !is_pow2_in_range(n) || l_vec.len() > 64 || r_vec.len() > 64 || l_vec.len() != r_vec.len() {
+        return Err(CryptoError::ValueOutOfRange);
+    }
     Ok(BulletproofRange {
         n,
         v,
@@ -659,6 +665,34 @@ mod tests {
             bp_prove(0, &r, 128),
             Err(CryptoError::ValueOutOfRange)
         ));
+    }
+
+    #[test]
+    fn decode_round_trips_an_honest_proof_and_rejects_a_long_ipa() {
+        let r = random_scalar();
+        let out = bp_prove(9u64, &r, 16).expect("prove");
+        let bytes = encode_bulletproof(&out.proof);
+        let back = decode_bulletproof(out.proof.v, &bytes).expect("decode");
+        assert!(bp_verify(&back));
+
+        let p = out.proof.a;
+        let mut w = Writer::new();
+        w.varint(16);
+        w.point(&p);
+        w.point(&p);
+        w.point(&p);
+        w.point(&p);
+        w.scalar(&Scalar::ONE);
+        w.scalar(&Scalar::ONE);
+        w.scalar(&Scalar::ONE);
+        let mut long = Vec::new();
+        long.resize(65, p);
+        w.points(&long);
+        w.points(&long);
+        w.scalar(&Scalar::ONE);
+        w.scalar(&Scalar::ONE);
+        let err = decode_bulletproof(p, &w.into_bytes()).expect_err("long ipa");
+        assert!(matches!(err, CryptoError::ValueOutOfRange));
     }
 
     #[test]
