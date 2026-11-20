@@ -242,7 +242,25 @@ pub struct SlashEvidence {
 }
 ```
 
-Evidence carries header **hashes**, not full headers — the BLS votes are signatures over `header_signing_hash`, so the two hashes plus the two signatures are sufficient to prove the conflict.
+Evidence carries header **hashes**, not full headers — the BLS votes are signatures over `header_signing_hash`, so the two hashes plus the two signatures are sufficient to prove *that the validator signed two different things*. They are **not** sufficient to prove the two things were at one height and slot: the `height` and `slot` fields above are the prover's claim, never checked against what was signed. On header v1 (Path A, F-A) two ordinary votes from one honest validator at consecutive heights therefore pass this verifier ([`DESIGN_REVIEW_2026-11.md` §1](./DESIGN_REVIEW_2026-11.md)). That chain's rule is frozen as is.
+
+### Bound evidence (header v8+, B-330)
+
+From [`HEADER_VERSION_EQUIVOCATION_BIND`](../mfn-consensus/src/block/header.rs) the only slashable form is [`BoundEquivocationEvidence`](../mfn-consensus/src/slashing.rs) (tagged slash kind `2`):
+
+```rust
+pub struct BoundEquivocationEvidence {
+    pub height:      u32,          // the one height both votes were for
+    pub slot:        u32,          // the one slot both votes were for
+    pub voter_index: u32,
+    pub signing_a:   Vec<u8>,      // header_signing_bytes of the first header
+    pub sig_a:       BlsSignature, // over dhash(BLOCK_HEADER, signing_a)
+    pub signing_b:   Vec<u8>,      // header_signing_bytes of the second header
+    pub sig_b:       BlsSignature, // over dhash(BLOCK_HEADER, signing_b)
+}
+```
+
+The verifier parses each preimage ([`header_signing_fields`](../mfn-consensus/src/block/header.rs): version, height, slot, exact length for that version), requires both to carry the evidence's `height` and `slot` (`HeightSlotMismatch` otherwise), recomputes the two signed hashes, requires them to differ, and only then checks the signatures. Nothing about how votes are signed changes — a vote is still a BLS signature over `header_signing_hash` — so the fix needs no coordination with producers; only the evidence a slasher must publish grows by two header preimages (≤ 337 bytes each; the decoder caps a preimage at 1024 bytes). At v8+ a legacy `Equivocation` blob is refused with `UnboundOnBindingVersion`; below v8 a bound blob does not decode (`BoundEquivocationOnLegacyVersion`). Tests: `b330_*` in `slashing.rs` and `tests/validator_finality_evolution/b330_equivocation_bind.rs` (two honest votes at heights 1 and 2 are rejected at `apply_block`; a same-height, same-slot pair still slashes; v1 behaviour unchanged).
 
 ### Canonicalization
 
