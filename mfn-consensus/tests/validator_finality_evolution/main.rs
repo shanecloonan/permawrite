@@ -24,6 +24,7 @@
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 #![allow(unused_imports)]
 
+mod b330_equivocation_bind;
 mod bond_ops;
 mod epoch_checkpoint;
 mod finality_rejection;

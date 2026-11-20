@@ -11,6 +11,11 @@ use std::time::{Duration, Instant};
 use mfn_crypto::dhash;
 use mfn_crypto::Writer;
 
+/// Default cap on stem bodies held under embargo at once (**G-11**).
+pub const DEFAULT_MAX_PENDING_STEMS: usize = 1024;
+/// Default cap on the total bytes of stem bodies held under embargo (**G-11**).
+pub const DEFAULT_MAX_PENDING_STEM_BYTES: usize = 8 * 1024 * 1024;
+
 /// Per-node Dandelion++ relay parameters.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DandelionConfig {
@@ -24,6 +29,12 @@ pub struct DandelionConfig {
     pub stem_timeout: Duration,
     /// Upper bound on the delay before a stem send. Zero disables jitter.
     pub stem_jitter: Duration,
+    /// Most stem entries held at once. When full, the oldest relayed stem is
+    /// force-fluffed early; the arriving tx still gets its stem. `0` acts as `1`.
+    pub max_pending_stems: usize,
+    /// Most bytes of stem bodies held at once. One body larger than the whole
+    /// budget is held alone and leaves on the next arrival.
+    pub max_pending_stem_bytes: usize,
 }
 
 impl Default for DandelionConfig {
@@ -34,6 +45,8 @@ impl Default for DandelionConfig {
             epoch_secs: 600,
             stem_timeout: Duration::from_secs(30),
             stem_jitter: Duration::ZERO,
+            max_pending_stems: DEFAULT_MAX_PENDING_STEMS,
+            max_pending_stem_bytes: DEFAULT_MAX_PENDING_STEM_BYTES,
         }
     }
 }
@@ -78,13 +91,26 @@ pub enum RelayAction {
 struct PendingStem {
     first_seen: Instant,
     tx_wire: Vec<u8>,
+    /// Created by this node. Evicted only when no relayed stem is left.
+    origin: bool,
 }
 
 /// In-memory stem-phase tracker for one `mfnd` process.
+///
+/// The pending set is bounded by [`DandelionConfig::max_pending_stems`] and
+/// [`DandelionConfig::max_pending_stem_bytes`]. A peer that floods stem
+/// transactions cannot grow this node's memory past those caps: the oldest
+/// relayed stem leaves early through [`DandelionRelay::take_expired`] and is
+/// fluffed, which is the same fail-safe the embargo timer applies. Bodies this
+/// node created are evicted last, so a flood never turns an origin stem into
+/// an immediate fluff.
 pub struct DandelionRelay {
     config: DandelionConfig,
     node_salt: [u8; 32],
     pending: HashMap<[u8; 32], PendingStem>,
+    pending_bytes: usize,
+    /// Bodies forced out of the stem set before their embargo elapsed.
+    evicted: Vec<Vec<u8>>,
     started: Instant,
 }
 
@@ -96,6 +122,8 @@ impl DandelionRelay {
             config,
             node_salt,
             pending: HashMap::new(),
+            pending_bytes: 0,
+            evicted: Vec::new(),
             started: Instant::now(),
         }
     }
@@ -104,6 +132,72 @@ impl DandelionRelay {
     #[must_use]
     pub fn is_enabled(&self) -> bool {
         self.config.enabled
+    }
+
+    /// Stem entries currently under embargo.
+    #[must_use]
+    pub fn pending_len(&self) -> usize {
+        self.pending.len()
+    }
+
+    /// Bytes of stem bodies currently under embargo.
+    #[must_use]
+    pub fn pending_bytes(&self) -> usize {
+        self.pending_bytes
+    }
+
+    /// Track `tx_id` under embargo. An id already tracked keeps its first entry.
+    fn track(&mut self, tx_id: [u8; 32], tx_wire: &[u8], now: Instant, origin: bool) {
+        if self.pending.contains_key(&tx_id) {
+            return;
+        }
+        self.make_room(tx_wire.len());
+        self.pending_bytes = self.pending_bytes.saturating_add(tx_wire.len());
+        self.pending.insert(
+            tx_id,
+            PendingStem {
+                first_seen: now,
+                tx_wire: tx_wire.to_vec(),
+                origin,
+            },
+        );
+    }
+
+    fn untrack(&mut self, tx_id: &[u8; 32]) -> Option<PendingStem> {
+        let entry = self.pending.remove(tx_id)?;
+        self.pending_bytes = self.pending_bytes.saturating_sub(entry.tx_wire.len());
+        Some(entry)
+    }
+
+    /// Evict until one more entry of `incoming` bytes fits. Relayed stems go
+    /// first, oldest first; origin stems only when nothing else is left.
+    fn make_room(&mut self, incoming: usize) {
+        let max_entries = self.config.max_pending_stems.max(1);
+        let max_bytes = self.config.max_pending_stem_bytes;
+        while !self.pending.is_empty()
+            && (self.pending.len() >= max_entries
+                || self.pending_bytes.saturating_add(incoming) > max_bytes)
+        {
+            let Some(victim) = self.eviction_candidate() else {
+                break;
+            };
+            if let Some(entry) = self.untrack(&victim) {
+                if !entry.tx_wire.is_empty() {
+                    self.evicted.push(entry.tx_wire);
+                }
+            }
+        }
+    }
+
+    fn eviction_candidate(&self) -> Option<[u8; 32]> {
+        let oldest = |origin: bool| {
+            self.pending
+                .iter()
+                .filter(|(_, e)| e.origin == origin)
+                .min_by_key(|(id, e)| (e.first_seen, **id))
+                .map(|(id, _)| *id)
+        };
+        oldest(false).or_else(|| oldest(true))
     }
 
     /// Decide stem vs fluff for a freshly admitted tx.
@@ -117,13 +211,10 @@ impl DandelionRelay {
             };
         }
         if self.should_fluff(&tx_id, now) {
-            self.pending.remove(&tx_id);
+            self.untrack(&tx_id);
             return RelayAction::Fluff;
         }
-        self.pending.entry(tx_id).or_insert(PendingStem {
-            first_seen: now,
-            tx_wire: Vec::new(),
-        });
+        self.track(tx_id, &[], now, false);
         let epoch = self.current_epoch(now);
         let idx = stem_peer_index(&self.node_salt, epoch, &tx_id, peers.len());
         RelayAction::Stem {
@@ -145,27 +236,22 @@ impl DandelionRelay {
         if hop == HopKind::Fluff || !self.config.enabled {
             return RelayAction::Fluff;
         }
+        let origin = hop == HopKind::Origin;
         if peers.is_empty() {
-            self.pending.entry(tx_id).or_insert(PendingStem {
-                first_seen: now,
-                tx_wire: tx_wire.to_vec(),
-            });
+            self.track(tx_id, tx_wire, now, origin);
             return RelayAction::Hold;
         }
         if hop == HopKind::Relay {
             if let Some(entry) = self.pending.get(&tx_id) {
                 if now.saturating_duration_since(entry.first_seen) >= self.config.stem_timeout {
-                    self.pending.remove(&tx_id);
+                    self.untrack(&tx_id);
                     return RelayAction::Fluff;
                 }
             } else if self.hop_fluffs(&tx_id, now) {
                 return RelayAction::Fluff;
             }
         }
-        self.pending.entry(tx_id).or_insert(PendingStem {
-            first_seen: now,
-            tx_wire: tx_wire.to_vec(),
-        });
+        self.track(tx_id, tx_wire, now, origin);
         let epoch = self.current_epoch(now);
         let idx = epoch_successor(&self.node_salt, epoch, peers.len());
         RelayAction::Stem {
@@ -173,7 +259,8 @@ impl DandelionRelay {
         }
     }
 
-    /// Bodies whose stem embargo has elapsed. The peer exclusion is unknown here.
+    /// Bodies whose stem embargo has elapsed, plus bodies the stem-set cap
+    /// forced out early. The peer exclusion is unknown here.
     pub fn take_expired(&mut self, now: Instant) -> Vec<(Vec<u8>, Option<String>)> {
         if !self.config.enabled {
             return Vec::new();
@@ -185,9 +272,13 @@ impl DandelionRelay {
             .filter(|(_, entry)| now.saturating_duration_since(entry.first_seen) >= timeout)
             .map(|(id, _)| *id)
             .collect();
-        let mut out = Vec::with_capacity(expired.len());
+        let mut out: Vec<(Vec<u8>, Option<String>)> = std::mem::take(&mut self.evicted)
+            .into_iter()
+            .map(|wire| (wire, None))
+            .collect();
+        out.reserve(expired.len());
         for id in expired {
-            if let Some(entry) = self.pending.remove(&id) {
+            if let Some(entry) = self.untrack(&id) {
                 if !entry.tx_wire.is_empty() {
                     out.push((entry.tx_wire, None));
                 }
@@ -340,6 +431,249 @@ mod tests {
                 peer: ps[0].clone()
             }
         );
+    }
+
+    fn bounded_cfg(max_entries: usize, max_bytes: usize) -> DandelionConfig {
+        let mut cfg = DandelionConfig::enabled();
+        cfg.fluff_probability_bps = 0;
+        cfg.stem_timeout = Duration::from_secs(30);
+        cfg.max_pending_stems = max_entries;
+        cfg.max_pending_stem_bytes = max_bytes;
+        cfg
+    }
+
+    fn id(n: u8) -> [u8; 32] {
+        let mut out = [0u8; 32];
+        out[0] = n;
+        out[31] = 0xA5;
+        out
+    }
+
+    #[test]
+    fn g11_defaults_bound_the_stem_set() {
+        let cfg = DandelionConfig::default();
+        assert_eq!(cfg.max_pending_stems, DEFAULT_MAX_PENDING_STEMS);
+        assert_eq!(cfg.max_pending_stem_bytes, DEFAULT_MAX_PENDING_STEM_BYTES);
+        let enabled = DandelionConfig::enabled();
+        assert_eq!(enabled.max_pending_stems, DEFAULT_MAX_PENDING_STEMS);
+        assert_eq!(
+            enabled.max_pending_stem_bytes,
+            DEFAULT_MAX_PENDING_STEM_BYTES
+        );
+        // One 4 MiB frame (the P2P payload cap) always fits the byte budget.
+        assert!(cfg.max_pending_stem_bytes >= 4 * 1024 * 1024);
+        assert!(cfg.max_pending_stems >= 64);
+    }
+
+    #[test]
+    fn g11_relay_flood_cannot_exceed_the_entry_cap() {
+        let mut relay = DandelionRelay::new(bounded_cfg(8, usize::MAX), [11u8; 32]);
+        let ps = peers(3);
+        let t0 = Instant::now();
+        for i in 0..200u8 {
+            let action = relay.forward(
+                id(i),
+                &[i; 64],
+                &ps,
+                t0 + Duration::from_millis(i.into()),
+                HopKind::Relay,
+            );
+            assert!(
+                matches!(action, RelayAction::Stem { .. }),
+                "the arriving stem still stems under a flood (i={i})"
+            );
+            assert!(
+                relay.pending_len() <= 8,
+                "entries {} > cap at i={i}",
+                relay.pending_len()
+            );
+        }
+        assert_eq!(relay.pending_len(), 8);
+        assert_eq!(relay.pending_bytes(), 8 * 64);
+        let forced = relay.take_expired(t0 + Duration::from_secs(1));
+        assert_eq!(
+            forced.len(),
+            192,
+            "every evicted body is fluffed, not dropped"
+        );
+        assert_eq!(
+            forced[0].0,
+            vec![0u8; 64],
+            "oldest relayed stem leaves first"
+        );
+        assert_eq!(forced[191].0, vec![191u8; 64]);
+        assert!(relay.take_expired(t0 + Duration::from_secs(1)).is_empty());
+        assert_eq!(
+            relay.pending_len(),
+            8,
+            "the last eight wait for their embargo"
+        );
+    }
+
+    #[test]
+    fn g11_relay_flood_cannot_exceed_the_byte_cap() {
+        let mut relay = DandelionRelay::new(bounded_cfg(usize::MAX, 1000), [12u8; 32]);
+        let ps = peers(2);
+        let t0 = Instant::now();
+        for i in 0..50u8 {
+            relay.forward(
+                id(i),
+                &[i; 300],
+                &ps,
+                t0 + Duration::from_millis(i.into()),
+                HopKind::Relay,
+            );
+            assert!(
+                relay.pending_bytes() <= 1000,
+                "bytes {} > cap at i={i}",
+                relay.pending_bytes()
+            );
+        }
+        assert_eq!(relay.pending_len(), 3);
+        assert_eq!(relay.pending_bytes(), 900);
+        assert_eq!(relay.take_expired(t0).len(), 47);
+    }
+
+    #[test]
+    fn g11_one_body_over_the_whole_budget_is_held_alone() {
+        let mut relay = DandelionRelay::new(bounded_cfg(usize::MAX, 100), [13u8; 32]);
+        let ps = peers(2);
+        let t0 = Instant::now();
+        relay.forward(id(1), &[1u8; 40], &ps, t0, HopKind::Relay);
+        relay.forward(
+            id(2),
+            &[2u8; 500],
+            &ps,
+            t0 + Duration::from_millis(1),
+            HopKind::Relay,
+        );
+        assert_eq!(
+            relay.pending_len(),
+            1,
+            "the small body made room; the big one is held"
+        );
+        assert_eq!(relay.pending_bytes(), 500);
+        relay.forward(
+            id(3),
+            &[3u8; 40],
+            &ps,
+            t0 + Duration::from_millis(2),
+            HopKind::Relay,
+        );
+        assert_eq!(relay.pending_len(), 1);
+        assert_eq!(
+            relay.pending_bytes(),
+            40,
+            "the oversize body leaves on the next arrival"
+        );
+        let forced = relay.take_expired(t0);
+        assert_eq!(forced.len(), 2);
+        assert_eq!(forced[1].0.len(), 500);
+    }
+
+    #[test]
+    fn g11_flood_evicts_relayed_stems_before_an_origin_stem() {
+        let mut relay = DandelionRelay::new(bounded_cfg(4, usize::MAX), [14u8; 32]);
+        let ps = peers(3);
+        let t0 = Instant::now();
+        let mine = id(0xEE);
+        assert!(matches!(
+            relay.forward(mine, b"mine", &ps, t0, HopKind::Origin),
+            RelayAction::Stem { .. }
+        ));
+        for i in 1..=40u8 {
+            relay.forward(
+                id(i),
+                &[i; 16],
+                &ps,
+                t0 + Duration::from_millis(i.into()),
+                HopKind::Relay,
+            );
+        }
+        assert_eq!(relay.pending_len(), 4);
+        let forced = relay.take_expired(t0 + Duration::from_secs(1));
+        assert_eq!(forced.len(), 37);
+        assert!(
+            forced.iter().all(|(wire, _)| wire.as_slice() != b"mine"),
+            "the origin body is never force-fluffed while relayed stems remain"
+        );
+        let own_embargo = relay.take_expired(t0 + Duration::from_secs(30));
+        assert!(
+            own_embargo
+                .iter()
+                .any(|(wire, _)| wire.as_slice() == b"mine"),
+            "the origin body still fluffs at its own embargo"
+        );
+    }
+
+    #[test]
+    fn g11_hold_without_peers_is_bounded_too() {
+        let mut relay = DandelionRelay::new(bounded_cfg(2, usize::MAX), [15u8; 32]);
+        let t0 = Instant::now();
+        for i in 0..10u8 {
+            assert_eq!(
+                relay.forward(
+                    id(i),
+                    &[i; 8],
+                    &[],
+                    t0 + Duration::from_millis(i.into()),
+                    HopKind::Relay
+                ),
+                RelayAction::Hold
+            );
+        }
+        assert_eq!(relay.pending_len(), 2);
+        assert_eq!(relay.take_expired(t0).len(), 8);
+    }
+
+    #[test]
+    fn g11_decide_tracks_without_bodies_and_stays_bounded() {
+        let mut relay = DandelionRelay::new(bounded_cfg(3, usize::MAX), [16u8; 32]);
+        let ps = peers(3);
+        let t0 = Instant::now();
+        for i in 0..30u8 {
+            relay.decide(id(i), &ps, t0 + Duration::from_millis(i.into()));
+        }
+        assert_eq!(relay.pending_len(), 3);
+        assert_eq!(relay.pending_bytes(), 0);
+        assert!(
+            relay.take_expired(t0).is_empty(),
+            "entries without a body have nothing to fluff"
+        );
+    }
+
+    #[test]
+    fn g11_repeat_of_a_tracked_id_keeps_its_first_entry() {
+        let mut relay = DandelionRelay::new(bounded_cfg(4, usize::MAX), [17u8; 32]);
+        let ps = peers(2);
+        let t0 = Instant::now();
+        relay.forward(id(1), &[1u8; 10], &ps, t0, HopKind::Relay);
+        relay.forward(
+            id(1),
+            &[1u8; 10],
+            &ps,
+            t0 + Duration::from_secs(1),
+            HopKind::Relay,
+        );
+        assert_eq!(relay.pending_len(), 1);
+        assert_eq!(relay.pending_bytes(), 10);
+        assert_eq!(
+            relay.take_expired(t0 + Duration::from_secs(30)).len(),
+            1,
+            "the embargo is measured from the first sighting"
+        );
+        assert_eq!(relay.pending_bytes(), 0);
+    }
+
+    #[test]
+    fn g11_disabled_relay_tracks_nothing() {
+        let mut relay = DandelionRelay::new(DandelionConfig::default(), [18u8; 32]);
+        let ps = peers(2);
+        for i in 0..5u8 {
+            relay.forward(id(i), &[i; 8], &ps, Instant::now(), HopKind::Relay);
+        }
+        assert_eq!(relay.pending_len(), 0);
+        assert_eq!(relay.pending_bytes(), 0);
     }
 
     #[test]

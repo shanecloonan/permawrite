@@ -106,12 +106,25 @@ pub fn apply_equivocation_slashings(
     _emission_params: &crate::emission::EmissionParams,
     _subsidy_schedule: crate::emission::SubsidyBpsSchedule,
     _applying_block_height: u32,
-    _header_version: u32,
+    header_version: u32,
 ) -> EquivocationOutcome {
+    use crate::slashing::verify_equivocation_for_version;
+
     let mut out = EquivocationOutcome::default();
     let mut slashed_this_block: HashSet<u32> = HashSet::new();
     for (si, ev_raw) in slashings.iter().enumerate() {
-        let SlashEvidence::Equivocation(ev) = canonicalize(ev_raw) else {
+        let ev = canonicalize(ev_raw);
+        let offender = ev.offender_index();
+        if !slashed_this_block.insert(offender) {
+            out.errors.push(EquivocationError::Duplicate {
+                index: si,
+                voter_index: offender,
+            });
+            continue;
+        }
+        // Without `bls` there is no fraud-proof verifier, so invalid-block
+        // evidence is refused as a legacy-version slash.
+        let Some(check) = verify_equivocation_for_version(&ev, validators, header_version) else {
             out.errors.push(EquivocationError::Invalid {
                 index: si,
                 reason: crate::slashing::SlashRejectReason::InvalidBlock(
@@ -120,23 +133,16 @@ pub fn apply_equivocation_slashings(
             });
             continue;
         };
-        if !slashed_this_block.insert(ev.voter_index) {
-            out.errors.push(EquivocationError::Duplicate {
-                index: si,
-                voter_index: ev.voter_index,
-            });
-            continue;
-        }
-        match verify_equivocation_evidence(&ev, validators) {
+        match check {
             EvidenceCheck::Valid => {
-                let idx = ev.voter_index as usize;
+                let idx = offender as usize;
                 if idx < validators.len() {
                     out.forfeited_total = out
                         .forfeited_total
                         .saturating_add(u128::from(validators[idx].stake));
                     validators[idx].stake = 0;
                 }
-                pending_unbonds.remove(&ev.voter_index);
+                pending_unbonds.remove(&offender);
             }
             other => out.errors.push(EquivocationError::Invalid {
                 index: si,
