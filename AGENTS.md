@@ -543,6 +543,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-11-14 - lane 8 / Seat E - E-7 retrieval answers** (this commit): `answer_retrieval_challenge` builds the chunk and Merkle path for an open header-v7 challenge. The registry accepts it and does not slash. A payload with a different root is not answered. Next: **E-8** Tor SOCKS fetch.
+
 1. **2026-11-14 - lane 8 / Seat E - E-2 replica seal** (this commit): sequential operator-salted encoding. Two operators sealing one plaintext produce different bytes; opening the copy under the other id fails the MAC. A change in block 0 changes block 1, so the encoding cannot be parallelized across the chunk. Off consensus. Next: **E-3** verified fetch.
 
 1. **2026-11-14 - lane G - G-7 mempool bounds** (this commit): admit rejects a ring over 128 or an encoding over 256 KiB before CLSAG verification. Local policy only. Consensus can still accept a larger ring in a block. Claim base `02ba4bc6`. Next: **G-8** partition simulation.
