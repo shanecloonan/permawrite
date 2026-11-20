@@ -543,6 +543,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-11-14 - lane G - G-8 partition harness** (this commit): two nodes can extend through a partition, the taller chain wins on reconnect, a spend that existed only on the abandoned fork is spendable again, and two seals from one producer at one height stay visible as equivocation. Claim base `02ba4bc6`. Next: **G-9** fuzz targets.
+
 1. **2026-11-14 - lane 8 / Seat E - E-2 replica seal** (this commit): sequential operator-salted encoding. Two operators sealing one plaintext produce different bytes; opening the copy under the other id fails the MAC. A change in block 0 changes block 1, so the encoding cannot be parallelized across the chunk. Off consensus. Next: **E-3** verified fetch.
 
 1. **2026-11-14 - lane G - G-7 mempool bounds** (this commit): admit rejects a ring over 128 or an encoding over 256 KiB before CLSAG verification. Local policy only. Consensus can still accept a larger ring in a block. Claim base `02ba4bc6`. Next: **G-8** partition simulation.
