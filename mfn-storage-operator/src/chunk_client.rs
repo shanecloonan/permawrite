@@ -4,6 +4,8 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::Duration;
 
+use mfn_storage::accept_opened_chunk;
+
 use crate::chunk_http::parse_chunk_path;
 
 /// Chunk fetch errors.
@@ -64,6 +66,64 @@ pub fn fetch_chunk_http_quorum(
                 "peer chunk mismatch at index {chunk_index}: peer0 len={} peer{i} len={} peers={peers:?}",
                 reference.len(),
                 body.len(),
+            )));
+        }
+    }
+    Ok(reference.clone())
+}
+
+/// Fetch one chunk and accept it only when it opens `data_root` at `chunk_index`.
+///
+/// Peer agreement is not enough: this checks the Merkle leaf.
+pub fn fetch_opened_chunk(
+    peer: &str,
+    commitment_hash_hex: &str,
+    chunk_index: u32,
+    data_root: &[u8; 32],
+) -> Result<Vec<u8>, ChunkFetchError> {
+    let commit = normalize_commit_hex(commitment_hash_hex)?;
+    let path = format!("/chunk-proof/{commit}/{chunk_index}");
+    let host_port = peer_addr_from_peer(peer)?;
+    let (status, body) = http_get(&host_port, &path)?;
+    if status != 200 {
+        return Err(ChunkFetchError::Usage(format!(
+            "peer returned HTTP {status} for {path}"
+        )));
+    }
+    accept_opened_chunk(&body, chunk_index, data_root)
+        .map_err(|e| ChunkFetchError::Usage(format!("opened chunk rejected: {e}")))
+}
+
+/// Every peer must return the same bytes, and those bytes must open `data_root`.
+///
+/// Identical wrong bodies from every peer are rejected.
+pub fn fetch_opened_chunk_quorum(
+    peers: &[String],
+    commitment_hash_hex: &str,
+    chunk_index: u32,
+    data_root: &[u8; 32],
+) -> Result<Vec<u8>, ChunkFetchError> {
+    if peers.is_empty() {
+        return Err(ChunkFetchError::Usage(
+            "quorum fetch requires at least one peer".into(),
+        ));
+    }
+    let mut bodies = Vec::with_capacity(peers.len());
+    for peer in peers {
+        bodies.push(fetch_opened_chunk(
+            peer,
+            commitment_hash_hex,
+            chunk_index,
+            data_root,
+        )?);
+    }
+    let reference = &bodies[0];
+    for (i, body) in bodies.iter().enumerate().skip(1) {
+        if body.as_slice() != reference.as_slice() {
+            return Err(ChunkFetchError::Usage(format!(
+                "opened chunk mismatch at index {chunk_index}: peer0 len={} peer{i} len={}",
+                reference.len(),
+                body.len()
             )));
         }
     }
@@ -190,6 +250,12 @@ mod tests {
         let peers = vec![listen.clone(), listen.clone()];
         let quorum = fetch_chunk_http_quorum(&peers, &hash, 1).expect("quorum");
         assert_eq!(quorum, body);
+        let opened =
+            fetch_opened_chunk(&listen, &hash, 1, &built.commit.data_root).expect("opened");
+        assert_eq!(opened, body);
+        let opened_quorum = fetch_opened_chunk_quorum(&peers, &hash, 1, &built.commit.data_root)
+            .expect("opened quorum");
+        assert_eq!(opened_quorum, body);
 
         stop.store(true, Ordering::SeqCst);
         server.join().expect("join");

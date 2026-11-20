@@ -20,6 +20,7 @@
 //!   verdict helpers (not wired).
 //! - [`erasure`] — Reed–Solomon stripes (operator side, not consensus).
 //! - [`replica_encode`] — operator-salted sequential replica encoding (not wired).
+//! - [`integrity`] — chunk bytes must open the commitment `data_root`.
 //!
 //! ## Layering
 //!
@@ -41,6 +42,7 @@ pub mod cold_proof;
 pub mod commitment;
 pub mod endowment;
 pub mod erasure;
+pub mod integrity;
 pub mod lottery;
 pub mod replica_encode;
 pub mod replica_health;
@@ -69,6 +71,10 @@ pub use endowment::{
 pub use erasure::{
     encode_stripe, reconstruct_payload, shard_binding, stripe_survives, ErasureError,
     ErasureLayout, ErasureStripe, RECOMMENDED_DATA_SHARDS, RECOMMENDED_PARITY_SHARDS,
+};
+pub use integrity::{
+    accept_opened_chunk, chunk_opens_data_root, decode_opened_chunk, encode_opened_chunk,
+    IntegrityError,
 };
 pub use lottery::{rank_spora_lottery, spora_lottery_window_seed};
 pub use replica_encode::{

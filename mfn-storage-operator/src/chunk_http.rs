@@ -11,7 +11,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use mfn_storage::chunk_data;
+use mfn_crypto::merkle::merkle_proof;
+use mfn_storage::{chunk_data, encode_opened_chunk};
 
 use crate::upload_artifact_store::load_upload_artifact;
 
@@ -73,6 +74,12 @@ fn handle_connection(wallet_path: &Path, mut stream: TcpStream) -> Result<(), Ch
     if method != "GET" {
         return write_http_error(&mut stream, 405, "Method Not Allowed");
     }
+    if let Some((commit_hex, chunk_index)) = parse_opened_chunk_path(path) {
+        return match opened_chunk_frame(wallet_path, &commit_hex, chunk_index) {
+            Ok(bytes) => write_http_ok(&mut stream, &bytes),
+            Err(_) => write_http_error(&mut stream, 404, "Not Found"),
+        };
+    }
     let Some((commit_hex, chunk_index)) = parse_chunk_path(path) else {
         return write_http_error(&mut stream, 404, "Not Found");
     };
@@ -88,6 +95,30 @@ fn parse_request_line(req: &str) -> Option<(&str, &str)> {
     let method = parts.next()?;
     let path = parts.next()?;
     Some((method, path))
+}
+
+/// Path shape: `/chunk-proof/{64-hex-commit}/{chunk_index}`.
+#[must_use]
+pub fn parse_opened_chunk_path(path: &str) -> Option<(String, u32)> {
+    let rest = path.trim().strip_prefix("/chunk-proof/")?;
+    parse_chunk_path(&format!("/chunk/{rest}"))
+}
+
+fn opened_chunk_frame(
+    wallet_path: &Path,
+    commit_hex: &str,
+    chunk_index: u32,
+) -> Result<Vec<u8>, String> {
+    let loaded = load_upload_artifact(wallet_path, commit_hex).map_err(|e| e.to_string())?;
+    let commit = &loaded.built.commit;
+    let chunks = chunk_data(&loaded.payload, commit.chunk_size as usize)
+        .map_err(|e| format!("chunk_data: {e}"))?;
+    let idx = usize::try_from(chunk_index).map_err(|_| "chunk_index overflow".to_string())?;
+    let slice = chunks
+        .get(idx)
+        .ok_or_else(|| format!("chunk_index {chunk_index} >= num_chunks {}", chunks.len()))?;
+    let proof = merkle_proof(&loaded.built.tree, idx).map_err(|e| e.to_string())?;
+    encode_opened_chunk(slice, &proof).map_err(|e| e.to_string())
 }
 
 /// Path shape: `/chunk/{64-hex-commit}/{chunk_index}`.
