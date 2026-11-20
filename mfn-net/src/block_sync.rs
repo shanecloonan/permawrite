@@ -118,10 +118,13 @@ impl BlocksV1 {
                 got: count,
             });
         }
-        let mut off = 5;
+        let mut off: usize = 5;
         let mut block_wires = Vec::with_capacity(count);
         for _ in 0..count {
-            if off + 4 > payload.len() {
+            let Some(len_end) = off.checked_add(4) else {
+                return Err(BlockSyncDecodeError::Truncated);
+            };
+            if len_end > payload.len() {
                 return Err(BlockSyncDecodeError::Truncated);
             }
             let len = u32::from_be_bytes([
@@ -130,12 +133,15 @@ impl BlocksV1 {
                 payload[off + 2],
                 payload[off + 3],
             ]) as usize;
-            off += 4;
-            if off + len > payload.len() {
+            off = len_end;
+            let Some(body_end) = off.checked_add(len) else {
+                return Err(BlockSyncDecodeError::Truncated);
+            };
+            if body_end > payload.len() {
                 return Err(BlockSyncDecodeError::Truncated);
             }
-            block_wires.push(payload[off..off + len].to_vec());
-            off += len;
+            block_wires.push(payload[off..body_end].to_vec());
+            off = body_end;
         }
         if off != payload.len() {
             return Err(BlockSyncDecodeError::TrailingBytes {
