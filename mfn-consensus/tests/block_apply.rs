@@ -2347,6 +2347,256 @@ fn b323_ring_with_repeated_real_member_rejected_at_apply() {
     }
 }
 
+/// Spend of one genesis output (plus an F7 pad input) over a 16-ring of
+/// genesis decoys. Returns the signed tx and the genesis rows it needs.
+struct B324Spend {
+    genesis_rows: Vec<GenesisOutput>,
+    ring_p: Vec<curve25519_dalek::edwards::EdwardsPoint>,
+    ring_c: Vec<curve25519_dalek::edwards::EdwardsPoint>,
+    signer_spend: Scalar,
+    signer_blinding: Scalar,
+    pad: F7InputPad,
+    pad_decoys: Vec<GenesisOutput>,
+}
+
+fn b324_spend(seed: usize) -> B324Spend {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+
+    let signer_blinding = random_scalar();
+    let signer_spend = random_scalar();
+    let signer_p = generator_g() * signer_spend;
+    let signer_c = (generator_g() * signer_blinding) + (generator_h() * Scalar::from(1_000_000u64));
+    let mut genesis_rows = vec![GenesisOutput {
+        one_time_addr: signer_p,
+        amount: signer_c,
+    }];
+    let mut ring_p = vec![signer_p];
+    let mut ring_c = vec![signer_c];
+    for i in 0..PROD_RING_SIZE - 1 {
+        let d = genesis_decoy_output(seed + i);
+        ring_p.push(d.one_time_addr);
+        ring_c.push(d.amount);
+        genesis_rows.push(d);
+    }
+    let pad_decoys: Vec<GenesisOutput> = genesis_rows[1..].to_vec();
+    let pad = f7_input_pad();
+    genesis_rows.push(pad.genesis.clone());
+    B324Spend {
+        genesis_rows,
+        ring_p,
+        ring_c,
+        signer_spend,
+        signer_blinding,
+        pad,
+        pad_decoys,
+    }
+}
+
+fn b324_sign(spend: &B324Spend) -> TransactionWire {
+    use mfn_crypto::clsag::ClsagRing;
+    use mfn_crypto::stealth::stealth_gen;
+
+    use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+    let recipient_wallet = stealth_gen();
+    let r = Recipient {
+        view_pub: recipient_wallet.view_pub,
+        spend_pub: recipient_wallet.spend_pub,
+    };
+    sign_transaction(
+        vec![
+            InputSpec {
+                ring: ClsagRing {
+                    p: spend.ring_p.clone(),
+                    c: spend.ring_c.clone(),
+                },
+                signer_idx: 0,
+                spend_priv: spend.signer_spend,
+                value: 1_000_000,
+                blinding: spend.signer_blinding,
+            },
+            f7_pad_input(&spend.pad_decoys, &spend.pad),
+        ],
+        vec![
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: 1_000_000 - 1_000,
+                storage: None,
+            },
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: F7_INPUT_PAD_VALUE,
+                storage: None,
+            },
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: 0,
+                storage: None,
+            },
+        ],
+        1_000,
+        Vec::new(),
+    )
+    .expect("sign")
+    .tx
+}
+
+#[test]
+fn b324_ring_member_created_in_same_block_rejected_at_apply() {
+    // Two independent spends of genesis outputs. In the attack block the
+    // second tx lists the first tx's fresh output as a ring member: that
+    // output is a real UTXO with its real commitment by the time tx 1 is
+    // walked, so the membership check alone would pass it.
+    let spend_a = b324_spend(300);
+    let spend_b = b324_spend(400);
+    let mut initial_outputs = spend_a.genesis_rows.clone();
+    initial_outputs.extend(spend_b.genesis_rows.iter().cloned());
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+        header_version: 1,
+    };
+    let g = build_genesis(&cfg);
+    let state0 = apply_genesis(&g, &cfg).unwrap();
+
+    let tx_a = b324_sign(&spend_a);
+
+    // Control: two spends over confirmed genesis members apply together.
+    let tx_b = b324_sign(&spend_b);
+    let txs = vec![tx_a.clone(), tx_b];
+    let unsealed = build_unsealed_header(&state0, &txs, &[], &[], &[], 1, 100);
+    let block = seal_block(
+        unsealed,
+        txs,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    assert!(
+        matches!(apply_block(&state0, &block), ApplyOutcome::Ok { .. }),
+        "two confirmed-member spends in one block must apply"
+    );
+
+    // Attack: tx B's ring slot 7 names tx A's first output.
+    let fresh = &tx_a.outputs[0];
+    let mut spend_b_attack = spend_b;
+    spend_b_attack.ring_p[7] = fresh.one_time_addr;
+    spend_b_attack.ring_c[7] = fresh.amount;
+    let tx_b_attack = b324_sign(&spend_b_attack);
+    let txs = vec![tx_a, tx_b_attack];
+    let unsealed = build_unsealed_header(&state0, &txs, &[], &[], &[], 1, 100);
+    let block = seal_block(
+        unsealed,
+        txs,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            let named = errors.iter().any(|e| {
+                matches!(
+                    e,
+                    BlockError::RingMemberUnconfirmed {
+                        tx: 1,
+                        input: 0,
+                        ring_index: 7,
+                        created_height: 1,
+                        block_height: 1,
+                        ..
+                    }
+                )
+            });
+            assert!(
+                named,
+                "expected RingMemberUnconfirmed for tx 1 slot 7, got {errors:?}"
+            );
+            assert!(
+                !errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::RingMemberNotInUtxoSet { .. })),
+                "the fresh output is in the UTXO set; only its height may fail"
+            );
+        }
+        ApplyOutcome::Ok { .. } => {
+            panic!("a ring member created in the same block must reject the block")
+        }
+    }
+}
+
+#[test]
+fn b324_spend_of_previous_block_output_still_applies() {
+    // Height 2 may use a height-1 output as a ring member: created_height
+    // 1 < block_height 2.
+    let spend_a = b324_spend(500);
+    let spend_b = b324_spend(600);
+    let mut initial_outputs = spend_a.genesis_rows.clone();
+    initial_outputs.extend(spend_b.genesis_rows.iter().cloned());
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+        header_version: 1,
+    };
+    let g = build_genesis(&cfg);
+    let state0 = apply_genesis(&g, &cfg).unwrap();
+
+    let tx_a = b324_sign(&spend_a);
+    let txs = vec![tx_a.clone()];
+    let unsealed = build_unsealed_header(&state0, &txs, &[], &[], &[], 1, 100);
+    let block1 = seal_block(
+        unsealed,
+        txs,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    let state1 = match apply_block(&state0, &block1) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block 1 must apply, got {errors:?}"),
+    };
+
+    let fresh = &tx_a.outputs[0];
+    let mut spend_b = spend_b;
+    spend_b.ring_p[7] = fresh.one_time_addr;
+    spend_b.ring_c[7] = fresh.amount;
+    let tx_b = b324_sign(&spend_b);
+    let txs = vec![tx_b];
+    let unsealed = build_unsealed_header(&state1, &txs, &[], &[], &[], 2, 200);
+    let block2 = seal_block(
+        unsealed,
+        txs,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    match apply_block(&state1, &block2) {
+        ApplyOutcome::Ok { .. } => {}
+        ApplyOutcome::Err { errors, .. } => {
+            panic!("a confirmed previous-block member must still apply, got {errors:?}")
+        }
+    }
+}
+
 /* ---- Liveness participation + auto-slashing ---------------------- *
  *                                                                   *
  *  These unit tests drive `apply_block` against the liveness bitmap  *

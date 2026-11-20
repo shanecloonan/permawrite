@@ -350,7 +350,23 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             for (ri, (p, c)) in inp.ring.p.iter().zip(inp.ring.c.iter()).enumerate() {
                 let key = p.compress().to_bytes();
                 match next.utxo.get(&key) {
-                    Some(entry) if entry.commit == *c => {}
+                    // B-324: `next.utxo` already holds this block's coinbase
+                    // and earlier-tx outputs. A member from this block is a
+                    // producer-only shape (the mempool verifies rings against
+                    // the confirmed set), so it is refused.
+                    Some(entry) if entry.commit == *c => {
+                        if entry.height >= block.header.height {
+                            errors.push(BlockError::RingMemberUnconfirmed {
+                                tx: ti,
+                                input: ii,
+                                ring_index: ri,
+                                one_time_addr: hex_short(&key),
+                                created_height: entry.height,
+                                block_height: block.header.height,
+                            });
+                            ring_ok = false;
+                        }
+                    }
                     Some(_) => {
                         errors.push(BlockError::RingMemberCommitMismatch {
                             tx: ti,
