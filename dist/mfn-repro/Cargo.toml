@@ -1,0 +1,29 @@
+[package]
+name = "mfn-repro"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Reproducible Permawrite release builds: pinned toolchain, deterministic flags, and hash compare."
+
+[lib]
+name = "mfn_repro"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mfn-repro"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[dependencies]
+hex = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }

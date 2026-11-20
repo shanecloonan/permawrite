@@ -551,6 +551,82 @@ fn key_image_repeated_within_tx_rejected() {
 }
 
 #[test]
+fn b323_ring_with_repeated_member_rejected_at_verify() {
+    // Sign over a distinct 8-ring, then copy decoy slot 1 into slot 2.
+    // The ring still holds eight members and every member is still a
+    // plausible point; only the repeat makes it a seven-wide ring that
+    // claims eight. The verifier must name that repeat, not only the
+    // signature that no longer matches.
+    let inputs = vec![make_input(100_000, 8)];
+    let (_w, r) = recipient();
+    let outputs = vec![
+        OutputSpec::ToRecipient {
+            recipient: r,
+            value: 99_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: r,
+            value: 500,
+            storage: None,
+        },
+    ];
+    let signed = sign_transaction(inputs, outputs, 500, Vec::new()).expect("sign");
+    assert!(verify_transaction(&signed.tx, &RingPolicy::TEST).ok);
+
+    let mut tx = signed.tx;
+    tx.inputs[0].ring.p[2] = tx.inputs[0].ring.p[1];
+    tx.inputs[0].ring.c[2] = tx.inputs[0].ring.c[1];
+
+    let res = verify_transaction(&tx, &RingPolicy::TEST);
+    assert!(!res.ok);
+    assert!(
+        res.errors
+            .iter()
+            .any(|e| e == "input 0: ring slot 2 repeats slot 1; ring members must be distinct"),
+        "expected the repeated-member error, got {:?}",
+        res.errors
+    );
+}
+
+#[test]
+fn b323_builder_refuses_ring_with_repeated_member() {
+    let mut input = make_input(100_000, 4);
+    // Repeat the signer's own key in a decoy slot: the ring looks like
+    // four members but hides the spend among three.
+    let signer = input.signer_idx;
+    let dup = if signer == 0 { 3 } else { 0 };
+    input.ring.p[dup] = input.ring.p[signer];
+    input.ring.c[dup] = input.ring.c[signer];
+    let (_w, r) = recipient();
+    let outputs = vec![OutputSpec::ToRecipient {
+        recipient: r,
+        value: 99_500,
+        storage: None,
+    }];
+    let err = sign_transaction(vec![input], outputs, 500, Vec::new())
+        .expect_err("builder must refuse a repeated ring member");
+    match err {
+        TxBuildError::RingMemberRepeated {
+            idx,
+            slot,
+            prev_slot,
+        } => {
+            assert_eq!(idx, 0);
+            assert_eq!((slot, prev_slot), (dup.max(signer), dup.min(signer)));
+        }
+        other => panic!("expected RingMemberRepeated, got {other:?}"),
+    }
+}
+
+#[test]
+fn b323_distinct_ring_has_no_repeat() {
+    let input = make_input(1, 16);
+    assert_eq!(crate::block::repeated_ring_member(&input.ring.p), None);
+    assert_eq!(crate::block::repeated_ring_member(&[]), None);
+}
+
+#[test]
 fn key_image_not_in_prime_subgroup_rejected() {
     // A valid signed tx whose key image is perturbed by a non-identity
     // order-8 torsion point is no longer a prime-order-subgroup member and

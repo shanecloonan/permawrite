@@ -16,6 +16,8 @@ members = [
     "mfn-cli",
     "mfn-storage-operator",
     "mfn-wasm",
+    "dist/mfn-repro",
+    "dist/mfn-release",
     "dist/mfn-node-setup",
 ]
 
