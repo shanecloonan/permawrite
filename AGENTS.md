@@ -543,6 +543,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-11-14 - lane G - G-4 RPC request bounds** (this commit): `parse_and_dispatch_serve` rejects a JSON tree deeper than 32 or wider than 4096 values before method dispatch. Garbage lines return a JSON-RPC error. Claim base `02ba4bc6`. Next: **G-5** wallet file load.
+
 1. **2026-11-14 - lane G - G-3 P2P decode fuzz** (this commit): block-sync, padded-tx, and light-follow length arithmetic uses checked adds, and slash/bond counts cannot allocate past the unread bytes. `g3_p2p_decode` exercises every public payload decoder. Claim base `fa47fd59`. Next: **G-4** RPC request fuzz.
 
 1. **2026-11-14 - lane H - H-1 reproducible release build** (this commit): pinned rustc 1.83.0, path remapping, and a hash compare so a second build can be checked against the first. Off consensus. No VPS. Claim base `c60c73e7`. Next: **H-2** signed multi-key release manifests.
