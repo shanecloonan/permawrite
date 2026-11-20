@@ -784,6 +784,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-release"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "mfn-crypto",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "mfn-repro"
 version = "0.1.0"
 dependencies = [

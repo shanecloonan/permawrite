@@ -389,6 +389,10 @@ Both are tested:
 - [`ring_member_with_wrong_commit_rejected`](../mfn-consensus/tests/block_apply.rs)
 - The full chain integration test `chain_genesis_block1_block2_with_slashing` was rewritten to use **real genesis-anchored decoys**, confirming honest operation.
 
+### Repeated ring members (B-323)
+
+The membership check above is per slot, and CLSAG verifies over whatever list it was signed with, so a ring that names one real UTXO in two slots passed both. A 16-member ring with one output repeated fifteen times is a 1-member ring that the chain would have counted as 16, and every other output listed in such a ring is marked as a decoy that was never a plausible spend. `verify_transaction` now rejects any ring whose one-time addresses are not distinct (`repeated_ring_member`), and `sign_transaction` refuses to sign one (`TxBuildError::RingMemberRepeated`). Honest wallets already draw decoys without replacement, so this changes no honest shape and is not header-gated; `build_decoy_pool_from_sources` also drops a repeated row from browser- or light-client-supplied UTXO lists so the sampler cannot produce one by accident. Tested by `b323_ring_with_repeated_member_rejected_at_verify` and `b323_ring_with_repeated_real_member_rejected_at_apply`.
+
 ### Why it was missed (and why the fix is the right one)
 
 Most Monero-derived implementations gloss over this in their explanation because Monero achieves the same effect via the global output index table — every CLSAG references ring members by *index into the global output list*, so by construction no fake member can be referenced. Our implementation references members by raw `(P, C)`, which is more flexible (and useful for log-size OoM proofs later) but pushes the existence check into consensus. The bug was a missed transition step from raw-tuple references → consensus-level set membership.
