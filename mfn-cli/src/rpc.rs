@@ -179,7 +179,9 @@ pub struct LightFollowRow {
     pub block_id: String,
     /// `block_header_bytes` hex.
     pub header_hex: String,
-    /// Equivocation evidence wire hex entries.
+    /// Slash evidence wire hex entries (`encode_slash_evidence` at the
+    /// row's header version: legacy equivocation on v1, tagged from v3,
+    /// bound equivocation from v8).
     pub slashings: Vec<LightFollowSlashing>,
     /// Bond op wire hex entries.
     pub bond_ops: Vec<LightFollowBondOp>,
@@ -188,7 +190,7 @@ pub struct LightFollowRow {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 /// Slashing wire hex wrapper.
 pub struct LightFollowSlashing {
-    /// `encode_evidence` hex.
+    /// `encode_slash_evidence(ev, header.version)` hex.
     pub evidence_hex: String,
 }
 
