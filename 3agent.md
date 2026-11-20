@@ -31,7 +31,7 @@ Synced at Seat C **B-12** Plonky3 aggregate (off consensus; not an inner verifie
 | **C** Validity proofs | **B-12** Plonky3 aggregate (this commit); **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
 | **D** Network anonymity | **D-1** Dandelion stem privacy (PR #40); onion no-clearnet advertise (PR #42 `a5e83d68`); inbound /16 cap (PR #45); peer exchange + seed bootstrap (PR #88/#89) | *Idle* | Noise_XX (PR #67 open); anchor connections (PR #82 open) |
 | **F** Ease of use | **F-8** browser file backup card | *Idle* | **F-9** `wallet ready` checklist |
-| **G** Security | **G-1** codec count cap (`6eb8473f`, PR #99) | **G-11** Dandelion stem buffer bounds (claim base `8c406291`); G-2…G-10 are in open PRs #105–#142 | **G-12** next resource bound |
+| **G** Security | **G-11** Dandelion stem buffer bounds (this PR); **G-1** codec count cap (`6eb8473f`, PR #99) | *Idle* | **G-12** next resource bound; G-2…G-10 are in open PRs #105–#142 |
 
 ### Hard locks (all seats)
 

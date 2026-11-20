@@ -10,6 +10,15 @@ forwards to one peer and does not bounce a broadcast to every neighbor. After
 `stem_timeout` the same transaction fails safe into fluff so it is not stuck
 on a dead stem.
 
+The stem set a node holds under embargo is bounded (**G-11**): at most
+`max_pending_stems` entries (default 1024) and `max_pending_stem_bytes` of
+bodies (default 8 MiB). When a peer floods stem transactions past either cap,
+the oldest relayed stem leaves early and is fluffed by the embargo thread, the
+same fail-safe the timer applies. The arriving transaction still gets its stem,
+and a body this node created is evicted only when no relayed stem is left, so
+a flood cannot make the origin fluff its own transaction. Memory held by the
+relay therefore never grows past the two caps, whatever a peer sends.
+
 A neighbor therefore sees a single stem arrival. That arrival looks the same
 whether this node created the transaction or is relaying it. The three-node
 test `three_node_epoch_stem_hides_the_origin_from_a_neighbor` checks the
