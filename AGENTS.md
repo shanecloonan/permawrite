@@ -543,6 +543,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-11-14 - lane G - G-7 mempool bounds** (this commit): admit rejects a ring over 128 or an encoding over 256 KiB before CLSAG verification. Local policy only. Consensus can still accept a larger ring in a block. Claim base `02ba4bc6`. Next: **G-8** partition simulation.
+
 1. **2026-11-14 - lane H - H-2 signed release manifests** (this commit): a release manifest needs a threshold of maintainer Ed25519 signatures. A revoked or unknown key does not count. Off consensus. No VPS. Claim base `11e1781b`. Next: **H-3** Tor-only node setup.
 
 1. **2026-11-14 - lane G - G-10 nightly fuzz** (this commit): `.github/workflows/fuzz.yml` runs `untrusted_decode` for 90 seconds at 06:30 UTC and on workflow_dispatch. It does not run on pull requests. If the fuzz crate is not on the commit, the job exits clean. Claim base `02ba4bc6`. Next: fix forward any crash the job finds.
