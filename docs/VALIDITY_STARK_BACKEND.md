@@ -78,3 +78,10 @@ and two depth-4 openings under a 4-round seventh-power hash. It is statement
 aggregation. It does not verify a Winterfell proof inside another proof. That
 inner verifier is the rest of B-12. Numbers that do not fit in BabyBear are
 rejected. Path A and F-A are unchanged.
+
+The public input ends with four parent-digest limbs. `verify_aggregated_outputs`
+checks a proof against those limbs and the claimed fee split and roots. It does
+not divide the fee and it does not hash the path. `fee * bps` still has to sit
+under the field modulus, and the remainder has to be below 10_000, so the
+in-circuit equation has one integer solution. A different parent limb does not
+verify. Nothing here is written into a block header or gossiped.

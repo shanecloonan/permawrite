@@ -7,6 +7,11 @@
 //! verify a Winterfell proof. Verifying one STARK inside another is later work.
 //!
 //! Values that do not fit in BabyBear are rejected. Path A and F-A stay as they are.
+//!
+//! B-39 local check: [`verify_aggregated_outputs`] takes the claimed outputs
+//! and the parent-digest limbs and does not re-divide the fee or re-hash the
+//! path. The parent limbs are public inputs, so a different parent does not
+//! verify. This is not a gossip or header wire.
 
 use p3_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use p3_baby_bear::{BabyBear, Poseidon2BabyBear};
@@ -42,7 +47,8 @@ const P_INDEX_A: usize = 7;
 const P_LEAF_B: usize = 8;
 const P_ROOT_B: usize = 9;
 const P_INDEX_B: usize = 10;
-const NUM_PUBLIC: usize = 11;
+const P_PARENT: usize = 11;
+const NUM_PUBLIC: usize = 15;
 
 const C_CUR: usize = 0;
 const C_SIB: usize = 1;
@@ -93,6 +99,37 @@ pub struct AggregatedClaim {
     pub leaves_b: Vec<u32>,
     /// Index in the padded second tree.
     pub index_b: u32,
+    /// Parent state digest as four BabyBear limbs.
+    pub parent_digest: [u32; 4],
+}
+
+/// Claimed outputs for a light check. Roots and the fee split are not recomputed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AggregatedOutputs {
+    /// Fee sum. `fee_sum * bps` must fit in BabyBear.
+    pub fee_sum: u32,
+    /// Treasury share in basis points, at most 10_000.
+    pub fee_to_treasury_bps: u16,
+    /// Claimed treasury share.
+    pub treasury_fee: u32,
+    /// Claimed producer share.
+    pub producer_fee: u32,
+    /// Claimed remainder, at most 9_999.
+    pub remainder: u32,
+    /// Opened leaf in the first tree.
+    pub leaf_a: u32,
+    /// Claimed first root.
+    pub root_a: u32,
+    /// Index in the padded first tree.
+    pub index_a: u32,
+    /// Opened leaf in the second tree.
+    pub leaf_b: u32,
+    /// Claimed second root.
+    pub root_b: u32,
+    /// Index in the padded second tree.
+    pub index_b: u32,
+    /// Parent state digest as four BabyBear limbs.
+    pub parent_digest: [u32; 4],
 }
 
 /// Why an aggregated claim or proof was rejected.
@@ -135,6 +172,19 @@ pub fn verify_aggregated(
     verify(&config(), &AggregateAir, proof, &public).map_err(|_| AggregateError::ProofInvalid)
 }
 
+/// Light check. Does not divide the fee and does not hash the path.
+///
+/// `fee_sum * bps` must be below the BabyBear modulus and `remainder` must be
+/// below 10_000, so the in-circuit equation has one integer solution. The
+/// parent limbs are part of the public input vector.
+pub fn verify_aggregated_outputs(
+    outputs: &AggregatedOutputs,
+    proof: &AggregatedProof,
+) -> Result<(), AggregateError> {
+    let public = public_from_outputs(outputs)?;
+    verify(&config(), &AggregateAir, proof, &public).map_err(|_| AggregateError::ProofInvalid)
+}
+
 fn public_values(claim: &AggregatedClaim) -> Result<Vec<Val>, AggregateError> {
     if claim.fee_to_treasury_bps > 10_000 || claim.index_a >= 16 || claim.index_b >= 16 {
         return Err(AggregateError::OutOfRange);
@@ -156,7 +206,7 @@ fn public_values(claim: &AggregatedClaim) -> Result<Vec<Val>, AggregateError> {
     let tree_b = padded(&claim.leaves_b)?;
     let root_a = root_of(&tree_a);
     let root_b = root_of(&tree_b);
-    Ok(vec![
+    let mut public = vec![
         v(claim.fee_sum)?,
         v(u32::from(claim.fee_to_treasury_bps))?,
         v(claim.treasury_fee)?,
@@ -168,6 +218,45 @@ fn public_values(claim: &AggregatedClaim) -> Result<Vec<Val>, AggregateError> {
         tree_b[claim.index_b as usize],
         root_b,
         v(claim.index_b)?,
+    ];
+    debug_assert_eq!(public.len(), P_PARENT);
+    public.extend([
+        v(claim.parent_digest[0])?,
+        v(claim.parent_digest[1])?,
+        v(claim.parent_digest[2])?,
+        v(claim.parent_digest[3])?,
+    ]);
+    Ok(public)
+}
+
+fn public_from_outputs(outputs: &AggregatedOutputs) -> Result<Vec<Val>, AggregateError> {
+    if outputs.fee_to_treasury_bps > 10_000
+        || outputs.remainder >= 10_000
+        || outputs.index_a >= 16
+        || outputs.index_b >= 16
+    {
+        return Err(AggregateError::OutOfRange);
+    }
+    let product = u128::from(outputs.fee_sum) * u128::from(outputs.fee_to_treasury_bps);
+    if product >= u128::from(Val::ORDER_U64) {
+        return Err(AggregateError::OutOfRange);
+    }
+    Ok(vec![
+        v(outputs.fee_sum)?,
+        v(u32::from(outputs.fee_to_treasury_bps))?,
+        v(outputs.treasury_fee)?,
+        v(outputs.producer_fee)?,
+        v(outputs.remainder)?,
+        v(outputs.leaf_a)?,
+        v(outputs.root_a)?,
+        v(outputs.index_a)?,
+        v(outputs.leaf_b)?,
+        v(outputs.root_b)?,
+        v(outputs.index_b)?,
+        v(outputs.parent_digest[0])?,
+        v(outputs.parent_digest[1])?,
+        v(outputs.parent_digest[2])?,
+        v(outputs.parent_digest[3])?,
     ])
 }
 
@@ -486,6 +575,25 @@ mod tests {
             index_a: 0,
             leaves_b: vec![21, 22, 23, 24],
             index_b: 3,
+            parent_digest: [9, 8, 7, 6],
+        }
+    }
+
+    fn outputs_of(claim: &AggregatedClaim) -> AggregatedOutputs {
+        let product = u128::from(claim.fee_sum) * u128::from(claim.fee_to_treasury_bps);
+        AggregatedOutputs {
+            fee_sum: claim.fee_sum,
+            fee_to_treasury_bps: claim.fee_to_treasury_bps,
+            treasury_fee: claim.treasury_fee,
+            producer_fee: claim.producer_fee,
+            remainder: u32::try_from(product % 10_000).unwrap(),
+            leaf_a: claim.leaves_a[claim.index_a as usize],
+            root_a: babybear_merkle_root(&claim.leaves_a).unwrap(),
+            index_a: claim.index_a,
+            leaf_b: claim.leaves_b[claim.index_b as usize],
+            root_b: babybear_merkle_root(&claim.leaves_b).unwrap(),
+            index_b: claim.index_b,
+            parent_digest: claim.parent_digest,
         }
     }
 
@@ -505,8 +613,31 @@ mod tests {
         tampered.producer_fee += 1;
         tampered.treasury_fee -= 1;
         assert!(verify_aggregated(&tampered, &proof).is_err());
-        let mut bad_root = claim;
+        let mut bad_root = claim.clone();
         bad_root.leaves_a[0] ^= 1;
         assert!(verify_aggregated(&bad_root, &proof).is_err());
+    }
+
+    #[test]
+    fn b39_light_verify_binds_parent_without_recomputing_split() {
+        let claim = claim();
+        let proof = prove_aggregated(&claim).unwrap();
+        let outputs = outputs_of(&claim);
+        verify_aggregated_outputs(&outputs, &proof).unwrap();
+
+        let mut other_parent = outputs.clone();
+        other_parent.parent_digest[0] ^= 1;
+        assert_eq!(
+            verify_aggregated_outputs(&other_parent, &proof),
+            Err(AggregateError::ProofInvalid)
+        );
+
+        let mut other_split = outputs;
+        other_split.producer_fee += 1;
+        other_split.treasury_fee -= 1;
+        assert_eq!(
+            verify_aggregated_outputs(&other_split, &proof),
+            Err(AggregateError::ProofInvalid)
+        );
     }
 }
