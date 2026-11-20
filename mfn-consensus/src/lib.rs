@@ -72,6 +72,7 @@ pub mod coinbase;
 pub mod consensus;
 pub mod constitution;
 pub mod emission;
+pub mod equivocation_detector;
 pub mod extra_codec;
 #[cfg(feature = "bls")]
 pub mod fraud_proof;

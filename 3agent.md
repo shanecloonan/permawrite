@@ -27,7 +27,7 @@ Synced at Seat C **B-12** Plonky3 aggregate (off consensus; not an inner verifie
 | Seat | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **A** RC/CI | Arweave weave-is-the-copy availability (`7464ad8d`); CI-commit bind `b0bd1caa` | *Idle* | Fix scripts FAIL on historical heads; **B-26** after B-15 |
-| **B** Protocol/Privacy | **B-323** distinct ring members (PR #151); **B-331** light trusted-evolution binds `slashing_root` + CLI/WASM tagged decode (this PR); **B-330** equivocation bind (`54c86aa8`); **B-317**; **B-37** | **B-332** `EquivocationDetector` builds v8 bound evidence from observed votes (claim base `ca341823`; agent 2/3) | Bind `bond_root` after §6 storage-operator section; then lock rule / seed grinding (review §2). No DEFAULT flip |
+| **B** Protocol/Privacy | **B-332** `EquivocationDetector` for v8 bound evidence (this PR); **B-323** distinct ring members (PR #151); **B-331** light trusted-evolution binds `slashing_root` + CLI/WASM tagged decode (`ca341823`); **B-330** equivocation bind (`54c86aa8`); **B-317**; **B-37** | *Idle* (agent 2/3 done, 3 rounds) | Lane 1 wires the detector (§6); lanes 2+8 add storage-operator ops to the follow row (§6) → Seat B binds `bond_root`; then lock rule / seed grinding (review §2). No DEFAULT flip |
 | **C** Validity proofs | **B-12** Plonky3 aggregate (this commit); **B-317**; **B-316** | *Idle* | Inner STARK verifier (rest of B-12) |
 | **D** Network anonymity | **D-1** Dandelion stem privacy (PR #40); onion no-clearnet advertise (PR #42 `a5e83d68`); inbound /16 cap (PR #45); peer exchange + seed bootstrap (PR #88/#89) | *Idle* | Noise_XX (PR #67 open); anchor connections (PR #82 open) |
 | **F** Ease of use | **F-8** browser file backup card | *Idle* | **F-9** `wallet ready` checklist |
