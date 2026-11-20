@@ -543,6 +543,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-11-14 - lane G - G-3 P2P decode fuzz** (this commit): block-sync, padded-tx, and light-follow length arithmetic uses checked adds, and slash/bond counts cannot allocate past the unread bytes. `g3_p2p_decode` exercises every public payload decoder. Claim base `fa47fd59`. Next: **G-4** RPC request fuzz.
+
 1. **2026-11-14 - lane H - H-1 reproducible release build** (this commit): pinned rustc 1.83.0, path remapping, and a hash compare so a second build can be checked against the first. Off consensus. No VPS. Claim base `c60c73e7`. Next: **H-2** signed multi-key release manifests.
 
 1. **2026-11-14 - lane 8 / Seat E - E-1 erasure stripes** (this commit): systematic GF(2^8) Reed–Solomon. Recommended 4+8 is 3× bytes and survives 8 losses; replication 3 at the same overhead survives 2. Bindings reject a flipped or relabeled shard. Off consensus. Path A and F-A unchanged. Next: **E-2** per-replica seal.
