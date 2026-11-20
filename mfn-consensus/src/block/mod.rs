@@ -73,7 +73,7 @@ pub use header::{
     HEADER_VERSION_RETRIEVAL, HEADER_VERSION_TIER2, HEADER_VERSION_UTXO_QUORUM, TIER2_RING_SIZES,
 };
 pub use state::{
-    input_count_is_padded_bucket, padded_input_count, repeated_ring_member,
+    admit_key_image, input_count_is_padded_bucket, padded_input_count, repeated_ring_member,
     tier2_ring_size_allowed, ChainState, ConsensusParams, PendingUnbond, RingPolicy, StorageEntry,
     StorageOperatorEntry, StorageOperatorStats, UtxoEntry, ValidatorStats,
     DEFAULT_CONSENSUS_PARAMS, MIN_TX_INPUTS_UNIFORM_TIER, MIN_TX_OUTPUTS_UNIFORM_TIER,

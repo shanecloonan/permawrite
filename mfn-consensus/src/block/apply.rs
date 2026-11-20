@@ -389,13 +389,11 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         // Cross-tx + cross-chain key image gate.
         for ki in &v.key_images {
             let ki_bytes = ki.compress().to_bytes();
-            if next.spent_key_images.contains(&ki_bytes) {
+            if !super::state::admit_key_image(&mut next.spent_key_images, ki_bytes) {
                 errors.push(BlockError::DoubleSpend {
                     index: ti,
                     key_image: hex_short(&ki_bytes),
                 });
-            } else {
-                next.spent_key_images.insert(ki_bytes);
             }
         }
 
