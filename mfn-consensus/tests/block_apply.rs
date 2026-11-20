@@ -2179,6 +2179,174 @@ fn ring_member_with_wrong_commit_rejected() {
     }
 }
 
+#[test]
+fn b323_ring_with_repeated_real_member_rejected_at_apply() {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::clsag::ClsagRing;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+    use mfn_crypto::stealth::stealth_gen;
+
+    use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+    // Every ring member is a real genesis UTXO with its real commitment,
+    // so the UTXO-set check passes slot by slot. One decoy is listed
+    // twice: the ring is 16 wide on the wire and 15 wide in fact.
+    let init_value = 1_000_000u64;
+    let init_blinding = random_scalar();
+    let signer_spend = random_scalar();
+    let signer_p = generator_g() * signer_spend;
+    let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+
+    let signer_idx = 0usize;
+    let repeat_slot = 9usize;
+    let source_slot = 4usize;
+    let mut decoys = Vec::with_capacity(PROD_RING_SIZE - 1);
+    let mut initial_outputs = Vec::with_capacity(PROD_RING_SIZE);
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: signer_p,
+        amount: signer_c,
+    });
+    for i in 0..PROD_RING_SIZE - 1 {
+        let d = genesis_decoy_output(i + 200);
+        decoys.push((d.one_time_addr, d.amount));
+        initial_outputs.push(d);
+    }
+    let decoy_genesis: Vec<GenesisOutput> = initial_outputs[1..].to_vec();
+    let pad = f7_input_pad();
+    initial_outputs.push(pad.genesis.clone());
+
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+        header_version: 1,
+    };
+    let g = build_genesis(&cfg);
+    let state0 = apply_genesis(&g, &cfg).unwrap();
+
+    let mut ring_p = Vec::with_capacity(PROD_RING_SIZE);
+    let mut ring_c = Vec::with_capacity(PROD_RING_SIZE);
+    for slot in 0..PROD_RING_SIZE {
+        if slot == signer_idx {
+            ring_p.push(signer_p);
+            ring_c.push(signer_c);
+        } else {
+            let (dp, dc) = decoys[slot - 1];
+            ring_p.push(dp);
+            ring_c.push(dc);
+        }
+    }
+
+    let recipient_wallet = stealth_gen();
+    let r = Recipient {
+        view_pub: recipient_wallet.view_pub,
+        spend_pub: recipient_wallet.spend_pub,
+    };
+    let send_value = init_value - 1_000;
+    let signed = sign_transaction(
+        vec![
+            InputSpec {
+                ring: ClsagRing {
+                    p: ring_p,
+                    c: ring_c,
+                },
+                signer_idx,
+                spend_priv: signer_spend,
+                value: init_value,
+                blinding: init_blinding,
+            },
+            f7_pad_input(&decoy_genesis, &pad),
+        ],
+        vec![
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: send_value,
+                storage: None,
+            },
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: F7_INPUT_PAD_VALUE,
+                storage: None,
+            },
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: 0,
+                storage: None,
+            },
+        ],
+        1_000,
+        Vec::new(),
+    )
+    .expect("sign");
+
+    // Control: the distinct ring applies.
+    let unsealed = build_unsealed_header(
+        &state0,
+        std::slice::from_ref(&signed.tx),
+        &[],
+        &[],
+        &[],
+        1,
+        100,
+    );
+    let block = seal_block(
+        unsealed,
+        vec![signed.tx.clone()],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    assert!(
+        matches!(apply_block(&state0, &block), ApplyOutcome::Ok { .. }),
+        "distinct 16-ring must still apply"
+    );
+
+    // Attack: the same real decoy in two slots.
+    let mut tx = signed.tx;
+    tx.inputs[0].ring.p[repeat_slot] = tx.inputs[0].ring.p[source_slot];
+    tx.inputs[0].ring.c[repeat_slot] = tx.inputs[0].ring.c[source_slot];
+    let unsealed = build_unsealed_header(&state0, std::slice::from_ref(&tx), &[], &[], &[], 1, 100);
+    let block = seal_block(
+        unsealed,
+        vec![tx],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            let named = errors.iter().any(|e| match e {
+                BlockError::TxInvalid { index: 0, errors } => errors.iter().any(|m| {
+                    m == &format!(
+                        "input 0: ring slot {repeat_slot} repeats slot {source_slot}; ring members must be distinct"
+                    )
+                }),
+                _ => false,
+            });
+            assert!(
+                named,
+                "expected the repeated-member TxInvalid, got {errors:?}"
+            );
+            assert!(
+                !errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::RingMemberNotInUtxoSet { .. })),
+                "every member is a real UTXO; only the repeat may fail"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("a ring that repeats a member must reject the block"),
+    }
+}
+
 /* ---- Liveness participation + auto-slashing ---------------------- *
  *                                                                   *
  *  These unit tests drive `apply_block` against the liveness bitmap  *
@@ -2482,7 +2650,7 @@ fn equivocation_slash_credits_treasury_via_apply_block() {
         SlashEvidence::Equivocation(inner) => {
             crate::slashing::verify_evidence(inner, &next.validators)
         }
-        SlashEvidence::InvalidBlock(_) => panic!("expected equivocation"),
+        other => panic!("expected equivocation, got {other:?}"),
     };
     assert_eq!(chk, EvidenceCheck::Valid);
     let idx = ev.offender_index() as usize;
@@ -2682,6 +2850,7 @@ fn block_header_codec_rejects_truncation() {
             HeaderDecodeError::Truncated { .. }
             | HeaderDecodeError::VarintOverflow { .. }
             | HeaderDecodeError::ProducerProofTooLarge { .. }
+            | HeaderDecodeError::ProducerProofExceedsBudget { .. }
             | HeaderDecodeError::VersionOutOfRange { .. } => (),
             HeaderDecodeError::TrailingBytes { .. } => {
                 panic!("prefix of len {cut} cannot have trailing bytes")

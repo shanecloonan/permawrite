@@ -234,6 +234,26 @@ pub fn input_count_is_padded_bucket(n: u32) -> bool {
     n >= MIN_TX_INPUTS_UNIFORM_TIER && n.is_power_of_two()
 }
 
+/// First ring slot that repeats an earlier slot's one-time address, as
+/// `(slot, prev_slot)`; `None` when every member is distinct (**B-323**).
+///
+/// Members compare by compressed point bytes, the same key the UTXO set
+/// uses, so two encodings of one output cannot slip past as two members.
+/// `verify_transaction` refuses a ring with a repeat; the wallet builder
+/// refuses to sign one.
+#[must_use]
+pub fn repeated_ring_member(members: &[EdwardsPoint]) -> Option<(usize, usize)> {
+    let mut seen: Vec<([u8; 32], usize)> = Vec::with_capacity(members.len());
+    for (slot, p) in members.iter().enumerate() {
+        let key = p.compress().to_bytes();
+        if let Some(&(_, prev_slot)) = seen.iter().find(|(k, _)| *k == key) {
+            return Some((slot, prev_slot));
+        }
+        seen.push((key, slot));
+    }
+    None
+}
+
 /// Consensus parameters baked into the chain at genesis. Changing any of
 /// these is a hard fork.
 #[derive(Clone, Copy, Debug)]

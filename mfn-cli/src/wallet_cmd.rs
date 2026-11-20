@@ -12,8 +12,8 @@ use mfn_storage_operator::upload_artifact_store::{
 };
 use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
-    ClaimingIdentity, TransferRecipient, Wallet, WalletError, WALLET_MIN_RING_SIZE,
-    WALLET_MIN_TX_INPUTS,
+    explain_wallet_error, mnemonic_from_seed, seed_from_mnemonic, ClaimingIdentity,
+    TransferRecipient, Wallet, WalletError, WALLET_MIN_RING_SIZE, WALLET_MIN_TX_INPUTS,
 };
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha512};
@@ -82,8 +82,10 @@ pub struct SendParams {
     pub amount: u64,
     /// Transaction fee (atomic units).
     pub fee: u64,
-    /// Ring size (≥ [`WALLET_MIN_RING_SIZE`], includes real input).
-    pub ring_size: usize,
+    /// Ring size when the caller named one. `None` uses the largest legal ring.
+    pub ring_size: Option<usize>,
+    /// Ask to publish the fee. Refused when the chain hides fees.
+    pub public_fee: bool,
     /// Optional `tx.extra` memo bytes (hex).
     pub extra: Vec<u8>,
     /// Print a single JSON object instead of key=value lines.
@@ -193,6 +195,44 @@ struct SendOutcome<'a> {
     owned_count_after_send: usize,
 }
 
+/// `wallet lock` — seal the seed with `MFN_WALLET_PASSPHRASE`.
+pub fn wallet_lock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if file.is_locked() {
+        return Err(WalletCmdError::Usage(
+            "wallet is already locked. The same passphrase still opens it".into(),
+        ));
+    }
+    let pass = crate::wallet_lock::passphrase_from_env()
+        .map_err(|e| WalletCmdError::Usage(e.to_string()))?;
+    file.lock_passphrase = Some(pass);
+    file.save(path)?;
+    println!("wallet_locked=true");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is sealed. Keep MFN_WALLET_PASSPHRASE somewhere safe. It is not in the wallet file. Losing it loses the money"
+    );
+    Ok(())
+}
+
+/// `wallet unlock` — write the seed in plaintext again.
+pub fn wallet_unlock(path: &Path) -> Result<(), WalletCmdError> {
+    let mut file = WalletFile::load(path)?;
+    if !file.is_locked() {
+        return Err(WalletCmdError::Usage(
+            "wallet is not locked, so there is nothing to unlock".into(),
+        ));
+    }
+    file.unlock_in_memory();
+    file.save(path)?;
+    println!("wallet_locked=false");
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "warning: the seed is plaintext in the wallet file again. Anyone who can read the file can spend"
+    );
+    Ok(())
+}
+
 /// `wallet new` — generate seed and write wallet file.
 pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     if path.exists() && !force {
@@ -206,11 +246,53 @@ pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     let mut file = WalletFile::new(&seed, KeyDerivation::MfnWalletV1);
     file.save(path)?;
     print_address_lines(&file)?;
+    println!("mnemonic={}", mnemonic_from_seed(&seed));
     println!("wallet_path={}", path.display());
     println!("wallet_version={WALLET_FILE_VERSION}");
     eprintln!(
-        "warning: back up wallet file and seed_hex; loss of either means permanent loss of funds"
+        "warning: write these 24 words on paper, in order. They restore your money. Anyone who sees them can spend it. The words do not restore files you uploaded — keep the upload-artifacts folder too"
     );
+    Ok(())
+}
+
+/// `wallet restore --mnemonic` — user-wallet seed from a 24-word phrase.
+pub fn wallet_restore_mnemonic(
+    path: &Path,
+    words: &[String],
+    force: bool,
+) -> Result<(), WalletCmdError> {
+    if path.exists() && !force {
+        return Err(WalletCmdError::Usage(format!(
+            "wallet file already exists at {}; pass --force to overwrite",
+            path.display()
+        )));
+    }
+    let phrase = words.join(" ");
+    let seed = seed_from_mnemonic(&phrase).map_err(|e| WalletCmdError::Usage(e.to_string()))?;
+    let mut file = WalletFile::new(&seed, KeyDerivation::MfnWalletV1);
+    file.save(path)?;
+    print_address_lines(&file)?;
+    println!("wallet_path={}", path.display());
+    println!("wallet_version={WALLET_FILE_VERSION}");
+    eprintln!(
+        "warning: restored a user wallet from the recovery phrase. Keep the words off chats, photos, and shell history"
+    );
+    Ok(())
+}
+
+/// `wallet mnemonic` — print the phrase for an existing user wallet.
+pub fn wallet_show_mnemonic(path: &Path) -> Result<(), WalletCmdError> {
+    let file = WalletFile::load(path)?;
+    if file.key_derivation != KeyDerivation::MfnWalletV1 {
+        return Err(WalletCmdError::Usage(
+            "operator payout wallets do not use a recovery phrase. Back up seed_hex offline, and do not paste it into a chat".into(),
+        ));
+    }
+    let seed = file.seed_bytes()?;
+    eprintln!(
+        "warning: these 24 words spend your money. Do not photograph them or paste them into a chat"
+    );
+    println!("mnemonic={}", mnemonic_from_seed(&seed));
     Ok(())
 }
 
@@ -333,6 +415,10 @@ pub fn wallet_status(
     println!("scan_height={scan_height}");
     println!("utxo_cache={cached}");
     println!("balance_cached={}", wallet.balance());
+    println!(
+        "balance_cached_mfn={}",
+        mfn_wallet::format_mfn(wallet.balance())
+    );
     println!("owned_count_cached={}", wallet.owned_count());
     println!("pending_spent_count={}", file.pending_spent_utxo_keys.len());
     println!("sync_needed={sync_needed}");
@@ -354,6 +440,7 @@ fn wallet_status_json(
         "scan_height": snapshot.scan_height,
         "utxo_cache": snapshot.utxo_cache,
         "balance_cached": snapshot.balance_cached,
+        "balance_cached_mfn": mfn_wallet::format_mfn(snapshot.balance_cached),
         "owned_count_cached": snapshot.owned_count_cached,
         "pending_spent_count": file.pending_spent_utxo_keys.len(),
         "blocks_behind": snapshot.blocks_behind,
@@ -450,20 +537,10 @@ fn f7_owned_below_floor_usage(got: usize, min: usize) -> WalletCmdError {
     ))
 }
 
-fn ring_size_below_floor_usage(min: usize) -> WalletCmdError {
-    WalletCmdError::Usage(format!(
-        "ring-size must be at least {min} (wallet/consensus floor)"
-    ))
-}
-
 /// Map wallet build errors; rewrite F7 input-count and ring-floor rejects to CLI wording
 /// (**B-197** / **B-217**).
 fn map_wallet_build_err(err: WalletError) -> WalletCmdError {
-    match err {
-        WalletError::TxInputCountBelowMinimum { got, min } => f7_owned_below_floor_usage(got, min),
-        WalletError::RingSizeBelowMinimum { min, .. } => ring_size_below_floor_usage(min),
-        other => WalletCmdError::Wallet(other),
-    }
+    WalletCmdError::Usage(explain_wallet_error(&err))
 }
 
 /// `wallet send` — scan, build CLSAG transfer, `submit_tx`, persist pending spends.
@@ -477,10 +554,12 @@ pub fn wallet_send(
             "amount must be greater than 0".into(),
         ));
     }
-    if params.ring_size < WALLET_MIN_RING_SIZE {
-        return Err(WalletCmdError::Usage(format!(
-            "ring-size must be at least {WALLET_MIN_RING_SIZE} (wallet/consensus floor)"
-        )));
+    if let Some(ring) = params.ring_size {
+        if ring < WALLET_MIN_RING_SIZE {
+            return Err(WalletCmdError::Usage(format!(
+                "ring-size must be at least {WALLET_MIN_RING_SIZE} (wallet/consensus floor)"
+            )));
+        }
     }
     let recipient = parse_recipient(&params.to_view_hex, &params.to_spend_hex)?;
     let mut file = WalletFile::load(path)?;
@@ -494,13 +573,14 @@ pub fn wallet_send(
         wallet.owned().map(|o| o.utxo_key()).collect();
     let mut rng = production_tx_rng;
     let signed = wallet
-        .build_transfer(
+        .build_private_transfer(
             &[TransferRecipient {
                 recipient,
                 value: params.amount,
             }],
             params.fee,
             params.ring_size,
+            params.public_fee,
             &chain_state,
             &params.extra,
             &mut rng,
@@ -552,15 +632,52 @@ fn print_send_outcome(outcome: &SendOutcome<'_>) -> Result<(), WalletCmdError> {
     println!("blocks_scanned={}", outcome.stats.blocks_fetched);
     println!("utxo_cache={}", outcome.stats.used_utxo_cache);
     println!("amount={}", outcome.params.amount);
+    println!(
+        "amount_mfn={}",
+        mfn_wallet::format_mfn(outcome.params.amount)
+    );
     println!("fee={}", outcome.params.fee);
-    println!("ring_size={}", outcome.params.ring_size);
+    println!("fee_mfn={}", mfn_wallet::format_mfn(outcome.params.fee));
+    println!(
+        "ring_size={}",
+        outcome
+            .params
+            .ring_size
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "largest-legal".to_string())
+    );
+    println!("public_fee={}", outcome.params.public_fee);
     println!("tx_id={}", outcome.tx_id);
     println!("mempool_len={}", outcome.mempool_len);
     println!("outcome={}", outcome.outcome_kind);
     println!("balance_after_send={}", outcome.balance_after_send);
+    println!(
+        "balance_after_send_mfn={}",
+        mfn_wallet::format_mfn(outcome.balance_after_send)
+    );
     println!("owned_count_after_send={}", outcome.owned_count_after_send);
     println!("wallet_path={}", outcome.path.display());
+    eprintln!("{}", pending_tx_note(outcome.outcome_kind, outcome.tx_id));
     Ok(())
+}
+
+/// What to tell a person after `submit_tx`. Stdout stays `key=value`.
+pub(crate) fn pending_tx_note(kind: &str, tx_id: &str) -> String {
+    match kind {
+        "Fresh" | "Duplicate" => format!(
+            "Submitted {tx_id}. The payment is pending until a block includes it. The recipient cannot spend it yet."
+        ),
+        other => format!(
+            "The node did not accept {tx_id} ({other}). It was not added to the mempool."
+        ),
+    }
+}
+
+/// What to tell a person after an upload is submitted.
+pub(crate) fn pending_upload_note(tx_id: &str) -> String {
+    format!(
+        "Submitted {tx_id}. The upload is pending until a block includes it. Keep the upload-artifacts folder. The wallet seed does not contain the file."
+    )
 }
 
 fn send_outcome_json(outcome: &SendOutcome<'_>) -> serde_json::Value {
@@ -572,13 +689,18 @@ fn send_outcome_json(outcome: &SendOutcome<'_>) -> serde_json::Value {
         "recipient_view_hex": outcome.params.to_view_hex.as_str(),
         "recipient_spend_hex": outcome.params.to_spend_hex.as_str(),
         "amount": outcome.params.amount,
+        "amount_mfn": mfn_wallet::format_mfn(outcome.params.amount),
         "fee": outcome.params.fee,
+        "fee_mfn": mfn_wallet::format_mfn(outcome.params.fee),
         "ring_size": outcome.params.ring_size,
+        "public_fee": outcome.params.public_fee,
         "extra_len": outcome.params.extra.len(),
         "tx_id": outcome.tx_id,
         "mempool_len": outcome.mempool_len,
         "outcome": outcome.outcome_kind,
+        "pending_note": pending_tx_note(outcome.outcome_kind, outcome.tx_id),
         "balance_after_send": outcome.balance_after_send,
+        "balance_after_send_mfn": mfn_wallet::format_mfn(outcome.balance_after_send),
         "owned_count_after_send": outcome.owned_count_after_send,
     })
 }
@@ -771,7 +893,12 @@ fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdErro
     println!("bytes={}", outcome.file_bytes);
     println!("replication={}", outcome.params.replication);
     println!("anchor_value={}", outcome.params.anchor_value);
+    println!(
+        "anchor_value_mfn={}",
+        mfn_wallet::format_mfn(outcome.params.anchor_value)
+    );
     println!("fee={}", outcome.fee);
+    println!("fee_mfn={}", mfn_wallet::format_mfn(outcome.fee));
     println!("min_fee={}", outcome.min_fee);
     println!("burden={}", outcome.burden);
     println!("data_root={}", hex::encode(outcome.data_root));
@@ -792,6 +919,10 @@ fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdErro
     println!("outcome={}", outcome.outcome_kind);
     println!("balance_after_upload={}", outcome.balance_after_upload);
     println!(
+        "balance_after_upload_mfn={}",
+        mfn_wallet::format_mfn(outcome.balance_after_upload)
+    );
+    println!(
         "owned_count_after_upload={}",
         outcome.owned_count_after_upload
     );
@@ -799,6 +930,7 @@ fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdErro
     eprintln!(
         "note: payload + Merkle metadata saved under upload_artifact_dir for operator prove without --file"
     );
+    eprintln!("{}", pending_upload_note(outcome.tx_id));
     Ok(())
 }
 
@@ -823,7 +955,9 @@ fn upload_outcome_json(outcome: &UploadOutcome<'_>) -> serde_json::Value {
         "bytes": outcome.file_bytes,
         "replication": outcome.params.replication,
         "anchor_value": outcome.params.anchor_value,
+        "anchor_value_mfn": mfn_wallet::format_mfn(outcome.params.anchor_value),
         "fee": outcome.fee,
+        "fee_mfn": mfn_wallet::format_mfn(outcome.fee),
         "min_fee": outcome.min_fee,
         "burden": outcome.burden.to_string(),
         "data_root": hex::encode(outcome.data_root),
@@ -834,7 +968,9 @@ fn upload_outcome_json(outcome: &UploadOutcome<'_>) -> serde_json::Value {
         "tx_id": outcome.tx_id,
         "mempool_len": outcome.mempool_len,
         "outcome": outcome.outcome_kind,
+        "pending_note": pending_upload_note(outcome.tx_id),
         "balance_after_upload": outcome.balance_after_upload,
+        "balance_after_upload_mfn": mfn_wallet::format_mfn(outcome.balance_after_upload),
         "owned_count_after_upload": outcome.owned_count_after_upload,
         "upload_artifact_saved": artifact_saved,
         "upload_artifact_dir": artifact_dir,
@@ -998,6 +1134,7 @@ pub(crate) fn print_scan_summary(
         println!("scan_height={h}");
     }
     println!("balance={balance}");
+    println!("balance_mfn={}", mfn_wallet::format_mfn(balance));
     println!("owned_count={owned}");
 }
 
@@ -1042,6 +1179,7 @@ fn scan_summary_json(
         "scan_height": scan_height.unwrap_or(0),
         "scan_height_present": scan_height.is_some(),
         "balance": balance,
+        "balance_mfn": mfn_wallet::format_mfn(balance),
         "owned_count": owned,
         "pending_spent_count": file.pending_spent_utxo_keys.len(),
         "light_checkpoint_present": file.light_checkpoint_hex.is_some(),
@@ -1111,6 +1249,19 @@ mod tests {
         ))
     }
 
+    #[test]
+    fn pending_notes_say_the_payment_is_not_final() {
+        let fresh = pending_tx_note("Fresh", "abc");
+        assert!(fresh.contains("pending"));
+        assert!(fresh.contains("cannot spend"));
+        assert!(fresh.contains("abc"));
+        let rejected = pending_tx_note("Rejected", "abc");
+        assert!(rejected.contains("not added"));
+        let upload = pending_upload_note("def");
+        assert!(upload.contains("upload-artifacts"));
+        assert!(upload.contains("seed does not contain"));
+    }
+
     /// B-174: CLI default ring must stay locked to the wallet/consensus floor
     /// (no silent drift of DEFAULT_RING_SIZE off WALLET_MIN_RING_SIZE).
     #[test]
@@ -1159,6 +1310,44 @@ mod tests {
                 && msg.contains(&WALLET_MIN_RING_SIZE.to_string()),
             "expected rewritten ring-floor message, got {msg}"
         );
+    }
+
+    #[test]
+    fn wallet_new_and_mnemonic_restore_share_a_seed() {
+        let created = temp_wallet_path("new-mnemonic");
+        wallet_new(&created, false).expect("new");
+        let file = WalletFile::load(&created).expect("load");
+        let seed = file.seed_bytes().expect("seed");
+        let phrase = mnemonic_from_seed(&seed);
+        let words: Vec<String> = phrase.split_whitespace().map(str::to_string).collect();
+        assert_eq!(words.len(), 24);
+
+        let restored = temp_wallet_path("restore-mnemonic");
+        wallet_restore_mnemonic(&restored, &words, false).expect("restore phrase");
+        let again = WalletFile::load(&restored).expect("load restored");
+        assert_eq!(again.seed_hex, file.seed_hex);
+        assert_eq!(again.key_derivation, KeyDerivation::MfnWalletV1);
+        wallet_show_mnemonic(&restored).expect("show");
+
+        let payout = temp_wallet_path("payout-no-phrase");
+        wallet_restore(
+            &payout,
+            &"ab".repeat(32),
+            KeyDerivation::PayoutStealthV1,
+            false,
+        )
+        .expect("payout");
+        let refused = wallet_show_mnemonic(&payout).expect_err("payout phrase");
+        assert!(refused.to_string().contains("payout"));
+
+        let bad =
+            wallet_restore_mnemonic(&temp_wallet_path("bad-phrase"), &["abandon".into()], false)
+                .expect_err("short");
+        assert!(bad.to_string().contains("24 English words"));
+
+        let _ = std::fs::remove_file(created);
+        let _ = std::fs::remove_file(restored);
+        let _ = std::fs::remove_file(payout);
     }
 
     #[test]
@@ -1375,7 +1564,8 @@ mod tests {
             to_spend_hex: "22".repeat(32),
             amount: 1_000,
             fee: 10,
-            ring_size: DEFAULT_RING_SIZE,
+            ring_size: Some(DEFAULT_RING_SIZE),
+            public_fee: false,
             extra: vec![0xaa, 0xbb],
             json: true,
         };

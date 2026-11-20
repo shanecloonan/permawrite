@@ -4,6 +4,9 @@
 **/target-*
 # Criterion writes target/criterion from the package directory.
 target/
+/fuzz/target
+/fuzz/artifacts
+/fuzz/corpus
 demo/web/pkg/
 **/demo/web/pkg/
 **/*.rs.bk

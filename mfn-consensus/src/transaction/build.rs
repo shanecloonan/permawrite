@@ -137,6 +137,19 @@ pub enum TxBuildError {
         /// Actual ring size.
         ring_size: usize,
     },
+    /// A ring names the same output in two slots (**B-323**). Consensus
+    /// rejects the transaction, so it is refused before signing.
+    #[error(
+        "input {idx}: ring slot {slot} repeats slot {prev_slot}; ring members must be distinct"
+    )]
+    RingMemberRepeated {
+        /// Input index in the tx.
+        idx: usize,
+        /// Later slot holding the repeated member.
+        slot: usize,
+        /// Earlier slot holding the same member.
+        prev_slot: usize,
+    },
     /// Underlying cryptographic operation failed.
     #[error(transparent)]
     Crypto(#[from] mfn_crypto::CryptoError),
@@ -209,6 +222,13 @@ fn sign_transaction_inner(
                 idx,
                 signer_idx: i.signer_idx,
                 ring_size: i.ring.p.len(),
+            });
+        }
+        if let Some((slot, prev_slot)) = crate::block::repeated_ring_member(&i.ring.p) {
+            return Err(TxBuildError::RingMemberRepeated {
+                idx,
+                slot,
+                prev_slot,
             });
         }
     }

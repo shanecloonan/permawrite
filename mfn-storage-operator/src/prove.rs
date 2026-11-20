@@ -12,7 +12,10 @@ use mfn_wallet::wallet_from_seed;
 use serde::Deserialize;
 
 use crate::rpc::{RpcClient, RpcError, StorageChallenge, SubmitStorageProofResult};
-use crate::upload_artifact_store::{load_upload_artifact, LoadedUploadArtifact};
+use crate::upload_artifact_store::{
+    load_upload_artifact, LoadedUploadArtifact, UploadArtifactStoreError,
+};
+use mfn_wallet::UploadArtifactRebuildError;
 
 /// Operator prove errors.
 #[derive(Debug, thiserror::Error)]
@@ -23,6 +26,9 @@ pub enum ProveError {
     /// Local validation / artifact failure.
     #[error("{0}")]
     Usage(String),
+    /// Payload bytes do not match the anchored root. Do not submit a proof.
+    #[error("corrupt upload artifact: {0}")]
+    Corrupt(String),
 }
 
 /// Successful proof submission.
@@ -78,10 +84,9 @@ pub fn prove_from_wallet_artifact(
     wallet_path: &Path,
     commitment_hash_hex: &str,
 ) -> Result<ProveSuccess, ProveError> {
+    let loaded = load_artifact_for_prove(wallet_path, commitment_hash_hex)?;
     let ch = fetch_challenge_for_payout(client, commitment_hash_hex, wallet_path)?;
     let on_chain_hash = parse_hex32(&ch.commitment_hash)?;
-    let loaded = load_upload_artifact(wallet_path, commitment_hash_hex)
-        .map_err(|e| ProveError::Usage(format!("upload artifact: {e}")))?;
     validate_loaded_artifact(&loaded, &ch, on_chain_hash)?;
     let source = if loaded.source_path.is_empty() {
         None
@@ -97,6 +102,31 @@ pub fn prove_from_wallet_artifact(
         wallet_path,
         source,
     )
+}
+
+/// Load an artifact and refuse it when the bytes do not match the commitment.
+///
+/// This does not talk to a node. A corrupt payload must not become a proof.
+///
+/// # Errors
+///
+/// [`ProveError::Corrupt`] when the payload size or `data_root` does not match.
+/// [`ProveError::Usage`] for a missing or unreadable artifact.
+pub fn load_artifact_for_prove(
+    wallet_path: &Path,
+    commitment_hash_hex: &str,
+) -> Result<LoadedUploadArtifact, ProveError> {
+    load_upload_artifact(wallet_path, commitment_hash_hex).map_err(map_artifact_load)
+}
+
+fn map_artifact_load(err: UploadArtifactStoreError) -> ProveError {
+    match &err {
+        UploadArtifactStoreError::Rebuild(
+            UploadArtifactRebuildError::DataRootMismatch
+            | UploadArtifactRebuildError::PayloadSize { .. },
+        ) => ProveError::Corrupt(err.to_string()),
+        _ => ProveError::Usage(format!("upload artifact: {err}")),
+    }
 }
 
 fn validate_loaded_artifact(
@@ -257,4 +287,47 @@ fn parse_hex32(s: &str) -> Result<[u8; 32], ProveError> {
     let mut out = [0u8; 32];
     out.copy_from_slice(&bytes);
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::upload_artifact_store::{save_upload_artifact, PAYLOAD_FILE};
+    use mfn_storage::{
+        build_storage_commitment, storage_commitment_hash, DEFAULT_ENDOWMENT_PARAMS,
+    };
+    use std::path::Path;
+
+    #[test]
+    fn a_flipped_artifact_is_corrupt_before_any_proof() {
+        let dir = std::env::temp_dir().join(format!("mfn-corrupt-art-{}", std::process::id()));
+        let wallet = dir.join("w.json");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let payload = b"bytes that must still match the root".to_vec();
+        let built = build_storage_commitment(
+            &payload,
+            1_000,
+            Some(64),
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .expect("commit");
+        save_upload_artifact(&wallet, &built, &payload, Path::new("x"), None).expect("save");
+        let hash = hex::encode(storage_commitment_hash(&built.commit));
+        assert!(load_artifact_for_prove(&wallet, &hash).is_ok());
+
+        let payload_path = dir
+            .join("w.upload-artifacts")
+            .join(&hash)
+            .join(PAYLOAD_FILE);
+        let mut flipped = std::fs::read(&payload_path).expect("read");
+        flipped[0] ^= 0xff;
+        std::fs::write(&payload_path, flipped).expect("flip");
+
+        match load_artifact_for_prove(&wallet, &hash) {
+            Err(ProveError::Corrupt(msg)) => assert!(msg.contains("data_root")),
+            other => panic!("expected corrupt, got {other:?}"),
+        }
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }
