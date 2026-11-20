@@ -138,6 +138,16 @@ pub fn explain_wallet_error(err: &WalletError) -> String {
         WalletError::Crypto(inner) => {
             format!("A cryptographic step failed before anything was broadcast. Detail: {inner}")
         }
+        WalletError::TxBuild(mfn_consensus::TxBuildError::RingMemberRepeated {
+            idx,
+            slot,
+            prev_slot,
+        }) => format!(
+            "The payment was not signed: input {idx} listed the same coin in ring slots \
+             {prev_slot} and {slot}. A ring that repeats a coin hides the spend among fewer \
+             coins than it claims, so the network rejects it. The wallet's decoy list was \
+             stale or duplicated; refresh the chain view and try again."
+        ),
         WalletError::TxBuild(inner) => {
             format!("The payment could not be built, so it was not broadcast. Detail: {inner}")
         }
@@ -180,5 +190,20 @@ mod tests {
         assert!(fee.contains("smallest fee"));
         assert!(fee.contains("100"));
         assert!(fee.contains("Nothing was signed"));
+    }
+
+    #[test]
+    fn b323_repeated_ring_member_names_the_slots_and_the_leak() {
+        let repeated = explain_wallet_error(&WalletError::TxBuild(
+            mfn_consensus::TxBuildError::RingMemberRepeated {
+                idx: 1,
+                slot: 9,
+                prev_slot: 4,
+            },
+        ));
+        assert!(repeated.contains("input 1"));
+        assert!(repeated.contains("slots 4 and 9"));
+        assert!(repeated.contains("fewer coins than it claims"));
+        assert!(repeated.contains("not signed"));
     }
 }
