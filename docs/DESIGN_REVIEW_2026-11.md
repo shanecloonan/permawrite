@@ -54,6 +54,13 @@ hashes, or (b) make votes sign a transcript that explicitly binds
 slot. Add an `apply_block`-level negative test: two votes at different heights
 must be rejected as evidence. (Defensive description only.)
 
+**Status (2026-11-19, B-330).** Option (a) landed behind header version 8
+(`HEADER_VERSION_EQUIVOCATION_BIND`): `BoundEquivocationEvidence` carries
+both `header_signing_bytes` preimages and `apply_block` rejects a pair that
+does not name one height and slot (`HeightSlotMismatch`). Header v1 chains
+(Path A, F-A) keep the legacy rule. See
+[`CONSENSUS.md` § Bound evidence](./CONSENSUS.md#bound-evidence-header-v8-b-330).
+
 ## 2. Single-round finality has no lock rule — GAP
 
 Voting is one round: a producer gathers ≥ 2/3 stake of BLS votes
