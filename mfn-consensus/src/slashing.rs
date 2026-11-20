@@ -68,7 +68,7 @@ pub struct EquivocationEvidence {
 /// the validator voted for. The verifier recomputes both signed hashes from
 /// the preimages, so a signature here can only count against a header whose
 /// height and slot the verifier can read.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BoundEquivocationEvidence {
     /// Block height both votes were for.
     pub height: u32,

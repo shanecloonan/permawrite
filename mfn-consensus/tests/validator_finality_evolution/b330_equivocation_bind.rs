@@ -221,3 +221,99 @@ fn b330_v8_bound_evidence_survives_block_wire_round_trip() {
         .expect("decoded bound evidence slashes");
     assert_eq!(post.validators[1].stake, 0);
 }
+
+/* ---- B-332: detector output is what apply_block slashes ---------------- */
+
+/// Validator 1 casts a real committee vote (`cast_vote`) on two competing
+/// proposals for height 1 / slot 1. The detector, fed those votes the way a
+/// node's vote intake would, emits bound evidence, and that evidence slashes
+/// through `apply_block` on the v8 chain. An honest vote on the next height
+/// first does not change the outcome.
+#[test]
+fn b332_detector_evidence_from_real_votes_slashes_through_apply_block() {
+    use mfn_consensus::consensus::{cast_vote, pick_winner, try_produce_slot, SlotContext};
+    use mfn_consensus::equivocation_detector::{EquivocationDetector, Observation};
+    use mfn_consensus::header_signing_hash;
+
+    let fx = boot_three_validators_equivocation_bind(64);
+    let st = fx.state.clone();
+    let total_stake: u64 = st.validators.iter().map(|v| v.stake).sum();
+    let f = st.params.expected_proposers_per_slot;
+
+    // Two competing proposals at height 1 that differ only in timestamp,
+    // both carrying a producer proof some validator is eligible for.
+    let mut proposals = Vec::new();
+    for salt in [0u64, 1] {
+        let mut unsealed = build_unsealed_header(&st, &[], &[], &[], &[], 1, 100 + salt);
+        unsealed.slot = 1;
+        let hash = header_signing_hash(&unsealed);
+        let ctx = SlotContext {
+            height: 1,
+            slot: 1,
+            prev_hash: unsealed.prev_hash,
+        };
+        let mut candidates = Vec::new();
+        for (i, v) in st.validators.iter().enumerate() {
+            if let Ok(Some(p)) = try_produce_slot(&ctx, &fx.secrets[i], v, total_stake, f, &hash) {
+                candidates.push(p);
+            }
+        }
+        let producer = pick_winner(&candidates)
+            .cloned()
+            .expect("some validator is eligible at slot 1 with F=10");
+        let producer_validator = st
+            .validators
+            .iter()
+            .find(|v| v.index == producer.validator_index)
+            .expect("producer in set");
+        let vote = cast_vote(
+            &hash,
+            &fx.secrets[1],
+            &ctx,
+            &producer,
+            producer_validator,
+            total_stake,
+            f,
+        )
+        .expect("validator 1 votes");
+        proposals.push((header_signing_bytes(&unsealed), vote.sig));
+    }
+
+    let mut detector = EquivocationDetector::default();
+    // An honest vote at the next height first: never pairs with anything.
+    let mut next = build_unsealed_header(&st, &[], &[], &[], &[], 2, 200);
+    next.slot = 2;
+    let next_bytes = header_signing_bytes(&next);
+    let next_sig = mfn_bls::bls_sign(&header_signing_hash(&next), &fx.secrets[1].bls.sk);
+    assert_eq!(
+        detector.observe(&st.validators, 1, &next_bytes, &next_sig),
+        Observation::Recorded
+    );
+
+    let (bytes_a, sig_a) = &proposals[0];
+    let (bytes_b, sig_b) = &proposals[1];
+    assert_eq!(
+        detector.observe(&st.validators, 1, bytes_a, sig_a),
+        Observation::Recorded
+    );
+    let Observation::Equivocation(evidence) = detector.observe(&st.validators, 1, bytes_b, sig_b)
+    else {
+        panic!("two votes for height 1 / slot 1 on different headers is a double-sign");
+    };
+    assert_eq!(evidence.voter_index, st.validators[1].index);
+
+    let stake = st.validators[1].stake;
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        vec![SlashEvidence::BoundEquivocation(*evidence)],
+        &all_voter_positions(&st),
+    );
+    let post = apply_block(&st, &block)
+        .into_state()
+        .expect("detector evidence slashes on the v8 chain");
+    assert_eq!(post.validators[1].stake, 0);
+    assert_eq!(post.treasury, st.treasury + u128::from(stake));
+}
