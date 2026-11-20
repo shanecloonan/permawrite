@@ -66,8 +66,9 @@ pub use genesis::{
     GenesisStorageOperator, SUPPORTED_GENESIS_HEADER_VERSIONS,
 };
 pub use header::{
-    block_header_bytes, block_id, decode_block_header, header_signing_bytes, header_signing_hash,
-    Block, BlockHeader, DisclosedFee, HeaderDecodeError, HEADER_VERSION,
+    block_header_bytes, block_id, decode_block_header, header_signing_bytes, header_signing_fields,
+    header_signing_hash, header_signing_hash_from_bytes, Block, BlockHeader, DisclosedFee,
+    HeaderDecodeError, HeaderSigningFields, HEADER_VERSION, HEADER_VERSION_EQUIVOCATION_BIND,
     HEADER_VERSION_FRAUD_SLASH, HEADER_VERSION_HIDDEN_FEES, HEADER_VERSION_INPUT_PAD,
     HEADER_VERSION_RETRIEVAL, HEADER_VERSION_TIER2, HEADER_VERSION_UTXO_QUORUM, TIER2_RING_SIZES,
 };

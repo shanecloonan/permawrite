@@ -2482,7 +2482,7 @@ fn equivocation_slash_credits_treasury_via_apply_block() {
         SlashEvidence::Equivocation(inner) => {
             crate::slashing::verify_evidence(inner, &next.validators)
         }
-        SlashEvidence::InvalidBlock(_) => panic!("expected equivocation"),
+        other => panic!("expected equivocation, got {other:?}"),
     };
     assert_eq!(chk, EvidenceCheck::Valid);
     let idx = ev.offender_index() as usize;
