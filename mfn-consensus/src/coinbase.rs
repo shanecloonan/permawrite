@@ -249,6 +249,24 @@ pub fn verify_coinbase_outputs(
     if tx.fee != 0 {
         errors.push(format!("coinbase fee must be 0, got {}", tx.fee));
     }
+    // B-325: a coinbase is a pure function of (height, producer, specs).
+    // Fields the builder never sets are refused instead of ignored, so
+    // the producer has no byte it can choose: `extra` would be an
+    // arbitrary-data channel and a producer fingerprint; a fee
+    // commitment is a regular-tx field that would sit outside the
+    // block's fee sum.
+    if !tx.extra.is_empty() {
+        errors.push(format!(
+            "coinbase extra must be empty (got {} bytes)",
+            tx.extra.len()
+        ));
+    }
+    if tx.fee_commitment.is_some() {
+        errors.push("coinbase must not carry a fee commitment".to_string());
+    }
+    if tx.fee_range_proof.is_some() {
+        errors.push("coinbase must not carry a fee range proof".to_string());
+    }
     if !errors.is_empty() {
         return CoinbaseVerifyResult {
             ok: false,
@@ -306,6 +324,36 @@ pub fn verify_coinbase_outputs(
                 "output {i}: enc_amount must be {ENC_AMOUNT_BYTES} bytes (got {})",
                 out.enc_amount.len()
             ));
+        } else {
+            // B-325: the payee decrypts with this exact ciphertext. A
+            // producer that writes any other bytes leaves the payee (a
+            // storage operator on outputs 1..n) unable to read its own
+            // payout amount.
+            let expected_enc = mfn_crypto::encrypted_amount::encrypt_output_amount(
+                tx_priv,
+                &spec.payout.view_pub,
+                i as u32,
+                spec.amount,
+                &blinding,
+            );
+            if out.enc_amount != expected_enc {
+                errors.push(format!(
+                    "output {i}: enc_amount does not match the deterministic coinbase encryption"
+                ));
+            }
+        }
+
+        // B-325: v2 outputs carry the indexed view tag the payee's scanner
+        // filters on. A missing or wrong tag hides the payout from a
+        // light scan, so the tag must be the derived one.
+        let expected_tag =
+            indexed_view_tag_from_shared(&(spec.payout.view_pub * tx_priv), i as u32);
+        match out.view_tag {
+            Some(tag) if tag == expected_tag => {}
+            Some(_) => errors.push(format!(
+                "output {i}: view_tag does not match the payout-derived tag"
+            )),
+            None => errors.push(format!("output {i}: v2 coinbase output missing view_tag")),
         }
     }
 
@@ -472,6 +520,123 @@ mod tests {
         let res = verify_coinbase(&cb, 1, 100, &payout);
         assert!(!res.ok);
         assert!(res.errors.iter().any(|e| e.contains("storage")));
+    }
+
+    #[test]
+    fn b325_coinbase_extra_and_fee_fields_are_refused() {
+        let (payout, _w) = fresh_payout();
+        let cb = build_coinbase(7, 100, &payout).expect("build");
+
+        let mut extra = cb.clone();
+        extra.extra = b"producer memo".to_vec();
+        let res = verify_coinbase(&extra, 7, 100, &payout);
+        assert!(!res.ok);
+        assert!(
+            res.errors
+                .iter()
+                .any(|e| e == "coinbase extra must be empty (got 13 bytes)"),
+            "{:?}",
+            res.errors
+        );
+
+        let mut fee_commit = cb.clone();
+        fee_commit.fee_commitment = Some(generator_g());
+        let res = verify_coinbase(&fee_commit, 7, 100, &payout);
+        assert!(!res.ok);
+        assert!(res
+            .errors
+            .iter()
+            .any(|e| e == "coinbase must not carry a fee commitment"));
+
+        let mut fee_range = cb;
+        fee_range.fee_range_proof = Some(fee_range.outputs[0].range_proof.clone());
+        let res = verify_coinbase(&fee_range, 7, 100, &payout);
+        assert!(!res.ok);
+        assert!(res
+            .errors
+            .iter()
+            .any(|e| e == "coinbase must not carry a fee range proof"));
+    }
+
+    #[test]
+    fn b325_coinbase_view_tag_must_be_the_derived_one() {
+        let (payout, w) = fresh_payout();
+        let cb = build_coinbase(9, 500, &payout).expect("build");
+        let honest_tag = cb.outputs[0].view_tag.expect("builder sets a tag");
+        // The payee derives the same tag from R and its view key.
+        assert_eq!(
+            honest_tag,
+            mfn_crypto::stealth::indexed_view_tag(&cb.r_pub, 0, &w.view_priv)
+        );
+
+        let mut missing = cb.clone();
+        missing.outputs[0].view_tag = None;
+        let res = verify_coinbase(&missing, 9, 500, &payout);
+        assert!(!res.ok);
+        assert!(res
+            .errors
+            .iter()
+            .any(|e| e == "output 0: v2 coinbase output missing view_tag"));
+
+        let mut wrong = cb;
+        wrong.outputs[0].view_tag = Some(honest_tag.wrapping_add(1));
+        let res = verify_coinbase(&wrong, 9, 500, &payout);
+        assert!(!res.ok);
+        assert!(res
+            .errors
+            .iter()
+            .any(|e| e == "output 0: view_tag does not match the payout-derived tag"));
+    }
+
+    #[test]
+    fn b325_coinbase_enc_amount_must_be_the_derived_ciphertext() {
+        let (payout, w) = fresh_payout();
+        let cb = build_coinbase(11, 777, &payout).expect("build");
+        let opened = decrypt_output_amount(&cb.r_pub, 0, w.view_priv, &cb.outputs[0].enc_amount)
+            .expect("payee decrypts the honest ciphertext");
+        assert_eq!(opened.value, 777);
+
+        let mut wrong = cb;
+        wrong.outputs[0].enc_amount[0] ^= 0x01;
+        let res = verify_coinbase(&wrong, 11, 777, &payout);
+        assert!(!res.ok);
+        assert!(
+            res.errors.iter().any(|e| e
+                == "output 0: enc_amount does not match the deterministic coinbase encryption"),
+            "{:?}",
+            res.errors
+        );
+    }
+
+    #[test]
+    fn b325_multi_output_coinbase_names_the_operator_output() {
+        let (producer, _pw) = fresh_payout();
+        let (operator, _ow) = fresh_payout();
+        let specs = [
+            CoinbaseOutputSpec {
+                payout: producer,
+                amount: 1_000,
+            },
+            CoinbaseOutputSpec {
+                payout: operator,
+                amount: 250,
+            },
+        ];
+        let cb = build_coinbase_outputs(5, &producer.spend_pub, &specs).expect("build");
+        assert!(verify_coinbase_outputs(&cb, 5, &producer.spend_pub, &specs).ok);
+
+        // Griefing shape: the producer keeps its own output honest and
+        // blanks the storage operator's tag so the operator never scans
+        // its payout.
+        let mut griefed = cb;
+        griefed.outputs[1].view_tag = None;
+        let res = verify_coinbase_outputs(&griefed, 5, &producer.spend_pub, &specs);
+        assert!(!res.ok);
+        assert!(res
+            .errors
+            .iter()
+            .any(|e| e == "output 1: v2 coinbase output missing view_tag"));
+        assert!(!res.errors.iter().any(|e| e.starts_with("output 0")));
     }
 
     #[test]

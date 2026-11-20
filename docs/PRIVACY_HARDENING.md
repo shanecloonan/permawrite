@@ -422,6 +422,21 @@ still decode and verify.
 **Effort:** moderate. **Risk:** medium (wire format) — mitigated by dual-version
 acceptance at ingress.
 
+**B-325 (coinbase is a pure function).** `verify_transaction` already requires
+a v2 output's tag to be present, but `verify_coinbase_outputs` checked neither
+the tag nor `enc_amount`, `extra`, or the fee-commitment fields. A coinbase is
+fully determined by `(height, producer spend key, output specs)`, so a producer
+had bytes it could choose: a memo in `extra` (an arbitrary-data channel and a
+producer fingerprint), a blank or wrong tag or ciphertext on a storage
+operator's payout output so that operator's light scan never finds it, or a fee
+commitment that sits outside the block's fee sum. `verify_coinbase_outputs` now
+requires `extra` empty, no `fee_commitment` / `fee_range_proof`, the derived
+`view_tag`, and the derived `enc_amount` on every output. The honest builder
+has produced exactly these since each field existed, so no honest coinbase
+changes; it is not header-gated. Tests: `b325_*` in
+[`mfn-consensus/src/coinbase.rs`](../mfn-consensus/src/coinbase.rs), including
+the operator-griefing shape on output 1.
+
 ### B10. Structural authorship-key firewall (`F5:P10`) — **shipped**
 
 **Problem.** `AUTHORSHIP.md` *advises* not deriving the claiming key from the
