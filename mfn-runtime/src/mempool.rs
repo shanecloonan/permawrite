@@ -37,10 +37,15 @@
 //! within ties (entries with equal fees come out in `tx_id` order to
 //! guarantee byte-deterministic block bodies).
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
-use mfn_consensus::{verify_transaction, Block, ChainState, TransactionWire};
+use mfn_consensus::{tx_id, verify_transaction, Block, ChainState, TransactionWire};
 use mfn_storage::{required_endowment, storage_commitment_hash};
+
+/// Most transaction ids remembered after `verify_transaction` rejected them
+/// (**G-12**). A replay of a known-invalid body is refused by id without a
+/// second CLSAG / Bulletproof pass.
+pub const MAX_RECENT_INVALID: usize = 4096;
 
 /* ----------------------------------------------------------------------- *
  *  Config + entry                                                           *
@@ -180,6 +185,16 @@ pub enum AdmitError {
     #[error("duplicate tx (id={tx_id_hex} already in pool)")]
     DuplicateTx {
         /// Hex prefix of the duplicate tx id.
+        tx_id_hex: String,
+    },
+
+    /// `verify_transaction` already rejected a body with this `tx_id`
+    /// under the same header version. The id commits to every signature
+    /// byte, so the replay is refused without verifying it again
+    /// (**G-12**).
+    #[error("tx invalid (id={tx_id_hex}; rejected earlier, not re-verified)")]
+    RecentlyInvalid {
+        /// Hex prefix of the tx id.
         tx_id_hex: String,
     },
 
@@ -404,6 +419,11 @@ pub struct Mempool {
     /// Reverse index: key-image bytes → tx_id of the entry that owns
     /// that key image. Drives RBF conflict detection in O(1).
     by_key_image: HashMap<[u8; 32], [u8; 32]>,
+    /// Ids `verify_transaction` rejected, with the header version the
+    /// ring policy came from. Bounded by [`MAX_RECENT_INVALID`];
+    /// insertion order so the oldest id leaves first.
+    recent_invalid: HashMap<[u8; 32], u32>,
+    recent_invalid_order: VecDeque<[u8; 32]>,
 }
 
 impl Mempool {
@@ -413,6 +433,33 @@ impl Mempool {
             config,
             by_tx_id: HashMap::new(),
             by_key_image: HashMap::new(),
+            recent_invalid: HashMap::new(),
+            recent_invalid_order: VecDeque::new(),
+        }
+    }
+
+    /// Ids currently remembered as invalid (**G-12**).
+    #[inline]
+    pub fn recent_invalid_len(&self) -> usize {
+        self.recent_invalid.len()
+    }
+
+    /// Whether `tx_id` was rejected by `verify_transaction` under
+    /// `header_version` and is still remembered.
+    #[inline]
+    pub fn is_recently_invalid(&self, tx_id: &[u8; 32], header_version: u32) -> bool {
+        self.recent_invalid.get(tx_id) == Some(&header_version)
+    }
+
+    fn remember_invalid(&mut self, tx_id: [u8; 32], header_version: u32) {
+        if self.recent_invalid.insert(tx_id, header_version).is_none() {
+            self.recent_invalid_order.push_back(tx_id);
+        }
+        while self.recent_invalid.len() > MAX_RECENT_INVALID {
+            let Some(oldest) = self.recent_invalid_order.pop_front() else {
+                break;
+            };
+            self.recent_invalid.remove(&oldest);
         }
     }
 
@@ -458,17 +505,22 @@ impl Mempool {
     /// 1. Reject coinbases (`inputs.is_empty()`) — they never go
     ///    through the mempool.
     /// 2. Enforce local min-fee policy.
-    /// 3. Run `verify_transaction` (CLSAG + balance + range proofs +
-    ///    within-tx key-image dedup).
-    /// 4. Ring-membership chain guard against `state.utxo`.
-    /// 5. Cross-chain double-spend guard against
+    /// 3. Cheap rejects by `tx_id` and key image (**G-12**): a tx
+    ///    already in the pool, a body this pool already found invalid
+    ///    under this header version, or a key image already spent on
+    ///    chain is refused before any curve arithmetic.
+    /// 4. Run `verify_transaction` (CLSAG + balance + range proofs +
+    ///    within-tx key-image dedup). A failure is remembered by id in
+    ///    a set bounded by [`MAX_RECENT_INVALID`].
+    /// 5. Ring-membership chain guard against `state.utxo`.
+    /// 6. Cross-chain double-spend guard against
     ///    `state.spent_key_images`.
-    /// 6. **Storage-anchoring gate** (M2.0.13): replication bounds,
+    /// 7. **Storage-anchoring gate** (M2.0.13): replication bounds,
     ///    `required_endowment` math, treasury-share-vs-burden, with
     ///    within-tx and cross-chain dedup treated as silent skips
     ///    (mirrors `apply_block` byte-for-byte).
-    /// 7. Mempool-internal key-image conflict resolution via RBF.
-    /// 8. Mempool size-cap eviction.
+    /// 8. Mempool-internal key-image conflict resolution via RBF.
+    /// 9. Mempool size-cap eviction.
     ///
     /// On success returns an [`AdmitOutcome`] describing which (if
     /// any) existing entries were displaced.
@@ -494,24 +546,47 @@ impl Mempool {
             });
         }
 
-        // (3) Cryptographic verification + canonical tx_id.
+        // (3) Cheap rejects before any curve arithmetic (**G-12**).
+        //
+        // `tx_id` is a hash over the whole wire body, including every
+        // signature byte, so it is the same id `verify_transaction`
+        // returns. A duplicate of a pooled tx, a replay of a body this
+        // pool already found invalid, or a spend of a key image the
+        // chain already holds is refused here. Each of these would be
+        // refused after verification anyway; checking first means a
+        // peer that re-gossips the same bytes cannot buy a CLSAG +
+        // Bulletproof pass per copy while the chain lock is held.
+        let tx_id = tx_id(&tx);
+        if self.by_tx_id.contains_key(&tx_id) {
+            return Err(AdmitError::DuplicateTx {
+                tx_id_hex: hex_prefix(&tx_id),
+            });
+        }
+        if self.is_recently_invalid(&tx_id, state.header_version) {
+            return Err(AdmitError::RecentlyInvalid {
+                tx_id_hex: hex_prefix(&tx_id),
+            });
+        }
+        for inp in &tx.inputs {
+            let ki = inp.sig.key_image.compress().to_bytes();
+            if state.spent_key_images.contains(&ki) {
+                return Err(AdmitError::KeyImageAlreadyOnChain {
+                    tx_id_hex: hex_prefix(&tx_id),
+                });
+            }
+        }
+
+        // (4) Cryptographic verification against the canonical tx_id.
         let result = verify_transaction(
             &tx,
             &state.params.ring_policy_for_header(state.header_version),
         );
+        debug_assert_eq!(result.tx_id, tx_id);
         if !result.ok {
+            self.remember_invalid(tx_id, state.header_version);
             return Err(AdmitError::TxInvalid {
-                tx_id_hex: hex_prefix(&result.tx_id),
-                errors: result.errors,
-            });
-        }
-        let tx_id = result.tx_id;
-
-        // Duplicate check is cheap and orthogonal to fee / state, so
-        // run it before the heavier ring scan.
-        if self.by_tx_id.contains_key(&tx_id) {
-            return Err(AdmitError::DuplicateTx {
                 tx_id_hex: hex_prefix(&tx_id),
+                errors: result.errors,
             });
         }
 
@@ -1855,6 +1930,126 @@ mod tests {
             } => {}
             other => panic!("expected ReplaceTooLow, got {other:?}"),
         }
+        assert_eq!(pool.len(), 1);
+    }
+
+    #[test]
+    fn g12_replayed_invalid_body_is_refused_by_id() {
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let mut tx = signed_tx(inp, pad, 200);
+        tx.fee = 999; // breaks the balance equation
+        let id = tx_id(&tx);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        assert_eq!(pool.recent_invalid_len(), 0);
+        let first = pool.admit(tx.clone(), chain.state()).unwrap_err();
+        assert!(matches!(first, AdmitError::TxInvalid { .. }));
+        assert_eq!(pool.recent_invalid_len(), 1);
+        assert!(pool.is_recently_invalid(&id, chain.state().header_version));
+        for _ in 0..3 {
+            let again = pool.admit(tx.clone(), chain.state()).unwrap_err();
+            assert!(
+                matches!(again, AdmitError::RecentlyInvalid { .. }),
+                "a replay of a known-invalid body is refused by id, got {again:?}"
+            );
+        }
+        assert_eq!(pool.recent_invalid_len(), 1, "replays do not grow the set");
+        assert!(pool.is_empty());
+    }
+
+    #[test]
+    fn g12_recent_invalid_memory_is_keyed_by_header_version() {
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let mut tx = signed_tx(inp, pad, 200);
+        tx.fee = 999;
+        let id = tx_id(&tx);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        pool.admit(tx.clone(), chain.state()).unwrap_err();
+        let v = chain.state().header_version;
+        assert!(pool.is_recently_invalid(&id, v));
+        assert!(
+            !pool.is_recently_invalid(&id, v + 1),
+            "a different ring policy re-verifies instead of trusting the old verdict"
+        );
+        let mut other = chain.state().clone();
+        other.header_version = v + 1;
+        let err = pool.admit(tx, &other).unwrap_err();
+        assert!(
+            matches!(err, AdmitError::TxInvalid { .. }),
+            "the body is verified again under the new header version, got {err:?}"
+        );
+        assert!(pool.is_recently_invalid(&id, v + 1));
+        assert_eq!(pool.recent_invalid_len(), 1, "one id, latest version wins");
+    }
+
+    #[test]
+    fn g12_recent_invalid_set_is_bounded_oldest_first() {
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let id_of = |n: u32| {
+            let mut id = [0u8; 32];
+            id[..4].copy_from_slice(&n.to_le_bytes());
+            id
+        };
+        let total = MAX_RECENT_INVALID as u32 + 100;
+        for n in 0..total {
+            pool.remember_invalid(id_of(n), 1);
+            assert!(pool.recent_invalid_len() <= MAX_RECENT_INVALID);
+        }
+        assert_eq!(pool.recent_invalid_len(), MAX_RECENT_INVALID);
+        assert_eq!(pool.recent_invalid_order.len(), MAX_RECENT_INVALID);
+        for n in 0..100 {
+            assert!(
+                !pool.is_recently_invalid(&id_of(n), 1),
+                "oldest id {n} left first"
+            );
+        }
+        assert!(pool.is_recently_invalid(&id_of(100), 1));
+        assert!(pool.is_recently_invalid(&id_of(total - 1), 1));
+        // Re-remembering a known id does not duplicate its order slot.
+        pool.remember_invalid(id_of(total - 1), 1);
+        assert_eq!(pool.recent_invalid_order.len(), MAX_RECENT_INVALID);
+    }
+
+    #[test]
+    fn g12_spent_key_image_is_refused_before_signature_verification() {
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let mut tx = signed_tx(inp, pad, 200);
+        let images: Vec<[u8; 32]> = tx
+            .inputs
+            .iter()
+            .map(|i| i.sig.key_image.compress().to_bytes())
+            .collect();
+        // Break the signature after signing; verification would say TxInvalid.
+        tx.fee = 999;
+        let mut spent = chain.state().clone();
+        spent.spent_key_images.insert(images[0]);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let err = pool.admit(tx.clone(), &spent).unwrap_err();
+        assert!(
+            matches!(err, AdmitError::KeyImageAlreadyOnChain { .. }),
+            "a key image the chain already holds is refused without verifying, got {err:?}"
+        );
+        assert_eq!(
+            pool.recent_invalid_len(),
+            0,
+            "no verification ran, so nothing was remembered as invalid"
+        );
+        // The same body against a state that has not spent it is verified and refused.
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        assert!(matches!(err, AdmitError::TxInvalid { .. }));
+        assert_eq!(pool.recent_invalid_len(), 1);
+    }
+
+    #[test]
+    fn g12_valid_tx_still_admits_and_is_not_remembered_as_invalid() {
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 200);
+        let id = tx_id(&tx);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let out = pool.admit(tx.clone(), chain.state()).expect("admit");
+        assert_eq!(out.admitted_tx_id(), id);
+        assert_eq!(pool.recent_invalid_len(), 0);
+        let dup = pool.admit(tx, chain.state()).unwrap_err();
+        assert!(matches!(dup, AdmitError::DuplicateTx { .. }));
         assert_eq!(pool.len(), 1);
     }
 
