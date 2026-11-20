@@ -86,6 +86,11 @@ pub fn decode_proof_pool_snapshot(
         .map_err(|e| ProofPoolSnapshotError::Decode(e.to_string()))?;
     let count = usize::try_from(count)
         .map_err(|_| ProofPoolSnapshotError::Decode("count overflow".into()))?;
+    if count > r.remaining() {
+        return Err(ProofPoolSnapshotError::Decode(
+            "count exceeds unread bytes".into(),
+        ));
+    }
     let mut out = Vec::with_capacity(count);
     for _ in 0..count {
         let wire = r
@@ -250,5 +255,15 @@ mod tests {
             w.blob(&encode_storage_proof(p));
         }
         w.into_bytes()
+    }
+
+    #[test]
+    fn snapshot_rejects_a_count_larger_than_the_unread_bytes() {
+        let mut w = Writer::new();
+        w.blob(PROOF_POOL_SNAPSHOT_MAGIC);
+        w.u8(PROOF_POOL_SNAPSHOT_VERSION);
+        w.varint(1 << 40);
+        let err = decode_proof_pool_snapshot(&w.into_bytes()).unwrap_err();
+        assert!(matches!(err, ProofPoolSnapshotError::Decode(_)));
     }
 }

@@ -122,6 +122,11 @@ pub fn decode_mempool_snapshot(
         .map_err(|e| MempoolSnapshotError::Decode(e.to_string()))?;
     let count = usize::try_from(count)
         .map_err(|_| MempoolSnapshotError::Decode("count overflow".into()))?;
+    if count > r.remaining() {
+        return Err(MempoolSnapshotError::Decode(
+            "count exceeds unread bytes".into(),
+        ));
+    }
     let mut out = Vec::with_capacity(count);
     for _ in 0..count {
         let h = r
@@ -191,5 +196,16 @@ mod tests {
         w.blob(b"NOTMAGIC!");
         let err = decode_mempool_snapshot(&w.into_bytes()).unwrap_err();
         assert_eq!(err, MempoolSnapshotError::BadMagic);
+    }
+
+    #[test]
+    fn snapshot_rejects_a_count_larger_than_the_unread_bytes() {
+        use mfn_crypto::codec::Writer;
+        let mut w = Writer::new();
+        w.blob(MEMPOOL_SNAPSHOT_MAGIC);
+        w.u8(MEMPOOL_SNAPSHOT_VERSION);
+        w.varint(1 << 40);
+        let err = decode_mempool_snapshot(&w.into_bytes()).unwrap_err();
+        assert!(matches!(err, MempoolSnapshotError::Decode(_)));
     }
 }

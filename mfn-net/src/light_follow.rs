@@ -584,4 +584,17 @@ mod tests {
             }
         ));
     }
+
+    #[test]
+    fn light_follow_row_rejects_a_huge_slashing_count() {
+        let mut payload = vec![LIGHT_FOLLOW_V1_TAG];
+        payload.extend_from_slice(&[9u8; 32]);
+        payload.extend_from_slice(&1u32.to_be_bytes());
+        payload.extend_from_slice(&0u32.to_be_bytes());
+        payload.extend_from_slice(&[0u8; 32]);
+        payload.extend_from_slice(&0u32.to_be_bytes());
+        payload.extend_from_slice(&u32::MAX.to_be_bytes());
+        let err = LightFollowV1::decode_payload(&payload).expect_err("bomb");
+        assert!(matches!(err, LightFollowDecodeError::Truncated));
+    }
 }

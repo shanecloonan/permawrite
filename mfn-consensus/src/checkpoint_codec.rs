@@ -95,6 +95,23 @@ pub enum CheckpointReadError {
         field: &'static str,
     },
 
+    /// A length prefix asks for more items than the unread bytes can hold.
+    ///
+    /// Checked before `Vec::with_capacity` / `HashMap::with_capacity`. A
+    /// checkpoint file with a valid integrity tag can still lie about a
+    /// collection size.
+    #[error(
+        "checkpoint length {got} at field `{field}` exceeds the {remaining} bytes still unread"
+    )]
+    LengthExceedsBuffer {
+        /// The raw `u64` length read.
+        got: u64,
+        /// Field whose length was being read.
+        field: &'static str,
+        /// Bytes still unread when the length was rejected.
+        remaining: usize,
+    },
+
     /// A validator's `vrf_pk` failed Edwards-point decompression.
     #[error("validator #{index}: invalid vrf_pk (decompression failed)")]
     InvalidVrfPublicKey {
@@ -233,7 +250,19 @@ pub fn read_varint(r: &mut Reader<'_>, field: &'static str) -> Result<u64, Check
 /// modes surfacing distinctly.
 pub fn read_len(r: &mut Reader<'_>, field: &'static str) -> Result<usize, CheckpointReadError> {
     let raw = read_varint(r, field)?;
-    usize::try_from(raw).map_err(|_| CheckpointReadError::LengthOverflow { got: raw, field })
+    let count = usize::try_from(raw)
+        .map_err(|_| CheckpointReadError::LengthOverflow { got: raw, field })?;
+    let remaining = r.remaining();
+    // Every counted element consumes at least one byte. Rejecting a larger
+    // count here is what stops `with_capacity` from aborting the process.
+    if count > remaining {
+        return Err(CheckpointReadError::LengthExceedsBuffer {
+            got: raw,
+            field,
+            remaining,
+        });
+    }
+    Ok(count)
 }
 
 /// Distinguish a truncation-on-point-read from a structural
@@ -706,5 +735,23 @@ mod tests {
         let mut w2 = Writer::new();
         encode_consensus_params(&mut w2, &back);
         assert_eq!(bytes, w2.into_bytes());
+    }
+
+    #[test]
+    fn read_len_rejects_a_count_larger_than_the_unread_bytes() {
+        let mut w = Writer::new();
+        w.varint(1 << 40);
+        let mut r = Reader::new(w.bytes());
+        match read_len(&mut r, "block_ids.len") {
+            Err(CheckpointReadError::LengthExceedsBuffer {
+                got,
+                field,
+                remaining: 0,
+            }) => {
+                assert_eq!(got, 1 << 40);
+                assert_eq!(field, "block_ids.len");
+            }
+            other => panic!("expected LengthExceedsBuffer, got {other:?}"),
+        }
     }
 }

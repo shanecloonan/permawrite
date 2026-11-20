@@ -472,6 +472,12 @@ pub fn decode_utxo_tree_state(bytes: &[u8]) -> Result<UtxoTreeState, UtxoTreeDec
         got: raw_n,
         field: "nodes.len",
     })?;
+    if n > r.remaining() {
+        return Err(UtxoTreeDecodeError::LengthOverflow {
+            got: raw_n,
+            field: "nodes.len",
+        });
+    }
     let mut nodes: HashMap<(u32, u64), [u8; 32]> = HashMap::with_capacity(n);
     let mut prev: Option<(u32, u64)> = None;
     for i in 0..n {
