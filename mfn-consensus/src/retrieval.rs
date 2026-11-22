@@ -469,6 +469,9 @@ pub fn decode_retrieval_ops(bytes: &[u8]) -> Result<Vec<RetrievalOp>, RetrievalE
     let mut r = Reader::new(bytes);
     let n = r.varint().map_err(|_| RetrievalError::Codec)?;
     let n = usize::try_from(n).map_err(|_| RetrievalError::Codec)?;
+    if n > r.remaining() {
+        return Err(RetrievalError::Codec);
+    }
     let mut out = Vec::with_capacity(n);
     for _ in 0..n {
         let tag = r.u8().map_err(|_| RetrievalError::Codec)?;
