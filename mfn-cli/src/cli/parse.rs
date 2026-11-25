@@ -1692,9 +1692,9 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--outputs requires a value".into()));
             };
-            let parsed: u8 = v.parse().map_err(|_| {
-                CliError::Usage("--outputs must be an integer from 1 to 8".into())
-            })?;
+            let parsed: u8 = v
+                .parse()
+                .map_err(|_| CliError::Usage("--outputs must be an integer from 1 to 8".into()))?;
             if !(1..=8).contains(&parsed) {
                 return Err(CliError::Usage(
                     "--outputs must be an integer from 1 to 8".into(),
