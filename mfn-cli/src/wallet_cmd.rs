@@ -80,6 +80,12 @@ pub struct SendParams {
     pub to_spend_hex: String,
     /// Amount to pay (atomic units, excluding fee).
     pub amount: u64,
+    /// How many outputs to split `amount` across, all to the same recipient.
+    ///
+    /// `1` is a normal payment. `2` is the public faucet: the recipient
+    /// receives two spendable coins in one transaction so the F7 floor
+    /// is met without a second spend that would drain the faucet wallet.
+    pub outputs: u8,
     /// Transaction fee (atomic units).
     pub fee: u64,
     /// Ring size when the caller named one. `None` uses the largest legal ring.
@@ -533,7 +539,7 @@ fn require_f7_owned_input_floor(wallet: &Wallet) -> Result<(), WalletCmdError> {
 fn f7_owned_below_floor_usage(got: usize, min: usize) -> WalletCmdError {
     WalletCmdError::Usage(format!(
         "owned UTXO count {got} below F7 privacy floor {min} \
-         (need a second spendable output; public faucet sends two transfers)"
+         (need a second spendable output; public faucet pays two coins at once)"
     ))
 }
 
@@ -562,6 +568,26 @@ pub fn wallet_send(
         }
     }
     let recipient = parse_recipient(&params.to_view_hex, &params.to_spend_hex)?;
+    let output_count = usize::from(params.outputs.max(1));
+    if output_count > 8 {
+        return Err(WalletCmdError::Usage(
+            "--outputs must be between 1 and 8".into(),
+        ));
+    }
+    if params.amount < output_count as u64 {
+        return Err(WalletCmdError::Usage(format!(
+            "amount {} is smaller than --outputs {output_count} (each output needs at least 1 atomic unit)",
+            params.amount
+        )));
+    }
+    let share = params.amount / output_count as u64;
+    let remainder = params.amount % output_count as u64;
+    let recipients: Vec<TransferRecipient> = (0..output_count)
+        .map(|i| TransferRecipient {
+            recipient,
+            value: share + if i == 0 { remainder } else { 0 },
+        })
+        .collect();
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
     file.apply_pending_spends(&mut wallet)?;
@@ -574,10 +600,7 @@ pub fn wallet_send(
     let mut rng = production_tx_rng;
     let signed = wallet
         .build_private_transfer(
-            &[TransferRecipient {
-                recipient,
-                value: params.amount,
-            }],
+            &recipients,
             params.fee,
             params.ring_size,
             params.public_fee,
@@ -1568,6 +1591,7 @@ mod tests {
             public_fee: false,
             extra: vec![0xaa, 0xbb],
             json: true,
+            outputs: 1,
         };
         let stats = SyncStats {
             tip_height: 12,

@@ -34,7 +34,23 @@ const MFN_CLI =
 const FAUCET_WALLET =
   process.env.FAUCET_WALLET ??
   "/root/testnet-wallets/validator0-faucet.json";
-const AMOUNT = Number(process.env.FAUCET_AMOUNT ?? "500000");
+/**
+ * Atomic units in each of the two recipient outputs.
+ * Total credited = AMOUNT * OUTPUTS. Default 5_000_000 * 2 = 10_000_000,
+ * about 1_000 send-fees (fee 10_000) so a fresh wallet can do ~50 sends
+ * and still pay a storage upload.
+ */
+const AMOUNT = Number(process.env.FAUCET_AMOUNT ?? "5000000");
+const OUTPUTS = 2;
+const PAYOUT_WALLET =
+  process.env.FAUCET_PAYOUT_WALLET ??
+  "/root/testnet-wallets/validator0-faucet.json";
+/** Per output on a faucet self-refill. Two outputs clear the F7 floor in one block. */
+const TOPUP_PER_OUTPUT = Number(
+  process.env.FAUCET_TOPUP_PER_OUTPUT ?? "100000000",
+);
+const PAYOUT_PRUNE_AT = 64;
+const PAYOUT_PRUNE_KEEP = 32;
 const FEE = Number(process.env.FAUCET_FEE ?? "10000");
 const RING = Number(process.env.FAUCET_RING_SIZE ?? "16");
 // Public testnet: short cooldown so F7 (2-UTXO) top-ups stay usable after a send.
@@ -83,11 +99,41 @@ function withWalletLock(fn) {
     });
 }
 
+/** Client-facing text. Server paths and raw mfn-cli stderr stay in the log. */
+function friendlyCliFailure(detail) {
+  const text = String(detail || "");
+  if (/owned UTXO count|F7 privacy floor/i.test(text)) {
+    return "The faucet is short a second spendable coin and is refilling. Try again in a minute.";
+  }
+  if (/timeout/i.test(text)) {
+    return "The faucet took too long to confirm. Try again in a minute.";
+  }
+  if (/key image already spent/i.test(text)) {
+    return "The faucet was already spending those coins. Try again in a minute.";
+  }
+  return "The faucet could not complete the transfer. Try again in a minute.";
+}
+
+function cliFailure(detail) {
+  const err = new Error(friendlyCliFailure(detail));
+  err.detail = String(detail || "");
+  return err;
+}
+
 function isTransientCliError(err) {
-  const m = String(err?.message || err);
+  const m = String(err?.detail || err?.message || err);
   return /os error 11|Resource temporarily unavailable|EAGAIN|Connection refused|os error 111|ECONNREFUSED/i.test(
     m,
   );
+}
+
+function publicError(e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (/\/(?:root|home|opt|usr|var|tmp)\b|mfn-cli|exited \d|target\/release/i.test(msg)) {
+    console.error("faucet sanitized client error:", msg);
+    return friendlyCliFailure(msg);
+  }
+  return msg;
 }
 
 function cors(res) {
@@ -126,7 +172,10 @@ function run(bin, args, timeoutMs = SEND_TIMEOUT_MS) {
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      reject(new Error(`timeout after ${timeoutMs}ms: ${bin} ${args.join(" ")}`));
+      console.error(
+        `faucet cli timeout after ${timeoutMs}ms: ${bin} ${args.join(" ")}`,
+      );
+      reject(new Error(`timeout after ${timeoutMs}ms`));
     }, timeoutMs);
     child.stdout.on("data", (d) => {
       stdout += d.toString();
@@ -136,16 +185,17 @@ function run(bin, args, timeoutMs = SEND_TIMEOUT_MS) {
     });
     child.on("error", (e) => {
       clearTimeout(timer);
-      reject(e);
+      console.error("faucet cli spawn error", bin, e);
+      reject(cliFailure(String(e?.message || e)));
     });
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        reject(
-          new Error(
-            `${bin} exited ${code}: ${(stderr || stdout).trim().slice(0, 800)}`,
-          ),
+        const detail = (stderr || stdout).trim().slice(0, 800);
+        console.error(
+          `faucet cli exit ${code}: ${bin} ${args.join(" ")}\n${detail}`,
         );
+        reject(cliFailure(detail));
         return;
       }
       resolve({ stdout, stderr });
@@ -247,6 +297,139 @@ async function getTipHeight() {
   return m ? Number(m[1]) : 0;
 }
 
+function samePath(a, b) {
+  try {
+    return fs.realpathSync(a) === fs.realpathSync(b);
+  } catch {
+    return a === b;
+  }
+}
+
+/**
+ * Drop a bloated payout cache to the largest N coins. scan_height stays
+ * put so a later scan does not resurrect the pruned history (B-278).
+ */
+function pruneOwnedFile(walletPath, keep) {
+  let w;
+  try {
+    w = JSON.parse(fs.readFileSync(walletPath, "utf8"));
+  } catch (e) {
+    console.error("faucet prune read failed", e);
+    return;
+  }
+  const owned = Array.isArray(w.owned_outputs) ? w.owned_outputs : [];
+  if (owned.length <= PAYOUT_PRUNE_AT) return;
+  const backup = `${walletPath}.bak-prePrune-${new Date()
+    .toISOString()
+    .replace(/[:.]/g, "")}`;
+  fs.copyFileSync(walletPath, backup);
+  const before = owned.length;
+  owned.sort((a, b) => Number(b?.value || 0) - Number(a?.value || 0));
+  w.owned_outputs = owned.slice(0, keep);
+  w.pending_spent_utxo_keys = [];
+  fs.writeFileSync(walletPath, `${JSON.stringify(w, null, 2)}\n`);
+  console.log(
+    `faucet prune ${path.basename(walletPath)} ${before}->${keep} backup=${path.basename(backup)}`,
+  );
+}
+
+async function cliJson(args, timeoutMs) {
+  const { stdout } = await runRetry(MFN_CLI, args, timeoutMs);
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start < 0 || end <= start) {
+    console.error("faucet cli returned no JSON", stdout.slice(0, 200));
+    throw new Error("The faucet could not read its wallet. Try again in a minute.");
+  }
+  return JSON.parse(stdout.slice(start, end + 1));
+}
+
+async function ownedCount(walletPath) {
+  const parsed = await cliJson(
+    ["--rpc", MFND_RPC, "--wallet", walletPath, "wallet", "status", "--json"],
+    60_000,
+  );
+  if (walletPath === FAUCET_WALLET) lastWalletStatus = parsed;
+  return Number(parsed.owned_count_cached ?? parsed.owned_count ?? 0);
+}
+
+async function walletAddress(walletPath) {
+  const { stdout } = await runRetry(
+    MFN_CLI,
+    ["--wallet", walletPath, "wallet", "address"],
+    20_000,
+  );
+  const m = stdout.match(/address=(mf[0-9a-fA-F]+)/);
+  if (!m) {
+    console.error("faucet address output", stdout.slice(0, 200));
+    throw new Error("The faucet could not read its address. Try again in a minute.");
+  }
+  return m[1];
+}
+
+/**
+ * The hot faucet wallet does not receive coinbase. Each old send spent two
+ * inputs and returned one change output, so the UTXO count fell by one until
+ * a send saw owned count 1 and refused. Refill from the validator payout
+ * (or wait for one coinbase if the faucet IS that wallet) before paying users.
+ */
+async function ensureFaucetFloat() {
+  let owned = await ownedCount(FAUCET_WALLET);
+  if (owned >= OUTPUTS) return owned;
+  console.warn(
+    `faucet owned=${owned} below F7 floor ${OUTPUTS}; refilling before the user send`,
+  );
+  const selfPay = !fs.existsSync(PAYOUT_WALLET) || samePath(PAYOUT_WALLET, FAUCET_WALLET);
+  if (!selfPay) {
+    pruneOwnedFile(PAYOUT_WALLET, PAYOUT_PRUNE_KEEP);
+    const addr = await walletAddress(FAUCET_WALLET);
+    const total = TOPUP_PER_OUTPUT * OUTPUTS;
+    await runRetry(MFN_CLI, [
+      "--rpc",
+      MFND_RPC,
+      "--wallet",
+      PAYOUT_WALLET,
+      "wallet",
+      "send",
+      addr,
+      String(total),
+      "--outputs",
+      String(OUTPUTS),
+      "--fee",
+      String(FEE),
+      "--ring-size",
+      String(RING),
+      "--json",
+    ]);
+  }
+  owned = await waitUntilOwned(OUTPUTS, selfPay ? "coinbase-floor" : "post-topup");
+  if (owned < OUTPUTS) {
+    throw new Error(
+      "The faucet is short a second spendable coin and is refilling. Try again in a minute.",
+    );
+  }
+  return owned;
+}
+
+/** Rescan across new blocks until the faucet wallet shows `min` coins. */
+async function waitUntilOwned(min, reason, timeoutMs = 90_000) {
+  const deadline = Date.now() + timeoutMs;
+  let owned = await ownedCount(FAUCET_WALLET);
+  while (owned < min && Date.now() < deadline) {
+    const tip = await getTipHeight();
+    const left = deadline - Date.now();
+    try {
+      await waitTipAdvance(tip, Math.min(45_000, Math.max(1_000, left)));
+    } catch (e) {
+      console.warn(`faucet ${reason} tip wait:`, e.message);
+      break;
+    }
+    await syncWallet(reason);
+    owned = await ownedCount(FAUCET_WALLET);
+  }
+  return owned;
+}
+
 /** Wait for at least one new block so the faucet wallet can rescan spent inputs. */
 async function waitTipAdvance(fromHeight, timeoutMs = 90_000) {
   const deadline = Date.now() + timeoutMs;
@@ -279,10 +462,12 @@ function pruneJobs() {
 
 async function fundAddress(address, amount) {
   if (!fs.existsSync(FAUCET_WALLET)) {
-    throw new Error(`faucet wallet missing: ${FAUCET_WALLET}`);
+    console.error("faucet wallet missing", FAUCET_WALLET);
+    throw new Error("The faucet is not ready. Try again in a minute.");
   }
   if (!fs.existsSync(MFN_CLI)) {
-    throw new Error(`mfn-cli missing: ${MFN_CLI}`);
+    console.error("mfn-cli missing", MFN_CLI);
+    throw new Error("The faucet is not ready. Try again in a minute.");
   }
 
   return withWalletLock(async () => {
@@ -291,22 +476,13 @@ async function fundAddress(address, amount) {
     // thousands behind tip, each `wallet send` light-sync times out. Catch up
     // explicitly first (keepalive usually keeps this near zero).
     await ensureWalletReady("claim");
-
-    const txIds = [];
-    let tipBefore = await getTipHeight();
-    // Two sends so recipient meets the F7 two-input floor for later transfers.
-    // Rescan + wait for a block between sends — back-to-back spends reuse stale
-    // UTXOs and mempool rejects with "key image already spent on chain".
-    for (let i = 0; i < 2; i++) {
-      if (i > 0) {
-        try {
-          await waitTipAdvance(tipBefore);
-        } catch (e) {
-          console.warn("faucet between-send tip wait:", e.message);
-        }
-        await syncWallet("between-fund-sends");
-      }
-      const { stdout } = await runRetry(MFN_CLI, [
+    // One transaction, two outputs. Two back-to-back sends spent the
+    // faucet down to a single change output, then the second send died
+    // on the F7 floor and the user received nothing.
+    await ensureFaucetFloat();
+    const total = amount * OUTPUTS;
+    const parsed = await cliJson(
+      [
         "--rpc",
         MFND_RPC,
         "--wallet",
@@ -314,31 +490,28 @@ async function fundAddress(address, amount) {
         "wallet",
         "send",
         address,
-        String(amount),
+        String(total),
+        "--outputs",
+        String(OUTPUTS),
         "--fee",
         String(FEE),
         "--ring-size",
         String(RING),
         "--json",
-      ]);
-      const start = stdout.indexOf("{");
-      const end = stdout.lastIndexOf("}");
-      if (start < 0 || end <= start) {
-        throw new Error(`faucet send returned no JSON: ${stdout.slice(0, 200)}`);
-      }
-      const parsed = JSON.parse(stdout.slice(start, end + 1));
-      txIds.push(parsed.tx_id || parsed.txId || null);
-      tipBefore = await getTipHeight();
-    }
+      ],
+      SEND_TIMEOUT_MS,
+    );
+    const txId = parsed.tx_id || parsed.txId || null;
 
     return {
       ok: true,
       address,
       amount_per_send: amount,
-      sends: 2,
-      total_amount: amount * 2,
+      sends: OUTPUTS,
+      output_count: OUTPUTS,
+      total_amount: total,
       fee_per_send: FEE,
-      tx_ids: txIds,
+      tx_ids: txId ? [txId] : [],
       duration_ms: Date.now() - t0,
     };
   });
@@ -526,7 +699,7 @@ const server = http.createServer(async (req, res) => {
         job.updatedAt = Date.now();
       } catch (e) {
         job.status = "error";
-        job.error = e instanceof Error ? e.message : String(e);
+        job.error = publicError(e);
         job.updatedAt = Date.now();
         console.error("faucet job error", jobId, e);
       } finally {
@@ -546,7 +719,7 @@ const server = http.createServer(async (req, res) => {
     console.error("faucet error", e);
     json(res, 500, {
       ok: false,
-      error: e instanceof Error ? e.message : String(e),
+      error: publicError(e),
     });
   }
 });

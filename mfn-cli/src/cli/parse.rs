@@ -229,7 +229,9 @@ pub(super) fn usage() -> &'static str {
                          AMOUNT and --fee: bare whole numbers are atomic units;\n\
                          1.5mfn is coins (1 MFN = 100000000 atomic). Extra decimals are refused.\n\
 wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
-                         options: --fee N --ring-size N (default 16, wallet/consensus floor) --extra HEX --json\n\
+                         options: --fee N --ring-size N (default 16, wallet/consensus floor)\n\
+                         --outputs N (1-8, default 1; faucet uses 2 so the recipient gets two coins)\n\
+                         --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
                          options: --replication N --fee N --anchor-value N --ring-size N (default 16, wallet/consensus floor)\n\
                          --anchor-view HEX --anchor-spend HEX --extra HEX\n\
@@ -1644,6 +1646,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
     let mut public_fee = false;
     let mut extra: Vec<u8> = Vec::new();
     let mut json = false;
+    let mut outputs: u8 = 1;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < rest.len() {
@@ -1682,6 +1685,22 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
                 )));
             }
             ring_size = Some(parsed);
+            i += 2;
+            continue;
+        }
+        if a == "--outputs" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--outputs requires a value".into()));
+            };
+            let parsed: u8 = v.parse().map_err(|_| {
+                CliError::Usage("--outputs must be an integer from 1 to 8".into())
+            })?;
+            if !(1..=8).contains(&parsed) {
+                return Err(CliError::Usage(
+                    "--outputs must be an integer from 1 to 8".into(),
+                ));
+            }
+            outputs = parsed;
             i += 2;
             continue;
         }
@@ -1739,6 +1758,7 @@ pub(super) fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliErr
         public_fee,
         extra,
         json,
+        outputs,
     })
 }
 

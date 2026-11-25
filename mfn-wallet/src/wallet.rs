@@ -422,15 +422,9 @@ impl Wallet {
 
         let change_value = input_sum.saturating_sub(target);
         let mut all_recipients: Vec<TransferRecipient> = recipients.to_vec();
-        if change_value > 0 {
-            all_recipients.push(TransferRecipient {
-                recipient: mfn_consensus::Recipient {
-                    view_pub: self.keys.view_pub(),
-                    spend_pub: self.keys.spend_pub(),
-                },
-                value: change_value,
-            });
-        }
+        // Two change outputs: a 2-input spend with one change drops owned
+        // count by 1 and the next spend fails the F7 floor.
+        all_recipients.extend(split_change_outputs(change_value, self.recipient()));
 
         // Privacy floor: never broadcast a single-output transfer. A lone
         // output reveals a no-change sweep / exact-amount payment, which
@@ -514,15 +508,7 @@ impl Wallet {
         let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
         let change_value = input_sum.saturating_sub(target);
         let mut all_recipients: Vec<TransferRecipient> = recipients.to_vec();
-        if change_value > 0 {
-            all_recipients.push(TransferRecipient {
-                recipient: mfn_consensus::Recipient {
-                    view_pub: self.keys.view_pub(),
-                    spend_pub: self.keys.spend_pub(),
-                },
-                value: change_value,
-            });
-        }
+        all_recipients.extend(split_change_outputs(change_value, self.recipient()));
         while all_recipients.len() < crate::WALLET_MIN_TX_OUTPUTS {
             all_recipients.push(TransferRecipient {
                 recipient: mfn_consensus::Recipient {
@@ -801,13 +787,7 @@ impl Wallet {
         let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
 
         let change_value = input_sum.saturating_sub(target);
-        let mut change_recipients: Vec<TransferRecipient> = Vec::new();
-        if change_value > 0 {
-            change_recipients.push(TransferRecipient {
-                recipient: self.recipient(),
-                value: change_value,
-            });
-        }
+        let change_recipients = split_change_outputs(change_value, self.recipient());
 
         let chosen_refs2: Vec<&OwnedOutput> = chosen_owned.iter().collect();
         let pool = build_decoy_pool(chain_state, chosen_keys.iter().copied());
@@ -899,13 +879,7 @@ impl Wallet {
         let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
 
         let change_value = input_sum.saturating_sub(target);
-        let mut change_recipients: Vec<TransferRecipient> = Vec::new();
-        if change_value > 0 {
-            change_recipients.push(TransferRecipient {
-                recipient: self.recipient(),
-                value: change_value,
-            });
-        }
+        let change_recipients = split_change_outputs(change_value, self.recipient());
 
         let chosen_refs2: Vec<&OwnedOutput> = chosen_owned.iter().collect();
         let pool = build_decoy_pool(chain_state, chosen_keys.iter().copied());
@@ -953,6 +927,38 @@ impl Clone for Wallet {
     }
 }
 
+/// Split positive change so a two-input spend does not drop the sender
+/// below the F7 two-UTXO floor.
+///
+/// One change output means `owned_after = owned_before - inputs + 1`.
+/// The public faucet spends two coins per transfer, so that formula
+/// drains the faucet to a single output and the next send is refused.
+/// Two positive self-outputs put back as many coins as a floor spend
+/// consumes (`owned_after = owned_before` when exactly two inputs are spent).
+fn split_change_outputs(change_value: u64, me: Recipient) -> Vec<TransferRecipient> {
+    if change_value == 0 {
+        return Vec::new();
+    }
+    if change_value >= 2 {
+        let low = change_value / 2;
+        let high = change_value - low;
+        return vec![
+            TransferRecipient {
+                recipient: me,
+                value: low,
+            },
+            TransferRecipient {
+                recipient: me,
+                value: high,
+            },
+        ];
+    }
+    vec![TransferRecipient {
+        recipient: me,
+        value: change_value,
+    }]
+}
+
 /// Exponential age band index for coin-selection cohesion (§B2).
 fn age_band(current: u32, output_height: u32) -> u32 {
     let age = u64::from(current.saturating_sub(output_height));
@@ -962,6 +968,21 @@ fn age_band(current: u32, output_height: u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn split_change_of_two_or_more_is_two_positive_outputs() {
+        let wallet = Wallet::from_seed(&[9u8; 32]);
+        let me = wallet.recipient();
+        assert!(split_change_outputs(0, me).is_empty());
+        let dust = split_change_outputs(1, me);
+        assert_eq!(dust.len(), 1);
+        assert_eq!(dust[0].value, 1);
+        let parts = split_change_outputs(5, me);
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].value + parts[1].value, 5);
+        assert!(parts.iter().all(|part| part.value >= 1));
+    }
+
     use curve25519_dalek::scalar::Scalar;
     use mfn_consensus::{
         build_coinbase, sign_transaction, BlockHeader, InputSpec, OutputSpec, PayoutAddress,

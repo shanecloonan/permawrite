@@ -576,6 +576,7 @@ mod tests {
                 assert_eq!(params.to_spend_hex, spend);
                 assert_eq!(params.amount, 1000);
                 assert_eq!(params.fee, 10);
+                assert_eq!(params.outputs, 1);
                 assert!(params.json);
             }
             _ => panic!("expected wallet send"),
