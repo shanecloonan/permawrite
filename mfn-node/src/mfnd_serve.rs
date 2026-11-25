@@ -269,6 +269,67 @@ struct RpcServeState {
     dispatch_opts: ServeDispatchOpts,
 }
 
+/// True when the RPC client has hung up. A live idle client (waiting on our
+/// response) is not disconnected: `peek` times out instead of returning EOF.
+fn rpc_peer_disconnected(stream: &TcpStream) -> bool {
+    if matches!(stream.take_error(), Ok(Some(_))) {
+        return true;
+    }
+    let previous = stream
+        .read_timeout()
+        .ok()
+        .flatten()
+        .or(Some(MFND_RPC_IO_TIMEOUT));
+    if stream
+        .set_read_timeout(Some(Duration::from_millis(1)))
+        .is_err()
+    {
+        return false;
+    }
+    let mut probe = [0u8; 1];
+    let disconnected = match stream.peek(&mut probe) {
+        Ok(0) => true,
+        Ok(_) => false,
+        Err(err)
+            if err.kind() == std::io::ErrorKind::WouldBlock
+                || err.kind() == std::io::ErrorKind::TimedOut =>
+        {
+            false
+        }
+        Err(_) => true,
+    };
+    let _ = stream.set_read_timeout(previous);
+    disconnected
+}
+
+/// Bound on waiting for the chain mutex. Past this the in-flight slot is
+/// released so aborted polls cannot pin all 64 connections behind one scan.
+const RPC_CHAIN_LOCK_WAIT: Duration = Duration::from_secs(20);
+
+fn lock_chain_for_rpc<'a>(
+    stream: &TcpStream,
+    chain: &'a Mutex<Chain>,
+) -> Result<std::sync::MutexGuard<'a, Chain>, String> {
+    let started = Instant::now();
+    loop {
+        if rpc_peer_disconnected(stream) {
+            return Err("client disconnected".into());
+        }
+        match chain.try_lock() {
+            Ok(guard) => return Ok(guard),
+            Err(std::sync::TryLockError::Poisoned(_)) => {
+                return Err("chain mutex poisoned".into());
+            }
+            Err(std::sync::TryLockError::WouldBlock) => {
+                if started.elapsed() >= RPC_CHAIN_LOCK_WAIT {
+                    return Err("timed out waiting for the chain lock".into());
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+}
+
 fn handle_accepted_rpc_stream(
     mut stream: TcpStream,
     state: RpcServeState,
@@ -294,9 +355,19 @@ fn handle_accepted_rpc_stream(
             return;
         }
     };
-    let Ok(mut chain_guard) = state.chain.lock() else {
-        eprintln!("mfnd serve: chain mutex poisoned");
-        return;
+    let mut chain_guard = match lock_chain_for_rpc(&stream, &state.chain) {
+        Ok(guard) => guard,
+        Err(reason) if reason == "client disconnected" => return,
+        Err(reason) => {
+            eprintln!("mfnd serve: {reason}");
+            let resp = mfn_rpc::rpc_error(
+                &Value::Null,
+                mfn_rpc::rpc_codes::INTERNAL_ERROR,
+                format!("RPC server busy: {reason}"),
+            );
+            let _ = write_line(&mut stream, &resp);
+            return;
+        }
     };
     let Ok(mut pool_guard) = state.pool.lock() else {
         eprintln!("mfnd serve: pool mutex poisoned");
@@ -1232,6 +1303,28 @@ mod tests {
             .as_str()
             .expect("message")
             .contains("maximum in-flight connections is 7"));
+    }
+
+    #[test]
+    fn rpc_peer_disconnected_is_false_until_the_client_closes() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let client = TcpStream::connect(addr).expect("connect");
+        let (server, _) = listener.accept().expect("accept");
+        assert!(
+            !rpc_peer_disconnected(&server),
+            "idle client waiting on a response is still connected"
+        );
+        drop(client);
+        let mut saw_eof = false;
+        for _ in 0..50 {
+            if rpc_peer_disconnected(&server) {
+                saw_eof = true;
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert!(saw_eof, "closed client must release the RPC slot");
     }
 
     #[test]

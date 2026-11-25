@@ -81,9 +81,9 @@ pub fn explain_wallet_error(err: &WalletError) -> String {
         ),
         WalletError::TxInputCountBelowMinimum { got, min } => format!(
             "This spend needs {min} separate coins in the wallet and only found {got}. \
-             Wait for a second coin (the public faucet sends two transfers), then try again. \
+             Wait for a second coin (the public faucet pays two coins at once), then try again. \
              owned UTXO count {got} below F7 privacy floor {min} \
-             (need a second spendable output; public faucet sends two transfers)"
+             (need a second spendable output; public faucet pays two coins at once)"
         ),
         WalletError::DecoyPoolTooSmall {
             ring_size,

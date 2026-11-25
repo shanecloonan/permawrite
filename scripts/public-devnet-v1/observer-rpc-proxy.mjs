@@ -11,6 +11,10 @@
  * response cache so browser wallet scans and the explore "user transactions"
  * counter do not re-fetch the whole chain through Vercel on every visit.
  *
+ * Upstream sockets are capped (PROXY_UPSTREAM_MAX, default 8) and destroyed
+ * when the HTTP client disconnects, so aborted polls cannot fill mfnd's
+ * 64 in-flight connection slots.
+ *
  * Tall-tip header cache (B-229): mfnd `get_block_header(s)` re-reads the full
  * `chain.blocks` log on every call (~3–4s at tip≈16k). Cache compact header
  * rows here so the viewer / light clients stop timing out or aborting polls.
@@ -25,6 +29,7 @@ import http from "node:http";
 import net from "node:net";
 import fs from "node:fs";
 import path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 const MFND_RPC = process.env.MFND_RPC ?? "127.0.0.1:18734";
 const LISTEN_HOST = process.env.PROXY_HOST ?? "0.0.0.0";
@@ -46,8 +51,15 @@ const INDEX_TIP_TIMEOUT_MS = Number(
   process.env.PROXY_INDEX_TIP_TIMEOUT_MS ?? "90000",
 );
 const INDEX_INTERVAL_MS = Number(process.env.PROXY_INDEX_INTERVAL_MS ?? "500");
-const INDEX_CONCURRENCY = Number(process.env.PROXY_INDEX_CONCURRENCY ?? "32");
-const INDEX_BURST = Number(process.env.PROXY_INDEX_BURST ?? "128");
+/**
+ * Background indexing used to open 32 upstream sockets at once. Together with
+ * aborted browser polls that pinned mfnd's 64 in-flight slots. Keep the
+ * index well under that cap; browser calls share the same semaphore.
+ */
+const INDEX_CONCURRENCY = Number(process.env.PROXY_INDEX_CONCURRENCY ?? "4");
+const INDEX_BURST = Number(process.env.PROXY_INDEX_BURST ?? "16");
+/** Hard cap on sockets to mfnd. Leaves room under mfnd's 64 in-flight limit. */
+const UPSTREAM_MAX = Number(process.env.PROXY_UPSTREAM_MAX ?? "8");
 const RANGE_MAX = Number(process.env.PROXY_TXS_RANGE_MAX ?? "32");
 /** Matches mfn-rpc MAX_BLOCK_HEADERS_SPAN — one upstream call can fill this many. */
 const HEADERS_SPAN_MAX = Number(process.env.PROXY_HEADERS_SPAN_MAX ?? "4096");
@@ -62,6 +74,44 @@ const HUB_TIP_RPC = (process.env.PROXY_HUB_TIP_RPC ?? "").trim();
 const TIP_ALIGN_MS = Number(process.env.PROXY_TIP_ALIGN_MS ?? "45000");
 const TIP_ALIGN_POLL_MS = Number(process.env.PROXY_TIP_ALIGN_POLL_MS ?? "500");
 const TIP_ALIGN_MAX_LAG = Number(process.env.PROXY_TIP_ALIGN_MAX_LAG ?? "1");
+const requestAbort = new AsyncLocalStorage();
+let upstreamInFlight = 0;
+/** @type {{ resolve: () => void, signal?: AbortSignal }[]} */
+const upstreamWaiters = [];
+
+function acquireUpstream(signal) {
+  if (signal?.aborted) return Promise.reject(new Error("client closed"));
+  if (upstreamInFlight < UPSTREAM_MAX) {
+    upstreamInFlight += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const waiter = { resolve, signal };
+    upstreamWaiters.push(waiter);
+    if (!signal) return;
+    signal.addEventListener(
+      "abort",
+      () => {
+        const i = upstreamWaiters.indexOf(waiter);
+        if (i < 0) return;
+        upstreamWaiters.splice(i, 1);
+        reject(new Error("client closed"));
+      },
+      { once: true },
+    );
+  });
+}
+
+function releaseUpstream() {
+  while (upstreamWaiters.length > 0) {
+    const waiter = upstreamWaiters.shift();
+    if (waiter.signal?.aborted) continue;
+    waiter.resolve();
+    return;
+  }
+  upstreamInFlight = Math.max(0, upstreamInFlight - 1);
+}
+
 let tipAlignWaits = 0;
 let tipAlignTimeouts = 0;
 let headerCacheHits = 0;
@@ -200,33 +250,50 @@ function savePersistedIndex() {
 }
 
 function tcpLineRpc(line, timeoutMs = RPC_TIMEOUT_MS) {
-  return new Promise((resolve, reject) => {
-    const socket = net.connect({ host: mfndHost, port: mfndPort }, () => {
-      socket.write(line.endsWith("\n") ? line : `${line}\n`);
-    });
-    let buf = "";
-    const timer = setTimeout(() => {
-      socket.destroy();
-      reject(new Error(`mfnd RPC timeout after ${timeoutMs}ms`));
-    }, timeoutMs);
-    socket.setEncoding("utf8");
-    socket.on("data", (chunk) => {
-      buf += chunk;
-      if (buf.includes("\n")) {
-        clearTimeout(timer);
-        socket.end();
-        resolve(buf.trim());
-      }
-    });
-    socket.on("error", (e) => {
-      clearTimeout(timer);
-      reject(e);
-    });
-    socket.on("end", () => {
-      clearTimeout(timer);
-      if (buf) resolve(buf.trim());
-    });
-  });
+  const signal = requestAbort.getStore();
+  return acquireUpstream(signal).then(
+    () =>
+      new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (fn) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          signal?.removeEventListener("abort", onAbort);
+          releaseUpstream();
+          fn();
+        };
+        const socket = net.connect({ host: mfndHost, port: mfndPort }, () => {
+          socket.write(line.endsWith("\n") ? line : `${line}\n`);
+        });
+        let buf = "";
+        const timer = setTimeout(() => {
+          socket.destroy();
+          finish(() => reject(new Error(`mfnd RPC timeout after ${timeoutMs}ms`)));
+        }, timeoutMs);
+        const onAbort = () => {
+          socket.destroy();
+          finish(() => reject(new Error("client closed")));
+        };
+        signal?.addEventListener("abort", onAbort, { once: true });
+        socket.setEncoding("utf8");
+        socket.on("data", (chunk) => {
+          buf += chunk;
+          if (buf.includes("\n")) {
+            socket.end();
+            finish(() => resolve(buf.trim()));
+          }
+        });
+        socket.on("error", (e) => {
+          socket.destroy();
+          finish(() => reject(e));
+        });
+        socket.on("end", () => {
+          if (buf) finish(() => resolve(buf.trim()));
+          else finish(() => reject(new Error("mfnd RPC closed without a response")));
+        });
+      }),
+  );
 }
 
 function timeoutForMethod(method) {
@@ -708,7 +775,7 @@ function cors(res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   cors(res);
 
   if (req.method === "OPTIONS") {
@@ -730,6 +797,8 @@ const server = http.createServer(async (req, res) => {
         heavy_rpc_timeout_ms: HEAVY_RPC_TIMEOUT_MS,
         // B-251 index tip poll budget
         index_tip_timeout_ms: INDEX_TIP_TIMEOUT_MS,
+        upstream_max: UPSTREAM_MAX,
+        upstream_in_flight: upstreamInFlight,
         // B-229 tall-tip header cache
         header_cache_entries: headerByHeight.size,
         header_cache_hits: headerCacheHits,
@@ -864,6 +933,20 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(502, { "Content-Type": "text/plain" });
     res.end(String(e));
   }
+}
+
+const server = http.createServer((req, res) => {
+  const ac = new AbortController();
+  req.on("close", () => {
+    if (!res.writableEnded) ac.abort();
+  });
+  requestAbort.run(ac.signal, () => handleRequest(req, res)).catch((e) => {
+    console.error("observer-rpc-proxy request", e);
+    if (!res.writableEnded) {
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      res.end("proxy error");
+    }
+  });
 });
 
 server.listen(LISTEN_PORT, LISTEN_HOST, () => {
