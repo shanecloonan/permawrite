@@ -63,6 +63,16 @@ For **production-style** separation (validators, observer, operator, wallet on d
 
 See [`docs/REFERENCE_TOPOLOGY.md`](../../docs/REFERENCE_TOPOLOGY.md) for layout diagrams and anti-patterns. Single-box internet launch (all roles on one VPS) uses [`vps-bind.env.example`](vps-bind.env.example) instead — loopback RPC + public P2P per process.
 
+### Automatic deploy of main (single VPS)
+
+The Hetzner host can install a 15-minute timer that builds `origin/main` and rolls hub, voters, observer, proxy, and faucet only after a staging release build and `--lib` tests pass. Consensus, crypto, BLS, and genesis/manifest commits stay parked unless `/var/lib/pfpchain-deploy/allow-consensus` contains that exact SHA. Chain data is not deleted. Install on the VPS as root (do not run this from CI):
+
+```bash
+bash /root/permawrite/scripts/public-devnet-v1/vps-install-auto-deploy.sh --apply
+```
+
+Full behavior, rollback, and the status file are in [`systemd/README.md`](systemd/README.md) under "Automatic deploy of main".
+
 ### Local mesh scripts
 
 From repo root (after `cargo build -p mfn-node --release --bin mfnd`):

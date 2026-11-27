@@ -228,6 +228,22 @@ Automates evidence + `seed_nodes` checks. Human sign-off for TL-7 and TL-9 (name
 
 ---
 
+## Automatic deploy of main
+
+On the single CPX21 (4 GB RAM), root can install a timer that deploys `origin/main` every 15 minutes. The install does not itself restart `mfnd`:
+
+```bash
+bash /root/permawrite/scripts/public-devnet-v1/vps-install-auto-deploy.sh --apply
+```
+
+The deploy builds `mfnd` and `mfn-cli` into `/var/lib/pfpchain-deploy/staging` with `CARGO_BUILD_JOBS=2`, runs `--lib` tests for crates the commit touched, swaps the binaries, and rolls voters, hub, observer, proxy, then faucet. The hub tip must advance. A failed roll restores the previous binaries and the previous commit's tracked files. `.permawrite-devnet-v1` is not deleted.
+
+A range that changes `mfn-consensus`, `mfn-crypto`, `mfn-bls`, or `public_devnet_v1` / `public_devnet_fa` genesis or manifest JSON is skipped until `/var/lib/pfpchain-deploy/allow-consensus` contains that `origin/main` SHA. Checkpoint jsonl updates fast-forward the checkout and do not restart the chain. A dirty worktree is refused.
+
+Status: `/var/lib/pfpchain-deploy/status.json`. Log: `journalctl -u pfpchain-auto-deploy.service`. Details: [`systemd/README.md`](../scripts/public-devnet-v1/systemd/README.md).
+
+---
+
 ## What you cannot edit live
 
 | Change | Effect |
