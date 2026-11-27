@@ -1,14 +1,14 @@
 //! Filesystem-backed [`ChainStore`] (M2.1.0 checkpoint + M2.1.7 block sidecar).
 
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
 use mfn_consensus::{decode_block, encode_block, Block};
 use mfn_runtime::{Chain, ChainConfig};
 
 use crate::r#trait::ChainPersistence;
-use crate::validate::validate_block_log;
+use crate::validate::{validate_block_log, validate_block_range};
 use crate::{StoreError, StoreSave};
 
 const CHECKPOINT_FILE: &str = "chain.checkpoint";
@@ -268,6 +268,76 @@ impl ChainPersistence for ChainStore {
         let blocks = self.read_block_log()?;
         validate_block_log(chain, &blocks)?;
         Ok(blocks)
+    }
+
+    fn read_block_range_validated(
+        &self,
+        chain: &Chain,
+        start_height: u32,
+        count: u32,
+    ) -> Result<Vec<Block>, StoreError> {
+        let start_height = start_height.max(1);
+        let path = self.block_log_path();
+        let file = match File::open(&path) {
+            Ok(f) => f,
+            Err(e) if is_not_found(&e) => {
+                validate_block_range(chain, 0, start_height, &[])?;
+                return Ok(Vec::new());
+            }
+            Err(e) => return Err(io_error("read_block_range", &path, e)),
+        };
+        let file_len = file
+            .metadata()
+            .map_err(|e| io_error("read_block_range_metadata", &path, e))?
+            .len();
+        let end_height = u64::from(start_height) + u64::from(count);
+        let mut reader = BufReader::with_capacity(64 * 1024, file);
+        let mut out = Vec::new();
+        let mut off: u64 = 0;
+        let mut records: u64 = 0;
+        while off < file_len {
+            if off + 8 > file_len {
+                return Err(StoreError::BlockLog(format!(
+                    "truncated length header at offset {off}"
+                )));
+            }
+            let mut len_buf = [0u8; 8];
+            reader
+                .read_exact(&mut len_buf)
+                .map_err(|e| io_error("read_block_range_len", &path, e))?;
+            off += 8;
+            let len = u64::from_be_bytes(len_buf);
+            if len > file_len - off {
+                return Err(StoreError::BlockLog(format!(
+                    "truncated payload at offset {off}: need {len} bytes"
+                )));
+            }
+            records += 1;
+            // Record `records` holds height `records` (validated against the tip below).
+            if records >= u64::from(start_height) && records < end_height {
+                let len_usize = usize::try_from(len).map_err(|_| {
+                    StoreError::BlockLog(format!("record byte length {len} does not fit usize"))
+                })?;
+                let mut payload = vec![0u8; len_usize];
+                reader
+                    .read_exact(&mut payload)
+                    .map_err(|e| io_error("read_block_range_payload", &path, e))?;
+                let block = decode_block(&payload).map_err(|e| {
+                    StoreError::BlockLog(format!("decode_block at payload offset {}: {e}", off - 8))
+                })?;
+                out.push(block);
+            } else {
+                let skip = i64::try_from(len).map_err(|_| {
+                    StoreError::BlockLog(format!("record byte length {len} does not fit i64"))
+                })?;
+                reader
+                    .seek_relative(skip)
+                    .map_err(|e| io_error("read_block_range_seek", &path, e))?;
+            }
+            off += len;
+        }
+        validate_block_range(chain, records, start_height, &out)?;
+        Ok(out)
     }
 
     fn clear(&self) -> Result<(), StoreError> {

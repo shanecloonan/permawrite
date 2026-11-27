@@ -149,6 +149,55 @@ mfn_deploy_crates_for_paths() {
   done
 }
 
+# True when a `git status --porcelain` line is only the near-tip checkpoint
+# timer appending to a tracked checkpoints jsonl. Renames are real edits.
+mfn_deploy_porcelain_line_is_checkpoint_log() {
+  local line="$1"
+  local path="${line#???}"
+  case "$path" in
+    *" -> "*)
+      return 1
+      ;;
+    mfn-node/testdata/public_devnet_v1.checkpoints.jsonl|\
+      mfn-node/testdata/public_devnet_fa.checkpoints.jsonl)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# stdin: `git status --porcelain` lines. stdout: lines that refuse a deploy.
+# The checkpoint timer's append is not a local source edit.
+mfn_deploy_worktree_dirt() {
+  local line
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" ]] && continue
+    if mfn_deploy_porcelain_line_is_checkpoint_log "$line"; then
+      continue
+    fi
+    printf '%s\n' "$line"
+  done
+}
+
+# When origin/main changes a checkpoint jsonl, drop the timer's uncommitted
+# append so `git merge --ff-only` can update that file. Appends stay when
+# main does not touch the file. The timer writes the next entry on its own.
+mfn_deploy_yield_checkpoint_logs_to_upstream() {
+  local repo="$1"
+  local upstream="$2"
+  local path
+  for path in \
+    mfn-node/testdata/public_devnet_v1.checkpoints.jsonl \
+    mfn-node/testdata/public_devnet_fa.checkpoints.jsonl
+  do
+    if git -C "$repo" diff --name-only HEAD "$upstream" -- "$path" | grep -q .; then
+      git -C "$repo" checkout -- "$path"
+    fi
+  done
+}
+
 # Sum MemAvailable and SwapFree from a meminfo file. KiB.
 mfn_deploy_free_kib() {
   local src="$1"

@@ -963,7 +963,10 @@ async function handleRequest(req, res) {
 
 const server = http.createServer((req, res) => {
   const ac = new AbortController();
-  req.on("close", () => {
+  // Node >= 16 emits the request "close" once the POST body is read. Aborting
+  // on that event failed every proxied call with "client closed". The response
+  // "close" is the client going away before the reply is finished.
+  res.on("close", () => {
     if (!res.writableEnded) ac.abort();
   });
   requestAbort.run(ac.signal, () => handleRequest(req, res)).catch((e) => {
