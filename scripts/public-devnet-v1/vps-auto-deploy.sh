@@ -3,6 +3,8 @@
 #
 # Run on the VPS as root (the timer does). Does not SSH. Does not delete
 # chain data (.permawrite-devnet-v1 stays). A dirty worktree is refused.
+# The near-tip timer's append to public_devnet_v1.checkpoints.jsonl (and the
+# F-A twin) is not a source edit and does not count as dirty.
 #
 #   bash scripts/public-devnet-v1/vps-auto-deploy.sh --plan-only
 #   bash scripts/public-devnet-v1/vps-auto-deploy.sh --apply
@@ -42,7 +44,8 @@ Skips (exit 0, recorded in status.json):
   unchanged, overlap, no runtime change, low memory, faucet busy,
   consensus/genesis range without allow-consensus, a SHA that already failed
 
-Refuses (exit 1): dirty worktree, branch other than main, diverged main,
+Refuses (exit 1): dirty worktree (checkpoint jsonl appends are ignored),
+  branch other than main, diverged main,
   build or test failure, tip did not advance (binaries rolled back)
 
 Env:
@@ -69,7 +72,7 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "vps-auto-deploy: plan"
-  echo "  flow=flock -> refuse dirty worktree -> git fetch origin/main -> classify paths"
+  echo "  flow=flock -> refuse dirty worktree (checkpoint jsonl appends ignored) -> git fetch origin/main -> classify paths"
   echo "  build=CARGO_BUILD_JOBS=2 cargo build --release -p mfn-node --bin mfnd -p mfn-cli --bin mfn-cli"
   echo "  staging=$STATE_DIR/staging/target"
   echo "  tests=cargo test -p CRATE --lib --release for touched crates (fast subset)"
@@ -130,9 +133,11 @@ fi
 
 load_status
 
-if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ]]; then
+porcelain="$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)"
+dirt="$(printf '%s\n' "$porcelain" | mfn_deploy_worktree_dirt || true)"
+if [[ -n "$dirt" ]]; then
   log "tracked or untracked changes in $REPO_ROOT; refusing to deploy over local edits"
-  git -C "$REPO_ROOT" status --short >&2 || true
+  printf '%s\n' "$dirt" >&2
   write_status "refused-dirty" "worktree is dirty" "$deployed_sha" "${attempt_sha}" "$previous_sha"
   exit 1
 fi
@@ -213,6 +218,7 @@ if [[ "$scope" == "consensus" ]]; then
 fi
 
 if [[ "$scope" == "none" ]]; then
+  mfn_deploy_yield_checkpoint_logs_to_upstream "$REPO_ROOT" origin/main
   if ! git -C "$REPO_ROOT" merge --ff-only origin/main; then
     write_status "refused-diverged" "fast-forward failed" "$deployed_sha" "$candidate" "$previous_sha"
     exit 1
@@ -267,6 +273,7 @@ head_before="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 if [[ -f "$STATE_DIR/allow-consensus" ]] && mfn_deploy_marker_allows "$STATE_DIR/allow-consensus" "$candidate"; then
   rm -f "$STATE_DIR/allow-consensus"
 fi
+mfn_deploy_yield_checkpoint_logs_to_upstream "$REPO_ROOT" origin/main
 if ! git -C "$REPO_ROOT" merge --ff-only origin/main; then
   write_status "refused-diverged" "fast-forward failed" "$deployed_sha" "$candidate" "$head_before"
   exit 1

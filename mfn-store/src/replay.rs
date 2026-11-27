@@ -235,4 +235,54 @@ mod tests {
         }
         fs::remove_dir_all(root).ok();
     }
+
+    fn assert_range_read_matches_full_read(store: &dyn ChainPersistence) {
+        let cfg = ChainConfig::new(empty_genesis_cfg(0));
+        let mut chain = store.load_or_genesis(cfg).expect("genesis");
+        for _ in 0..5 {
+            append_empty_next_block(store, &mut chain);
+        }
+        let full = store.read_block_log_validated(&chain).expect("full read");
+        for (start, count) in [
+            (0u32, 2u32),
+            (1, 5),
+            (2, 2),
+            (4, 10),
+            (5, 1),
+            (6, 3),
+            (3, 0),
+        ] {
+            let range = store
+                .read_block_range_validated(&chain, start, count)
+                .expect("range read");
+            let want: Vec<_> = full
+                .iter()
+                .filter(|b| b.header.height >= start)
+                .take(count as usize)
+                .cloned()
+                .collect();
+            let got_wire: Vec<_> = range.iter().map(mfn_consensus::encode_block).collect();
+            let want_wire: Vec<_> = want.iter().map(mfn_consensus::encode_block).collect();
+            assert_eq!(got_wire, want_wire, "start={start} count={count}");
+        }
+        // One record more than the chain tip is refused, like the full read.
+        append_unvalidated_empty_block_at_height(store, &chain, 6, 1_000);
+        assert!(store.read_block_range_validated(&chain, 2, 1).is_err());
+    }
+
+    #[test]
+    fn fs_range_read_matches_full_read() {
+        let root = temp_root("fs_range");
+        let store = ChainStore::new(&root);
+        assert_range_read_matches_full_read(&store);
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn redb_range_read_matches_full_read() {
+        let root = temp_root("redb_range");
+        let store = RedbChainStore::new(&root).expect("redb");
+        assert_range_read_matches_full_read(&store);
+        fs::remove_dir_all(root).ok();
+    }
 }

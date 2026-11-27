@@ -139,6 +139,22 @@ impl ChainPersistence for NodeStore {
         }
     }
 
+    fn read_block_range_validated(
+        &self,
+        chain: &Chain,
+        start_height: u32,
+        count: u32,
+    ) -> Result<Vec<Block>, StoreError> {
+        match self {
+            Self::Fs(s) => {
+                ChainPersistence::read_block_range_validated(s, chain, start_height, count)
+            }
+            Self::Redb(s) => {
+                ChainPersistence::read_block_range_validated(s, chain, start_height, count)
+            }
+        }
+    }
+
     fn clear(&self) -> Result<(), StoreError> {
         match self {
             Self::Fs(s) => ChainPersistence::clear(s),

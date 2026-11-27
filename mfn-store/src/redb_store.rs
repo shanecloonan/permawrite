@@ -6,11 +6,11 @@ use std::sync::Arc;
 
 use mfn_consensus::{decode_block, encode_block, Block};
 use mfn_runtime::{Chain, ChainConfig};
-use redb::{Database, ReadableTable, TableDefinition};
+use redb::{Database, ReadableTable, ReadableTableMetadata, TableDefinition};
 
 use crate::fs::io_error;
 use crate::r#trait::ChainPersistence;
-use crate::validate::validate_block_log;
+use crate::validate::{validate_block_log, validate_block_range};
 use crate::{StoreError, StoreSave};
 
 const DB_FILE: &str = "chain.redb";
@@ -300,6 +300,35 @@ impl ChainPersistence for RedbChainStore {
         let blocks = self.read_block_log()?;
         validate_block_log(chain, &blocks)?;
         Ok(blocks)
+    }
+
+    fn read_block_range_validated(
+        &self,
+        chain: &Chain,
+        start_height: u32,
+        count: u32,
+    ) -> Result<Vec<Block>, StoreError> {
+        let start_height = start_height.max(1);
+        let txn = self
+            .db
+            .begin_read()
+            .map_err(|e| db_err("begin_read blocks", e))?;
+        let table = txn
+            .open_table(BLOCKS)
+            .map_err(|e| db_err("open_table blocks", e))?;
+        let records = table.len().map_err(|e| db_err("len blocks", e))?;
+        let lo = u64::from(start_height);
+        let hi = lo + u64::from(count);
+        let mut out = Vec::new();
+        for entry in table.range(lo..hi).map_err(|e| db_err("range blocks", e))? {
+            let (_, v) = entry.map_err(|e| db_err("range entry blocks", e))?;
+            let block = decode_block(v.value()).map_err(|e| {
+                StoreError::BlockLog(format!("decode_block at height-indexed key: {e}"))
+            })?;
+            out.push(block);
+        }
+        validate_block_range(chain, records, start_height, &out)?;
+        Ok(out)
     }
 
     fn clear(&self) -> Result<(), StoreError> {

@@ -314,6 +314,16 @@ fn light_checkpoint_summary_json(checkpoint_hex: &str) -> Result<Value, String> 
     }))
 }
 
+/// Light chain reused across `get_light_snapshot` at-height calls, keyed by genesis id.
+///
+/// Rebuilding a light checkpoint from genesis replays every block (minutes at a tall
+/// tip) while the caller holds the node's chain lock, which stalled block production
+/// when wallets bootstrapped at their resume height. Wallet requests walk forward, so
+/// keeping the last light chain and applying only the new blocks makes each call
+/// proportional to the gap since the previous one.
+static LIGHT_SNAPSHOT_CACHE: std::sync::Mutex<Option<([u8; 32], LightChain)>> =
+    std::sync::Mutex::new(None);
+
 fn light_snapshot_replay_at_height(
     store: &dyn ChainPersistence,
     chain: &Chain,
@@ -326,11 +336,54 @@ fn light_snapshot_replay_at_height(
     if height > tip_h {
         return Err(format!("height {height} exceeds chain tip_height {tip_h}"));
     }
-    let blocks = store
-        .read_block_log_validated(chain)
-        .map_err(|e| format!("read_block_log_validated: {e}"))?;
-    let bytes = light_checkpoint_after_blocks(genesis.clone(), &blocks, height)
-        .map_err(|e| format!("light_checkpoint_after_blocks: {e}"))?;
+    if height == 0 {
+        let blocks: Vec<Block> = Vec::new();
+        let bytes = light_checkpoint_after_blocks(genesis.clone(), &blocks, 0)
+            .map_err(|e| format!("light_checkpoint_after_blocks: {e}"))?;
+        return Ok(hex::encode(bytes));
+    }
+    let gid = *chain.genesis_id();
+    let mut cache = LIGHT_SNAPSHOT_CACHE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let cached = match cache.take() {
+        Some((g, light)) if g == gid && light.tip_height() <= height => Some(light),
+        _ => None,
+    };
+    let mut light = match cached {
+        Some(light) if light.tip_height() > 0 => {
+            // Confirm the cached tip is still the stored block at that height.
+            let h = light.tip_height();
+            let row = store
+                .read_block_range_validated(chain, h, 1)
+                .map_err(|e| format!("read_block_log_validated: {e}"))?;
+            match row.first() {
+                Some(b) if block_id(&b.header) == *light.tip_id() => light,
+                _ => LightChain::from_genesis(mfn_light::LightChainConfig::new(genesis.clone())),
+            }
+        }
+        _ => LightChain::from_genesis(mfn_light::LightChainConfig::new(genesis.clone())),
+    };
+    let from = light.tip_height() + 1;
+    if from <= height {
+        let want = height - from + 1;
+        let blocks = store
+            .read_block_range_validated(chain, from, want)
+            .map_err(|e| format!("read_block_log_validated: {e}"))?;
+        if blocks.len() != want as usize {
+            return Err(format!(
+                "light_checkpoint_after_blocks: block log returned {} of {want} block(s) from height {from}",
+                blocks.len()
+            ));
+        }
+        for b in &blocks {
+            light
+                .apply_block(b)
+                .map_err(|e| format!("light_checkpoint_after_blocks: {e}"))?;
+        }
+    }
+    let bytes = light.encode_checkpoint();
+    *cache = Some((gid, light));
     Ok(hex::encode(bytes))
 }
 
@@ -399,6 +452,21 @@ fn read_validated_blocks_for_height(
     height: u32,
     id: &Value,
 ) -> Result<Vec<Block>, Value> {
+    read_validated_blocks_for_range(store, chain, height, height, id)
+}
+
+/// Load blocks `from_height..=to_height` from `chain.blocks`, checked against `chain`.
+///
+/// Reads only the requested records (see `ChainPersistence::read_block_range_validated`), so a
+/// per-height RPC does not decode the whole log at tall tips. Index `i` of the result is height
+/// `from_height + i`.
+fn read_validated_blocks_for_range(
+    store: &dyn ChainPersistence,
+    chain: &Chain,
+    from_height: u32,
+    height: u32,
+    id: &Value,
+) -> Result<Vec<Block>, Value> {
     if height == 0 {
         return Err(rpc_error(
             id,
@@ -423,8 +491,24 @@ fn read_validated_blocks_for_height(
             format!("height {height} exceeds chain tip_height {tip_h}"),
         ));
     }
-    match store.read_block_log_validated(chain) {
-        Ok(b) => Ok(b),
+    if from_height == 0 || from_height > height {
+        return Err(rpc_error(
+            id,
+            rpc_codes::INVALID_PARAMS,
+            "from_height must be at least 1 and at most to_height",
+        ));
+    }
+    let count = height - from_height + 1;
+    match store.read_block_range_validated(chain, from_height, count) {
+        Ok(b) if b.len() == count as usize => Ok(b),
+        Ok(b) => Err(rpc_error(
+            id,
+            rpc_codes::BLOCK_LOG_STORE,
+            format!(
+                "read_block_log_validated: block log returned {} of {count} block(s) from height {from_height}",
+                b.len()
+            ),
+        )),
         Err(e) => Err(rpc_error(
             id,
             rpc_codes::BLOCK_LOG_STORE,
@@ -1120,8 +1204,7 @@ fn dispatch_serve_methods(
                 Ok(b) => b,
                 Err(resp) => return resp,
             };
-            let idx = (height - 1) as usize;
-            let block = &blocks[idx];
+            let block = &blocks[0];
             let bytes = encode_block(block);
             let body = json!({
                 "height": height,
@@ -1138,8 +1221,7 @@ fn dispatch_serve_methods(
                 Ok(b) => b,
                 Err(resp) => return resp,
             };
-            let idx = (height - 1) as usize;
-            let block = &blocks[idx];
+            let block = &blocks[0];
             rpc_success(id, header_row_json(block, height))
         }
         "get_block_headers" => {
@@ -1147,13 +1229,13 @@ fn dispatch_serve_methods(
                 Ok(r) => r,
                 Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
             };
-            let blocks = match read_validated_blocks_for_height(store, chain, to_h, id) {
+            let blocks = match read_validated_blocks_for_range(store, chain, from_h, to_h, id) {
                 Ok(b) => b,
                 Err(resp) => return resp,
             };
             let mut headers = Vec::with_capacity((to_h - from_h + 1) as usize);
             for h in from_h..=to_h {
-                let block = &blocks[(h - 1) as usize];
+                let block = &blocks[(h - from_h) as usize];
                 headers.push(header_row_json(block, h));
             }
             rpc_success(
@@ -1175,7 +1257,7 @@ fn dispatch_serve_methods(
                 Ok(b) => b,
                 Err(resp) => return resp,
             };
-            let block = &blocks[(height - 1) as usize];
+            let block = &blocks[0];
             let txs: Vec<Value> = block
                 .txs
                 .iter()
@@ -1280,13 +1362,13 @@ fn dispatch_serve_methods(
                 Ok(r) => r,
                 Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
             };
-            let blocks = match read_validated_blocks_for_height(store, chain, to_h, id) {
+            let blocks = match read_validated_blocks_for_range(store, chain, from_h, to_h, id) {
                 Ok(b) => b,
                 Err(resp) => return resp,
             };
             let mut rows = Vec::with_capacity((to_h - from_h + 1) as usize);
             for h in from_h..=to_h {
-                let block = &blocks[(h - 1) as usize];
+                let block = &blocks[(h - from_h) as usize];
                 rows.push(light_follow_row_json(block, h));
             }
             rpc_success(
@@ -1349,7 +1431,7 @@ fn dispatch_serve_methods(
                 Ok(b) => b,
                 Err(resp) => return resp,
             };
-            let block = &blocks[(height - 1) as usize];
+            let block = &blocks[0];
             let slashings: Vec<Value> = block
                 .slashings
                 .iter()

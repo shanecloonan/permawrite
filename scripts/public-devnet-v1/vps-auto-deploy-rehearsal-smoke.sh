@@ -108,6 +108,51 @@ grep -q 'cargo build --release -p mfn-node --bin mfnd -p mfn-cli --bin mfn-cli' 
 # shellcheck disable=SC2016
 grep -q 'cargo test -p "$crate" --lib --release' "$deploy" || fail "missing fast subset"
 grep -q 'status --porcelain' "$deploy" || fail "missing dirty-worktree check"
+grep -q 'mfn_deploy_worktree_dirt' "$deploy" || fail "dirty check must ignore checkpoint jsonl"
+grep -q 'checkpoint jsonl appends ignored' "$deploy" || fail "plan must name the checkpoint exception"
+mfn_deploy_porcelain_line_is_checkpoint_log " M mfn-node/testdata/public_devnet_v1.checkpoints.jsonl" \
+  || fail "v1 checkpoint append must be ignored"
+mfn_deploy_porcelain_line_is_checkpoint_log "M  mfn-node/testdata/public_devnet_fa.checkpoints.jsonl" \
+  || fail "fa checkpoint append must be ignored"
+if mfn_deploy_porcelain_line_is_checkpoint_log " M mfn-node/src/lib.rs"; then
+  fail "a source edit must stay dirty"
+fi
+if mfn_deploy_porcelain_line_is_checkpoint_log "R  old -> mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"; then
+  fail "a rename of the checkpoint log must stay dirty"
+fi
+only_ckpt="$(printf '%s\n' " M mfn-node/testdata/public_devnet_v1.checkpoints.jsonl" | mfn_deploy_worktree_dirt)"
+[[ -z "$only_ckpt" ]] || fail "checkpoint-only porcelain must be empty, got: $only_ckpt"
+mixed="$(printf '%s\n' " M mfn-node/testdata/public_devnet_v1.checkpoints.jsonl" " M AGENTS.md" | mfn_deploy_worktree_dirt)"
+[[ "$mixed" == " M AGENTS.md" ]] || fail "mixed dirt: $mixed"
+
+ckpt_repo="$(mktemp -d)"
+git -C "$ckpt_repo" init -q -b main
+git -C "$ckpt_repo" config user.email "deploy-smoke@example.com"
+git -C "$ckpt_repo" config user.name "deploy-smoke"
+mkdir -p "$ckpt_repo/mfn-node/testdata"
+printf 'base\n' >"$ckpt_repo/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
+printf 'keep\n' >"$ckpt_repo/other.txt"
+git -C "$ckpt_repo" add .
+git -C "$ckpt_repo" commit -qm base
+printf 'base\nappend\n' >"$ckpt_repo/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
+repo_dirt="$(git -C "$ckpt_repo" status --porcelain --untracked-files=all | mfn_deploy_worktree_dirt)"
+[[ -z "$repo_dirt" ]] || fail "timer append in a repo counted as dirt: $repo_dirt"
+git -C "$ckpt_repo" checkout -q -b upstream
+printf 'upstream\n' >"$ckpt_repo/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
+git -C "$ckpt_repo" add mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+git -C "$ckpt_repo" commit -qm upstream
+git -C "$ckpt_repo" checkout -q main
+printf 'base\nappend\n' >"$ckpt_repo/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
+mfn_deploy_yield_checkpoint_logs_to_upstream "$ckpt_repo" upstream
+[[ "$(cat "$ckpt_repo/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl")" == "base" ]] \
+  || fail "yield did not drop the append when upstream changes the log"
+printf 'keep\n' >"$ckpt_repo/other.txt"
+git -C "$ckpt_repo" checkout -q -- mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+printf 'base\nappend\n' >"$ckpt_repo/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
+mfn_deploy_yield_checkpoint_logs_to_upstream "$ckpt_repo" main
+[[ "$(cat "$ckpt_repo/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl")" == $'base\nappend' ]] \
+  || fail "yield rewound an append main does not touch"
+rm -rf "$ckpt_repo"
 grep -q 'vps-roll-mfnd.sh' "$deploy" || fail "missing vps-roll-mfnd"
 grep -q 'vps-update-observer-rpc-proxy.sh' "$deploy" || fail "missing proxy updater"
 grep -q 'systemctl restart mfnd-observer.service' "$deploy" || fail "missing observer restart"

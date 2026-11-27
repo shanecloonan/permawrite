@@ -57,7 +57,10 @@ impl BlockSyncProvider for P2pBlockSyncHandler {
             Ok(g) => g,
             Err(_) => return Vec::new(),
         };
-        let blocks = match self.store.read_block_log_validated(&chain) {
+        let blocks = match self
+            .store
+            .read_block_range_validated(&chain, start_height, count)
+        {
             Ok(b) => b,
             Err(_) => return Vec::new(),
         };
@@ -95,7 +98,10 @@ impl LightFollowProvider for P2pBlockSyncHandler {
             }
         };
         let genesis_id = *chain.genesis_id();
-        let blocks = match self.store.read_block_log_validated(&chain) {
+        let blocks = match self
+            .store
+            .read_block_range_validated(&chain, start_height, count)
+        {
             Ok(b) => b,
             Err(_) => {
                 return LightFollowV1 {
