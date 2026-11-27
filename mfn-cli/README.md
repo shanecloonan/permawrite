@@ -45,17 +45,21 @@ mfn-cli wallet status --json
 mfn-cli --wallet ./alice.json wallet backup-info
 
 # Send (CLSAG transfer + submit_tx; mine with `mfnd step` after stopping serve).
-# F7: need ≥2 owned UTXOs (public faucet dual-send). Ring default 16 is the wallet/consensus floor.
+# F7: the sender needs ≥2 owned UTXOs. The public faucet dual-send is one
+# transaction: `--outputs 2` pays the recipient two coins. Ring default 16
+# is the wallet/consensus floor. AMOUNT is the total, split across N outputs
+# (first output keeps the remainder). N is 1-8.
 # AMOUNT and --fee: 10000 is atomic units; 1.5mfn is one and a half coins (1 MFN = 100000000 atomic).
 mfn-cli --rpc 127.0.0.1:<PORT> wallet send mf<ADDRESS_PAYLOAD_HEX> <AMOUNT> \
-  --fee 10000 --ring-size 16 --json
+  --outputs 2 --fee 10000 --ring-size 16 --json
 
 # Legacy raw-key send form
 mfn-cli --rpc 127.0.0.1:<PORT> wallet send <VIEW_PUB_HEX> <SPEND_PUB_HEX> <AMOUNT> \
   --fee 10000 --ring-size 16 --json
 
-# Public-devnet helper: fund a participant wallet from an operator faucet wallet
-# (faucet must deliver two transfers so F7 two-input floor is reachable)
+# Public-devnet helper: fund a participant wallet from an operator faucet wallet.
+# fund-wallet and faucet-http pass --outputs so one transaction delivers the
+# F7 pair (two coins). A second send runs only if the first did not land both.
 powershell -File scripts/public-devnet-v1/preflight.ps1
 bash scripts/public-devnet-v1/preflight.sh
 powershell -File scripts/public-devnet-v1/fund-wallet.ps1 -PlanOnly
@@ -147,7 +151,7 @@ mfn-cli wallet compare-trusted-summary a.json b.json
 
 `wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks. Add `--json` for stuck-wallet diagnostics or support tickets; the structured output includes `tip_height`, `scan_height`, `blocks_behind`, `sync_needed`, cached balance/owned counts, pending-spend count, and light-summary presence without revealing the seed.
 
-`wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. It **preflights** the F7 owned-UTXO floor (`owned ≥ 2`) and refuses with an actionable faucet dual-send message when a fresh wallet only has one spendable output (**B-189**). Default `--ring-size 16` is the wallet/consensus floor (no silent downgrade). Add `--json` for a faucet/support record with recipient public keys, amount, fee, tx id, mempool outcome, and post-send wallet state. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.
+`wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_private_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. `--outputs N` (1–8, default 1) splits `AMOUNT` into N outputs to the same recipient; the first output keeps any remainder, and each output is at least 1 atomic unit. The public faucet passes `--outputs 2` so a new wallet receives two spendable coins in one transaction and can meet the F7 input floor without a second faucet spend. It **preflights** the F7 owned-UTXO floor (`owned ≥ 2`) and refuses with an actionable faucet dual-send message when the sender only has one spendable output (**B-189**). Default `--ring-size 16` is the wallet/consensus floor (no silent downgrade). Add `--json` for a faucet/support record with recipient public keys, amount, output count, fee, tx id, mempool outcome, and post-send wallet state. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.
 
 `wallet upload` reads a file (≤ 32 MiB), validates fee/replication against chain endowment rules via [`Wallet::build_storage_upload`](../mfn-wallet/src/upload.rs), prints `data_root` and `storage_commitment_hash`, and submits the signed tx. Same F7 owned-UTXO preflight as send. Add `--json` to emit a single support record with the tx id, `storage_commitment_hash`, `data_root`, fee/burden, upload artifact path, payload bytes, and post-upload wallet state for replication/proof automation. With `--message`, it uses [`Wallet::build_storage_upload_with_authorship`](../mfn-wallet/src/wallet.rs) to pack a storage-bound MFCL claim in `tx.extra` (mutually exclusive with `--extra`). **M3.24** persists `payload.bin` + `meta.bytes` under `{wallet_stem}.upload-artifacts/<commit_hash>/` so operators can prove without keeping the original path.
 

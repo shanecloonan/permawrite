@@ -311,3 +311,163 @@ fn wallet_send_mined_by_step_reaches_recipient() {
     shutdown_child(&mut child2);
     std::fs::remove_dir_all(&dir).ok();
 }
+
+/// `--outputs 2` is one payment split into two coins for the same recipient.
+#[test]
+fn wallet_send_outputs_two_pays_two_coins() {
+    let dir = unique_data_dir("send_outputs");
+    std::fs::create_dir_all(&dir).expect("tmpdir");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("mfn-node/testdata/devnet_one_validator_synth_decoys.json");
+
+    let mut bls_seed = [0u8; 32];
+    hex::decode_to_slice(DEVNET_SOLO_BLS_SEED_HEX, &mut bls_seed).expect("bls hex");
+    let alice_path = dir.join("alice.json");
+    let bob_path = dir.join("bob.json");
+    WalletFile::new(&bls_seed, KeyDerivation::PayoutStealthV1)
+        .save(&alice_path)
+        .expect("alice wallet");
+    WalletFile::new(&BOB_SEED, KeyDerivation::MfnWalletV1)
+        .save(&bob_path)
+        .expect("bob wallet");
+
+    let step1 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("step")
+        .arg("--blocks")
+        .arg(FUND_WALLET_BLOCKS)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .output()
+        .expect("step 1");
+    assert!(
+        step1.status.success(),
+        "step1 stderr={}",
+        String::from_utf8_lossy(&step1.stderr)
+    );
+
+    let mut child = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn mfnd");
+    let rpc = read_serve_listening(&mut child);
+
+    let (bob_view, bob_spend) = bob_recipient_hex();
+    let send = mfn_cli()
+        .args([
+            "--rpc",
+            &rpc.to_string(),
+            "--wallet",
+            alice_path.to_str().expect("utf8"),
+            "wallet",
+            "send",
+            &bob_view,
+            &bob_spend,
+            &TRANSFER_AMOUNT.to_string(),
+            "--outputs",
+            "2",
+            "--fee",
+            &TRANSFER_FEE.to_string(),
+            "--ring-size",
+            "16",
+        ])
+        .output()
+        .expect("wallet send");
+    let send_err = String::from_utf8_lossy(&send.stderr);
+    assert!(
+        send.status.success(),
+        "send stderr={send_err} stdout={}",
+        String::from_utf8_lossy(&send.stdout)
+    );
+    assert!(!send_err.contains("unknown option"), "stderr={send_err}");
+    let send_out = String::from_utf8_lossy(&send.stdout);
+    assert!(
+        send_out.lines().any(|l| l == "outputs=2"),
+        "stdout={send_out}"
+    );
+    assert!(send_out.contains("outcome=Fresh"), "stdout={send_out}");
+
+    shutdown_child(&mut child);
+
+    let step2 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("step")
+        .arg("--blocks")
+        .arg("1")
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .output()
+        .expect("step 2");
+    assert!(
+        step2.status.success(),
+        "step2 stderr={}",
+        String::from_utf8_lossy(&step2.stderr)
+    );
+
+    let mut child2 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn mfnd 2");
+    let rpc2 = read_serve_listening(&mut child2);
+    let bal = mfn_cli()
+        .args([
+            "--rpc",
+            &rpc2.to_string(),
+            "--wallet",
+            bob_path.to_str().expect("utf8"),
+            "wallet",
+            "balance",
+        ])
+        .output()
+        .expect("bob balance");
+    assert!(
+        bal.status.success(),
+        "balance stderr={}",
+        String::from_utf8_lossy(&bal.stderr)
+    );
+    let bal_out = String::from_utf8_lossy(&bal.stdout);
+    assert!(
+        bal_out
+            .lines()
+            .any(|l| l == format!("balance={TRANSFER_AMOUNT}")),
+        "stdout={bal_out}"
+    );
+    assert!(
+        bal_out.lines().any(|l| l == "owned_count=2"),
+        "two coins expected, stdout={bal_out}"
+    );
+
+    shutdown_child(&mut child2);
+    std::fs::remove_dir_all(&dir).ok();
+}

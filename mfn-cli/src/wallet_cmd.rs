@@ -536,6 +536,27 @@ fn require_f7_owned_input_floor(wallet: &Wallet) -> Result<(), WalletCmdError> {
     Ok(())
 }
 
+/// Split `amount` into `outputs` positive parts that sum to `amount`.
+///
+/// The first part keeps the remainder, so `100` with `--outputs 3` is
+/// `34 + 33 + 33`. Every part is at least 1. `outputs` must be 1–8.
+pub(crate) fn split_payment_values(amount: u64, outputs: u8) -> Result<Vec<u64>, String> {
+    let n = usize::from(outputs);
+    if n == 0 || n > 8 {
+        return Err("--outputs must be between 1 and 8".into());
+    }
+    if amount < n as u64 {
+        return Err(format!(
+            "amount {amount} is smaller than --outputs {n} (each output needs at least 1 atomic unit)"
+        ));
+    }
+    let share = amount / n as u64;
+    let remainder = amount % n as u64;
+    Ok((0..n)
+        .map(|i| share + if i == 0 { remainder } else { 0 })
+        .collect())
+}
+
 fn f7_owned_below_floor_usage(got: usize, min: usize) -> WalletCmdError {
     WalletCmdError::Usage(format!(
         "owned UTXO count {got} below F7 privacy floor {min} \
@@ -568,25 +589,11 @@ pub fn wallet_send(
         }
     }
     let recipient = parse_recipient(&params.to_view_hex, &params.to_spend_hex)?;
-    let output_count = usize::from(params.outputs.max(1));
-    if output_count > 8 {
-        return Err(WalletCmdError::Usage(
-            "--outputs must be between 1 and 8".into(),
-        ));
-    }
-    if params.amount < output_count as u64 {
-        return Err(WalletCmdError::Usage(format!(
-            "amount {} is smaller than --outputs {output_count} (each output needs at least 1 atomic unit)",
-            params.amount
-        )));
-    }
-    let share = params.amount / output_count as u64;
-    let remainder = params.amount % output_count as u64;
-    let recipients: Vec<TransferRecipient> = (0..output_count)
-        .map(|i| TransferRecipient {
-            recipient,
-            value: share + if i == 0 { remainder } else { 0 },
-        })
+    let values =
+        split_payment_values(params.amount, params.outputs).map_err(WalletCmdError::Usage)?;
+    let recipients: Vec<TransferRecipient> = values
+        .into_iter()
+        .map(|value| TransferRecipient { recipient, value })
         .collect();
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
@@ -659,6 +666,7 @@ fn print_send_outcome(outcome: &SendOutcome<'_>) -> Result<(), WalletCmdError> {
         "amount_mfn={}",
         mfn_wallet::format_mfn(outcome.params.amount)
     );
+    println!("outputs={}", outcome.params.outputs.max(1));
     println!("fee={}", outcome.params.fee);
     println!("fee_mfn={}", mfn_wallet::format_mfn(outcome.params.fee));
     println!(
@@ -713,6 +721,7 @@ fn send_outcome_json(outcome: &SendOutcome<'_>) -> serde_json::Value {
         "recipient_spend_hex": outcome.params.to_spend_hex.as_str(),
         "amount": outcome.params.amount,
         "amount_mfn": mfn_wallet::format_mfn(outcome.params.amount),
+        "outputs": outcome.params.outputs.max(1),
         "fee": outcome.params.fee,
         "fee_mfn": mfn_wallet::format_mfn(outcome.params.fee),
         "ring_size": outcome.params.ring_size,
@@ -1283,6 +1292,22 @@ mod tests {
         let upload = pending_upload_note("def");
         assert!(upload.contains("upload-artifacts"));
         assert!(upload.contains("seed does not contain"));
+    }
+
+    #[test]
+    fn split_payment_values_divides_the_amount_across_outputs() {
+        assert_eq!(split_payment_values(1000, 1).unwrap(), vec![1000]);
+        assert_eq!(split_payment_values(1000, 2).unwrap(), vec![500, 500]);
+        let three = split_payment_values(100, 3).unwrap();
+        assert_eq!(three, vec![34, 33, 33]);
+        assert_eq!(three.iter().sum::<u64>(), 100);
+        let eight = split_payment_values(8, 8).unwrap();
+        assert_eq!(eight, vec![1; 8]);
+        assert!(split_payment_values(2, 0).unwrap_err().contains("1 and 8"));
+        assert!(split_payment_values(2, 9).unwrap_err().contains("1 and 8"));
+        assert!(split_payment_values(3, 4)
+            .unwrap_err()
+            .contains("smaller than --outputs"));
     }
 
     /// B-174: CLI default ring must stay locked to the wallet/consensus floor

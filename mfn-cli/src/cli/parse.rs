@@ -427,6 +427,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             a,
             "--fee"
                 | "--ring-size"
+                | "--outputs"
                 | "--extra"
                 | "--replication"
                 | "--anchor-value"

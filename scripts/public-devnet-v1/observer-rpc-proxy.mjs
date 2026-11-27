@@ -28,6 +28,7 @@
 import http from "node:http";
 import net from "node:net";
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 
@@ -151,6 +152,43 @@ const PUBLIC_SAFE = new Set([
 
 /** Proxy-synthesized methods (not forwarded to mfnd). */
 const PROXY_LOCAL = new Set(["get_tx_count_totals", "get_block_txs_range"]);
+
+/**
+ * `list_methods` on mfnd is `{ methods, method_classes }`, not a bare array.
+ * Older proxies only patched a bare array, so the public method list omitted
+ * `get_block_txs_range` even though the site allowlist accepts it.
+ *
+ * @param {string} upstream raw JSON-RPC response line
+ * @returns {string}
+ */
+export function augmentListMethodsLine(upstream) {
+  let obj;
+  try {
+    obj = JSON.parse(upstream);
+  } catch {
+    return upstream;
+  }
+  const names = listMethodNames(obj);
+  if (!names) return upstream;
+  for (const method of PROXY_LOCAL) {
+    if (!names.includes(method)) names.push(method);
+  }
+  names.sort();
+  const classes = obj.result?.method_classes;
+  if (classes && typeof classes === "object" && !Array.isArray(classes)) {
+    for (const method of PROXY_LOCAL) {
+      if (classes[method] == null) classes[method] = "public-safe";
+    }
+  }
+  return JSON.stringify(obj);
+}
+
+function listMethodNames(obj) {
+  if (!obj || typeof obj !== "object") return null;
+  if (Array.isArray(obj.result)) return obj.result;
+  if (obj.result && Array.isArray(obj.result.methods)) return obj.result.methods;
+  return null;
+}
 
 const [mfndHost, mfndPortStr] = MFND_RPC.split(":");
 const mfndPort = Number(mfndPortStr ?? "18734");
@@ -905,19 +943,7 @@ async function handleRequest(req, res) {
       }
     } else if (method === "list_methods") {
       const upstream = await tcpLineRpc(JSON.stringify(msg), timeoutForMethod(method));
-      try {
-        const obj = JSON.parse(upstream);
-        if (Array.isArray(obj.result)) {
-          for (const m of PROXY_LOCAL) {
-            if (!obj.result.includes(m)) obj.result.push(m);
-          }
-          line = JSON.stringify(obj);
-        } else {
-          line = upstream;
-        }
-      } catch {
-        line = upstream;
-      }
+      line = augmentListMethodsLine(upstream);
     } else {
       // B-90 / F105: wait for observer tip to catch hub before upload-list reads.
       if (method === "list_recent_uploads") {
@@ -949,7 +975,17 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(LISTEN_PORT, LISTEN_HOST, () => {
+function isDirectRun() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return path.resolve(entry) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectRun()) server.listen(LISTEN_PORT, LISTEN_HOST, () => {
   console.log(
     `observer-rpc-proxy http://${LISTEN_HOST}:${LISTEN_PORT}/rpc -> tcp://${MFND_RPC} (cache+index)`,
   );

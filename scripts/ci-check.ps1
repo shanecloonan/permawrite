@@ -304,6 +304,11 @@ if ($vpsRollMfndPlan -notmatch "vps-roll-mfnd-rehearsal-smoke: PASS plan-only") 
     $vpsRollMfndPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$vpsRecoverPlan = (bash scripts/public-devnet-v1/vps-recover-validators-rehearsal-smoke.sh --plan-only) -join "`n"
+if ($vpsRecoverPlan -notmatch "vps-recover-validators-rehearsal-smoke: PASS plan-only") {
+    $vpsRecoverPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $vpsPrebuildReadyPlan = (bash scripts/public-devnet-v1/vps-prebuild-roll-ready-rehearsal-smoke.sh --plan-only) -join "`n"
 if ($vpsPrebuildReadyPlan -notmatch "vps-prebuild-roll-ready-rehearsal-smoke: PASS plan-only") {
     $vpsPrebuildReadyPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

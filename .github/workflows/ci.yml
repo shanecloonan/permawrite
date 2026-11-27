@@ -169,6 +169,8 @@ jobs:
           [[ "$fraud_proof_plan" == *"FRAUD_PROOF_V1_TAG"* ]] || { echo "$fraud_proof_plan"; exit 1; }
           fa_plan="$(bash scripts/public-devnet-v1/vps-rollout-fa.sh --plan-only)"
           [[ "$fa_plan" == *"vps-rollout-fa: PASS plan-only"* ]] || { echo "$fa_plan"; exit 1; }
+          vps_recover_plan="$(bash scripts/public-devnet-v1/vps-recover-validators-rehearsal-smoke.sh --plan-only)"
+          [[ "$vps_recover_plan" == *"vps-recover-validators-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_recover_plan"; exit 1; }
           [[ "$fa_plan" == *"3dcb6ad8bb23c58e22aa69cacd1fad850b598e86d17d8e153a5081a3bba91c13"* ]] || { echo "$fa_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'

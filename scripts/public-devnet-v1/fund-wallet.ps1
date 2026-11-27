@@ -166,6 +166,18 @@ function Wait-RecipientBalance {
     throw "fund-wallet: recipient balance did not increase from $StartingBalance to at least $MinimumBalance within ${TimeoutSeconds}s (hub_tip_height=$tipHeight); mine or wait for a producer block, then run wallet balance or wallet light-scan$suffix"
 }
 
+function Get-OutputsForFloor {
+    param([int]$Owned, [int]$MinOwned)
+    $need = 1
+    if ($MinOwned -gt $Owned) { $need = $MinOwned - $Owned }
+    if ($need -lt 1) { $need = 1 }
+    if ($need -gt 8) {
+        Write-Host "fund-wallet: --outputs is capped at 8 ($need coins still short)"
+        $need = 8
+    }
+    return $need
+}
+
 function Send-FundTransfer {
     param(
         [string]$MfnCli,
@@ -178,16 +190,28 @@ function Send-FundTransfer {
         [UInt64]$Fee,
         [int]$RingSize,
         [UInt64]$BalanceBefore,
-        [UInt64]$BalanceTarget,
+        [int]$Outputs,
         [int]$WaitMinedSeconds
     )
+    if ($Outputs -lt 1 -or $Outputs -gt 8) {
+        throw "fund-wallet: --outputs $Outputs is outside 1-8"
+    }
+    $sendTotal = $Amount * [UInt64]$Outputs
+    if (($sendTotal / [UInt64]$Outputs) -ne $Amount) {
+        throw "fund-wallet: amount * outputs overflow"
+    }
+    $balanceTarget = $BalanceBefore + $sendTotal
+    if ($balanceTarget -lt $BalanceBefore) {
+        throw "fund-wallet: recipient balance target overflow"
+    }
     $faucetBalance = Get-WalletBalance $MfnCli $RpcAddr $FaucetWallet "faucet"
-    if ($faucetBalance -lt ($Amount + $Fee)) {
-        throw "fund-wallet: faucet balance $faucetBalance is below required $($Amount + $Fee); mine/scan the faucet wallet or choose a funded faucet"
+    if ($faucetBalance -lt ($sendTotal + $Fee)) {
+        throw "fund-wallet: faucet balance $faucetBalance is below required $($sendTotal + $Fee); mine/scan the faucet wallet or choose a funded faucet"
     }
     $send = Invoke-Checked $MfnCli @(
         "--rpc", $RpcAddr, "--wallet", $FaucetWallet,
-        "wallet", "send", $View, $Spend, "$Amount",
+        "wallet", "send", $View, $Spend, "$sendTotal",
+        "--outputs", "$Outputs",
         "--fee", "$Fee", "--ring-size", "$RingSize", "--json"
     ) "faucet wallet send"
     $sendJson = $send | ConvertFrom-Json
@@ -195,9 +219,9 @@ function Send-FundTransfer {
     $mempoolLen = [string]$sendJson.mempool_len
     $outcome = [string]$sendJson.outcome
     if (-not $txId) { throw "fund-wallet: wallet send --json missing tx_id`n$send" }
-    Write-Host "fund-wallet: submitted tx_id=$txId mempool_len=$mempoolLen outcome=$outcome recipient_wallet=$Recipient"
-    Write-Host "fund-wallet: wait_for_mining=$WaitMinedSeconds"
-    Wait-RecipientBalance $MfnCli $RpcAddr $Recipient $BalanceBefore $BalanceTarget $WaitMinedSeconds
+    Write-Host "fund-wallet: submitted tx_id=$txId mempool_len=$mempoolLen outcome=$outcome outputs=$Outputs amount_total=$sendTotal per_output=$Amount recipient_wallet=$Recipient"
+    Write-Host "fund-wallet: wait_for_mining=$WaitMinedSeconds target_balance=$balanceTarget"
+    Wait-RecipientBalance $MfnCli $RpcAddr $Recipient $BalanceBefore $balanceTarget $WaitMinedSeconds
     return $txId
 }
 
@@ -224,7 +248,7 @@ if ($PlanOnly) {
     Write-Host "  faucet_wallet=$planFaucet"
     Write-Host "  recipient_wallet=$Recipient"
     Write-Host "  amount=$Amount fee=$Fee ring_size=$RingSize wait_mined_seconds=$WaitMinedSeconds min_owned_count=$MinOwnedCount"
-    Write-Host '  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet scan/balance -> wallet address -> faucet wallet send --json -> wait for balance delta (B-29: light-scan --reset-trusted-summary on WS tip mismatch) -> optional F7 top-up sends until owned_count >= min_owned_count'
+    Write-Host '  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet scan/balance -> wallet address -> faucet wallet send --outputs N --json (one tx, N coins of -Amount) -> wait for balance delta (B-29: light-scan --reset-trusted-summary on WS tip mismatch) -> one more --outputs send only if owned_count is still below min_owned_count'
     Write-Host "  warning=use only public-devnet/test funds; never store real faucet seeds in this repo"
     exit 0
 }
@@ -246,22 +270,18 @@ try {
     $MfnCli = Resolve-Bin
     Ensure-Wallet $MfnCli $Recipient "recipient"
     $startingBalance = Get-WalletBalance $MfnCli $RpcAddr $Recipient "recipient"
-    $targetBalance = $startingBalance + $Amount
-    if ($targetBalance -lt $startingBalance) {
-        throw "fund-wallet: recipient balance target overflow"
-    }
-    Write-Host "fund-wallet: recipient_starting_balance=$startingBalance target_balance=$targetBalance"
+    $startingOwned = Get-WalletOwnedCount $MfnCli $RpcAddr $Recipient "recipient"
+    Write-Host "fund-wallet: recipient_starting_balance=$startingBalance owned_count=$startingOwned"
     $faucetBalance = Get-WalletBalance $MfnCli $RpcAddr $FaucetWallet "faucet"
     Write-Host "fund-wallet: faucet_balance=$faucetBalance"
-    if ($faucetBalance -lt ($Amount + $Fee)) {
-        throw "fund-wallet: faucet balance $faucetBalance is below required $($Amount + $Fee); mine/scan the faucet wallet or choose a funded faucet"
-    }
 
     $addr = Invoke-Checked $MfnCli @("--wallet", $Recipient, "wallet", "address") "recipient wallet address"
     $view = Parse-Field $addr "view_pub_hex"
     $spend = Parse-Field $addr "spend_pub_hex"
 
-    $txId = Send-FundTransfer $MfnCli $RpcAddr $FaucetWallet $Recipient $view $spend $Amount $Fee $RingSize $startingBalance $targetBalance $WaitMinedSeconds
+    $firstOutputs = Get-OutputsForFloor -Owned $startingOwned -MinOwned $MinOwnedCount
+    Write-Host "fund-wallet: first_send outputs=$firstOutputs per_output=$Amount"
+    $txId = Send-FundTransfer $MfnCli $RpcAddr $FaucetWallet $Recipient $view $spend $Amount $Fee $RingSize $startingBalance $firstOutputs $WaitMinedSeconds
 
     if ($MinOwnedCount -gt 0) {
         while ($true) {
@@ -269,12 +289,9 @@ try {
             Write-Host "fund-wallet: recipient_owned_count=$ownedCount min_owned_count=$MinOwnedCount"
             if ($ownedCount -ge $MinOwnedCount) { break }
             $balanceBefore = Get-WalletBalance $MfnCli $RpcAddr $Recipient "recipient"
-            $balanceTarget = $balanceBefore + $Amount
-            if ($balanceTarget -lt $balanceBefore) {
-                throw "fund-wallet: recipient balance target overflow during F7 top-up"
-            }
-            Write-Host "fund-wallet: F7 top-up send (owned_count=$ownedCount < $MinOwnedCount)"
-            Send-FundTransfer $MfnCli $RpcAddr $FaucetWallet $Recipient $view $spend $Amount $Fee $RingSize $balanceBefore $balanceTarget $WaitMinedSeconds | Out-Null
+            $topupOutputs = Get-OutputsForFloor -Owned $ownedCount -MinOwned $MinOwnedCount
+            Write-Host "fund-wallet: F7 top-up send outputs=$topupOutputs (owned_count=$ownedCount < $MinOwnedCount)"
+            Send-FundTransfer $MfnCli $RpcAddr $FaucetWallet $Recipient $view $spend $Amount $Fee $RingSize $balanceBefore $topupOutputs $WaitMinedSeconds | Out-Null
         }
     }
 

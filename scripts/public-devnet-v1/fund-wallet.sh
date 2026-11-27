@@ -29,11 +29,11 @@ Options:
   --rpc HOST:PORT             mfnd JSON-RPC address (default: HUB_RPC from devnet-ports.env)
   --faucet-wallet FILE        funded operator wallet used as sender (required outside --plan-only)
   --recipient-wallet FILE     participant wallet to create/reuse (default: permanence-demo/uploader.json)
-  --amount N                  amount to send in atomic units (default: 1000000)
+  --amount N                  atomic units in each recipient coin (default: 1000000)
   --fee N                     transfer fee in atomic units (default: 10000)
   --ring-size N               CLSAG ring size (default: 16)
   --wait-mined-seconds N      wait for recipient balance delta (default: 180; 0 disables wait)
-  --min-owned-count N         F7 privacy floor: send until recipient owns >= N UTXOs (default: 2; 0 disables)
+  --min-owned-count N         F7 floor: one send uses --outputs N so the recipient gets N coins (default: 2; 0 disables; max 8)
   --no-build                  use existing target/release/mfn-cli
   --plan-only                 print resolved flow without requiring binaries or faucet wallet
 EOF
@@ -342,6 +342,25 @@ record_after_faucet_send() {
   TIP_AFTER_FAUCET_SEND="$(tip_height_text "$MFN_CLI" "$RPC_ADDR")"
 }
 
+# Coins this send should create. --amount is one coin; the CLI splits
+# (amount * outputs) across --outputs so a fresh wallet clears the F7
+# floor in one transaction instead of two spends that drain the faucet.
+outputs_for_floor() {
+  local owned="$1"
+  local need=1
+  if (( MIN_OWNED_COUNT > owned )); then
+    need=$(( MIN_OWNED_COUNT - owned ))
+  fi
+  if (( need < 1 )); then
+    need=1
+  fi
+  if (( need > 8 )); then
+    echo "fund-wallet: --outputs is capped at 8 (${need} coins still short)" >&2
+    need=8
+  fi
+  printf '%s\n' "$need"
+}
+
 RECIPIENT="${RECIPIENT_WALLET:-$DEFAULT_RECIPIENT_WALLET}"
 
 if (( PLAN_ONLY )); then
@@ -352,7 +371,7 @@ if (( PLAN_ONLY )); then
   echo "  faucet_wallet=$PLAN_FAUCET"
   echo "  recipient_wallet=$RECIPIENT"
   echo "  amount=$AMOUNT fee=$FEE ring_size=$RING_SIZE wait_mined_seconds=$WAIT_MINED_SECONDS min_owned_count=$MIN_OWNED_COUNT"
-  echo "  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet light-scan/scan/balance -> wallet address -> faucet wallet send --json -> recipient light-scan --reset-trusted-summary -> wait for balance delta -> optional F7 top-up sends until owned_count >= min_owned_count"
+  echo "  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet light-scan/scan/balance -> wallet address -> faucet wallet send --outputs N --json (one tx, N coins of --amount) -> recipient light-scan --reset-trusted-summary -> wait for balance delta -> one more --outputs send only if owned_count is still below min_owned_count"
   echo "  note=B-29: balance waits recover from WS trusted-vs-checkpoint tip mismatch via light-scan --reset-trusted-summary (Nightly path; not JOIN/fund-wallet-http)"
   echo "  warning=use only public-devnet/test funds; never store real faucet seeds in this repo"
   exit 0
@@ -375,19 +394,11 @@ MFN_CLI="$(resolve_mfn_cli)"
 
 ensure_wallet "$MFN_CLI" "$RECIPIENT" recipient
 STARTING_BALANCE="$(get_wallet_balance "$MFN_CLI" "$RPC_ADDR" "$RECIPIENT" recipient)"
-TARGET_BALANCE=$(( STARTING_BALANCE + AMOUNT ))
-if (( TARGET_BALANCE < STARTING_BALANCE )); then
-  echo "fund-wallet: recipient balance target overflow" >&2
-  exit 1
-fi
-echo "fund-wallet: recipient_starting_balance=$STARTING_BALANCE target_balance=$TARGET_BALANCE"
+STARTING_OWNED="$(get_wallet_owned_count "$MFN_CLI" "$RPC_ADDR" "$RECIPIENT" recipient)"
+echo "fund-wallet: recipient_starting_balance=$STARTING_BALANCE owned_count=$STARTING_OWNED"
 
 FAUCET_BALANCE="$(get_wallet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" faucet)"
 echo "fund-wallet: faucet_balance=$FAUCET_BALANCE"
-if (( FAUCET_BALANCE < AMOUNT + FEE )); then
-  echo "fund-wallet: faucet balance $FAUCET_BALANCE is below required $(( AMOUNT + FEE )); mine/scan the faucet wallet or choose a funded faucet" >&2
-  exit 1
-fi
 
 ADDR_OUT="$(run_checked "recipient wallet address" "$MFN_CLI" --wallet "$RECIPIENT" wallet address)"
 VIEW_HEX="$(parse_field "$ADDR_OUT" view_pub_hex)"
@@ -395,26 +406,42 @@ SPEND_HEX="$(parse_field "$ADDR_OUT" spend_pub_hex)"
 
 send_fund_transfer() {
   local balance_before="$1"
-  local balance_target="$2"
+  local outputs="$2"
+  if (( outputs < 1 || outputs > 8 )); then
+    echo "fund-wallet: --outputs $outputs is outside 1-8" >&2
+    exit 1
+  fi
+  local send_total=$(( AMOUNT * outputs ))
+  if (( send_total / outputs != AMOUNT )); then
+    echo "fund-wallet: amount * outputs overflow" >&2
+    exit 1
+  fi
+  local balance_target=$(( balance_before + send_total ))
+  if (( balance_target < balance_before )); then
+    echo "fund-wallet: recipient balance target overflow" >&2
+    exit 1
+  fi
   prepare_before_faucet_send
   FAUCET_BALANCE="$(get_wallet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" faucet)"
-  if (( FAUCET_BALANCE < AMOUNT + FEE )); then
-    echo "fund-wallet: faucet balance $FAUCET_BALANCE is below required $(( AMOUNT + FEE )); mine/scan the faucet wallet or choose a funded faucet" >&2
+  if (( FAUCET_BALANCE < send_total + FEE )); then
+    echo "fund-wallet: faucet balance $FAUCET_BALANCE is below required $(( send_total + FEE )); mine/scan the faucet wallet or choose a funded faucet" >&2
     exit 1
   fi
   local send_out tx_id mempool_len outcome
-  send_out="$(run_checked "faucet wallet send" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$FAUCET_WALLET" wallet send "$VIEW_HEX" "$SPEND_HEX" "$AMOUNT" --fee "$FEE" --ring-size "$RING_SIZE" --json)"
+  send_out="$(run_checked "faucet wallet send" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$FAUCET_WALLET" wallet send "$VIEW_HEX" "$SPEND_HEX" "$send_total" --outputs "$outputs" --fee "$FEE" --ring-size "$RING_SIZE" --json)"
   tx_id="$(json_field "$send_out" tx_id)"
   mempool_len="$(json_field "$send_out" mempool_len)"
   outcome="$(json_field "$send_out" outcome)"
-  echo "fund-wallet: submitted tx_id=$tx_id mempool_len=$mempool_len outcome=$outcome recipient_wallet=$RECIPIENT"
-  echo "fund-wallet: wait_for_mining=$WAIT_MINED_SECONDS"
+  echo "fund-wallet: submitted tx_id=$tx_id mempool_len=$mempool_len outcome=$outcome outputs=$outputs amount_total=$send_total per_output=$AMOUNT recipient_wallet=$RECIPIENT"
+  echo "fund-wallet: wait_for_mining=$WAIT_MINED_SECONDS target_balance=$balance_target"
   wait_recipient_balance "$MFN_CLI" "$RPC_ADDR" "$RECIPIENT" "$balance_before" "$balance_target" "$WAIT_MINED_SECONDS"
   record_after_faucet_send
   printf '%s\n' "$tx_id"
 }
 
-TX_ID="$(send_fund_transfer "$STARTING_BALANCE" "$TARGET_BALANCE")"
+FIRST_OUTPUTS="$(outputs_for_floor "$STARTING_OWNED")"
+echo "fund-wallet: first_send outputs=$FIRST_OUTPUTS per_output=$AMOUNT"
+TX_ID="$(send_fund_transfer "$STARTING_BALANCE" "$FIRST_OUTPUTS")"
 
 if (( MIN_OWNED_COUNT > 0 )); then
   while true; do
@@ -424,13 +451,9 @@ if (( MIN_OWNED_COUNT > 0 )); then
       break
     fi
     BALANCE_BEFORE="$(get_wallet_balance "$MFN_CLI" "$RPC_ADDR" "$RECIPIENT" recipient)"
-    BALANCE_TARGET=$(( BALANCE_BEFORE + AMOUNT ))
-    if (( BALANCE_TARGET < BALANCE_BEFORE )); then
-      echo "fund-wallet: recipient balance target overflow during F7 top-up" >&2
-      exit 1
-    fi
-    echo "fund-wallet: F7 top-up send (owned_count=$OWNED_COUNT < $MIN_OWNED_COUNT)"
-    send_fund_transfer "$BALANCE_BEFORE" "$BALANCE_TARGET" >/dev/null
+    TOPUP_OUTPUTS="$(outputs_for_floor "$OWNED_COUNT")"
+    echo "fund-wallet: F7 top-up send outputs=$TOPUP_OUTPUTS (owned_count=$OWNED_COUNT < $MIN_OWNED_COUNT)"
+    send_fund_transfer "$BALANCE_BEFORE" "$TOPUP_OUTPUTS" >/dev/null
   done
 fi
 
