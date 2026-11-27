@@ -1,0 +1,21 @@
+[Unit]
+Description=Permawrite public-devnet auto-deploy of origin/main
+After=network-online.target
+Wants=network-online.target
+# Does not depend on mfnd or faucet. The script restarts them only after a good build.
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/permawrite
+Environment=MFN_REPO_ROOT=/root/permawrite
+Environment=CARGO_BUILD_JOBS=2
+Environment=MFN_DEPLOY_STATE_DIR=/var/lib/pfpchain-deploy
+Environment=MFN_DEPLOY_MIN_FREE_MIB=1536
+ExecStart=/bin/bash /root/permawrite/scripts/public-devnet-v1/vps-auto-deploy.sh --apply
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user.target

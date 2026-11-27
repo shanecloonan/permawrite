@@ -309,6 +309,17 @@ if ($vpsRecoverPlan -notmatch "vps-recover-validators-rehearsal-smoke: PASS plan
     $vpsRecoverPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$vpsAutoPlan = (bash scripts/public-devnet-v1/vps-auto-deploy-rehearsal-smoke.sh --plan-only) -join "`n"
+if ($vpsAutoPlan -notmatch "vps-auto-deploy-rehearsal-smoke: PASS plan-only") {
+    $vpsAutoPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+if (Get-Command shellcheck -ErrorAction SilentlyContinue) {
+    bash scripts/shellcheck-ci.sh
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+} else {
+    Write-Host "ci-check: shellcheck not installed; GitHub CI installs it and runs scripts/shellcheck-ci.sh"
+}
 $vpsPrebuildReadyPlan = (bash scripts/public-devnet-v1/vps-prebuild-roll-ready-rehearsal-smoke.sh --plan-only) -join "`n"
 if ($vpsPrebuildReadyPlan -notmatch "vps-prebuild-roll-ready-rehearsal-smoke: PASS plan-only") {
     $vpsPrebuildReadyPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

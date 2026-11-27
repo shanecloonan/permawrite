@@ -69,6 +69,12 @@ export PERMAWRITE_RELEASE_SCHEMA_PYTHON="$schema_python"
 for script in scripts/*.sh scripts/public-devnet-v1/*.sh; do
   bash -n "$script"
 done
+if command -v shellcheck >/dev/null 2>&1; then
+  echo "==> shellcheck"
+  bash scripts/shellcheck-ci.sh
+else
+  echo "ci-check: shellcheck not installed; GitHub CI installs it and runs scripts/shellcheck-ci.sh"
+fi
 bash scripts/public-devnet-v1/vps-bind-lib-smoke.sh
 http_plan="$(bash scripts/public-devnet-v1/recovery-walkthrough.sh --plan-only --rpc 127.0.0.1:18731 --wallet ./alice.json --commit ababab --peer 127.0.0.1:18780 --expected-sha256 cdcd --prove)"
 if [[ "$http_plan" != *"restore_mode=http"* || "$http_plan" != *"optional sha256 verify"* || "$http_plan" != *"only proves when --prove is set"* ]]; then
@@ -205,6 +211,8 @@ vps_roll_mfnd_plan="$(bash scripts/public-devnet-v1/vps-roll-mfnd-rehearsal-smok
 [[ "$vps_roll_mfnd_plan" == *"vps-roll-mfnd-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_roll_mfnd_plan" >&2; exit 1; }
 vps_recover_plan="$(bash scripts/public-devnet-v1/vps-recover-validators-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_recover_plan" == *"vps-recover-validators-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_recover_plan" >&2; exit 1; }
+vps_auto_plan="$(bash scripts/public-devnet-v1/vps-auto-deploy-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_auto_plan" == *"vps-auto-deploy-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_auto_plan" >&2; exit 1; }
 vps_prebuild_ready_plan="$(bash scripts/public-devnet-v1/vps-prebuild-roll-ready-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_prebuild_ready_plan" == *"vps-prebuild-roll-ready-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_prebuild_ready_plan" >&2; exit 1; }
 boot_ckpt_plan="$(bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log-rehearsal-smoke.sh --plan-only)"

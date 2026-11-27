@@ -1,0 +1,13 @@
+[Unit]
+Description=Permawrite public-devnet auto-deploy timer (every 15 min)
+# Persistent is off so enabling the timer does not immediately restart the chain.
+
+[Timer]
+OnCalendar=*-*-* *:00/15:00
+AccuracySec=1min
+Persistent=false
+RandomizedDelaySec=30
+Unit=pfpchain-auto-deploy.service
+
+[Install]
+WantedBy=timers.target

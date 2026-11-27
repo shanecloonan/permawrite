@@ -171,7 +171,17 @@ jobs:
           [[ "$fa_plan" == *"vps-rollout-fa: PASS plan-only"* ]] || { echo "$fa_plan"; exit 1; }
           vps_recover_plan="$(bash scripts/public-devnet-v1/vps-recover-validators-rehearsal-smoke.sh --plan-only)"
           [[ "$vps_recover_plan" == *"vps-recover-validators-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_recover_plan"; exit 1; }
+          vps_auto_plan="$(bash scripts/public-devnet-v1/vps-auto-deploy-rehearsal-smoke.sh --plan-only)"
+          [[ "$vps_auto_plan" == *"vps-auto-deploy-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_auto_plan"; exit 1; }
           [[ "$fa_plan" == *"3dcb6ad8bb23c58e22aa69cacd1fad850b598e86d17d8e153a5081a3bba91c13"* ]] || { echo "$fa_plan"; exit 1; }
+      - name: shellcheck auto-deploy scripts
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y shellcheck
+          bash scripts/shellcheck-ci.sh
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash

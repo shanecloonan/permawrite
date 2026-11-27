@@ -1,0 +1,6 @@
+# Scripts that GitHub CI shellchecks. One repo-relative path per line.
+scripts/shellcheck-ci.sh
+scripts/public-devnet-v1/vps-auto-deploy.sh
+scripts/public-devnet-v1/vps-auto-deploy-lib.sh
+scripts/public-devnet-v1/vps-install-auto-deploy.sh
+scripts/public-devnet-v1/vps-auto-deploy-rehearsal-smoke.sh
