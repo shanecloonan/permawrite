@@ -109,6 +109,10 @@ Send money privately.
 100000000 atomic units is 1 MFN. A bare whole number is atomic units.
 The wallet needs two coins before it will spend (a faucet sends two).
 Pass --outputs 2 to pay the same address as two coins in one transaction.
+The amount is split across those outputs (the first output keeps any remainder).
+
+  mfn-cli --wallet faucet.json wallet send mfADDRESS 10000000 --outputs 2
+
 The ring size defaults to 16. A smaller ring is refused, not quietly used.
 Do not add --extra. A note on a payment makes it stand out.
 

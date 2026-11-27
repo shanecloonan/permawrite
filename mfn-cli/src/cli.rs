@@ -584,6 +584,90 @@ mod tests {
     }
 
     #[test]
+    fn parse_wallet_send_outputs_splits_one_payment() {
+        let view = "11".repeat(32);
+        let spend = "22".repeat(32);
+        let p = parse_args(&[
+            "--wallet".into(),
+            "alice.json".into(),
+            "wallet".into(),
+            "send".into(),
+            "--outputs".into(),
+            "2".into(),
+            view.clone(),
+            spend.clone(),
+            "1000".into(),
+            "--fee".into(),
+            "10".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Send(params),
+                ..
+            } => {
+                assert_eq!(params.to_view_hex, view);
+                assert_eq!(params.to_spend_hex, spend);
+                assert_eq!(params.amount, 1000);
+                assert_eq!(params.outputs, 2);
+                assert_eq!(params.fee, 10);
+            }
+            _ => panic!("expected wallet send"),
+        }
+
+        let after = parse_args(&[
+            "wallet".into(),
+            "send".into(),
+            view,
+            spend,
+            "1000".into(),
+            "--outputs".into(),
+            "8".into(),
+        ])
+        .unwrap();
+        match after.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Send(params),
+                ..
+            } => assert_eq!(params.outputs, 8),
+            _ => panic!("expected wallet send"),
+        }
+
+        for bad in ["0", "9", "256"] {
+            let err = parse_args(&[
+                "wallet".into(),
+                "send".into(),
+                "11".repeat(32),
+                "22".repeat(32),
+                "1000".into(),
+                "--outputs".into(),
+                bad.into(),
+            ])
+            .expect_err("outputs out of range");
+            let msg = err.to_string();
+            assert!(
+                msg.contains("--outputs must be an integer from 1 to 8"),
+                "flag must reach wallet send, got {msg}"
+            );
+            assert!(
+                !msg.contains("unknown option"),
+                "top-level parser must not reject --outputs, got {msg}"
+            );
+        }
+
+        let missing = parse_args(&[
+            "wallet".into(),
+            "send".into(),
+            "11".repeat(32),
+            "22".repeat(32),
+            "1000".into(),
+            "--outputs".into(),
+        ])
+        .expect_err("missing value");
+        assert!(missing.to_string().contains("--outputs requires a value"));
+    }
+
+    #[test]
     fn parse_wallet_send_coin_amount_and_keeps_bare_integers_atomic() {
         let view = "11".repeat(32);
         let spend = "22".repeat(32);

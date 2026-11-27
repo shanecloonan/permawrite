@@ -29,6 +29,9 @@ spend_pub_hex=...
 ```bash
 mfn-cli wallet send mf... 1000000
 mfn-cli wallet send <VIEW_PUB_HEX> <SPEND_PUB_HEX> 1000000
+mfn-cli wallet send mf... 10000000 --outputs 2
 ```
+
+`--outputs N` (1–8, default 1) splits the amount into N coins for that same address. The public faucet uses `2` so one transaction meets the F7 two-UTXO floor.
 
 Use `mf...` when testing, sharing support records, or onboarding users. Use raw keys when publishing a mainnet receive address and you want less prefix-based scraping surface.
