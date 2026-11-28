@@ -14,7 +14,8 @@ use crate::frame::{
 };
 use crate::fraud_proof_v1::{FraudProofV1, FRAUD_PROOF_V1_TAG};
 use crate::gossip::{
-    recv_gossip_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
+    recv_gossip_v1, send_gossip_end_v1, FanoutPeerSet, GossipHandler, GossipRecvError,
+    GossipRecvStats,
 };
 use crate::light_follow::{
     GetLightFollowV1, LightFollowProvider, GET_LIGHT_FOLLOW_V1_TAG, LIGHT_FOLLOW_V1_TAG,
@@ -361,6 +362,29 @@ pub fn pull_blocks_to_tip<S: Read + Write>(
     Ok(stats)
 }
 
+/// Answer `ProposalV1` on the same stream: the vote frame, or a GossipEnd (`0x08`)
+/// frame when this process will not vote (observer, self, or a rejecting voter).
+fn write_proposal_reply<W: Write>(
+    w: &mut W,
+    production: Option<&dyn ProductionHandler>,
+    proposal_wire: &[u8],
+) -> Result<(), PostHandshakeError> {
+    let vote = if let Some(handler) = production {
+        let _ = handler.on_proposal_v1(proposal_wire);
+        handler.proposal_vote_reply_v1(proposal_wire)
+    } else {
+        None
+    };
+    if let Some(reply) = vote {
+        write_frame_io(w, &reply)?;
+    } else {
+        send_gossip_end_v1(w).map_err(PostHandshakeError::Write)?;
+    }
+    w.flush()
+        .map_err(|e| PostHandshakeError::Write(FrameWriteError::Io(e)))?;
+    Ok(())
+}
+
 /// Read post-handshake frames until the peer closes or sends gossip.
 ///
 /// Handles zero or more [`GetBlocksByHeightV1`] requests (each answered with [`BlocksV1`]),
@@ -382,6 +406,20 @@ pub fn serve_post_handshake_v1(
             Ok(p) => p,
             Err(FrameReadError::Io(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
                 return Ok(None);
+            }
+            // `set_read_timeout(P2P_GOSSIP_IO_TIMEOUT)` fires on an idle session
+            // (Linux: os error 11). That is not a dead peer: a 30s slot outlasts
+            // the 10s gossip timeout, and tearing the socket down forced the next
+            // proposal onto a fresh dial. Keep reading.
+            Err(FrameReadError::Io(e))
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::WouldBlock
+                        | std::io::ErrorKind::TimedOut
+                        | std::io::ErrorKind::Interrupted
+                ) =>
+            {
+                continue;
             }
             Err(e) => return Err(e.into()),
         };
@@ -466,19 +504,25 @@ pub fn serve_post_handshake_v1(
                 advertised_peer = Some(addr.to_string());
             }
             PROPOSAL_V1_TAG => {
-                if let Some(h) = production {
-                    let _ = h.on_proposal_v1(&payload[1..]);
-                    if let Some(reply) = h.proposal_vote_reply_v1(&payload[1..]) {
-                        write_frame_io(stream, &reply).map_err(PostHandshakeError::Write)?;
-                        stream
-                            .flush()
-                            .map_err(|e| PostHandshakeError::Write(FrameWriteError::Io(e)))?;
-                    }
-                }
+                // Always answer. A missing vote used to leave the sender blocked for
+                // `P2P_GOSSIP_IO_TIMEOUT` (the observer, and any voter that rejects).
+                // `read_vote_v1_reply` already treats GossipEnd (`0x08`) as "no vote".
+                // An old sender does the same; an old receiver that stays silent still
+                // costs the sender one timeout during a rolling deploy.
+                write_proposal_reply(stream, production, &payload[1..])?;
             }
             VOTE_V1_TAG => {
                 if let Some(h) = production {
-                    let _ = h.on_vote_v1(&payload[1..]);
+                    let label = h.on_vote_v1(&payload[1..]);
+                    // This socket is an existing session. The fan-out wrote the
+                    // proposal here and did not read; the reply (or a later
+                    // vote on the same connection) arrives on this loop.
+                    let who = advertised_peer.as_deref().unwrap_or(peer);
+                    println!("mfnd_p2p_proposal_vote_push peer={who} session=1 {label}");
+                    let _ = std::io::Write::flush(&mut std::io::stdout());
+                    if let Some(ps) = fanout_peers {
+                        ps.note_peer_success(who);
+                    }
                 }
             }
             tag if matches!(
@@ -1030,5 +1074,68 @@ mod tests {
             }
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    use crate::production::{ProductionHandler, VOTE_V1_TAG};
+
+    struct ReplyHandler {
+        vote: Option<Vec<u8>>,
+        saw_proposal: std::sync::atomic::AtomicBool,
+    }
+
+    impl ProductionHandler for ReplyHandler {
+        fn on_proposal_v1(&self, _proposal_wire: &[u8]) -> String {
+            self.saw_proposal
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            "accepted".into()
+        }
+
+        fn proposal_vote_reply_v1(&self, _proposal_wire: &[u8]) -> Option<Vec<u8>> {
+            self.vote.clone()
+        }
+
+        fn on_vote_v1(&self, _vote_wire: &[u8]) -> String {
+            "accepted".into()
+        }
+    }
+
+    fn framed_reply(bytes: &[u8]) -> Option<Vec<u8>> {
+        let mut cursor = Cursor::new(bytes.to_vec());
+        crate::production::read_vote_v1_reply(&mut cursor).expect("reply frame")
+    }
+
+    #[test]
+    fn proposal_reply_writes_vote_when_the_peer_votes() {
+        let handler = ReplyHandler {
+            vote: Some(vec![VOTE_V1_TAG, 0x11, 0x22]),
+            saw_proposal: std::sync::atomic::AtomicBool::new(false),
+        };
+        let mut buf = Vec::new();
+        write_proposal_reply(&mut buf, Some(&handler), b"proposal").expect("reply");
+        assert!(handler
+            .saw_proposal
+            .load(std::sync::atomic::Ordering::Relaxed));
+        assert_eq!(framed_reply(&buf), Some(vec![0x11, 0x22]));
+    }
+
+    #[test]
+    fn proposal_reply_writes_gossip_end_when_the_peer_will_not_vote() {
+        let handler = ReplyHandler {
+            vote: None,
+            saw_proposal: std::sync::atomic::AtomicBool::new(false),
+        };
+        let mut buf = Vec::new();
+        write_proposal_reply(&mut buf, Some(&handler), b"proposal").expect("reply");
+        assert!(handler
+            .saw_proposal
+            .load(std::sync::atomic::Ordering::Relaxed));
+        assert_eq!(framed_reply(&buf), None);
+    }
+
+    #[test]
+    fn proposal_reply_writes_gossip_end_for_a_non_voter() {
+        let mut buf = Vec::new();
+        write_proposal_reply(&mut buf, None, b"proposal").expect("observer reply");
+        assert_eq!(framed_reply(&buf), None);
     }
 }

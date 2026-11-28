@@ -21,6 +21,14 @@ pub trait ProductionHandler: Send + Sync {
     fn proposal_vote_reply_v1(&self, _proposal_wire: &[u8]) -> Option<Vec<u8>> {
         None
     }
+    /// `false` once this node has sealed the proposal it is fanning out.
+    ///
+    /// The sender then stops dialing the remaining peers. Later votes would be
+    /// rejected (`no pending proposal`) and a silent peer would otherwise hold
+    /// the fan-out for [`crate::gossip::P2P_GOSSIP_IO_TIMEOUT`].
+    fn proposal_fanout_still_open(&self) -> bool {
+        true
+    }
     /// Handle a `VoteV1` payload; return a short outcome label for stdout.
     fn on_vote_v1(&self, vote_wire: &[u8]) -> String;
 }

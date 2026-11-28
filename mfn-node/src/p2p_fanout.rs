@@ -1,8 +1,9 @@
 //! Mempool tx fan-out and persistent peer registry (**M2.3.20**, **M2.3.22**).
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::TcpStream;
+use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::Duration;
@@ -11,10 +12,10 @@ use mfn_consensus::{decode_transaction, tx_id, StorageCommitment};
 use mfn_net::{
     push_block_gossip_to_peer, push_chunks_gossip_to_peer, push_fraud_proof_gossip_to_peer,
     push_proposal_v1_to_peer, push_tx_gossip_to_peer, push_tx_stem_gossip_to_peer,
-    push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1, send_chunk_v2, send_fraud_proof_v1,
-    send_gossip_end_v1, send_proposal_v1, send_vote_v1, spawn_catch_up_dial, spawn_outbound_dial,
-    BlockSyncApplierHook, BlockSyncHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter,
-    OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot, P2P_GOSSIP_IO_TIMEOUT,
+    push_vote_v1_to_peer, send_block_v1, send_chunk_v2, send_fraud_proof_v1, send_gossip_end_v1,
+    send_proposal_v1, send_vote_v1, spawn_catch_up_dial, spawn_outbound_dial, BlockSyncApplierHook,
+    BlockSyncHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial,
+    P2pSessionHooks, ProductionHook, TipSnapshot, P2P_GOSSIP_IO_TIMEOUT,
 };
 use mfn_runtime::Chain;
 use mfn_store::{
@@ -54,6 +55,11 @@ pub struct P2pPeerSet {
     chain: Arc<Mutex<Chain>>,
     dandelion: Arc<Mutex<DandelionRelay>>,
     self_arc: Weak<Self>,
+    /// This node's P2P listen address. Production fan-out must not dial it:
+    /// `peers.json` on the public hub includes `127.0.0.1:19101`.
+    local_p2p_listen: Arc<Mutex<Option<SocketAddr>>>,
+    /// Times `fanout_proposal` / `fanout_proposal_sync` actually started a send.
+    proposal_fanouts: Arc<AtomicU64>,
 }
 
 impl P2pPeerSet {
@@ -113,6 +119,8 @@ impl P2pPeerSet {
                 genesis_id,
             ))),
             self_arc: weak.clone(),
+            local_p2p_listen: Arc::new(Mutex::new(None)),
+            proposal_fanouts: Arc::new(AtomicU64::new(0)),
         });
         if dandelion_on {
             peer_set.spawn_dandelion_embargo();
@@ -539,10 +547,44 @@ impl P2pPeerSet {
         self.snapshot_tx_fanout_peers_except(except_peer)
     }
 
+    /// Remember the address this process listens on so production fan-out skips it.
+    ///
+    /// Reconnect and catch-up already skip self (`mfnd_p2p_self_dial_skip`). The
+    /// production snapshot did not, so the hub dialed `127.0.0.1:19101` from its
+    /// own `peers.json` and waited out `P2P_GOSSIP_IO_TIMEOUT`.
+    pub fn set_local_p2p_listen(&self, addr: SocketAddr) {
+        if let Ok(mut guard) = self.local_p2p_listen.lock() {
+            *guard = Some(addr);
+        }
+    }
+
+    /// How many proposal fan-outs have started a send (including a refused dial).
+    pub fn proposal_fanout_attempts(&self) -> u64 {
+        self.proposal_fanouts.load(Ordering::Relaxed)
+    }
+
+    fn local_listen(&self) -> Option<SocketAddr> {
+        self.local_p2p_listen.lock().ok().and_then(|guard| *guard)
+    }
+
+    /// `true` when `peer` must not be dialed for a proposal, vote, or sealed block.
+    fn exclude_production_fanout_peer(&self, peer: &str, except_peer: Option<&str>) -> bool {
+        if except_peer.is_some_and(|ex| ex == peer) {
+            return true;
+        }
+        if is_self_peer_addr(peer, self.local_listen()) {
+            println!("mfnd_p2p_self_dial_skip peer={peer}");
+            let _ = std::io::Write::flush(&mut std::io::stdout());
+            return true;
+        }
+        false
+    }
+
     /// Committee/boot peers for proposal and sealed-block fan-out.
     ///
     /// Prefers persistable durable peers; always unions in-memory production dial
     /// targets (B-75) so non-persistable advertise addrs still get sealed blocks.
+    /// The local listen address is removed even when `peers.json` lists it.
     fn snapshot_production_fanout_peers_except(&self, except_peer: Option<&str>) -> Vec<String> {
         let mut peers: BTreeSet<String> = self
             .snapshot_durable_available_peers()
@@ -558,13 +600,13 @@ impl P2pPeerSet {
         let Ok(mut quarantine) = self.quarantine.lock() else {
             return peers
                 .into_iter()
-                .filter(|p| except_peer.map(|ex| ex != *p).unwrap_or(true))
+                .filter(|p| !self.exclude_production_fanout_peer(p, except_peer))
                 .collect();
         };
         peers
             .into_iter()
             .filter(|p| !quarantine.is_quarantined(p))
-            .filter(|p| except_peer.map(|ex| ex != *p).unwrap_or(true))
+            .filter(|p| !self.exclude_production_fanout_peer(p, except_peer))
             .collect()
     }
 
@@ -648,26 +690,34 @@ impl P2pPeerSet {
         let genesis_id = self.genesis_id;
         let local = self.local_tip();
         for peer in peers {
-            let vote_body = if let Some(vote) =
-                self.push_proposal_collect_vote_on_session(peer, proposal_wire)
+            if production
+                .as_ref()
+                .is_some_and(|hook| !hook.proposal_fanout_still_open())
             {
-                Some(vote)
-            } else {
-                match push_proposal_v1_to_peer(peer, &genesis_id, &local, proposal_wire) {
-                    Ok(vote) => vote,
-                    Err(e) => {
-                        self.note_peer_failure(peer, &e.to_string());
-                        None
+                println!("mfnd_p2p_proposal_fanout_quorum_stop");
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+                break;
+            }
+            if self.push_proposal_on_live_session(peer, proposal_wire) {
+                // The serve loop is already reading this connection. A second
+                // read races it and sits for `P2P_GOSSIP_IO_TIMEOUT` even when
+                // the vote was ingested. The loop logs `session=1` when the
+                // vote arrives. Do not open a second dial.
+                println!("mfnd_p2p_proposal_on_session peer={peer}");
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+                continue;
+            }
+            match push_proposal_v1_to_peer(peer, &genesis_id, &local, proposal_wire) {
+                Ok(Some(vote_body)) => {
+                    self.note_peer_success(peer);
+                    if let Some(h) = production.as_ref() {
+                        let label = h.on_vote_v1(&vote_body);
+                        println!("mfnd_p2p_proposal_vote_push peer={peer} session=0 {label}");
+                        let _ = std::io::Write::flush(&mut std::io::stdout());
                     }
                 }
-            };
-            if let Some(vote_body) = vote_body {
-                self.note_peer_success(peer);
-                if let Some(h) = production.as_ref() {
-                    let label = h.on_vote_v1(&vote_body);
-                    println!("mfnd_p2p_proposal_vote_push peer={peer} {label}");
-                    let _ = std::io::Write::flush(&mut std::io::stdout());
-                }
+                Ok(None) => {}
+                Err(e) => self.note_peer_failure(peer, &e.to_string()),
             }
         }
     }
@@ -678,6 +728,7 @@ impl P2pPeerSet {
         if peers.is_empty() {
             return;
         }
+        self.proposal_fanouts.fetch_add(1, Ordering::Relaxed);
         let _guard = match self.fanout_lock.lock() {
             Ok(g) => g,
             Err(_) => return,
@@ -692,6 +743,7 @@ impl P2pPeerSet {
         if peers.is_empty() {
             return;
         }
+        self.proposal_fanouts.fetch_add(1, Ordering::Relaxed);
         let wire = proposal_wire.to_vec();
         let lock = Arc::clone(&self.fanout_lock);
         let peer_set = Arc::clone(self);
@@ -708,18 +760,33 @@ impl P2pPeerSet {
             .ok();
     }
 
-    /// Send `ProposalV1` on a live session and read an optional `VoteV1` reply (**M2.3.30**).
-    fn push_proposal_collect_vote_on_session(
-        &self,
-        peer: &str,
-        proposal_wire: &[u8],
-    ) -> Option<Vec<u8>> {
-        let guard = self.sessions.lock().ok()?;
-        let sock = guard.get(peer).cloned()?;
+    /// Write `ProposalV1` on a live session.
+    ///
+    /// Returns false when there is no session or the write cannot start, so
+    /// the caller dials a fresh connection and reads the reply itself
+    /// (`session=0`). The existing serve loop is the only reader on a live
+    /// session: the socket clone shares the TCP byte stream, and a second
+    /// read loses the vote to that loop, then blocks until the gossip timeout.
+    fn push_proposal_on_live_session(&self, peer: &str, proposal_wire: &[u8]) -> bool {
+        let guard = match self.sessions.lock() {
+            Ok(g) => g,
+            Err(_) => return false,
+        };
+        let Some(sock) = guard.get(peer).cloned() else {
+            return false;
+        };
         drop(guard);
-        let mut sock = sock.try_lock().ok()?;
-        send_proposal_v1(&mut *sock, proposal_wire).ok()?;
-        read_vote_v1_reply(&mut *sock).ok().flatten()
+        let Ok(mut sock) = sock.try_lock() else {
+            return false;
+        };
+        if send_proposal_v1(&mut *sock, proposal_wire).is_ok() {
+            return true;
+        }
+        // The map can outlive the reader (the advertised key is not the
+        // unregister guard's peer). Drop it so the next attempt dials fresh.
+        drop(sock);
+        self.unregister_session(peer);
+        false
     }
 
     /// Push `vote_wire` to every registered peer except `except_peer` (**M2.3.23**).
@@ -2094,6 +2161,50 @@ mod tests {
         let (loaded, max_outbound) = mfn_store::load_peers(&dir).expect("load peers");
         assert!(loaded.contains(&recovered_seed));
         assert_eq!(max_outbound, 4);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn production_fanout_drops_local_listen_addr() {
+        let dir = temp_dir("production_fanout_skip_self");
+        let listen: std::net::SocketAddr = "127.0.0.1:19101".parse().unwrap();
+        let voter = "127.0.0.1:19102".to_string();
+        let observer = "127.0.0.1:19104".to_string();
+        let mut peers = BTreeSet::new();
+        peers.insert(listen.to_string());
+        peers.insert(voter.clone());
+        peers.insert(observer.clone());
+        save_peers(&dir, &peers, 8).expect("save peers");
+
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
+        );
+
+        let before = peer_set.snapshot_production_fanout_peers_except(None);
+        assert!(
+            before.iter().any(|p| p == "127.0.0.1:19101"),
+            "peers.json self is loaded before the listen address is known: {before:?}"
+        );
+
+        peer_set.set_local_p2p_listen(listen);
+        // Advertise of our own listen address must not put it back on the dial list.
+        peer_set.register(listen.to_string());
+        let after = peer_set.snapshot_production_fanout_peers_except(None);
+        assert!(
+            !after
+                .iter()
+                .any(|p| super::is_self_peer_addr(p, Some(listen))),
+            "production fan-out still dials self: {after:?}"
+        );
+        assert!(after.contains(&voter), "voter missing: {after:?}");
+        assert!(after.contains(&observer), "observer missing: {after:?}");
         std::fs::remove_dir_all(&dir).ok();
     }
 }

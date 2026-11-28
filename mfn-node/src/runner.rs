@@ -3,7 +3,7 @@
 use std::collections::{BTreeSet, HashSet};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use mfn_bls::CommitteeVote;
 use mfn_consensus::{
@@ -48,6 +48,24 @@ struct PendingProposal {
     votes: Vec<CommitteeVote>,
     indices: BTreeSet<usize>,
     rebroadcasts: u8,
+    /// Set only by the slot loop that built this proposal.
+    /// A copy received over P2P must not be fanned out again.
+    locally_built: bool,
+}
+
+/// Milliseconds until the next slot boundary after `elapsed_ms`.
+///
+/// The producer used to sleep a full slot after the round finished, so a round
+/// that burned the gossip timeout landed the next block a slot late. Sleeping
+/// to the boundary keeps the interval on `--slot-duration-ms`. Never returns 0,
+/// so a tick that lands exactly on a boundary waits one slot instead of spinning.
+pub(crate) fn millis_until_next_boundary(elapsed_ms: u64, slot_ms: u64) -> u64 {
+    if slot_ms == 0 {
+        return 0;
+    }
+    let periods = elapsed_ms / slot_ms;
+    let next = periods.saturating_add(1).saturating_mul(slot_ms);
+    next.saturating_sub(elapsed_ms)
 }
 
 /// Dependencies for [`ProductionEngine::new`].
@@ -407,7 +425,7 @@ impl ProductionEngine {
         Ok(())
     }
 
-    fn adopt_proposal(&self, proposal: BlockProposal) -> String {
+    fn adopt_proposal(&self, proposal: BlockProposal, locally_built: bool) -> String {
         let chain = match self.chain.lock() {
             Ok(g) => g,
             Err(_) => return "rejected:chain_mutex".into(),
@@ -431,6 +449,7 @@ impl ProductionEngine {
                                 votes: Vec::new(),
                                 indices: BTreeSet::new(),
                                 rebroadcasts: 0,
+                                locally_built,
                             });
                         }
                     }
@@ -442,12 +461,17 @@ impl ProductionEngine {
                     votes: Vec::new(),
                     indices: BTreeSet::new(),
                     rebroadcasts: 0,
+                    locally_built,
                 });
             }
         }
         // Fan out immediately so committee voters can reply on the same slot tick;
         // waiting for the next tick lets pending advance slots before votes arrive.
-        if proposal.producer_proof.validator_index == self.local.validator.index {
+        // Only the local builder does this. Matching `validator_index` is not enough:
+        // the hub's own proposal comes back on the self-dial, and re-fanning it after
+        // the block is sealed makes every peer answer "height mismatch" by staying
+        // silent for `P2P_GOSSIP_IO_TIMEOUT`.
+        if locally_built {
             let wire = encode_block_proposal(&proposal);
             self.peers.fanout_proposal_sync(&wire, None);
         }
@@ -484,6 +508,7 @@ impl ProductionEngine {
             votes: Vec::new(),
             indices: BTreeSet::new(),
             rebroadcasts: 0,
+            locally_built: false,
         });
         Ok(())
     }
@@ -526,23 +551,38 @@ impl ProductionEngine {
                     }
                     return;
                 }
+                let locally_built = pending.locally_built;
+                let header_hash = pending.proposal.header_hash;
+                let height = pending.proposal.ctx.height;
+                let slot = pending.proposal.ctx.slot;
                 let wire = encode_block_proposal(&pending.proposal);
-                self.peers.fanout_proposal_sync(&wire, None);
-                pending.rebroadcasts = pending.rebroadcasts.saturating_add(1);
-                let release_limit = if pending.votes.is_empty() {
-                    PENDING_PROPOSAL_REBROADCAST_LIMIT
-                } else {
-                    PENDING_PROPOSAL_REBROADCAST_WITH_VOTES_LIMIT
-                };
-                if pending.rebroadcasts >= release_limit {
-                    println!(
-                        "mfnd_producer_pending_released height={} slot={} votes={}",
-                        pending.proposal.ctx.height,
-                        pending.proposal.ctx.slot,
-                        pending.votes.len()
-                    );
-                    let _ = std::io::Write::flush(&mut std::io::stdout());
-                    *guard = None;
+                // Drop both locks before dialing. `ingest_vote` takes `pending`
+                // when a reply arrives; holding it across the fan-out deadlocks
+                // the slot thread, and a sealed proposal must be able to clear it.
+                drop(chain);
+                drop(guard);
+                if locally_built {
+                    self.peers.fanout_proposal_sync(&wire, None);
+                }
+                if let Ok(mut guard) = self.pending.lock() {
+                    if let Some(pending) = guard.as_mut() {
+                        if pending.proposal.header_hash == header_hash {
+                            pending.rebroadcasts = pending.rebroadcasts.saturating_add(1);
+                            let release_limit = if pending.votes.is_empty() {
+                                PENDING_PROPOSAL_REBROADCAST_LIMIT
+                            } else {
+                                PENDING_PROPOSAL_REBROADCAST_WITH_VOTES_LIMIT
+                            };
+                            if pending.rebroadcasts >= release_limit {
+                                println!(
+                                    "mfnd_producer_pending_released height={height} slot={slot} votes={}",
+                                    pending.votes.len()
+                                );
+                                let _ = std::io::Write::flush(&mut std::io::stdout());
+                                *guard = None;
+                            }
+                        }
+                    }
                 }
                 return;
             }
@@ -609,7 +649,7 @@ impl ProductionEngine {
                 proposal.ctx.height, proposal.ctx.slot
             );
             let _ = std::io::Write::flush(&mut std::io::stdout());
-            let _ = self.adopt_proposal(proposal);
+            let _ = self.adopt_proposal(proposal, true);
             adopted = true;
             break;
         }
@@ -630,7 +670,7 @@ impl ProductionHandler for ProductionEngine {
             Ok(p) => p,
             Err(e) => return format!("rejected:decode:{e}"),
         };
-        let label = self.adopt_proposal(proposal);
+        let label = self.adopt_proposal(proposal, false);
         if !label.starts_with("accepted:") {
             println!("mfnd_producer_adopt {label}");
             let _ = std::io::Write::flush(&mut std::io::stdout());
@@ -660,6 +700,13 @@ impl ProductionHandler for ProductionEngine {
         Some(frame)
     }
 
+    fn proposal_fanout_still_open(&self) -> bool {
+        self.pending
+            .lock()
+            .ok()
+            .is_some_and(|guard| guard.is_some())
+    }
+
     fn on_vote_v1(&self, vote_wire: &[u8]) -> String {
         let (header_hash, vote) = match decode_committee_vote(vote_wire) {
             Ok(v) => v,
@@ -681,9 +728,12 @@ pub fn spawn_slot_producer_loop(engine: Arc<ProductionEngine>) {
             // Wait one slot before the first tick so inbound `--p2p-dial` peers can
             // finish handshake + block-sync (M7.8 auto fan-out smokes, devnet boot).
             thread::sleep(Duration::from_millis(slot_ms));
+            let origin = Instant::now();
             loop {
                 engine.on_slot_tick();
-                thread::sleep(Duration::from_millis(slot_ms));
+                let elapsed_ms = u64::try_from(origin.elapsed().as_millis()).unwrap_or(u64::MAX);
+                let sleep_ms = millis_until_next_boundary(elapsed_ms, slot_ms);
+                thread::sleep(Duration::from_millis(sleep_ms));
             }
         })
     {
@@ -726,4 +776,19 @@ pub fn produce_config_from_env(
         secrets: ValidatorSecrets { index, vrf, bls },
         slot_duration_ms,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::millis_until_next_boundary;
+
+    #[test]
+    fn slot_sleep_lands_on_the_next_boundary() {
+        assert_eq!(millis_until_next_boundary(0, 30_000), 30_000);
+        assert_eq!(millis_until_next_boundary(2_000, 30_000), 28_000);
+        assert_eq!(millis_until_next_boundary(30_000, 30_000), 30_000);
+        assert_eq!(millis_until_next_boundary(35_000, 30_000), 25_000);
+        assert_eq!(millis_until_next_boundary(30_100, 30_000), 29_900);
+        assert_eq!(millis_until_next_boundary(1, 0), 0);
+    }
 }
