@@ -324,3 +324,160 @@ fn competing_proposals_at_same_height_converge_on_pick_winner() {
 
     std::fs::remove_dir_all(&dir).ok();
 }
+
+struct ClosedPeerEngine {
+    engine: Arc<ProductionEngine>,
+    fanout: Arc<P2pPeerSet>,
+    chain: Arc<Mutex<mfn_node::Chain>>,
+    dir: PathBuf,
+    genesis_timestamp: u64,
+    validator: mfn_consensus::Validator,
+    secrets: ValidatorSecrets,
+}
+
+/// Validator 0 plus one closed dial target, so a proposal fan-out is non-empty
+/// and fails immediately with connection refused.
+fn engine_with_closed_peer() -> ClosedPeerEngine {
+    let spec =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_three_validators.json");
+    let genesis = genesis_config_from_json_path(&spec).expect("genesis spec");
+    let cfg = ChainConfig::new(genesis.clone());
+    let dir = std::env::temp_dir().join(format!(
+        "permawrite-mv-fanout-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&dir).expect("tmpdir");
+    let store: Arc<dyn ChainPersistence + Send + Sync> = Arc::new(ChainStore::new(&dir));
+    let chain = Arc::new(Mutex::new(store.load_or_genesis(cfg).expect("genesis")));
+    let pool = Arc::new(Mutex::new(Mempool::new(MempoolConfig::default())));
+    let proof_pool = Arc::new(Mutex::new(ProofPool::new(ProofPoolConfig::default())));
+    let genesis_id = *chain.lock().unwrap().genesis_id();
+    let tip = Arc::new(Mutex::new((0u32, genesis_id)));
+    let fanout = P2pPeerSet::new(
+        genesis_id,
+        Arc::clone(&tip),
+        &dir,
+        Arc::clone(&chain),
+        mfn_node::DandelionConfig::default(),
+    );
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    let closed = listener.local_addr().expect("addr");
+    drop(listener);
+    fanout.register(closed.to_string());
+
+    let vals = chain.lock().unwrap().validators().to_vec();
+    let vrf0 = vrf_keygen_from_seed(
+        &hex_seed32(
+            "vrf0",
+            "0101010101010101010101010101010101010101010101010101010101010101",
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let bls0 = bls_keygen_from_seed(
+        &hex_seed32(
+            "bls0",
+            "6565656565656565656565656565656565656565656565656565656565656565",
+        )
+        .unwrap(),
+    );
+    let secrets = ValidatorSecrets {
+        index: 0,
+        vrf: vrf0,
+        bls: bls0,
+    };
+    let engine = ProductionEngine::new(mfn_node::ProductionEngineDeps {
+        chain: Arc::clone(&chain),
+        pool,
+        proof_pool,
+        store,
+        tip_cell: tip,
+        genesis_timestamp: genesis.timestamp,
+        local: ProduceConfig {
+            validator: vals[0].clone(),
+            secrets: secrets.clone(),
+            slot_duration_ms: 1000,
+        },
+        peers: Arc::clone(&fanout),
+    });
+    fanout.attach_production(Arc::clone(&engine) as mfn_node::network::ProductionHook);
+    ClosedPeerEngine {
+        engine,
+        fanout,
+        chain,
+        dir,
+        genesis_timestamp: genesis.timestamp,
+        validator: vals[0].clone(),
+        secrets,
+    }
+}
+
+fn height_one_proposal(harness: &ClosedPeerEngine) -> mfn_runtime::BlockProposal {
+    let payout = harness.validator.payout.as_ref().expect("payout");
+    let cb = build_coinbase(
+        1,
+        emission_at_height(1, &DEFAULT_EMISSION_PARAMS),
+        &PayoutAddress {
+            view_pub: payout.view_pub,
+            spend_pub: payout.spend_pub,
+        },
+    )
+    .expect("coinbase");
+    let inputs = BlockInputs {
+        height: 1,
+        slot: 1,
+        timestamp: harness.genesis_timestamp.saturating_add(1),
+        txs: vec![cb],
+        bond_ops: vec![],
+        slashings: vec![],
+        storage_proofs: vec![],
+        storage_operator_ops: vec![],
+    };
+    let guard = harness.chain.lock().unwrap();
+    build_proposal(
+        guard.state(),
+        &harness.validator,
+        &harness.secrets,
+        guard.state().params,
+        inputs,
+    )
+    .expect("propose")
+}
+
+#[test]
+fn received_own_proposal_is_not_fanned_out() {
+    let harness = engine_with_closed_peer();
+    let proposal = height_one_proposal(&harness);
+    let label = harness
+        .engine
+        .on_proposal_v1(&encode_block_proposal(&proposal));
+    assert_eq!(label, "accepted:height=1");
+    assert_eq!(
+        harness.fanout.proposal_fanout_attempts(),
+        0,
+        "a proposal received on the wire must not be fanned out, even when we produced it"
+    );
+    // The slot loop must not rebroadcast that network copy either.
+    harness.engine.on_slot_tick();
+    assert_eq!(
+        harness.fanout.proposal_fanout_attempts(),
+        0,
+        "rebroadcast of a received proposal must stay quiet"
+    );
+    std::fs::remove_dir_all(&harness.dir).ok();
+}
+
+#[test]
+fn locally_built_proposal_is_fanned_out() {
+    let harness = engine_with_closed_peer();
+    harness.engine.on_slot_tick();
+    assert!(
+        harness.fanout.proposal_fanout_attempts() >= 1,
+        "the slot loop must fan out the proposal it just built"
+    );
+    std::fs::remove_dir_all(&harness.dir).ok();
+}

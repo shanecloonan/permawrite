@@ -903,6 +903,11 @@ pub(crate) fn run_serve(
             Arc::clone(&chain),
             dandelion_config,
         );
+        if let Some(addr) = local_p2p_listen {
+            // Production fan-out reads peers.json, which on the public hub includes
+            // this process's own listen address. Reconnect already skips it.
+            fanout.set_local_p2p_listen(addr);
+        }
         let hook = P2pGossipHandler::new(
             Arc::clone(&chain),
             Arc::clone(&pool),
